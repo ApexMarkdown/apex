@@ -1,0 +1,41 @@
+# Build directories
+build/
+cmake-build-*/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+apex
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+*.dSYM
+
+# Test outputs
+test_results/
+*.log
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Package managers
+vendor/
+.bundle/

@@ -1,0 +1,85 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    build-macos:
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+
+            - name: Set up version
+              id: version
+              run: |
+                  VERSION=${GITHUB_REF#refs/tags/v}
+                  echo "VERSION=$VERSION" >> $GITHUB_ENV
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+            - name: Build macOS universal binary
+              env:
+                  VERSION: ${{ env.VERSION }}
+              run: |
+                  make release-macos SIGNING_IDENTITY="-"
+
+            - name: Create checksums
+              env:
+                  VERSION: ${{ env.VERSION }}
+              run: |
+                  cd release
+                  shasum -a 256 apex-${VERSION}-macos-universal.tar.gz > apex-${VERSION}-macos-universal.tar.gz.sha256
+                  cat apex-${VERSION}-macos-universal.tar.gz.sha256
+
+            - name: Upload macOS release
+              uses: softprops/action-gh-release@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  files: |
+                      release/apex-${{ env.VERSION }}-macos-universal.tar.gz
+                      release/apex-${{ env.VERSION }}-macos-universal.tar.gz.sha256
+
+    build-linux:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                arch: [amd64, arm64]
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+
+            - name: Set up version
+              id: version
+              run: |
+                  VERSION=${GITHUB_REF#refs/tags/v}
+                  echo "VERSION=$VERSION" >> $GITHUB_ENV
+                  echo "version=$VERSION" >> $GITHUB_OUTPUT
+                  echo "Version: $VERSION"
+
+            - name: Build Linux binary
+              env:
+                  VERSION: ${{ env.VERSION }}
+              run: |
+                  make release-linux
+
+            - name: Create checksums
+              env:
+                  VERSION: ${{ env.VERSION }}
+              run: |
+                  cd release
+                  sha256sum apex-${VERSION}-linux-*.tar.gz > apex-${VERSION}-linux-$$(uname -m).tar.gz.sha256
+                  cat apex-${VERSION}-linux-*.tar.gz.sha256
+
+            - name: Upload Linux release
+              uses: softprops/action-gh-release@v1
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  files: |
+                      release/apex-${{ env.VERSION }}-linux-*.tar.gz
+                      release/apex-${{ env.VERSION }}-linux-*.tar.gz.sha256
