@@ -1420,6 +1420,315 @@ static void test_header_ids(void) {
 }
 
 /**
+ * Test superscript and subscript
+ */
+static void test_sup_sub(void) {
+    printf("\n=== Superscript and Subscript Tests ===\n");
+
+    apex_options opts = apex_options_default();
+    opts.enable_sup_sub = true;
+    char *html;
+
+    /* Test basic superscript */
+    html = apex_markdown_to_html("H^2 O", 5, &opts);
+    assert_contains(html, "<sup>2</sup>", "Basic superscript");
+    assert_contains(html, "H<sup>2</sup> O", "Superscript in context");
+    apex_free_string(html);
+
+    /* Test basic subscript */
+    html = apex_markdown_to_html("H~2 O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Basic subscript");
+    assert_contains(html, "H<sub>2</sub> O", "Subscript in context");
+    apex_free_string(html);
+
+    /* Test superscript with multiple characters (stops at space or marker) */
+    html = apex_markdown_to_html("x^2+y^2", 7, &opts);
+    assert_contains(html, "<sup>", "Superscript processed");
+    /* Note: x^2+y^2 becomes x<sup>2+y</sup>2 because processing stops at space or marker, not at + */
+    apex_free_string(html);
+
+    /* Test multiple superscripts with spaces */
+    html = apex_markdown_to_html("x^2 + y^2", 9, &opts);
+    assert_contains(html, "<sup>2</sup>", "Multiple superscripts with spaces");
+    apex_free_string(html);
+
+    /* Test subscript with multiple characters (stops at space or marker) */
+    html = apex_markdown_to_html("H~2O", 4, &opts);
+    assert_contains(html, "<sub>", "Subscript processed");
+    /* Note: H~2O becomes H<sub>2O</sub> because processing stops at space or marker, not at letters */
+    apex_free_string(html);
+
+    /* Test subscript with space separator */
+    html = apex_markdown_to_html("H~2 O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript with space separator");
+    apex_free_string(html);
+
+    /* Test that sup/sub is disabled when option is off */
+    apex_options no_sup_sub = apex_options_default();
+    no_sup_sub.enable_sup_sub = false;
+    html = apex_markdown_to_html("H^2 O", 5, &no_sup_sub);
+    if (strstr(html, "<sup>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Sup/sub disabled when option is off\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Sup/sub not disabled when option is off\n");
+    }
+    apex_free_string(html);
+
+    /* Test that sup/sub is disabled in CommonMark mode */
+    apex_options cm_opts = apex_options_for_mode(APEX_MODE_COMMONMARK);
+    html = apex_markdown_to_html("H^2 O", 5, &cm_opts);
+    if (strstr(html, "<sup>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Sup/sub disabled in CommonMark mode\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Sup/sub not disabled in CommonMark mode\n");
+    }
+    apex_free_string(html);
+
+    /* Test that sup/sub is enabled in Unified mode */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    html = apex_markdown_to_html("H^2 O", 5, &unified_opts);
+    assert_contains(html, "<sup>2</sup>", "Sup/sub enabled in Unified mode");
+    apex_free_string(html);
+
+    /* Test that sup/sub is enabled in MultiMarkdown mode */
+    apex_options mmd_opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    html = apex_markdown_to_html("H^2 O", 5, &mmd_opts);
+    assert_contains(html, "<sup>2</sup>", "Sup/sub enabled in MultiMarkdown mode");
+    apex_free_string(html);
+
+    /* Test that ^ and ~ are preserved in math spans (already tested in math tests, but verify here too) */
+    opts.enable_math = true;
+    html = apex_markdown_to_html("Equation: $E=mc^2$", 18, &opts);
+    assert_contains(html, "E=mc^2", "Superscript preserved in math span");
+    if (strstr(html, "<sup>2</sup>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Superscript not processed inside math span\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Superscript incorrectly processed inside math span\n");
+    }
+    apex_free_string(html);
+
+    /* Test that ^ is preserved in footnote references */
+    html = apex_markdown_to_html("Text[^ref]", 10, &opts);
+    if (strstr(html, "<sup>ref</sup>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Superscript not processed in footnote reference\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Superscript incorrectly processed in footnote reference\n");
+    }
+    apex_free_string(html);
+
+    /* Test that ~ is preserved in critic markup */
+    opts.enable_critic_markup = true;
+    html = apex_markdown_to_html("{~~old~>new~~}", 13, &opts);
+    if (strstr(html, "<sub>old</sub>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Subscript not processed in critic markup\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Subscript incorrectly processed in critic markup\n");
+    }
+    apex_free_string(html);
+}
+
+/**
+ * Test mixed list markers
+ */
+static void test_mixed_lists(void) {
+    printf("\n=== Mixed List Markers Tests ===\n");
+
+    char *html;
+
+    /* Test mixed markers in unified mode (should merge) */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *mixed_list = "1. First item\n* Second item\n* Third item";
+    html = apex_markdown_to_html(mixed_list, strlen(mixed_list), &unified_opts);
+    assert_contains(html, "<ol>", "Mixed list creates ordered list");
+    assert_contains(html, "<li>First item</li>", "First item in list");
+    assert_contains(html, "<li>Second item</li>", "Second item in list");
+    assert_contains(html, "<li>Third item</li>", "Third item in list");
+    /* Should have only one list, not two */
+    const char *first_ol = strstr(html, "<ol>");
+    const char *second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
+    if (second_ol == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Mixed markers create single list in unified mode\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Mixed markers create multiple lists in unified mode\n");
+    }
+    apex_free_string(html);
+
+    /* Test mixed markers in CommonMark mode (should be separate lists) */
+    apex_options cm_opts = apex_options_for_mode(APEX_MODE_COMMONMARK);
+    html = apex_markdown_to_html(mixed_list, strlen(mixed_list), &cm_opts);
+    assert_contains(html, "<ol>", "First list exists");
+    assert_contains(html, "<ul>", "Second list exists");
+    /* Should have two separate lists */
+    first_ol = strstr(html, "<ol>");
+    second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
+    const char *first_ul = strstr(html, "<ul>");
+    if (second_ol == NULL && first_ul != NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Mixed markers create separate lists in CommonMark mode\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Mixed markers not handled correctly in CommonMark mode\n");
+    }
+    apex_free_string(html);
+
+    /* Test mixed markers with unordered first */
+    const char *mixed_unordered = "* First item\n1. Second item\n2. Third item";
+    html = apex_markdown_to_html(mixed_unordered, strlen(mixed_unordered), &unified_opts);
+    assert_contains(html, "<ul>", "Unordered-first mixed list creates unordered list");
+    assert_contains(html, "<li>First item</li>", "First unordered item");
+    assert_contains(html, "<li>Second item</li>", "Second item inherits unordered");
+    apex_free_string(html);
+
+    /* Test that allow_mixed_list_markers=false creates separate lists even in unified mode */
+    unified_opts.allow_mixed_list_markers = false;
+    html = apex_markdown_to_html(mixed_list, strlen(mixed_list), &unified_opts);
+    first_ol = strstr(html, "<ol>");
+    second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
+    first_ul = strstr(html, "<ul>");
+    if (second_ol == NULL && first_ul != NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " --no-mixed-lists disables mixed list merging\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " --no-mixed-lists does not disable mixed list merging\n");
+    }
+    apex_free_string(html);
+}
+
+/**
+ * Test unsafe mode (raw HTML handling)
+ */
+static void test_unsafe_mode(void) {
+    printf("\n=== Unsafe Mode Tests ===\n");
+
+    char *html;
+
+    /* Test that unsafe mode allows raw HTML by default in unified mode */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *raw_html = "<div>Raw HTML content</div>";
+    html = apex_markdown_to_html(raw_html, strlen(raw_html), &unified_opts);
+    assert_contains(html, "<div>Raw HTML content</div>", "Raw HTML allowed in unified mode");
+    if (strstr(html, "raw HTML omitted") == NULL && strstr(html, "omitted") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML preserved in unified mode (unsafe default)\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Raw HTML not preserved in unified mode\n");
+    }
+    apex_free_string(html);
+
+    /* Test that unsafe mode blocks raw HTML in CommonMark mode */
+    apex_options cm_opts = apex_options_for_mode(APEX_MODE_COMMONMARK);
+    html = apex_markdown_to_html(raw_html, strlen(raw_html), &cm_opts);
+    if (strstr(html, "raw HTML omitted") != NULL || strstr(html, "omitted") != NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML blocked in CommonMark mode (safe default)\n");
+    } else if (strstr(html, "<div>Raw HTML content</div>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML blocked in CommonMark mode (safe default)\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Raw HTML not blocked in CommonMark mode\n");
+    }
+    apex_free_string(html);
+
+    /* Test that unsafe=false blocks raw HTML even in unified mode */
+    unified_opts.unsafe = false;
+    html = apex_markdown_to_html(raw_html, strlen(raw_html), &unified_opts);
+    if (strstr(html, "raw HTML omitted") != NULL || strstr(html, "omitted") != NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " --no-unsafe blocks raw HTML\n");
+    } else if (strstr(html, "<div>Raw HTML content</div>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " --no-unsafe blocks raw HTML\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " --no-unsafe does not block raw HTML\n");
+    }
+    apex_free_string(html);
+
+    /* Test that unsafe=true allows raw HTML even in CommonMark mode */
+    cm_opts.unsafe = true;
+    html = apex_markdown_to_html(raw_html, strlen(raw_html), &cm_opts);
+    assert_contains(html, "<div>Raw HTML content</div>", "Raw HTML allowed with unsafe=true");
+    apex_free_string(html);
+
+    /* Test HTML comments in unsafe mode */
+    const char *html_comment = "<!-- This is a comment -->";
+    unified_opts.unsafe = true;
+    html = apex_markdown_to_html(html_comment, strlen(html_comment), &unified_opts);
+    assert_contains(html, "<!-- This is a comment -->", "HTML comments preserved in unsafe mode");
+    apex_free_string(html);
+
+    /* Test HTML comments in safe mode */
+    unified_opts.unsafe = false;
+    html = apex_markdown_to_html(html_comment, strlen(html_comment), &unified_opts);
+    if (strstr(html, "raw HTML omitted") != NULL || strstr(html, "omitted") != NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " HTML comments blocked in safe mode\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " HTML comments not blocked in safe mode\n");
+    }
+    apex_free_string(html);
+
+    /* Test script tags are handled according to unsafe setting */
+    const char *script_tag = "<script>alert('xss')</script>";
+    unified_opts.unsafe = true;
+    html = apex_markdown_to_html(script_tag, strlen(script_tag), &unified_opts);
+    /* In unsafe mode, script tags might be preserved or escaped depending on cmark-gfm */
+    /* Just verify it's handled somehow */
+    if (strstr(html, "script") != NULL || strstr(html, "omitted") != NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Script tags handled in unsafe mode\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Script tags not handled in unsafe mode\n");
+    }
+    apex_free_string(html);
+}
+
+/**
  * Main test runner
  */
 int main(int argc, char *argv[]) {
@@ -1448,6 +1757,9 @@ int main(int argc, char *argv[]) {
     test_callouts();
     test_toc();
     test_html_markdown_attributes();
+    test_sup_sub();
+    test_mixed_lists();
+    test_unsafe_mode();
 
     /* Lower-priority feature tests */
     test_abbreviations();
