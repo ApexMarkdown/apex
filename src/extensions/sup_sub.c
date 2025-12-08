@@ -31,6 +31,8 @@ char *apex_process_sup_sub(const char *text) {
 
     bool in_code_block = false;
     bool in_inline_code = false;
+    bool in_math_inline = false;
+    bool in_math_display = false;
 
     while (*read) {
         /* Track code blocks (skip processing inside them) */
@@ -42,19 +44,79 @@ char *apex_process_sup_sub(const char *text) {
             }
         }
 
-        /* Skip processing inside code */
-        if (in_code_block || in_inline_code) {
-            if (remaining > 0) {
+        /* Track math spans (skip processing inside them) */
+        bool handled_math = false;
+        if (!in_code_block && !in_inline_code) {
+            /* Check for display math: $$...$$ */
+            if (*read == '$' && read[1] == '$') {
+                in_math_display = !in_math_display;
+                if (remaining > 1) {
+                    *write++ = *read++;
+                    *write++ = *read++;
+                    remaining -= 2;
+                } else {
+                    read += 2;
+                }
+                handled_math = true;
+            }
+            /* Check for inline math: $...$ */
+            else if (*read == '$' && !in_math_display) {
+                /* Check if next char is not $ (to avoid matching $$) */
+                if (read[1] != '$') {
+                    /* If we're already in inline math, this is the closing delimiter */
+                    if (in_math_inline) {
+                        in_math_inline = false;
+                        /* Write the closing $ */
+                        if (remaining > 0) {
+                            *write++ = *read++;
+                            remaining--;
+                        } else {
+                            read++;
+                        }
+                        handled_math = true;
+                    }
+                    /* Otherwise, check if it's a valid opening delimiter (not whitespace) */
+                    else if (read[1] != '\0' && read[1] != ' ' && read[1] != '\t' && read[1] != '\n') {
+                        in_math_inline = true;
+                        /* Write the opening $ */
+                        if (remaining > 0) {
+                            *write++ = *read++;
+                            remaining--;
+                        } else {
+                            read++;
+                        }
+                        handled_math = true;
+                    }
+                }
+            }
+        }
+
+        /* Skip processing inside code or math */
+        if (handled_math || in_code_block || in_inline_code || in_math_inline || in_math_display) {
+            if (!handled_math && remaining > 0) {
                 *write++ = *read++;
                 remaining--;
-            } else {
+            } else if (!handled_math) {
                 read++;
             }
             continue;
         }
 
         /* Check for superscript: ^word (only first word, stops at space, ^, or end) */
+        /* Skip if it's part of a footnote reference pattern [^ */
         if (*read == '^' && read[1] != '\0' && read[1] != ' ' && read[1] != '\t' && read[1] != '\n' && read[1] != '^') {
+            /* Skip if previous character is '[' (footnote reference) */
+            if (read > text && read[-1] == '[') {
+                /* Copy the ^ character and continue */
+                if (remaining > 0) {
+                    *write++ = *read++;
+                    remaining--;
+                } else {
+                    read++;
+                }
+                continue;
+            }
+
             const char *content_start = read + 1;
             const char *content_end = content_start;
 
@@ -98,6 +160,45 @@ char *apex_process_sup_sub(const char *text) {
                     }
                     continue;
                 }
+            }
+        }
+
+        /* Check for subscript: ~word (only first word, stops at space, ~, or end) */
+        /* First, check for critic markup patterns that use ~ */
+        if (*read == '~') {
+            /* Check for {~~ (opening critic substitution) - previous char is { and next is ~ */
+            if (read > text && read[-1] == '{' && read[1] == '~') {
+                /* Copy both ~ characters and continue */
+                if (remaining > 1) {
+                    *write++ = *read++;
+                    *write++ = *read++;
+                    remaining -= 2;
+                } else {
+                    read += 2;
+                }
+                continue;
+            }
+            /* Check for ~~} (closing critic substitution) - we're at second ~, previous is ~, next is } */
+            else if (read > text && read[-1] == '~' && read[1] == '}') {
+                /* Copy the ~ character and continue */
+                if (remaining > 0) {
+                    *write++ = *read++;
+                    remaining--;
+                } else {
+                    read++;
+                }
+                continue;
+            }
+            /* Check for ~> (critic substitution separator) */
+            else if (read[1] == '>') {
+                /* Copy the ~ character and continue */
+                if (remaining > 0) {
+                    *write++ = *read++;
+                    remaining--;
+                } else {
+                    read++;
+                }
+                continue;
             }
         }
 
