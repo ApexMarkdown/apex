@@ -19,24 +19,6 @@ static int tests_failed = 0;
 #define COLOR_RED "\033[0;31m"
 #define COLOR_RESET "\033[0m"
 
-/**
- * Assert that two strings are equal
- */
-static bool assert_string_equals(const char *actual, const char *expected, const char *test_name) {
-    tests_run++;
-
-    if (strcmp(actual, expected) == 0) {
-        tests_passed++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " %s\n", test_name);
-        return true;
-    } else {
-        tests_failed++;
-        printf(COLOR_RED "✗" COLOR_RESET " %s\n", test_name);
-        printf("  Expected: %s\n", expected);
-        printf("  Actual:   %s\n", actual);
-        return false;
-    }
-}
 
 /**
  * Assert that string contains substring
@@ -1441,6 +1423,8 @@ static void test_header_ids(void) {
  * Main test runner
  */
 int main(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
     printf("Apex Test Suite v%s\n", apex_version_string());
     printf("==========================================\n");
 

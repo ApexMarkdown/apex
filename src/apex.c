@@ -31,11 +31,449 @@
 #include "extensions/html_markdown.h"
 #include "extensions/inline_footnotes.h"
 #include "extensions/highlight.h"
+#include "extensions/sup_sub.h"
 #include "extensions/header_ids.h"
 #include "extensions/relaxed_tables.h"
 
 /* Custom renderer */
 #include "html_renderer.h"
+
+/**
+ * Preprocess alpha list markers (a., b., c. and A., B., C.)
+ * Converts them to numbered markers (1., 2., 3.) and adds markers for post-processing
+ */
+static char *apex_preprocess_alpha_lists(const char *text) {
+    if (!text) return NULL;
+
+    size_t text_len = strlen(text);
+    size_t output_capacity = text_len * 3;  /* Extra capacity for markers and conversions */
+    char *output = malloc(output_capacity);
+    if (!output) return NULL;
+
+    const char *read = text;
+    char *write = output;
+    size_t remaining = output_capacity;
+    bool in_alpha_list = false;
+    char expected_lower = 'a';
+    char expected_upper = 'A';
+    bool is_upper = false;
+    int item_number = 1;
+    int blank_lines_since_alpha = 0;  /* Track blank lines to detect list breaks */
+
+    while (*read) {
+        const char *line_start = read;
+        const char *line_end = strchr(read, '\n');
+        if (!line_end) line_end = read + strlen(read);
+        bool has_newline = (*line_end == '\n');
+
+        /* Check for line start */
+        const char *p = line_start;
+        while (p < line_end && (*p == ' ' || *p == '\t')) {
+            p++;
+        }
+
+        /* Check if line starts with alpha marker */
+        bool is_alpha_marker = false;
+        char alpha_char = 0;
+        bool alpha_is_upper = false;
+
+        if (p < line_end) {
+            if (*p >= 'a' && *p <= 'z' && p + 1 < line_end && p[1] == '.' &&
+                (p + 2 >= line_end || (p[2] == ' ' || p[2] == '\t'))) {
+                is_alpha_marker = true;
+                alpha_char = *p;
+                alpha_is_upper = false;
+            } else if (*p >= 'A' && *p <= 'Z' && p + 1 < line_end && p[1] == '.' &&
+                       (p + 2 >= line_end || (p[2] == ' ' || p[2] == '\t'))) {
+                is_alpha_marker = true;
+                alpha_char = *p;
+                alpha_is_upper = true;
+            }
+        }
+
+        if (is_alpha_marker) {
+            /* Check if this continues an existing alpha list */
+            bool continues_list = false;
+            if (in_alpha_list) {
+                if (alpha_is_upper == is_upper) {
+                    if (alpha_is_upper) {
+                        if (alpha_char == expected_upper) {
+                            continues_list = true;
+                        }
+                    } else {
+                        if (alpha_char == expected_lower) {
+                            continues_list = true;
+                        }
+                    }
+                }
+            }
+
+            if (!continues_list) {
+                /* Start new alpha list */
+                in_alpha_list = true;
+                is_upper = alpha_is_upper;
+                item_number = 1;
+                blank_lines_since_alpha = 0;
+                if (alpha_is_upper) {
+                    expected_upper = alpha_char;
+                } else {
+                    expected_lower = alpha_char;
+                }
+                /* Add marker paragraph before the list (will be rendered as <p data-apex-alpha-list="lower|upper"></p>) */
+                int needed = snprintf(write, remaining, "[apex-alpha-list:%s]\n\n", alpha_is_upper ? "upper" : "lower");
+                if (needed > 0 && needed < (int)remaining) {
+                    write += needed;
+                    remaining -= needed;
+                }
+            } else {
+                blank_lines_since_alpha = 0;  /* Reset on continuation */
+            }
+
+            /* Convert alpha marker to numbered marker */
+            int needed = snprintf(write, remaining, "%.*s%d. ", (int)(p - line_start), line_start, item_number);
+            if (needed > 0 && needed < (int)remaining) {
+                write += needed;
+                remaining -= needed;
+            }
+
+            /* Advance past the alpha marker and copy the rest of the line */
+            const char *line_rest = p + 2;  /* Skip "a." or "A." */
+            size_t line_rest_len = line_end - line_rest;
+            if (has_newline) {
+                line_rest_len++;  /* Include newline */
+            }
+            if (line_rest_len > remaining) {
+                /* Buffer too small, but try to copy what we can */
+                line_rest_len = remaining;
+            }
+            if (line_rest_len > 0) {
+                memcpy(write, line_rest, line_rest_len);
+                write += line_rest_len;
+                remaining -= line_rest_len;
+            }
+            read = line_end;
+            if (has_newline && *read == '\n') read++;
+            item_number++;
+
+            /* Update expected next character */
+            if (alpha_is_upper) {
+                expected_upper++;
+                if (expected_upper > 'Z') expected_upper = 'A';  /* Wrap around */
+            } else {
+                expected_lower++;
+                if (expected_lower > 'z') expected_lower = 'a';  /* Wrap around */
+            }
+            continue;  /* Skip the else block since we've handled this line */
+        } else {
+            /* Not an alpha marker - check if we should end the list */
+            if (in_alpha_list) {
+                /* Blank line - count it */
+                if (line_end == line_start || (p >= line_end)) {
+                    blank_lines_since_alpha++;
+                    /* If we have 2+ blank lines, end the alpha list */
+                    if (blank_lines_since_alpha >= 2) {
+                        in_alpha_list = false;
+                    }
+                } else {
+                    /* Check if it's a numbered list marker starting with "1." after blank lines */
+                    bool had_blank_lines = (blank_lines_since_alpha > 0);
+                    /* Reset blank line counter on non-blank line */
+                    blank_lines_since_alpha = 0;
+
+                    if (*p >= '0' && *p <= '9') {
+                        /* Parse the number */
+                        int num = 0;
+                        const char *num_p = p;
+                        while (num_p < line_end && *num_p >= '0' && *num_p <= '9') {
+                            num = num * 10 + (*num_p - '0');
+                            num_p++;
+                        }
+                        /* If it's "1. " after blank lines (from ^ marker), end alpha list */
+                        if (num == 1 && num_p < line_end && *num_p == '.' &&
+                            (num_p + 1 >= line_end || num_p[1] == ' ' || num_p[1] == '\t') &&
+                            had_blank_lines) {
+                            in_alpha_list = false;
+                            /* Insert a paragraph with a space to force block separation */
+                            /* The parser will see this as a block break and create separate lists */
+                            int needed = snprintf(write, remaining, "\n\n \n\n");
+                            if (needed > 0 && needed < (int)remaining) {
+                                write += needed;
+                                remaining -= needed;
+                            }
+                        } else {
+                            /* Other numbered markers also end alpha list */
+                            in_alpha_list = false;
+                        }
+                    } else if (*p == '*' || *p == '-' || *p == '+') {
+                        /* Bullet list marker - ends alpha list */
+                        in_alpha_list = false;
+                    } else {
+                        /* Non-list content ends the alpha list */
+                        in_alpha_list = false;
+                    }
+                }
+            }
+
+            /* Copy line as-is */
+            size_t line_len = line_end - line_start;
+            if (line_end < read + strlen(read)) line_len++;  /* Include newline */
+            if (line_len > remaining) line_len = remaining;
+            memcpy(write, line_start, line_len);
+            write += line_len;
+            remaining -= line_len;
+            read = line_end;
+            if (*read == '\n') read++;
+        }
+    }
+
+    *write = '\0';
+    return output;
+}
+
+/**
+ * Post-process HTML to add style attributes to alpha lists
+ * Finds HTML comments like <!-- apex-alpha-list-lower --> or <!-- apex-alpha-list-upper -->
+ * and adds style="list-style-type: lower-alpha" or style="list-style-type: upper-alpha"
+ * to the following <ol> tag.
+ */
+static char *apex_postprocess_alpha_lists_html(const char *html) {
+    if (!html) return NULL;
+
+    size_t html_len = strlen(html);
+    size_t output_capacity = html_len + 1024;  /* Extra space for style attributes */
+    char *output = malloc(output_capacity);
+    if (!output) return NULL;
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = output_capacity;
+
+    while (*read) {
+        /* Look for alpha list marker paragraph: <p>[apex-alpha-list:lower]</p> or <p>[apex-alpha-list:upper]</p> */
+        const char *marker_lower = strstr(read, "<p>[apex-alpha-list:lower]</p>");
+        const char *marker_upper = strstr(read, "<p>[apex-alpha-list:upper]</p>");
+        const char *marker = NULL;
+        bool is_upper = false;
+
+        if (marker_lower && (!marker_upper || marker_lower < marker_upper)) {
+            marker = marker_lower;
+            is_upper = false;
+        } else if (marker_upper) {
+            marker = marker_upper;
+            is_upper = true;
+        }
+
+        if (marker) {
+            /* Copy everything up to the marker */
+            size_t copy_len = marker - read;
+            if (copy_len > remaining) copy_len = remaining;
+            memcpy(write, read, copy_len);
+            write += copy_len;
+            remaining -= copy_len;
+
+            /* Skip the marker paragraph */
+            read = marker + (is_upper ? 30 : 30);  /* Both are 30 chars: "<p>[apex-alpha-list:lower]</p>" or upper */
+
+            /* Skip whitespace and newlines */
+            while (*read && (*read == ' ' || *read == '\t' || *read == '\n' || *read == '\r')) {
+                *write++ = *read++;
+                remaining--;
+            }
+
+            /* Look for the next <ol> tag */
+            const char *ol_start = strstr(read, "<ol");
+            if (ol_start) {
+                /* Copy everything up to and including "<ol" */
+                size_t copy_len = ol_start - read;
+                if (copy_len > remaining) copy_len = remaining;
+                memcpy(write, read, copy_len);
+                write += copy_len;
+                remaining -= copy_len;
+                read = ol_start;
+
+                /* Find the end of the <ol> tag */
+                const char *tag_end = strchr(read, '>');
+                if (tag_end) {
+                    /* Check if there's already a style attribute */
+                    bool has_style = false;
+                    for (const char *p = read; p < tag_end; p++) {
+                        if (strncmp(p, "style=", 6) == 0) {
+                            has_style = true;
+                            break;
+                        }
+                    }
+
+                    if (!has_style) {
+                        /* Copy "<ol" and attributes up to '>' */
+                        size_t tag_len = tag_end - read;
+                        if (tag_len > remaining) tag_len = remaining;
+                        memcpy(write, read, tag_len);
+                        write += tag_len;
+                        remaining -= tag_len;
+
+                        /* Add style attribute before the closing '>' */
+                        const char *style = is_upper
+                            ? " style=\"list-style-type: upper-alpha\">"
+                            : " style=\"list-style-type: lower-alpha\">";
+                        size_t style_len = strlen(style);
+                        if (style_len <= remaining) {
+                            memcpy(write, style, style_len);
+                            write += style_len;
+                            remaining -= style_len;
+                        }
+                        read = tag_end + 1;
+                    } else {
+                        /* Already has style, copy as-is */
+                        size_t copy_len = tag_end - read + 1;
+                        if (copy_len > remaining) copy_len = remaining;
+                        memcpy(write, read, copy_len);
+                        write += copy_len;
+                        remaining -= copy_len;
+                        read = tag_end + 1;
+                    }
+                } else {
+                    /* No closing '>', copy as-is */
+                    *write++ = *read++;
+                    remaining--;
+                }
+            } else {
+                /* No <ol> found, continue normally */
+                continue;
+            }
+        } else {
+            *write++ = *read++;
+            remaining--;
+        }
+    }
+
+    *write = '\0';
+    return output;
+}
+
+/**
+ * Remove empty paragraphs that contain only zero-width spaces (from ^ markers)
+ */
+static char *apex_remove_empty_paragraphs(const char *html) {
+    if (!html) return NULL;
+
+    size_t html_len = strlen(html);
+    size_t output_capacity = html_len + 1;
+    char *output = malloc(output_capacity);
+    if (!output) return NULL;
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = output_capacity;
+
+    while (*read) {
+        /* Look for <p> with zero-width space or empty content followed by </p> */
+        if (strncmp(read, "<p>", 3) == 0) {
+            const char *p_end = strstr(read, "</p>");
+            if (p_end) {
+                const char *content_start = read + 3;
+                size_t content_len = p_end - content_start;
+
+                /* Check if content is just zero-width space entity, whitespace, or empty */
+                bool is_empty = true;
+                const char *c = content_start;
+                while (c < p_end) {
+                    if (strncmp(c, "&#8203;", 7) == 0) {
+                        c += 7;  /* Skip the entity */
+                        continue;
+                    }
+                    if (*c != ' ' && *c != '\t' && *c != '\n' && *c != '\r') {
+                        /* Check for UTF-8 zero-width space (E2 80 8B) */
+                        if ((unsigned char)*c == 0xE2 && c + 2 < p_end &&
+                            (unsigned char)c[1] == 0x80 && (unsigned char)c[2] == 0x8B) {
+                            c += 3;
+                            continue;
+                        }
+                        is_empty = false;
+                        break;
+                    }
+                    c++;
+                }
+
+                if (is_empty && content_len > 0) {
+                    /* Skip this paragraph */
+                    read = p_end + 4;  /* Skip </p> */
+                    continue;
+                }
+            }
+        }
+
+        if (remaining > 0) {
+            *write++ = *read++;
+            remaining--;
+        } else {
+            break;
+        }
+    }
+
+    *write = '\0';
+    return output;
+}
+
+/**
+ * Merge adjacent lists with mixed markers at the same level
+ * When allow_mixed_list_markers is true, lists with different marker types
+ * at the same indentation level should inherit the type from the first list.
+ */
+static void apex_merge_mixed_list_markers(cmark_node *node) {
+    if (!node) return;
+
+    /* Process children first (depth-first) */
+    cmark_node *child = cmark_node_first_child(node);
+    while (child) {
+        cmark_node *next = cmark_node_next(child);
+        apex_merge_mixed_list_markers(child);
+        child = next;
+    }
+
+    /* Check if current node is a list */
+    if (cmark_node_get_type(node) != CMARK_NODE_LIST) {
+        return;
+    }
+
+    /* Look for adjacent lists at the same level */
+    cmark_node *sibling = cmark_node_next(node);
+    while (sibling) {
+        /* Skip non-list nodes (paragraphs, etc.) - these indicate list separation */
+        if (cmark_node_get_type(sibling) != CMARK_NODE_LIST) {
+            break;  /* Non-list node means lists are separated, don't merge */
+        }
+
+        cmark_list_type first_type = cmark_node_get_list_type(node);
+        cmark_list_type second_type = cmark_node_get_list_type(sibling);
+
+        /* If they have different types, merge them */
+        if (first_type != second_type) {
+            /* Use the first list's type (this is what we'll use) */
+
+            /* Move all items from the second list to the first */
+            cmark_node *item = cmark_node_first_child(sibling);
+            while (item) {
+                cmark_node *next_item = cmark_node_next(item);
+                cmark_node_unlink(item);
+                cmark_node_append_child(node, item);
+                item = next_item;
+            }
+
+            /* Update list start number if needed (for ordered lists) */
+            /* Note: We keep the original start number from the first list.
+             * The items are already numbered correctly by the parser. */
+
+            /* Remove the now-empty second list */
+            cmark_node *next_sibling = cmark_node_next(sibling);
+            cmark_node_unlink(sibling);
+            cmark_node_free(sibling);
+            sibling = next_sibling;
+        } else {
+            /* Same type, move to next sibling */
+            sibling = cmark_node_next(sibling);
+        }
+    }
+}
 
 /**
  * Get default options with all features enabled (unified mode)
@@ -90,6 +528,14 @@ apex_options apex_options_default(void) {
     /* Table options */
     opts.relaxed_tables = true;  /* Default: enabled in unified mode (can be disabled with --no-relaxed-tables) */
 
+    /* List options */
+    /* Since default mode is unified, enable these by default */
+    opts.allow_mixed_list_markers = true;  /* Unified mode default: inherit type from first item */
+    opts.allow_alpha_lists = true;  /* Unified mode default: support alpha lists */
+
+    /* Superscript and subscript */
+    opts.enable_sup_sub = true;  /* Default: enabled in unified mode */
+
     return opts;
 }
 
@@ -116,9 +562,13 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_marked_extensions = false;
             opts.enable_file_includes = false;
             opts.enable_metadata_variables = false;
+            opts.unsafe = false;  /* CommonMark mode: replace HTML comments with "raw HTML omitted" */
             opts.hardbreaks = false;
             opts.id_format = 0;  /* GFM format (default) */
             opts.relaxed_tables = false;  /* CommonMark has no tables */
+            opts.allow_mixed_list_markers = false;  /* CommonMark: current behavior (separate lists) */
+            opts.allow_alpha_lists = false;  /* CommonMark: no alpha lists */
+            opts.enable_sup_sub = false;  /* CommonMark: no sup/sub */
             break;
 
         case APEX_MODE_GFM:
@@ -136,9 +586,13 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_marked_extensions = false;
             opts.enable_file_includes = false;
             opts.enable_metadata_variables = false;
+            opts.unsafe = false;  /* GFM mode: replace HTML comments with "raw HTML omitted" */
             opts.hardbreaks = true;  /* GFM treats newlines as hard breaks */
             opts.id_format = 0;  /* GFM format */
             opts.relaxed_tables = false;  /* GFM uses standard table syntax */
+            opts.allow_mixed_list_markers = false;  /* GFM: current behavior (separate lists) */
+            opts.allow_alpha_lists = false;  /* GFM: no alpha lists */
+            opts.enable_sup_sub = false;  /* GFM: no sup/sub */
             break;
 
         case APEX_MODE_MULTIMARKDOWN:
@@ -159,6 +613,9 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_metadata_variables = true;
             opts.hardbreaks = false;
             opts.id_format = 1;  /* MMD format */
+            opts.allow_mixed_list_markers = true;  /* MultiMarkdown: inherit type from first item */
+            opts.allow_alpha_lists = false;  /* MultiMarkdown: no alpha lists */
+            opts.enable_sup_sub = true;  /* MultiMarkdown: support sup/sub */
             break;
 
         case APEX_MODE_KRAMDOWN:
@@ -179,6 +636,9 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.hardbreaks = false;
             opts.id_format = 2;  /* Kramdown format */
             opts.relaxed_tables = true;  /* Kramdown supports relaxed tables */
+            opts.allow_mixed_list_markers = false;  /* Kramdown: current behavior (separate lists) */
+            opts.allow_alpha_lists = false;  /* Kramdown: no alpha lists */
+            opts.enable_sup_sub = false;  /* Kramdown: no sup/sub */
             break;
 
         case APEX_MODE_UNIFIED:
@@ -188,6 +648,9 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_math = true;
             opts.id_format = 0;  /* GFM format (default, can be overridden with --id-format) */
             opts.relaxed_tables = true;  /* Unified mode supports relaxed tables */
+            opts.allow_mixed_list_markers = true;  /* Unified: inherit type from first item */
+            opts.allow_alpha_lists = true;  /* Unified: support alpha lists */
+            opts.enable_sup_sub = true;  /* Unified: support sup/sub (default: true) */
             break;
     }
 
@@ -382,12 +845,22 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    /* Process special markers (page breaks, pauses) before parsing */
-    char *markers_processed = NULL;
+    /* Process special markers (^ end-of-block marker) BEFORE alpha lists */
+    /* This ensures ^ markers are converted to blank lines before alpha list processing */
+    char *markers_processed_early = NULL;
     if (options->enable_marked_extensions) {
-        markers_processed = apex_process_special_markers(text_ptr);
-        if (markers_processed) {
-            text_ptr = markers_processed;
+        markers_processed_early = apex_process_special_markers(text_ptr);
+        if (markers_processed_early) {
+            text_ptr = markers_processed_early;
+        }
+    }
+
+    /* Process alpha lists before parsing (preprocessing) */
+    char *alpha_lists_processed = NULL;
+    if (options->allow_alpha_lists) {
+        alpha_lists_processed = apex_preprocess_alpha_lists(text_ptr);
+        if (alpha_lists_processed) {
+            text_ptr = alpha_lists_processed;
         }
     }
 
@@ -404,6 +877,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *highlights_processed = apex_process_highlights(text_ptr);
     if (highlights_processed) {
         text_ptr = highlights_processed;
+    }
+
+    /* Process superscript and subscript syntax before parsing */
+    char *sup_sub_processed = NULL;
+    if (options->enable_sup_sub) {
+        sup_sub_processed = apex_process_sup_sub(text_ptr);
+        if (sup_sub_processed) {
+            text_ptr = sup_sub_processed;
+        }
     }
 
     /* Process relaxed tables before parsing (preprocessing) */
@@ -494,6 +976,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         apex_process_ial_in_tree(document, alds);
     }
 
+    /* Merge lists with mixed markers if enabled */
+    if (options->allow_mixed_list_markers) {
+        apex_merge_mixed_list_markers(document);
+    }
+
     /* Note: Critic Markup is now handled via preprocessing (before parsing) */
 
     /* Render to HTML (use custom renderer if IAL is enabled) */
@@ -577,15 +1064,39 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Post-process HTML to add style attributes to alpha lists */
+    if (options->allow_alpha_lists && html) {
+        char *processed_html = apex_postprocess_alpha_lists_html(html);
+        if (processed_html && processed_html != html) {
+            free(html);
+            html = processed_html;
+        }
+    }
+
+    /* Remove empty paragraphs created by ^ marker (zero-width space only) */
+    if (html && options->enable_marked_extensions) {
+        char *cleaned = apex_remove_empty_paragraphs(html);
+        if (cleaned && cleaned != html) {
+            free(html);
+            html = cleaned;
+        }
+    }
+
     /* Clean up */
     cmark_node_free(document);
     cmark_parser_free(parser);
     free(working_text);
     if (ial_preprocessed) free(ial_preprocessed);
     if (includes_processed) free(includes_processed);
-    if (markers_processed) free(markers_processed);
+    if (markers_processed_early) {
+        /* Only free if alpha_lists_processed didn't use it */
+        if (!alpha_lists_processed || alpha_lists_processed != markers_processed_early) {
+            free(markers_processed_early);
+        }
+    }
     if (inline_footnotes_processed) free(inline_footnotes_processed);
     if (highlights_processed) free(highlights_processed);
+    if (alpha_lists_processed) free(alpha_lists_processed);
     if (relaxed_tables_processed) free(relaxed_tables_processed);
     if (deflist_processed) free(deflist_processed);
     if (html_markdown_processed) free(html_markdown_processed);

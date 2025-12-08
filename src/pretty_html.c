@@ -90,7 +90,6 @@ char *apex_pretty_print_html(const char *html) {
     bool at_line_start = true;
     bool in_pre = false;
     bool in_inline = false;
-    bool in_table = false;
     bool last_was_table_row = false;
 
     #define WRITE_STR(str) do { \
@@ -151,17 +150,7 @@ char *apex_pretty_print_html(const char *html) {
 
                 /* Handle block tags */
                 if (is_block && !in_pre) {
-                    bool is_table_tag = (strcmp(tag_name, "table") == 0);
                     bool is_table_row = (strcmp(tag_name, "tr") == 0);
-                    bool is_table_cell = (strcmp(tag_name, "td") == 0 || strcmp(tag_name, "th") == 0);
-                    bool is_table_section = (strcmp(tag_name, "thead") == 0 || strcmp(tag_name, "tbody") == 0 || strcmp(tag_name, "tfoot") == 0);
-
-                    /* Track table context */
-                    if (is_table_tag && !is_closing) {
-                        in_table = true;
-                    } else if (is_table_tag && is_closing) {
-                        in_table = false;
-                    }
 
                     if (is_closing) {
                         /* Closing tag: decrease indent first */

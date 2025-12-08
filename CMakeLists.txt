@@ -57,6 +57,7 @@ set(APEX_LIB_SOURCES
     src/extensions/table_html_postprocess.c
     src/extensions/inline_footnotes.c
     src/extensions/highlight.c
+    src/extensions/sup_sub.c
     src/extensions/header_ids.c
     src/extensions/relaxed_tables.c
     src/pretty_html.c

@@ -15,27 +15,30 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "One Markdown processor to rule them all\n\n");
     fprintf(stderr, "Usage: %s [options] [file]\n\n", program_name);
     fprintf(stderr, "Options:\n");
-    fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
-    fprintf(stderr, "  -o, --output FILE      Write output to FILE instead of stdout\n");
-    fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
-    fprintf(stderr, "  --style FILE           Link to CSS file in document head (requires --standalone)\n");
-    fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
-    fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
     fprintf(stderr, "  --accept               Accept all Critic Markup changes (apply edits)\n");
-    fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
-    fprintf(stderr, "  --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown\n");
-    fprintf(stderr, "                          (modes auto-set format; use this to override in unified mode)\n");
-    fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
-    fprintf(stderr, "  --header-anchors        Generate <a> anchor tags instead of header IDs\n");
-    fprintf(stderr, "  --relaxed-tables        Enable relaxed table parsing (no separator rows required)\n");
-    fprintf(stderr, "  --no-relaxed-tables    Disable relaxed table parsing\n");
-    fprintf(stderr, "  --no-tables            Disable table support\n");
-    fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
-    fprintf(stderr, "  --no-smart             Disable smart typography\n");
-    fprintf(stderr, "  --no-math              Disable math support\n");
     fprintf(stderr, "  --enable-includes      Enable file inclusion\n");
     fprintf(stderr, "  --hardbreaks           Treat newlines as hard breaks\n");
     fprintf(stderr, "  -h, --help             Show this help message\n");
+    fprintf(stderr, "  --header-anchors        Generate <a> anchor tags instead of header IDs\n");
+    fprintf(stderr, "  --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown\n");
+    fprintf(stderr, "                          (modes auto-set format; use this to override in unified mode)\n");
+    fprintf(stderr, "  --[no-]alpha-lists     Support alpha list markers (a., b., c. and A., B., C.)\n");
+    fprintf(stderr, "  --[no-]mixed-lists     Allow mixed list markers at same level (inherit type from first item)\n");
+    fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
+    fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
+    fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
+    fprintf(stderr, "  --no-math              Disable math support\n");
+    fprintf(stderr, "  --no-smart             Disable smart typography\n");
+    fprintf(stderr, "  --no-tables            Disable table support\n");
+    fprintf(stderr, "  -o, --output FILE      Write output to FILE instead of stdout\n");
+    fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
+    fprintf(stderr, "  --[no-]relaxed-tables  Enable relaxed table parsing (no separator rows required)\n");
+    fprintf(stderr, "  --[no-]sup-sub         Enable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
+    fprintf(stderr, "  --[no-]unsafe          Allow raw HTML in output (default: true for unified/mmd/kramdown, false for commonmark/gfm)\n");
+    fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
+    fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
+    fprintf(stderr, "  --style FILE           Link to CSS file in document head (requires --standalone)\n");
+    fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
     fprintf(stderr, "  -v, --version          Show version information\n\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
@@ -207,6 +210,22 @@ int main(int argc, char *argv[]) {
             options.relaxed_tables = true;
         } else if (strcmp(argv[i], "--no-relaxed-tables") == 0) {
             options.relaxed_tables = false;
+        } else if (strcmp(argv[i], "--alpha-lists") == 0) {
+            options.allow_alpha_lists = true;
+        } else if (strcmp(argv[i], "--no-alpha-lists") == 0) {
+            options.allow_alpha_lists = false;
+        } else if (strcmp(argv[i], "--mixed-lists") == 0) {
+            options.allow_mixed_list_markers = true;
+        } else if (strcmp(argv[i], "--no-mixed-lists") == 0) {
+            options.allow_mixed_list_markers = false;
+        } else if (strcmp(argv[i], "--unsafe") == 0) {
+            options.unsafe = true;
+        } else if (strcmp(argv[i], "--no-unsafe") == 0) {
+            options.unsafe = false;
+        } else if (strcmp(argv[i], "--sup-sub") == 0) {
+            options.enable_sup_sub = true;
+        } else if (strcmp(argv[i], "--no-sup-sub") == 0) {
+            options.enable_sup_sub = false;
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Error: Unknown option '%s'\n", argv[i]);
             print_usage(argv[0]);

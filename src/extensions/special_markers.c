@@ -54,9 +54,9 @@ char *apex_process_special_markers(const char *text) {
 
             if (line_start && line_end) {
                 /* This is an end-of-block marker */
-                /* Replace with double newline to force block separation */
-                /* The ^ itself gets removed */
-                const char *replacement = "\n\n";
+                /* Replace with a paragraph containing zero-width space (U+200B) to force block separation */
+                /* This ensures lists are not merged by the parser, and the paragraph won't render visibly */
+                const char *replacement = "\n\n\u200B\n\n";
                 size_t repl_len = strlen(replacement);
                 if (repl_len < remaining) {
                     memcpy(write, replacement, repl_len);

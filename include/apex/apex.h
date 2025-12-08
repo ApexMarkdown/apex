@@ -82,6 +82,13 @@ typedef struct {
 
     /* Table options */
     bool relaxed_tables;  /* Support tables without separator rows (kramdown/unified only) */
+
+    /* List options */
+    bool allow_mixed_list_markers;  /* Allow mixed list markers at same level (inherit type from first item) */
+    bool allow_alpha_lists;  /* Support alpha list markers (a., b., c. and A., B., C.) */
+
+    /* Superscript and subscript */
+    bool enable_sup_sub;  /* Support MultiMarkdown-style ^text^ and ~text~ syntax */
 } apex_options;
 
 /**

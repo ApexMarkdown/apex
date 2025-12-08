@@ -60,6 +60,18 @@ typedef struct {
     /* Line breaks */
     bool hardbreaks;
     bool nobreaks;
+
+    /* Header ID generation */
+    bool generate_header_ids;
+    bool header_anchors;
+    int id_format;
+
+    /* Table options */
+    bool relaxed_tables;
+
+    /* List options */
+    bool allow_mixed_list_markers;  /* Allow mixed list markers at same level (inherit type from first item) */
+    bool allow_alpha_lists;  /* Support alpha list markers (a., b., c. and A., B., C.) */
 } apex_options;
 ```
 
@@ -100,6 +112,8 @@ apex_options apex_options_for_mode(apex_mode_t mode);
 ```c
 apex_options gfm_opts = apex_options_for_mode(APEX_MODE_GFM);
 apex_options mmd_opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+// Unified mode has mixed list markers and alpha lists enabled by default
 ```
 
 ### apex_markdown_to_html
@@ -222,6 +236,54 @@ char *apex_process_critic_markup_text(const char *text, critic_mode_t mode);
 // Modes: CRITIC_ACCEPT, CRITIC_REJECT, CRITIC_MARKUP
 ```
 
+## List Options
+
+### Mixed List Markers
+
+When `allow_mixed_list_markers` is enabled, lists with different marker types at the same indentation level will inherit the type from the first item. This is enabled by default in **MultiMarkdown** and **Unified** modes.
+
+```c
+apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+// opts.allow_mixed_list_markers is true by default
+
+// To enable in other modes:
+opts.allow_mixed_list_markers = true;
+
+// To disable in unified/multimarkdown modes:
+opts.allow_mixed_list_markers = false;
+```
+
+**Example markdown:**
+```markdown
+1. First numbered item
+* Second item (becomes numbered)
+* Third item (becomes numbered)
+```
+
+### Alpha Lists
+
+When `allow_alpha_lists` is enabled, alphabetic markers (`a.`, `b.`, `c.` for lower-alpha and `A.`, `B.`, `C.` for upper-alpha) are converted to HTML lists with appropriate `list-style-type` CSS. This is enabled by default in **Unified** mode only.
+
+```c
+apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+// opts.allow_alpha_lists is true by default
+
+// To enable in other modes:
+opts.allow_alpha_lists = true;
+
+// To disable in unified mode:
+opts.allow_alpha_lists = false;
+```
+
+**Example markdown:**
+```markdown
+a. First item
+b. Second item
+c. Third item
+```
+
+This produces HTML with `style="list-style-type: lower-alpha"` on the `<ol>` tag.
+
 ## Complete Example
 
 ```c
@@ -245,10 +307,17 @@ int main() {
         "\n"
         "Math: $E = mc^2$\n"
         "\n"
-        "Changes: {++added++} and {--removed--}\n";
+        "Changes: {++added++} and {--removed--}\n"
+        "\n"
+        "1. Mixed markers\n"
+        "* Second item\n"
+        "\n"
+        "a. Alpha list\n"
+        "b. Second alpha\n";
 
     // Use unified mode with all features
     apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    // Mixed markers and alpha lists are enabled by default in unified mode
 
     // Convert to HTML
     char *html = apex_markdown_to_html(markdown, strlen(markdown), &opts);
