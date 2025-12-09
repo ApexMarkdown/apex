@@ -5,6 +5,58 @@ All notable changes to Apex will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.19] - 2025-12-09
+
+#### CHANGED
+
+- HTML comments now replaced with "raw HTML omitted" in CommonMark and GFM modes by default
+- Added enable_sup_sub flag to apex_options struct
+- Updated mode configurations to enable sup/sub in appropriate modes
+- Added sup_sub.c to CMakeLists.txt build configuration
+- Removed unused variables to resolve compiler warnings
+- Tag filter (GFM security feature) now only applies in GFM mode, not Unified mode, allowing raw HTML and autolinks in Unified mode as intended.
+- Autolink extension registration now respects the enable_autolink option flag.
+
+#### NEW
+
+- Added MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax support
+- Added --[no-]sup-sub command-line option to enable/disable superscript/subscript
+- Superscript/subscript enabled by default in unified and MultiMarkdown modes
+- Created sup_sub extension (sup_sub.c and sup_sub.h) for processing ^ and ~ syntax
+- Added --[no-]unsafe command-line option to control raw HTML handling
+- Added test_sup_sub() function with 13 tests covering superscript and
+- Added test_mixed_lists() function with 10 tests covering mixed list
+- Added test_unsafe_mode() function with 8 tests covering raw HTML
+- Added preprocessing for angle-bracket autolinks (<http://...>) to convert them to explicit markdown links, ensuring they work correctly with custom rendering paths.
+- Added --[no-]autolink CLI option to control automatic linking of URLs and email addresses. Autolinking is enabled by default in GFM, MultiMarkdown, Kramdown, and unified modes, and disabled in CommonMark mode.
+- Added enable_autolink field to apex_options structure to control autolink behavior programmatically.
+- Added underline syntax support: ~text~ now renders as <u>text</u> when there's a closing ~ with no space before it.
+
+#### IMPROVED
+
+- Test suite now includes 36 additional tests, increasing total test
+- Autolink preprocessing now skips processing inside code spans (`...`) and code blocks (```...```), preventing URLs from being converted to links when they appear in code examples.
+- Metadata replacement retains HTML edge-case handling and properly cleans up intermediate buffers.
+
+#### FIXED
+
+- Unified mode now correctly enables mixed list markers and alpha lists by default when no --mode is specified
+- ^ marker now properly separates lists by creating a paragraph break instead of just blank lines
+- Empty paragraphs created by ^ marker are now removed from final HTML output
+- Superscript and subscript processing now skips ^ and ~ characters
+- Superscript processing now skips ^ when part of footnote reference
+- Subscript processing now skips ~ when part of critic markup patterns
+- Setext headers are no longer broken when followed by highlight syntax (==text==). Highlight processing now stops at line breaks to prevent interference with header parsing.
+- Metadata parser no longer incorrectly treats URLs and angle-bracket autolinks as metadata. Lines containing < or URLs (http://, https://, mailto:) are now skipped during metadata extraction.
+- Superscript/subscript processor now correctly differentiates between ~text~ (underline), ~word (subscript), and ~~text~~ (strikethrough). Double-tilde sequences are skipped so strikethrough extension can handle them.
+- Subscript processing now stops at sentence terminators (. , ; : ! ?) instead of including them in the subscript content.
+- Metadata variable replacement now runs before autolinking so [%key] values containing URLs are turned into links when autolinking is enabled.
+- MMD metadata parsing no longer incorrectly rejects entries with URL values; only URL-like keys or '<' characters in keys are rejected, allowing "URL: https://example.com" as valid metadata.
+- Headers starting with `#` are now correctly recognized instead of being treated as autolinks. The autolink preprocessor now skips `#` at the start of a line when followed by whitespace.
+- Math processor now validates that `\(...\)` sequences contain actual math content (letters, numbers, or operators) before processing them. This prevents false positives like `\(%\)` from being treated as math when they only contain special characters.
+
+
+
 ## [0.1.18] - 2025-12-06
 
 ### Fixed
