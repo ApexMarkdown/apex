@@ -139,7 +139,9 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
             size_t url_len = (size_t)(end - start);
 
             /* Heuristic: skip if preceded by '(' or '[' (likely already a link) */
-            if (!(r > text && (r[-1] == '(' || r[-1] == '['))) {
+            /* Also skip if this is a single '#' at start of line (header marker) */
+            if (!(r > text && (r[-1] == '(' || r[-1] == '[')) &&
+                !(r == text && *r == '#' && (r[1] == ' ' || r[1] == '\t' || r[1] == '\n'))) {
                 size_t needed = 2 + url_len + 3 + url_len + 2; /* [url](url) */
                 if ((size_t)(w - out) + needed + 1 > cap) {
                     size_t used = (size_t)(w - out);

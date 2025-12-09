@@ -97,6 +97,30 @@ static int scan_latex_math(const char *input, int len, bool *is_display) {
         /* Find closing \) */
         for (int i = 2; i < len - 1; i++) {
             if (input[i] == '\\' && input[i + 1] == ')') {
+                /* Validate: math content should have at least one valid math character */
+                /* Math should contain letters, numbers, or common math operators */
+                /* Reject if content is empty or only contains non-math special characters */
+                int content_len = i - 2;
+                if (content_len <= 0) {
+                    return 0;
+                }
+
+                bool has_math_content = false;
+                for (int j = 2; j < i; j++) {
+                    unsigned char c = (unsigned char)input[j];
+                    /* Allow letters, numbers, common math operators, and whitespace */
+                    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                        (c >= '0' && c <= '9') || c == '+' || c == '-' || c == '*' ||
+                        c == '/' || c == '=' || c == '^' || c == '_' || c == ' ' ||
+                        c == '.' || c == ',' || c == '(' || c == ')' || c == '\\') {
+                        has_math_content = true;
+                        break;
+                    }
+                }
+                /* If no valid math content found, don't treat as math */
+                if (!has_math_content) {
+                    return 0;
+                }
                 return i + 2;
             }
         }
