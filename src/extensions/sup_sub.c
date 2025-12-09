@@ -120,8 +120,14 @@ char *apex_process_sup_sub(const char *text) {
             const char *content_start = read + 1;
             const char *content_end = content_start;
 
-            /* Find end of word (first space, ^, newline, or end of string) */
+            /* Find end of word (stops at space, punctuation, ^, newline, or end of string) */
+            /* Don't include sentence terminators in the superscript */
             while (*content_end && *content_end != ' ' && *content_end != '\t' && *content_end != '\n' && *content_end != '^') {
+                /* Stop at sentence terminators: . , ; : ! ? */
+                if (*content_end == '.' || *content_end == ',' || *content_end == ';' ||
+                    *content_end == ':' || *content_end == '!' || *content_end == '?') {
+                    break;
+                }
                 content_end++;
             }
 
@@ -236,7 +242,7 @@ char *apex_process_sup_sub(const char *text) {
 
             if (!is_likely_subscript) {
                 /* No sentence terminator found, check for underline pattern: scan forward to find a closing ~ */
-                /* Underline can span multiple words, but we need to find a closing ~ with no space before it */
+                /* Underline requires tildes at word boundaries, subscript requires tildes within a word */
                 const char *scan = content_start;
                 while (*scan && *scan != '\n') {
                     if (*scan == '~') {
@@ -256,7 +262,32 @@ char *apex_process_sup_sub(const char *text) {
                                 continue;
                             }
                         }
-                        /* No space before ~ and not part of ~~, so this is a closing ~ for underline */
+                        /* Check if tildes are within a word (subscript) or at word boundaries (underline) */
+                        /* For subscript: char before opening ~ must be alphanumeric, and content between must be alphanumeric */
+                        /* For underline: char before opening ~ must be non-alphanumeric (word boundary) */
+                        bool char_before_is_word = (read > text) && isalnum((unsigned char)read[-1]);
+                        bool char_after_is_word = scan[1] != '\0' && isalnum((unsigned char)scan[1]);
+                        bool char_after_is_space_or_end = scan[1] == '\0' || isspace((unsigned char)scan[1]) || ispunct((unsigned char)scan[1]);
+
+                        /* Check if content between tildes is alphanumeric */
+                        bool content_is_word = true;
+                        const char *check_content = content_start;
+                        while (check_content < scan) {
+                            if (!isalnum((unsigned char)*check_content)) {
+                                content_is_word = false;
+                                break;
+                            }
+                            check_content++;
+                        }
+
+                        if (char_before_is_word && content_is_word && (char_after_is_word || char_after_is_space_or_end)) {
+                            /* Opening ~ is after alnum, content is alnum, closing ~ is before alnum or end/punct - this is subscript within a word */
+                            /* Store the closing tilde for subscript, but don't set is_underline */
+                            closing_tilde = scan;
+                            break;
+                        }
+
+                        /* No space before ~, not part of ~~, and at word boundary - this is underline */
                         closing_tilde = scan;
                         is_underline = true;
                         break;
@@ -267,6 +298,9 @@ char *apex_process_sup_sub(const char *text) {
 
             if (is_underline && closing_tilde) {
                 /* Underline: content is between start and closing ~ */
+                content_end = closing_tilde;
+            } else if (closing_tilde && !is_underline) {
+                /* Subscript with closing ~ within a word: content is between start and closing ~ */
                 content_end = closing_tilde;
             } else {
                 /* Subscript: find end of word (stops at space, punctuation, newline, or ~) */

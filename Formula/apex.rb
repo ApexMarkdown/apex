@@ -29,11 +29,16 @@ class Apex < Formula
              "-DCMAKE_BUILD_TYPE=Release",
              "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
-      # Build only the CLI executable (not framework)
+      # Build CLI executable (not framework)
+      # Man page is pre-generated in the repository
       system "cmake", "--build", ".", "--target", "apex_cli"
 
       # Install binary
       bin.install "apex"
+    end
+
+    # Install pre-generated man page
+    man1.install "man/apex.1"
     end
   end
 

@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash -o pipefail
 
-.PHONY: bump bump-patch bump-minor bump-major help release release-macos release-linux clean-release
+.PHONY: bump bump-patch bump-minor bump-major help man release release-macos release-linux clean-release
 
 # Default bump type is patch
 TYPE ?= patch
@@ -58,6 +58,9 @@ help:
 	@echo "  make bump-minor             - Bump minor version (0.1.0 -> 0.2.0)"
 	@echo "  make bump-major             - Bump major version (0.1.0 -> 1.0.0)"
 	@echo ""
+	@echo "Documentation:"
+	@echo "  make man                    - Generate man page from Markdown (requires pandoc or go-md2man)"
+	@echo ""
 	@echo "Release builds:"
 	@echo "  make release                - Build release binary for current platform"
 	@echo "  make release-macos          - Build macOS universal binary (arm64 + x86_64)"
@@ -102,9 +105,27 @@ check-version:
 		exit 1; \
 	fi
 
+# Man page generation
+man:
+	@echo "Generating man page..."
+	@if command -v pandoc >/dev/null 2>&1; then \
+		pandoc -s -t man -o man/apex.1 man/apex.1.md && \
+		echo "Man page generated: man/apex.1 (using pandoc)"; \
+	elif command -v go-md2man >/dev/null 2>&1; then \
+		go-md2man -in=man/apex.1.md -out=man/apex.1 && \
+		echo "Man page generated: man/apex.1 (using go-md2man)"; \
+	else \
+		echo "Error: Neither pandoc nor go-md2man found."; \
+		echo "  Install pandoc: brew install pandoc"; \
+		echo "  Or install go-md2man: brew install go-md2man"; \
+		exit 1; \
+	fi
+
 # Release build targets
 release: clean-release
 	@echo "Building release binaries for version $(VERSION)"
+	@echo "Generating man page for release..."
+	@$(MAKE) man || (echo "Warning: Could not generate man page. Continuing anyway..."; true)
 	@mkdir -p $(RELEASE_DIR)
 	@if [ "$(UNAME_S)" = "Darwin" ]; then \
 		$(MAKE) release-macos; \

@@ -920,6 +920,106 @@ static void test_abbreviations(void) {
 }
 
 /**
+ * Test MMD 6 features: multi-line setext headers and link/image titles with different quotes
+ */
+static void test_mmd6_features(void) {
+    printf("\n=== MMD 6 Features Tests ===\n");
+
+    apex_options opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    char *html;
+
+    /* Test multi-line setext header (h1) */
+    const char *multiline_h1 = "This is\na multi-line\nsetext header\n========";
+    html = apex_markdown_to_html(multiline_h1, strlen(multiline_h1), &opts);
+    assert_contains(html, "<h1", "Multi-line setext h1 tag");
+    assert_contains(html, "This is", "Multi-line setext h1 contains first line");
+    assert_contains(html, "a multi-line", "Multi-line setext h1 contains second line");
+    assert_contains(html, "setext header</h1>", "Multi-line setext h1 contains last line");
+    apex_free_string(html);
+
+    /* Test multi-line setext header (h2) */
+    const char *multiline_h2 = "Another\nheader\nwith\nmultiple\nlines\n--------";
+    html = apex_markdown_to_html(multiline_h2, strlen(multiline_h2), &opts);
+    assert_contains(html, "<h2", "Multi-line setext h2 tag");
+    assert_contains(html, "Another", "Multi-line setext h2 contains first line");
+    assert_contains(html, "multiple", "Multi-line setext h2 contains middle line");
+    assert_contains(html, "lines</h2>", "Multi-line setext h2 contains last line");
+    apex_free_string(html);
+
+    /* Test link title with double quotes */
+    const char *link_double = "[Link](https://example.com \"Double quote title\")";
+    html = apex_markdown_to_html(link_double, strlen(link_double), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Link with double quote title has href");
+    assert_contains(html, "title=\"Double quote title\"", "Link with double quote title");
+    apex_free_string(html);
+
+    /* Test link title with single quotes */
+    const char *link_single = "[Link](https://example.com 'Single quote title')";
+    html = apex_markdown_to_html(link_single, strlen(link_single), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Link with single quote title has href");
+    assert_contains(html, "title=\"Single quote title\"", "Link with single quote title");
+    apex_free_string(html);
+
+    /* Test link title with parentheses */
+    const char *link_paren = "[Link](https://example.com (Parentheses title))";
+    html = apex_markdown_to_html(link_paren, strlen(link_paren), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Link with parentheses title has href");
+    assert_contains(html, "title=\"Parentheses title\"", "Link with parentheses title");
+    apex_free_string(html);
+
+    /* Test image title with double quotes */
+    const char *img_double = "![Image](image.png \"Double quote title\")";
+    html = apex_markdown_to_html(img_double, strlen(img_double), &opts);
+    assert_contains(html, "<img src=\"image.png\"", "Image with double quote title has src");
+    assert_contains(html, "title=\"Double quote title\"", "Image with double quote title");
+    apex_free_string(html);
+
+    /* Test image title with single quotes */
+    const char *img_single = "![Image](image.png 'Single quote title')";
+    html = apex_markdown_to_html(img_single, strlen(img_single), &opts);
+    assert_contains(html, "<img src=\"image.png\"", "Image with single quote title has src");
+    assert_contains(html, "title=\"Single quote title\"", "Image with single quote title");
+    apex_free_string(html);
+
+    /* Test image title with parentheses */
+    const char *img_paren = "![Image](image.png (Parentheses title))";
+    html = apex_markdown_to_html(img_paren, strlen(img_paren), &opts);
+    assert_contains(html, "<img src=\"image.png\"", "Image with parentheses title has src");
+    assert_contains(html, "title=\"Parentheses title\"", "Image with parentheses title");
+    apex_free_string(html);
+
+    /* Test reference link with double quote title */
+    const char *ref_double = "[Ref][id]\n\n[id]: https://example.com \"Reference title\"";
+    html = apex_markdown_to_html(ref_double, strlen(ref_double), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Reference link with double quote title has href");
+    assert_contains(html, "title=\"Reference title\"", "Reference link with double quote title");
+    apex_free_string(html);
+
+    /* Test reference link with single quote title */
+    const char *ref_single = "[Ref][id]\n\n[id]: https://example.com 'Reference title'";
+    html = apex_markdown_to_html(ref_single, strlen(ref_single), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Reference link with single quote title has href");
+    assert_contains(html, "title=\"Reference title\"", "Reference link with single quote title");
+    apex_free_string(html);
+
+    /* Test reference link with parentheses title */
+    const char *ref_paren = "[Ref][id]\n\n[id]: https://example.com (Reference title)";
+    html = apex_markdown_to_html(ref_paren, strlen(ref_paren), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Reference link with parentheses title has href");
+    assert_contains(html, "title=\"Reference title\"", "Reference link with parentheses title");
+    apex_free_string(html);
+
+    /* Test in unified mode as well */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *unified_test = "Multi\nLine\nHeader\n========\n\n[Link](url 'Title')";
+    html = apex_markdown_to_html(unified_test, strlen(unified_test), &unified_opts);
+    assert_contains(html, "<h1", "Multi-line setext header works in unified mode");
+    assert_contains(html, "Multi\nLine\nHeader</h1>", "Multi-line setext header content in unified mode");
+    assert_contains(html, "title=\"Title\"", "Link title with single quotes works in unified mode");
+    apex_free_string(html);
+}
+
+/**
  * Test emoji support
  */
 static void test_emoji(void) {
@@ -1420,48 +1520,208 @@ static void test_header_ids(void) {
 }
 
 /**
- * Test superscript and subscript
+ * Test superscript, subscript, underline, strikethrough, and highlight
  */
 static void test_sup_sub(void) {
-    printf("\n=== Superscript and Subscript Tests ===\n");
+    printf("\n=== Superscript, Subscript, Underline, Delete, and Highlight Tests ===\n");
 
     apex_options opts = apex_options_default();
     opts.enable_sup_sub = true;
     char *html;
 
+    /* ===== SUBSCRIPT TESTS ===== */
+
+    /* Test H~2~O for subscript 2 (paired tildes within word) */
+    html = apex_markdown_to_html("H~2~O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "H~2~O creates subscript 2");
+    assert_contains(html, "H<sub>2</sub>O", "Subscript within word");
+    if (strstr(html, "<u>2</u>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " H~2~O is subscript, not underline\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " H~2~O incorrectly treated as underline\n");
+    }
+    apex_free_string(html);
+
+    /* Test H~2~SO~4~ for both 2 and 4 as subscripts */
+    html = apex_markdown_to_html("H~2~SO~4~", 9, &opts);
+    assert_contains(html, "<sub>2</sub>", "H~2~SO~4~ creates subscript 2");
+    assert_contains(html, "<sub>4</sub>", "H~2~SO~4~ creates subscript 4");
+    assert_contains(html, "H<sub>2</sub>SO<sub>4</sub>", "Multiple subscripts within word");
+    apex_free_string(html);
+
+    /* Test subscript ends at sentence terminators */
+    html = apex_markdown_to_html("H~2.O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at period");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("H~2,O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at comma");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("H~2;O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at semicolon");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("H~2:O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at colon");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("H~2!O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at exclamation");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("H~2?O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at question mark");
+    apex_free_string(html);
+
+    /* Test subscript ends at space */
+    html = apex_markdown_to_html("H~2 O", 5, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript stops at space");
+    assert_contains(html, "H<sub>2</sub> O", "Space after subscript");
+    apex_free_string(html);
+
+    /* ===== SUPERSCRIPT TESTS ===== */
+
     /* Test basic superscript */
-    html = apex_markdown_to_html("H^2 O", 5, &opts);
-    assert_contains(html, "<sup>2</sup>", "Basic superscript");
-    assert_contains(html, "H<sup>2</sup> O", "Superscript in context");
+    html = apex_markdown_to_html("m^2", 3, &opts);
+    assert_contains(html, "<sup>2</sup>", "Basic superscript m^2");
+    assert_contains(html, "m<sup>2</sup>", "Superscript in context");
     apex_free_string(html);
 
-    /* Test basic subscript */
-    html = apex_markdown_to_html("H~2 O", 5, &opts);
-    assert_contains(html, "<sub>2</sub>", "Basic subscript");
-    assert_contains(html, "H<sub>2</sub> O", "Subscript in context");
-    apex_free_string(html);
-
-    /* Test superscript with multiple characters (stops at space or marker) */
-    html = apex_markdown_to_html("x^2+y^2", 7, &opts);
-    assert_contains(html, "<sup>", "Superscript processed");
-    /* Note: x^2+y^2 becomes x<sup>2+y</sup>2 because processing stops at space or marker, not at + */
-    apex_free_string(html);
-
-    /* Test multiple superscripts with spaces */
+    /* Test superscript ends at space */
     html = apex_markdown_to_html("x^2 + y^2", 9, &opts);
-    assert_contains(html, "<sup>2</sup>", "Multiple superscripts with spaces");
+    assert_contains(html, "<sup>2</sup>", "Superscript stops at space");
+    assert_contains(html, "x<sup>2</sup>", "First superscript");
+    assert_contains(html, "y<sup>2</sup>", "Second superscript");
     apex_free_string(html);
 
-    /* Test subscript with multiple characters (stops at space or marker) */
-    html = apex_markdown_to_html("H~2O", 4, &opts);
-    assert_contains(html, "<sub>", "Subscript processed");
-    /* Note: H~2O becomes H<sub>2O</sub> because processing stops at space or marker, not at letters */
+    /* Test superscript ends at sentence terminators */
+    html = apex_markdown_to_html("x^2.", 4, &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript stops at period");
     apex_free_string(html);
 
-    /* Test subscript with space separator */
-    html = apex_markdown_to_html("H~2 O", 5, &opts);
-    assert_contains(html, "<sub>2</sub>", "Subscript with space separator");
+    html = apex_markdown_to_html("x^2,", 4, &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript stops at comma");
     apex_free_string(html);
+
+    html = apex_markdown_to_html("E = mc^2!", 9, &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript stops at exclamation");
+    apex_free_string(html);
+
+    /* Test multiple superscripts */
+    html = apex_markdown_to_html("x^2 + y^2 = z^2", 15, &opts);
+    assert_contains(html, "x<sup>2</sup>", "First superscript");
+    assert_contains(html, "y<sup>2</sup>", "Second superscript");
+    assert_contains(html, "z<sup>2</sup>", "Third superscript");
+    apex_free_string(html);
+
+    /* ===== UNDERLINE TESTS ===== */
+
+    /* Test underline with tildes at word boundaries */
+    html = apex_markdown_to_html("text ~underline~ text", 22, &opts);
+    assert_contains(html, "<u>underline</u>", "Tildes at word boundaries create underline");
+    assert_contains(html, "text <u>underline</u> text", "Underline in context");
+    if (strstr(html, "<sub>underline</sub>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " ~underline~ is underline, not subscript\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " ~underline~ incorrectly treated as subscript\n");
+    }
+    apex_free_string(html);
+
+    /* Test underline with single word */
+    html = apex_markdown_to_html("~h2o~", 6, &opts);
+    assert_contains(html, "<u>h2o</u>", "~h2o~ creates underline");
+    if (strstr(html, "<sub>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " ~h2o~ is underline, not subscript\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " ~h2o~ incorrectly treated as subscript\n");
+    }
+    apex_free_string(html);
+
+    /* ===== STRIKETHROUGH/DELETE TESTS ===== */
+
+    /* Test strikethrough with double tildes */
+    html = apex_markdown_to_html("text ~~deleted text~~ text", 26, &opts);
+    assert_contains(html, "<del>deleted text</del>", "Double tildes create strikethrough");
+    assert_contains(html, "text <del>deleted text</del> text", "Strikethrough in context");
+    apex_free_string(html);
+
+    /* Test strikethrough doesn't interfere with subscript */
+    html = apex_markdown_to_html("H~2~O and ~~deleted~~", 21, &opts);
+    assert_contains(html, "<sub>2</sub>", "Subscript still works with strikethrough");
+    assert_contains(html, "<del>deleted</del>", "Strikethrough still works with subscript");
+    apex_free_string(html);
+
+    /* Test strikethrough doesn't interfere with underline */
+    html = apex_markdown_to_html("~underline~ and ~~deleted~~", 27, &opts);
+    assert_contains(html, "<u>underline</u>", "Underline still works with strikethrough");
+    assert_contains(html, "<del>deleted</del>", "Strikethrough still works with underline");
+    apex_free_string(html);
+
+    /* ===== HIGHLIGHT TESTS ===== */
+
+    /* Test highlight with double equals */
+    html = apex_markdown_to_html("text ==highlighted text== text", 30, &opts);
+    assert_contains(html, "<mark>highlighted text</mark>", "Double equals create highlight");
+    assert_contains(html, "text <mark>highlighted text</mark> text", "Highlight in context");
+    apex_free_string(html);
+
+    /* Test highlight with single word */
+    html = apex_markdown_to_html("==highlight==", 14, &opts);
+    assert_contains(html, "<mark>highlight</mark>", "Single word highlight");
+    apex_free_string(html);
+
+    /* Test highlight with multiple words */
+    html = apex_markdown_to_html("==this is highlighted==", 24, &opts);
+    assert_contains(html, "<mark>this is highlighted</mark>", "Multi-word highlight");
+    apex_free_string(html);
+
+    /* Test highlight doesn't break Setext h1 */
+    html = apex_markdown_to_html("Header\n==\n\n==highlight==", 25, &opts);
+    assert_contains(html, "<h1", "Setext h1 still works");
+    assert_contains(html, "Header</h1>", "Setext h1 content");
+    assert_contains(html, "<mark>highlight</mark>", "Highlight after Setext h1");
+    /* Verify the == after header is not treated as highlight */
+    if (strstr(html, "<mark></mark>") == NULL || strstr(html, "<mark>\n</mark>") == NULL) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " == after Setext h1 doesn't break header\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " == after Setext h1 breaks header\n");
+    }
+    apex_free_string(html);
+
+    /* Test highlight with Setext h2 (===) */
+    html = apex_markdown_to_html("Header\n---\n\n==highlight==", 25, &opts);
+    assert_contains(html, "<h2", "Setext h2 still works");
+    assert_contains(html, "Header</h2>", "Setext h2 content");
+    assert_contains(html, "<mark>highlight</mark>", "Highlight after Setext h2");
+    apex_free_string(html);
+
+    /* Test highlight in various contexts */
+    html = apex_markdown_to_html("Before ==highlight== after", 26, &opts);
+    assert_contains(html, "<mark>highlight</mark>", "Highlight in paragraph");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("**bold ==highlight== bold**", 27, &opts);
+    assert_contains(html, "<mark>highlight</mark>", "Highlight in bold");
+    apex_free_string(html);
+
+    /* ===== INTERACTION TESTS ===== */
 
     /* Test that sup/sub is disabled when option is off */
     apex_options no_sup_sub = apex_options_default();
@@ -1504,7 +1764,7 @@ static void test_sup_sub(void) {
     assert_contains(html, "<sup>2</sup>", "Sup/sub enabled in MultiMarkdown mode");
     apex_free_string(html);
 
-    /* Test that ^ and ~ are preserved in math spans (already tested in math tests, but verify here too) */
+    /* Test that ^ and ~ are preserved in math spans */
     opts.enable_math = true;
     html = apex_markdown_to_html("Equation: $E=mc^2$", 18, &opts);
     assert_contains(html, "E=mc^2", "Superscript preserved in math span");
@@ -1763,6 +2023,7 @@ int main(int argc, char *argv[]) {
 
     /* Lower-priority feature tests */
     test_abbreviations();
+    test_mmd6_features();
     test_emoji();
     test_special_markers();
     test_advanced_footnotes();

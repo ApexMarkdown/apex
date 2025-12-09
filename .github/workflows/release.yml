@@ -24,6 +24,14 @@ jobs:
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "$VERSION" > VERSION
 
+            - name: Regenerate man page (optional)
+              run: |
+                  if command -v pandoc >/dev/null 2>&1; then
+                      make man || echo "Warning: Man page generation failed, using pre-generated version"
+                  else
+                      echo "Pandoc not available, using pre-generated man page from repository"
+                  fi
+
             - name: Build macOS universal binary
               env:
                   VERSION: ${{ env.VERSION }}
@@ -65,6 +73,14 @@ jobs:
                   echo "Version: $VERSION"
                   echo "$VERSION" > VERSION
 
+            - name: Regenerate man page (optional)
+              run: |
+                  if command -v pandoc >/dev/null 2>&1; then
+                      make man || echo "Warning: Man page generation failed, using pre-generated version"
+                  else
+                      echo "Pandoc not available, using pre-generated man page from repository"
+                  fi
+
             - name: Build Linux binary
               env:
                   VERSION: ${{ env.VERSION }}
@@ -103,6 +119,14 @@ jobs:
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "Version: $VERSION"
                   echo "$VERSION" > VERSION
+
+            - name: Regenerate man page (optional)
+              run: |
+                  if command -v pandoc >/dev/null 2>&1; then
+                      make man || echo "Warning: Man page generation failed, using pre-generated version"
+                  else
+                      echo "Pandoc not available, using pre-generated man page from repository"
+                  fi
 
             - name: Build Linux ARM binary
               env:

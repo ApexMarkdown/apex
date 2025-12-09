@@ -139,6 +139,66 @@ if(BUILD_DOCS)
     endif()
 endif()
 
+# Man page handling
+# Prefer pre-generated man page from repository, generate only if missing
+set(MAN_SOURCE ${CMAKE_SOURCE_DIR}/man/apex.1.md)
+set(MAN_PREGENERATED ${CMAKE_SOURCE_DIR}/man/apex.1)
+set(MAN_OUTPUT ${CMAKE_BINARY_DIR}/apex.1)
+
+# Check if pre-generated man page exists
+if(EXISTS ${MAN_PREGENERATED})
+    # Use pre-generated man page (copy to build directory for installation)
+    add_custom_command(
+        OUTPUT ${MAN_OUTPUT}
+        COMMAND ${CMAKE_COMMAND} -E copy ${MAN_PREGENERATED} ${MAN_OUTPUT}
+        DEPENDS ${MAN_PREGENERATED}
+        COMMENT "Using pre-generated man page"
+    )
+    add_custom_target(man_page_copy ALL DEPENDS ${MAN_OUTPUT})
+    message(STATUS "Man page: Using pre-generated man/apex.1")
+    set(MAN_AVAILABLE TRUE)
+else()
+    # Try to generate man page from Markdown source
+    find_program(PANDOC_EXECUTABLE pandoc)
+    find_program(GO_MD2MAN_EXECUTABLE go-md2man)
+
+    if(PANDOC_EXECUTABLE)
+        add_custom_command(
+            OUTPUT ${MAN_OUTPUT}
+            COMMAND ${PANDOC_EXECUTABLE} -s -t man -o ${MAN_OUTPUT} ${MAN_SOURCE}
+            DEPENDS ${MAN_SOURCE}
+            COMMENT "Generating man page from Markdown using pandoc"
+        )
+        add_custom_target(man_page ALL DEPENDS ${MAN_OUTPUT})
+        message(STATUS "Man page: Will be generated using pandoc")
+        set(MAN_AVAILABLE TRUE)
+    elseif(GO_MD2MAN_EXECUTABLE)
+        add_custom_command(
+            OUTPUT ${MAN_OUTPUT}
+            COMMAND ${GO_MD2MAN_EXECUTABLE} -in=${MAN_SOURCE} -out=${MAN_OUTPUT}
+            DEPENDS ${MAN_SOURCE}
+            COMMENT "Generating man page from Markdown using go-md2man"
+        )
+        add_custom_target(man_page ALL DEPENDS ${MAN_OUTPUT})
+        message(STATUS "Man page: Will be generated using go-md2man")
+        set(MAN_AVAILABLE TRUE)
+    else()
+        message(WARNING "Pre-generated man page not found and neither pandoc nor go-md2man available.")
+        message(STATUS "  Man page will not be installed. Generate it with 'make man' before building.")
+        set(MAN_AVAILABLE FALSE)
+    endif()
+endif()
+
+# Install man page
+if(MAN_AVAILABLE)
+    # Determine man page section (1 for user commands)
+    set(MAN_SECTION 1)
+    install(FILES ${MAN_OUTPUT}
+        DESTINATION share/man/man${MAN_SECTION}
+        RENAME apex.${MAN_SECTION}
+    )
+endif()
+
 # Print configuration
 message(STATUS "Apex ${PROJECT_VERSION}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
