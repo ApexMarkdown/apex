@@ -24,6 +24,21 @@ jobs:
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "$VERSION" > VERSION
 
+            - name: Extract tag message
+              id: tag_message
+              run: |
+                  TAG_NAME=${GITHUB_REF#refs/tags/}
+                  # Get the full tag message (subject + body)
+                  TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG_NAME")
+                  # Remove leading/trailing whitespace but preserve internal formatting
+                  TAG_MESSAGE=$(echo "$TAG_MESSAGE" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                  # Use multiline output format for GitHub Actions
+                  {
+                    echo 'body<<EOF'
+                    echo "$TAG_MESSAGE"
+                    echo 'EOF'
+                  } >> $GITHUB_OUTPUT
+
             - name: Regenerate man page (optional)
               run: |
                   if command -v pandoc >/dev/null 2>&1; then
@@ -53,6 +68,8 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
+                  body: ${{ steps.tag_message.outputs.body }}
+                  generate_release_notes: false
                   files: |
                       release/apex-${{ env.VERSION }}-macos-universal.tar.gz
                       release/apex-${{ env.VERSION }}-macos-universal.tar.gz.sha256
@@ -72,6 +89,21 @@ jobs:
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "Version: $VERSION"
                   echo "$VERSION" > VERSION
+
+            - name: Extract tag message
+              id: tag_message
+              run: |
+                  TAG_NAME=${GITHUB_REF#refs/tags/}
+                  # Get the full tag message (subject + body)
+                  TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG_NAME")
+                  # Remove leading/trailing whitespace but preserve internal formatting
+                  TAG_MESSAGE=$(echo "$TAG_MESSAGE" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                  # Use multiline output format for GitHub Actions
+                  {
+                    echo 'body<<EOF'
+                    echo "$TAG_MESSAGE"
+                    echo 'EOF'
+                  } >> $GITHUB_OUTPUT
 
             - name: Regenerate man page (optional)
               run: |
@@ -100,6 +132,8 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
+                  body: ${{ steps.tag_message.outputs.body }}
+                  generate_release_notes: false
                   files: |
                       release/apex-${{ env.VERSION }}-linux-*.tar.gz
                       release/apex-${{ env.VERSION }}-linux-*.tar.gz.sha256
@@ -119,6 +153,21 @@ jobs:
                   echo "version=$VERSION" >> $GITHUB_OUTPUT
                   echo "Version: $VERSION"
                   echo "$VERSION" > VERSION
+
+            - name: Extract tag message
+              id: tag_message
+              run: |
+                  TAG_NAME=${GITHUB_REF#refs/tags/}
+                  # Get the full tag message (subject + body)
+                  TAG_MESSAGE=$(git tag -l --format='%(contents)' "$TAG_NAME")
+                  # Remove leading/trailing whitespace but preserve internal formatting
+                  TAG_MESSAGE=$(echo "$TAG_MESSAGE" | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' -e 's/^[[:space:]]*//;s/[[:space:]]*$//')
+                  # Use multiline output format for GitHub Actions
+                  {
+                    echo 'body<<EOF'
+                    echo "$TAG_MESSAGE"
+                    echo 'EOF'
+                  } >> $GITHUB_OUTPUT
 
             - name: Regenerate man page (optional)
               run: |
@@ -147,6 +196,8 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
+                  body: ${{ steps.tag_message.outputs.body }}
+                  generate_release_notes: false
                   files: |
                       release/apex-${{ env.VERSION }}-linux-*.tar.gz
                       release/apex-${{ env.VERSION }}-linux-*.tar.gz.sha256

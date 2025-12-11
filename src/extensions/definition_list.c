@@ -163,8 +163,12 @@ char *apex_process_definition_lists(const char *text) {
     size_t remaining = output_capacity;
 
     bool in_def_list = false;
+    bool in_blockquote_context = false;  /* Track if we're processing blockquote-prefixed definition lists */
+    int blockquote_depth = 0;  /* Track nesting depth of blockquotes (number of > characters) */
     char term_buffer[4096];
     int term_len = 0;
+    bool term_has_blockquote = false;  /* Track if buffered term has blockquote prefix */
+    int term_blockquote_depth = 0;  /* Track blockquote depth of buffered term */
 
     while (*read) {
         const char *line_start = read;
@@ -206,11 +210,26 @@ char *apex_process_definition_lists(const char *text) {
         }
 
         /* Check if line starts with : (definition) */
+        /* Also handle blockquote prefixes: > : or >: */
         p = line_start;
         int spaces = 0;
         while (*p == ' ' && spaces < 3 && p < line_end) {
             spaces++;
             p++;
+        }
+
+        /* Check for blockquote prefix (may be nested: > > >) */
+        bool has_blockquote_prefix = false;
+        int current_blockquote_depth = 0;
+        const char *blockquote_start = p;
+        while (p < line_end && *p == '>') {
+            has_blockquote_prefix = true;
+            current_blockquote_depth++;
+            p++;
+            /* Skip optional space after > */
+            if (p < line_end && (*p == ' ' || *p == '\t')) {
+                p++;
+            }
         }
 
         bool is_def_line = false;
@@ -222,9 +241,25 @@ char *apex_process_definition_lists(const char *text) {
         if (is_def_line) {
             /* Definition line */
             if (!in_def_list) {
+                /* Check if this definition list is in a blockquote context */
+                in_blockquote_context = has_blockquote_prefix || term_has_blockquote;
+                /* Use the maximum depth from current line or buffered term */
+                blockquote_depth = term_has_blockquote ? term_blockquote_depth : current_blockquote_depth;
+                if (has_blockquote_prefix && current_blockquote_depth > blockquote_depth) {
+                    blockquote_depth = current_blockquote_depth;
+                }
+
                 /* Start new definition list */
                 const char *dl_start = "<dl>\n";
                 size_t dl_len = strlen(dl_start);
+                if (in_blockquote_context && dl_len < remaining) {
+                    /* Add > prefix(es) at start of line for blockquote context */
+                    for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                        *write++ = '>';
+                        *write++ = ' ';
+                        remaining -= 2;
+                    }
+                }
                 if (dl_len < remaining) {
                     memcpy(write, dl_start, dl_len);
                     write += dl_len;
@@ -233,6 +268,28 @@ char *apex_process_definition_lists(const char *text) {
 
                 /* Write term from buffer */
                 if (term_len > 0) {
+                    /* Strip blockquote prefix from term if present */
+                    const char *term_content = term_buffer;
+                    int term_content_len = term_len;
+                    if (term_has_blockquote) {
+                        /* Skip > and optional space */
+                        term_content = term_buffer;
+                        while (term_content < term_buffer + term_len &&
+                               (*term_content == '>' || *term_content == ' ' || *term_content == '\t')) {
+                            term_content++;
+                            term_content_len--;
+                        }
+                    }
+
+                    if (in_blockquote_context) {
+                        /* Add > prefix(es) at start of line for blockquote context */
+                        for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                            *write++ = '>';
+                            *write++ = ' ';
+                            remaining -= 2;
+                        }
+                    }
+
                     const char *dt_start = "<dt>";
                     size_t dt_start_len = strlen(dt_start);
                     if (dt_start_len < remaining) {
@@ -243,17 +300,17 @@ char *apex_process_definition_lists(const char *text) {
 
                     /* Parse term text as inline Markdown */
                     char *term_html = NULL;
-                    if (term_len > 0) {
+                    if (term_content_len > 0) {
                         /* Create temporary buffer for term text */
-                        char *term_text = malloc(term_len + 1);
+                        char *term_text = malloc(term_content_len + 1);
                         if (term_text) {
-                            memcpy(term_text, term_buffer, term_len);
-                            term_text[term_len] = '\0';
+                            memcpy(term_text, term_content, term_content_len);
+                            term_text[term_content_len] = '\0';
 
                             /* Parse as Markdown and render to HTML */
                             cmark_parser *temp_parser = cmark_parser_new(CMARK_OPT_DEFAULT);
                             if (temp_parser) {
-                                cmark_parser_feed(temp_parser, term_text, term_len);
+                                cmark_parser_feed(temp_parser, term_text, term_content_len);
                                 cmark_node *doc = cmark_parser_finish(temp_parser);
                                 if (doc) {
                                     /* Render and extract just the content (strip <p> tags) */
@@ -290,11 +347,11 @@ char *apex_process_definition_lists(const char *text) {
                             remaining -= html_len;
                         }
                         free(term_html);
-                    } else if ((size_t)term_len < remaining) {
+                    } else if ((size_t)term_content_len < remaining) {
                         /* Fallback to original text if parsing failed */
-                        memcpy(write, term_buffer, term_len);
-                        write += term_len;
-                        remaining -= (size_t)term_len;
+                        memcpy(write, term_content, term_content_len);
+                        write += term_content_len;
+                        remaining -= (size_t)term_content_len;
                     }
 
                     const char *dt_end = "</dt>\n";
@@ -306,12 +363,22 @@ char *apex_process_definition_lists(const char *text) {
                     }
 
                     term_len = 0;
+                    term_has_blockquote = false;
                 }
 
                 in_def_list = true;
             }
 
             /* Write definition */
+            if (in_blockquote_context) {
+                /* Add > prefix(es) at start of line for blockquote context */
+                for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                    *write++ = '>';
+                    *write++ = ' ';
+                    remaining -= 2;
+                }
+            }
+
             const char *dd_start = "<dd>";
             size_t dd_start_len = strlen(dd_start);
             if (dd_start_len < remaining) {
@@ -395,13 +462,25 @@ char *apex_process_definition_lists(const char *text) {
                 /* End definition list */
                 const char *dl_end = "</dl>\n\n";
                 size_t dl_end_len = strlen(dl_end);
+                if (in_blockquote_context && dl_end_len < remaining) {
+                    /* Add > prefix(es) at start of line for blockquote context */
+                    for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                        *write++ = '>';
+                        *write++ = ' ';
+                        remaining -= 2;
+                    }
+                }
                 if (dl_end_len < remaining) {
                     memcpy(write, dl_end, dl_end_len);
                     write += dl_end_len;
                     remaining -= dl_end_len;
                 }
                 in_def_list = false;
+                in_blockquote_context = false;
+                blockquote_depth = 0;
                 term_len = 0;
+                term_has_blockquote = false;
+                term_blockquote_depth = 0;
             } else {
                 /* Flush any buffered term before writing blank line */
                 if (term_len > 0) {
@@ -429,12 +508,22 @@ char *apex_process_definition_lists(const char *text) {
                 /* End current list first */
                 const char *dl_end = "</dl>\n\n";
                 size_t dl_end_len = strlen(dl_end);
+                if (in_blockquote_context && dl_end_len < remaining) {
+                    /* Add > prefix(es) at start of line for blockquote context */
+                    for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                        *write++ = '>';
+                        *write++ = ' ';
+                        remaining -= 2;
+                    }
+                }
                 if (dl_end_len < remaining) {
                     memcpy(write, dl_end, dl_end_len);
                     write += dl_end_len;
                     remaining -= dl_end_len;
                 }
                 in_def_list = false;
+                in_blockquote_context = false;
+                blockquote_depth = 0;
             }
 
             /* If we have a buffered term that wasn't used, write it first */
@@ -519,6 +608,22 @@ char *apex_process_definition_lists(const char *text) {
             }
             /* Save current line as potential term */
             else if (line_length < sizeof(term_buffer) - 1) {
+                /* Check if line has blockquote prefix and count depth */
+                const char *term_check = line_start;
+                while (term_check < line_end && (*term_check == ' ' || *term_check == '\t')) term_check++;
+                term_has_blockquote = false;
+                term_blockquote_depth = 0;
+                const char *depth_check = term_check;
+                while (depth_check < line_end && *depth_check == '>') {
+                    term_has_blockquote = true;
+                    term_blockquote_depth++;
+                    depth_check++;
+                    /* Skip optional space after > */
+                    if (depth_check < line_end && (*depth_check == ' ' || *depth_check == '\t')) {
+                        depth_check++;
+                    }
+                }
+
                 memcpy(term_buffer, line_start, line_length);
                 term_len = line_length;
                 term_buffer[term_len] = '\0';
@@ -546,6 +651,14 @@ char *apex_process_definition_lists(const char *text) {
     if (in_def_list) {
         const char *dl_end = "</dl>\n";
         size_t dl_end_len = strlen(dl_end);
+        if (in_blockquote_context && dl_end_len < remaining) {
+            /* Add > prefix(es) at start of line for blockquote context */
+            for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                *write++ = '>';
+                *write++ = ' ';
+                remaining -= 2;
+            }
+        }
         if (dl_end_len < remaining) {
             memcpy(write, dl_end, dl_end_len);
             write += dl_end_len;

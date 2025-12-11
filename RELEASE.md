@@ -5,7 +5,7 @@ This document explains how to create and distribute Apex releases.
 ## Prerequisites
 
 1. **Version bump**: Update version using `make bump [TYPE=patch|minor|major]`
-2. **Git tag**: Create a version tag: `git tag v0.1.0`
+2. **Git tag**: Create a version tag with release notes (see below)
 3. **Push tag**: `git push origin v0.1.0`
 
 ## Building Release Binaries
@@ -89,14 +89,50 @@ xcrun notarytool submit apex-0.1.0-macos-universal.tar.gz \
 
 The `.github/workflows/release.yml` workflow automatically:
 1. Builds binaries when you push a tag
-2. Creates GitHub release
+2. Creates GitHub release with the tag message as release notes
 3. Uploads binaries and checksums
 
-Just push a tag:
+#### Creating Tags with Release Notes
+
+To include release notes that will appear on the GitHub release page, create an annotated tag with a message:
+
+**Option 1: From a file (Recommended)**
 ```bash
-git tag v0.1.0
+# Create a file with your release notes
+cat > tag_message.txt << 'EOF'
+Release title (first line)
+
+Detailed release notes here.
+- Feature 1
+- Feature 2
+- Bug fixes
+EOF
+
+# Create annotated tag with message from file
+git tag -a v0.1.0 -F tag_message.txt
+
+# Push the tag
 git push origin v0.1.0
 ```
+
+**Option 2: Inline message**
+```bash
+git tag -a v0.1.0 -m "Release title
+
+Detailed release notes here.
+- Feature 1
+- Feature 2"
+git push origin v0.1.0
+```
+
+**Option 3: Using a changelog command**
+```bash
+# If you have a changelog generator
+changelog | git tag -a v0.1.0 -F -
+git push origin v0.1.0
+```
+
+**Note**: The workflow automatically extracts the tag message and uses it as the release body. The first line will be used as the release title, and the rest as the release notes body.
 
 ### Manual
 
@@ -141,7 +177,7 @@ brew install apex
 - [ ] Bump version: `make bump TYPE=patch|minor|major`
 - [ ] Update CHANGELOG.md
 - [ ] Commit version changes
-- [ ] Create git tag: `git tag v0.1.0`
+- [ ] Create git tag with release notes: `git tag -a v0.1.0 -F tag_message.txt` (or `-m "message"`)
 - [ ] Push tag: `git push origin v0.1.0`
 - [ ] Wait for GitHub Actions to build and upload
 - [ ] Update Homebrew formula with new version and SHA256
