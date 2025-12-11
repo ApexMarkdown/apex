@@ -35,10 +35,9 @@ class Apex < Formula
 
       # Install binary
       bin.install "apex"
-    end
 
-    # Install pre-generated man page
-    man1.install "man/apex.1"
+      # Install pre-generated man page
+      man1.install "man/apex.1"
     end
   end
 
