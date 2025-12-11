@@ -579,6 +579,45 @@ static void test_definition_lists(void) {
     assert_contains(html, "<dd>Def1</dd>", "First definition");
     assert_contains(html, "<dd>Def2</dd>", "Second definition");
     apex_free_string(html);
+
+    /* Test inline links in definition list terms */
+    const char *inline_link = "Term with [inline link](https://example.com)\n: Definition";
+    html = apex_markdown_to_html(inline_link, strlen(inline_link), &opts);
+    assert_contains(html, "<dt>", "Definition term with inline link");
+    assert_contains(html, "<a href=\"https://example.com\"", "Inline link in term has href");
+    assert_contains(html, "inline link</a>", "Inline link text in term");
+    apex_free_string(html);
+
+    /* Test reference-style links in definition list terms */
+    const char *ref_link = "Term with [reference link][ref]\n: Definition\n\n[ref]: https://example.com \"Reference title\"";
+    html = apex_markdown_to_html(ref_link, strlen(ref_link), &opts);
+    assert_contains(html, "<dt>", "Definition term with reference link");
+    assert_contains(html, "<a href=\"https://example.com\"", "Reference link in term has href");
+    assert_contains(html, "title=\"Reference title\"", "Reference link in term has title");
+    assert_contains(html, "reference link</a>", "Reference link text in term");
+    apex_free_string(html);
+
+    /* Test shortcut reference links in definition list terms */
+    const char *shortcut_link = "Term with [shortcut][]\n: Definition\n\n[shortcut]: https://example.org";
+    html = apex_markdown_to_html(shortcut_link, strlen(shortcut_link), &opts);
+    assert_contains(html, "<dt>", "Definition term with shortcut reference");
+    assert_contains(html, "<a href=\"https://example.org\"", "Shortcut reference in term has href");
+    assert_contains(html, "shortcut</a>", "Shortcut reference text in term");
+    apex_free_string(html);
+
+    /* Test inline links in definition descriptions */
+    const char *def_inline = "Term\n: Definition with [inline link](https://example.com)";
+    html = apex_markdown_to_html(def_inline, strlen(def_inline), &opts);
+    assert_contains(html, "<dd>", "Definition with inline link");
+    assert_contains(html, "<a href=\"https://example.com\"", "Inline link in definition has href");
+    apex_free_string(html);
+
+    /* Test reference-style links in definition descriptions */
+    const char *def_ref = "Term\n: Definition with [reference][ref]\n\n[ref]: https://example.com";
+    html = apex_markdown_to_html(def_ref, strlen(def_ref), &opts);
+    assert_contains(html, "<dd>", "Definition with reference link");
+    assert_contains(html, "<a href=\"https://example.com\"", "Reference link in definition has href");
+    apex_free_string(html);
 }
 
 /**

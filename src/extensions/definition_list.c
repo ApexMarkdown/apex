@@ -58,6 +58,75 @@ static bool is_definition_line(const unsigned char *input, int len, int *indent)
 }
 
 /**
+ * Extract all reference link definitions from the document
+ * Returns a string containing all reference definitions, or NULL if none found
+ * Caller must free the returned string
+ */
+static char *extract_reference_definitions(const char *text) {
+    if (!text) return NULL;
+
+    size_t text_len = strlen(text);
+    size_t refs_capacity = text_len + 1;
+    char *refs = malloc(refs_capacity);
+    if (!refs) return NULL;
+    refs[0] = '\0';
+
+    const char *p = text;
+    size_t refs_len = 0;
+
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        if (!line_end) line_end = p + strlen(p);
+
+        /* Skip leading whitespace */
+        const char *content_start = line_start;
+        while (content_start < line_end && (*content_start == ' ' || *content_start == '\t')) {
+            content_start++;
+        }
+
+        /* Check if this is a reference link definition: [id]: URL */
+        if (content_start < line_end && *content_start == '[') {
+            const char *id_end = strchr(content_start + 1, ']');
+            if (id_end && id_end < line_end && id_end[1] == ':') {
+                /* This is a reference definition - extract the entire line */
+                size_t line_len = line_end - line_start;
+                if (line_end < p + strlen(p) && *line_end == '\n') {
+                    line_len++; /* Include newline */
+                }
+
+                /* Check if we need to expand the buffer */
+                if (refs_len + line_len + 1 >= refs_capacity) {
+                    refs_capacity = (refs_len + line_len + 1) * 2;
+                    char *new_refs = realloc(refs, refs_capacity);
+                    if (!new_refs) {
+                        free(refs);
+                        return NULL;
+                    }
+                    refs = new_refs;
+                }
+
+                /* Copy the line */
+                memcpy(refs + refs_len, line_start, line_len);
+                refs_len += line_len;
+                refs[refs_len] = '\0';
+            }
+        }
+
+        /* Move to next line */
+        p = line_end;
+        if (*p == '\n') p++;
+    }
+
+    if (refs_len == 0) {
+        free(refs);
+        return NULL;
+    }
+
+    return refs;
+}
+
+/**
  * Open block - called when we see a ':' character that might start a definition
  */
 static cmark_node *open_block(cmark_syntax_extension *ext,
@@ -157,6 +226,9 @@ char *apex_process_definition_lists(const char *text) {
     size_t output_capacity = text_len * 3;  /* Generous for HTML tags */
     char *output = malloc(output_capacity);
     if (!output) return NULL;
+
+    /* Extract all reference link definitions from the document */
+    char *ref_definitions = extract_reference_definitions(text);
 
     const char *read = text;
     char *write = output;
@@ -300,16 +372,32 @@ char *apex_process_definition_lists(const char *text) {
                     /* Parse term text as inline Markdown */
                     char *term_html = NULL;
                     if (term_content_len > 0) {
-                        /* Create temporary buffer for term text */
-                        char *term_text = malloc(term_content_len + 1);
+                        /* Create temporary buffer for term text with reference definitions */
+                        size_t term_text_size = term_content_len + 1;
+                        if (ref_definitions) {
+                            term_text_size += strlen(ref_definitions) + 2; /* +2 for newline and null terminator */
+                        }
+                        char *term_text = malloc(term_text_size);
                         if (term_text) {
-                            memcpy(term_text, term_content, term_content_len);
-                            term_text[term_content_len] = '\0';
+                            size_t offset = 0;
+                            /* Prepend reference definitions if available */
+                            if (ref_definitions) {
+                                size_t ref_len = strlen(ref_definitions);
+                                memcpy(term_text, ref_definitions, ref_len);
+                                offset = ref_len;
+                                /* Add newline if refs don't end with one */
+                                if (ref_len > 0 && ref_definitions[ref_len - 1] != '\n') {
+                                    term_text[offset++] = '\n';
+                                }
+                            }
+                            /* Append term content */
+                            memcpy(term_text + offset, term_content, term_content_len);
+                            term_text[offset + term_content_len] = '\0';
 
                             /* Parse as Markdown and render to HTML */
                             cmark_parser *temp_parser = cmark_parser_new(CMARK_OPT_DEFAULT);
                             if (temp_parser) {
-                                cmark_parser_feed(temp_parser, term_text, term_content_len);
+                                cmark_parser_feed(temp_parser, term_text, offset + term_content_len);
                                 cmark_node *doc = cmark_parser_finish(temp_parser);
                                 if (doc) {
                                     /* Render and extract just the content (strip <p> tags) */
@@ -395,16 +483,32 @@ char *apex_process_definition_lists(const char *text) {
             /* Parse definition text as inline Markdown */
             char *def_html = NULL;
             if (def_text_len > 0) {
-                /* Create temporary buffer for definition text */
-                char *def_text = malloc(def_text_len + 1);
+                /* Create temporary buffer for definition text with reference definitions */
+                size_t def_text_size = def_text_len + 1;
+                if (ref_definitions) {
+                    def_text_size += strlen(ref_definitions) + 2; /* +2 for newline and null terminator */
+                }
+                char *def_text = malloc(def_text_size);
                 if (def_text) {
-                    memcpy(def_text, p, def_text_len);
-                    def_text[def_text_len] = '\0';
+                    size_t offset = 0;
+                    /* Prepend reference definitions if available */
+                    if (ref_definitions) {
+                        size_t ref_len = strlen(ref_definitions);
+                        memcpy(def_text, ref_definitions, ref_len);
+                        offset = ref_len;
+                        /* Add newline if refs don't end with one */
+                        if (ref_len > 0 && ref_definitions[ref_len - 1] != '\n') {
+                            def_text[offset++] = '\n';
+                        }
+                    }
+                    /* Append definition content */
+                    memcpy(def_text + offset, p, def_text_len);
+                    def_text[offset + def_text_len] = '\0';
 
                     /* Parse as Markdown and render to HTML */
                     cmark_parser *temp_parser = cmark_parser_new(CMARK_OPT_DEFAULT);
                     if (temp_parser) {
-                        cmark_parser_feed(temp_parser, def_text, def_text_len);
+                        cmark_parser_feed(temp_parser, def_text, offset + def_text_len);
                         cmark_node *doc = cmark_parser_finish(temp_parser);
                         if (doc) {
                             /* Render and extract just the content (strip <p> tags) */
@@ -676,6 +780,11 @@ char *apex_process_definition_lists(const char *text) {
             *write++ = '\n';
             remaining--;
         }
+    }
+
+    /* Free reference definitions if we extracted them */
+    if (ref_definitions) {
+        free(ref_definitions);
     }
 
     *write = '\0';
