@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <libgen.h>
 
 #define BUFFER_SIZE 4096
 
@@ -43,6 +44,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]transforms      Enable metadata variable transforms [%%key:transform] (enabled by default in unified mode)\n");
     fprintf(stderr, "  --[no-]unsafe          Allow raw HTML in output (default: true for unified/mmd/kramdown, false for commonmark/gfm)\n");
     fprintf(stderr, "  --[no-]wikilinks       Enable wiki link syntax [[PageName]] (disabled by default)\n");
+    fprintf(stderr, "  --embed-images         Embed local images as base64 data URLs in HTML output\n");
+    fprintf(stderr, "  --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)\n");
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
     fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
     fprintf(stderr, "  --style FILE           Link to CSS file in document head (requires --standalone)\n");
@@ -138,6 +141,7 @@ int main(int argc, char *argv[]) {
     const char *output_file = NULL;
     const char *meta_file = NULL;
     apex_metadata_item *cmdline_metadata = NULL;
+    char *allocated_base_dir = NULL;  /* Track if we allocated base_directory */
 
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
@@ -260,6 +264,14 @@ int main(int argc, char *argv[]) {
             options.enable_metadata_transforms = true;
         } else if (strcmp(argv[i], "--no-transforms") == 0) {
             options.enable_metadata_transforms = false;
+        } else if (strcmp(argv[i], "--embed-images") == 0) {
+            options.embed_images = true;
+        } else if (strcmp(argv[i], "--base-dir") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --base-dir requires an argument\n");
+                return 1;
+            }
+            options.base_directory = argv[i];
         } else if (strcmp(argv[i], "--meta-file") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --meta-file requires an argument\n");
@@ -298,6 +310,19 @@ int main(int argc, char *argv[]) {
         } else {
             /* Assume it's the input file */
             input_file = argv[i];
+        }
+    }
+
+    /* Set base_directory from input file if not already set */
+    if (input_file && !options.base_directory) {
+        char *input_path_copy = strdup(input_file);
+        if (input_path_copy) {
+            char *dir = dirname(input_path_copy);
+            if (dir && dir[0] != '\0' && strcmp(dir, ".") != 0) {
+                allocated_base_dir = strdup(dir);
+                options.base_directory = allocated_base_dir;
+            }
+            free(input_path_copy);
         }
     }
 
@@ -480,5 +505,11 @@ int main(int argc, char *argv[]) {
     }
 
     apex_free_string(html);
+
+    /* Free base_directory if we allocated it */
+    if (allocated_base_dir) {
+        free(allocated_base_dir);
+    }
+
     return 0;
 }

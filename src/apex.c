@@ -3,6 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <libgen.h>
 
 /* cmark-gfm headers */
 #include "cmark-gfm.h"
@@ -56,6 +59,53 @@ static char *apex_encode_hex_entities(const char *text, size_t len) {
     }
     *w = '\0';
     return out;
+}
+
+/**
+ * Base64 encode binary data
+ * Caller must free the returned buffer.
+ */
+static char *apex_base64_encode(const unsigned char *data, size_t len) {
+    if (!data || len == 0) return NULL;
+
+    static const char base64_chars[] =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    /* Base64 encoding increases size by ~33% (4 chars per 3 bytes) */
+    size_t encoded_len = ((len + 2) / 3) * 4;
+    char *encoded = malloc(encoded_len + 1);
+    if (!encoded) return NULL;
+
+    char *out = encoded;
+    size_t i = 0;
+
+    while (i < len) {
+        unsigned char byte1 = data[i++];
+        unsigned char byte2 = (i < len) ? data[i++] : 0;
+        unsigned char byte3 = (i < len) ? data[i++] : 0;
+
+        unsigned int combined = (byte1 << 16) | (byte2 << 8) | byte3;
+
+        *out++ = base64_chars[(combined >> 18) & 0x3F];
+        *out++ = base64_chars[(combined >> 12) & 0x3F];
+
+        /* Check if we have at least 2 bytes (byte1 and byte2) */
+        if (i >= 2) {
+            *out++ = base64_chars[(combined >> 6) & 0x3F];
+        } else {
+            *out++ = '=';
+        }
+
+        /* Check if we have all 3 bytes */
+        if (i >= 3) {
+            *out++ = base64_chars[combined & 0x3F];
+        } else {
+            *out++ = '=';
+        }
+    }
+
+    *out = '\0';
+    return encoded;
 }
 
 /**
@@ -145,6 +195,280 @@ static char *apex_obfuscate_email_links(const char *html) {
 
     *w = '\0';
     return out;
+}
+
+/**
+ * Detect MIME type from file extension
+ * Handles URLs with query parameters by stopping at ? or #
+ */
+static const char *apex_detect_mime_type(const char *filepath) {
+    if (!filepath) return "image/png";  /* Default */
+
+    const char *ext = strrchr(filepath, '.');
+    if (!ext) return "image/png";  /* Default */
+    ext++;
+
+    /* Find the end of the extension (stop at ? or # for URLs) */
+    const char *ext_end = ext;
+    while (*ext_end && *ext_end != '?' && *ext_end != '#' && *ext_end != '/' && *ext_end != ' ') {
+        ext_end++;
+    }
+    size_t ext_len = ext_end - ext;
+
+    /* Case-insensitive comparison */
+    if (ext_len == 3 && (strncasecmp(ext, "jpg", 3) == 0 || strncasecmp(ext, "jpeg", 3) == 0)) {
+        return "image/jpeg";
+    } else if (ext_len == 4 && strncasecmp(ext, "jpeg", 4) == 0) {
+        return "image/jpeg";
+    } else if (ext_len == 3 && strncasecmp(ext, "png", 3) == 0) {
+        return "image/png";
+    } else if (ext_len == 3 && strncasecmp(ext, "gif", 3) == 0) {
+        return "image/gif";
+    } else if (ext_len == 4 && strncasecmp(ext, "webp", 4) == 0) {
+        return "image/webp";
+    } else if (ext_len == 3 && strncasecmp(ext, "svg", 3) == 0) {
+        return "image/svg+xml";
+    } else if (ext_len == 3 && strncasecmp(ext, "bmp", 3) == 0) {
+        return "image/bmp";
+    } else if (ext_len == 3 && strncasecmp(ext, "ico", 3) == 0) {
+        return "image/x-icon";
+    }
+
+    return "image/png";  /* Default */
+}
+
+/**
+ * Resolve relative path from base directory
+ */
+static char *apex_resolve_image_path(const char *filepath, const char *base_dir) {
+    if (!filepath) return NULL;
+
+    /* If absolute path, return as-is */
+    if (filepath[0] == '/') {
+        return strdup(filepath);
+    }
+
+    /* Relative path - combine with base_dir */
+    if (!base_dir || !*base_dir) {
+        return strdup(filepath);
+    }
+
+    size_t len = strlen(base_dir) + strlen(filepath) + 2;
+    char *resolved = malloc(len);
+    if (!resolved) return NULL;
+
+    snprintf(resolved, len, "%s/%s", base_dir, filepath);
+    return resolved;
+}
+
+/**
+ * Read local image file and encode as base64
+ */
+static char *apex_read_and_encode_image(const char *filepath) {
+    if (!filepath) return NULL;
+
+    FILE *fp = fopen(filepath, "rb");
+    if (!fp) return NULL;
+
+    /* Get file size */
+    fseek(fp, 0, SEEK_END);
+    long size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (size < 0 || size > 10 * 1024 * 1024) {  /* Limit to 10MB */
+        fclose(fp);
+        return NULL;
+    }
+
+    /* Read content */
+    unsigned char *content = malloc(size);
+    if (!content) {
+        fclose(fp);
+        return NULL;
+    }
+
+    size_t read = fread(content, 1, size, fp);
+    fclose(fp);
+
+    if (read != (size_t)size) {
+        free(content);
+        return NULL;
+    }
+
+    /* Encode to base64 */
+    char *encoded = apex_base64_encode(content, size);
+    free(content);
+    return encoded;
+}
+
+/**
+ * Embed images as base64 data URLs in HTML
+ * Only supports local images - remote images are not embedded
+ */
+static char *apex_embed_images(const char *html, const apex_options *options, const char *base_directory) {
+    if (!html || !options->embed_images) {
+        return html ? strdup(html) : NULL;
+    }
+
+    size_t html_len = strlen(html);
+    /* Allocate generous buffer - base64 encoding increases size by ~33% */
+    size_t cap = html_len * 3 + 1024;
+    char *output = malloc(cap);
+    if (!output) return strdup(html);
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = cap;
+
+    while (*read) {
+        /* Look for <img tag */
+        if (*read == '<' && strncmp(read, "<img", 4) == 0) {
+            const char *img_start = read;
+            const char *img_end = strchr(img_start, '>');
+            if (!img_end) {
+                /* Malformed tag, copy as-is */
+                if (remaining > 0) {
+                    *write++ = *read++;
+                    remaining--;
+                } else {
+                    read++;
+                }
+                continue;
+            }
+
+            /* Check if already a data URL */
+            const char *src_attr = strstr(img_start, "src=\"");
+            if (!src_attr || src_attr > img_end) {
+                src_attr = strstr(img_start, "src='");
+            }
+
+            if (src_attr && src_attr < img_end) {
+                const char quote_char = (src_attr[4] == '"') ? '"' : '\'';
+                const char *url_start = src_attr + 5;
+                const char *url_end = strchr(url_start, quote_char);
+                if (url_end && url_end < img_end) {
+                    size_t url_len = url_end - url_start;
+                    char *url = malloc(url_len + 1);
+                    if (url) {
+                        memcpy(url, url_start, url_len);
+                        url[url_len] = '\0';
+
+                        /* Check if already a data URL */
+                        bool is_data_url = (strncmp(url, "data:", 5) == 0);
+                        bool is_remote = (strncmp(url, "http://", 7) == 0 ||
+                                        strncmp(url, "https://", 8) == 0 ||
+                                        strncmp(url, "//", 2) == 0);
+
+                        char *data_url = NULL;
+                        const char *mime_type = NULL;
+
+                        if (!is_data_url && !is_remote && options->embed_images) {
+                            /* Local image */
+                            char *resolved_path = apex_resolve_image_path(url, base_directory);
+                            if (resolved_path) {
+                                struct stat st;
+                                if (stat(resolved_path, &st) == 0 && S_ISREG(st.st_mode)) {
+                                    char *encoded = apex_read_and_encode_image(resolved_path);
+                                    if (encoded) {
+                                        mime_type = apex_detect_mime_type(resolved_path);
+                                        size_t data_url_len = strlen("data:") + strlen(mime_type) + strlen(";base64,") + strlen(encoded) + 1;
+                                        data_url = malloc(data_url_len);
+                                        if (data_url) {
+                                            snprintf(data_url, data_url_len, "data:%s;base64,%s", mime_type, encoded);
+                                        }
+                                        free(encoded);
+                                    }
+                                }
+                                free(resolved_path);
+                            }
+                        }
+
+                        if (data_url) {
+                            /* Replace the src attribute */
+                            size_t before_src = src_attr - img_start;
+                            size_t after_url = img_end - url_end;
+
+                            /* Calculate new size needed */
+                            size_t new_len = before_src + strlen("src=\"") + strlen(data_url) + 1 + after_url + 1;
+                            if (new_len > remaining) {
+                                size_t written = write - output;
+                                cap = (written + new_len + 1) * 2;
+                                char *new_output = realloc(output, cap);
+                                if (!new_output) {
+                                    free(data_url);
+                                    free(url);
+                                    free(output);
+                                    return strdup(html);
+                                }
+                                output = new_output;
+                                write = output + written;
+                                remaining = cap - written;
+                            }
+
+                            /* Copy up to src= */
+                            memcpy(write, img_start, before_src);
+                            write += before_src;
+                            remaining -= before_src;
+
+                            /* Write new src attribute */
+                            memcpy(write, "src=\"", 5);
+                            write += 5;
+                            remaining -= 5;
+                            size_t data_url_len = strlen(data_url);
+                            memcpy(write, data_url, data_url_len);
+                            write += data_url_len;
+                            remaining -= data_url_len;
+                            *write++ = '"';
+                            remaining--;
+
+                            /* Copy rest of tag */
+                            memcpy(write, url_end + 1, after_url);
+                            write += after_url;
+                            remaining -= after_url;
+
+                            read = img_end + 1;
+                            free(data_url);
+                            free(url);
+                            continue;
+                        }
+
+                        /* No data URL created, clean up */
+                        free(url);
+                    }
+                }
+            }
+
+            /* No replacement, copy tag as-is */
+            size_t tag_len = img_end - img_start + 1;
+            if (tag_len > remaining) {
+                size_t written = write - output;
+                cap = (written + tag_len + 1) * 2;
+                char *new_output = realloc(output, cap);
+                if (!new_output) {
+                    free(output);
+                    return strdup(html);
+                }
+                output = new_output;
+                write = output + written;
+                remaining = cap - written;
+            }
+            memcpy(write, img_start, tag_len);
+            write += tag_len;
+            remaining -= tag_len;
+            read = img_end + 1;
+        } else {
+            /* Copy character */
+            if (remaining > 0) {
+                *write++ = *read++;
+                remaining--;
+            } else {
+                read++;
+            }
+        }
+    }
+
+    *write = '\0';
+    return output;
 }
 
 /**
@@ -881,6 +1205,9 @@ apex_options apex_options_default(void) {
     opts.enable_autolink = true;  /* Default: enabled in unified mode */
     opts.obfuscate_emails = false; /* Default: plaintext emails */
 
+    /* Image embedding options */
+    opts.embed_images = false;  /* Default: disabled */
+
     return opts;
 }
 
@@ -1402,6 +1729,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         if (obfuscated) {
             free(html);
             html = obfuscated;
+        }
+    }
+
+    /* Embed images as base64 data URLs if requested (local images only) */
+    if (options->embed_images && html) {
+        char *embedded = apex_embed_images(html, options, options->base_directory);
+        if (embedded) {
+            free(html);
+            html = embedded;
         }
     }
 

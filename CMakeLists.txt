@@ -35,6 +35,7 @@ include_directories(
     ${CMAKE_BINARY_DIR}/vendor/cmark-gfm/src  # For generated headers
 )
 
+
 # Library source files
 set(APEX_LIB_SOURCES
     src/apex.c

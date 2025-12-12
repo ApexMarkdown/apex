@@ -110,6 +110,21 @@ If no file is specified, **apex** reads from stdin.
 **--obfuscate-emails**
 :   Obfuscate email links and text using HTML entities (hex-encoded).
 
+## Image Embedding
+
+**--embed-images**
+:   Embed local images as base64 data URLs in HTML output. Only local images (file paths) are embedded; remote images (http://, https://) are not processed. Images are read from the filesystem and encoded as base64 data URLs (e.g., `data:image/png;base64,...`). Relative paths are resolved using the base directory (see **--base-dir**).
+
+## Path Resolution
+
+**--base-dir** *DIR*
+:   Base directory for resolving relative paths. Used for:
+    - Image embedding (with **--embed-images**)
+    - File includes/transclusions
+    - Relative path resolution when reading from stdin or when the working directory differs from the document location
+
+    If not specified and reading from a file, the base directory is automatically set to the input file's directory. When reading from stdin, this flag must be used to resolve relative paths.
+
 ## Superscript/Subscript
 
 **--sup-sub**, **--no-sup-sub**
@@ -187,6 +202,7 @@ Apex supports a wide range of Markdown extensions:
 - **Header IDs**: Automatic or manual header IDs with multiple format options
 - **Relaxed Tables**: Support for tables without separator rows (Kramdown-style)
 - **Superscript/Subscript**: MultiMarkdown-style superscript (`^text`) and subscript (`~text~` within words) syntax. Subscript uses paired tildes within word boundaries (e.g., `H~2~O`), while tildes at word boundaries create underline
+- **Image Embedding**: Embed local images as base64 data URLs with `--embed-images` flag
 
 # SEE ALSO
 

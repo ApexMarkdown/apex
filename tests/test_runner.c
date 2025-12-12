@@ -2495,6 +2495,86 @@ static void test_unsafe_mode(void) {
 }
 
 /**
+ * Test image embedding
+ */
+static void test_image_embedding(void) {
+    printf("\n=== Image Embedding Tests ===\n");
+
+    apex_options opts = apex_options_default();
+    char *html;
+
+    /* Test local image embedding */
+    opts.embed_images = true;
+    opts.base_directory = TEST_FIXTURES_DIR;
+    const char *local_image_md = "![Test Image](test_image.png)";
+    html = apex_markdown_to_html(local_image_md, strlen(local_image_md), &opts);
+    assert_contains(html, "<img", "Local image generates img tag");
+    assert_contains(html, "data:image/png;base64,", "Local image embedded as base64 data URL");
+    assert_not_contains(html, "test_image.png", "Local image path replaced with data URL");
+    apex_free_string(html);
+
+    /* Test that local images are not embedded when flag is off */
+    opts.embed_images = false;
+    html = apex_markdown_to_html(local_image_md, strlen(local_image_md), &opts);
+    assert_contains(html, "<img", "Local image generates img tag");
+    assert_contains(html, "test_image.png", "Local image path preserved when embedding disabled");
+    assert_not_contains(html, "data:image/png;base64,", "Local image not embedded when flag is off");
+    apex_free_string(html);
+
+    /* Test that remote images are not embedded (only local images supported) */
+    opts.embed_images = true;
+    const char *remote_image_md = "![Remote Image](https://fastly.picsum.photos/id/973/300/300.jpg?hmac=KKNEjIQImwiXzi0Xly-dB7LhYl5SX5koiFRx0HiSUmA)";
+    html = apex_markdown_to_html(remote_image_md, strlen(remote_image_md), &opts);
+    assert_contains(html, "<img", "Remote image generates img tag");
+    assert_contains(html, "fastly.picsum.photos", "Remote image URL preserved (only local images are embedded)");
+    assert_not_contains(html, "data:image/", "Remote image not embedded");
+    apex_free_string(html);
+
+    /* Test that already-embedded data URLs are not processed again */
+    opts.embed_images = true;
+    const char *data_url_md = "![Already Embedded](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==)";
+    html = apex_markdown_to_html(data_url_md, strlen(data_url_md), &opts);
+    assert_contains(html, "data:image/png;base64,", "Data URL preserved");
+    /* Should only appear once (not duplicated) */
+    const char *first = strstr(html, "data:image/png;base64,");
+    const char *second = first ? strstr(first + 1, "data:image/png;base64,") : NULL;
+    if (first && !second) {
+        tests_passed++;
+        tests_run++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Data URL not processed again\n");
+    } else {
+        tests_failed++;
+        tests_run++;
+        printf(COLOR_RED "✗" COLOR_RESET " Data URL was processed again\n");
+    }
+    apex_free_string(html);
+
+    /* Test base_directory for relative path resolution */
+    opts.embed_images = true;
+    opts.base_directory = NULL;  /* No base directory */
+    const char *relative_image_md = "![Relative Image](test_image.png)";
+    html = apex_markdown_to_html(relative_image_md, strlen(relative_image_md), &opts);
+    /* Without base_directory, relative path might not be found, so it won't be embedded */
+    assert_contains(html, "test_image.png", "Relative image path preserved when base_directory not set");
+    apex_free_string(html);
+
+    /* Test with base_directory set */
+    opts.base_directory = TEST_FIXTURES_DIR;
+    html = apex_markdown_to_html(relative_image_md, strlen(relative_image_md), &opts);
+    assert_contains(html, "data:image/png;base64,", "Relative image embedded when base_directory is set");
+    assert_not_contains(html, "test_image.png", "Relative image path replaced with data URL when base_directory set");
+    apex_free_string(html);
+
+    /* Test that absolute paths work regardless of base_directory */
+    opts.base_directory = "/nonexistent/path";
+    char abs_path[512];
+    snprintf(abs_path, sizeof(abs_path), "![Absolute Image](%s/test_image.png)", TEST_FIXTURES_DIR);
+    html = apex_markdown_to_html(abs_path, strlen(abs_path), &opts);
+    assert_contains(html, "data:image/png;base64,", "Absolute path image embedded regardless of base_directory");
+    apex_free_string(html);
+}
+
+/**
  * Main test runner
  */
 int main(int argc, char *argv[]) {
@@ -2540,6 +2620,7 @@ int main(int argc, char *argv[]) {
     test_standalone_output();
     test_pretty_html();
     test_header_ids();
+    test_image_embedding();
 
     /* Print results */
     printf("\n==========================================\n");
