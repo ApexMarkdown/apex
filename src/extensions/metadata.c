@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include <time.h>
 #include <regex.h>
 #ifdef _POSIX_C_SOURCE
@@ -1656,5 +1657,262 @@ char *apex_metadata_replace_variables(const char *text, apex_metadata_item *meta
     }
 
     result[result_len] = '\0';
+    return result;
+}
+
+/**
+ * Load metadata from a file
+ * Auto-detects format based on first characters
+ */
+apex_metadata_item *apex_load_metadata_from_file(const char *filepath) {
+    if (!filepath) return NULL;
+
+    FILE *fp = fopen(filepath, "r");
+    if (!fp) return NULL;
+
+    /* Read file into buffer */
+    fseek(fp, 0, SEEK_END);
+    long file_size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    if (file_size < 0 || file_size > 1024 * 1024) {  /* Max 1MB */
+        fclose(fp);
+        return NULL;
+    }
+
+    char *buffer = malloc(file_size + 1);
+    if (!buffer) {
+        fclose(fp);
+        return NULL;
+    }
+
+    size_t bytes_read = fread(buffer, 1, file_size, fp);
+    buffer[bytes_read] = '\0';
+    fclose(fp);
+
+    apex_metadata_item *items = NULL;
+    size_t consumed = 0;
+
+    /* Auto-detect format */
+    if (strncmp(buffer, "---", 3) == 0) {
+        /* YAML format */
+        items = parse_yaml_metadata(buffer, &consumed);
+    } else if (buffer[0] == '%') {
+        /* Pandoc format */
+        items = parse_pandoc_metadata(buffer, &consumed);
+    } else {
+        /* MMD format (default) */
+        items = parse_mmd_metadata(buffer, &consumed);
+    }
+
+    free(buffer);
+    return items;
+}
+
+/**
+ * Parse a single KEY=VALUE pair, handling quoted values
+ * Returns key and value in allocated strings (caller must free)
+ */
+static int parse_key_value_pair(const char *input, char **key_out, char **value_out) {
+    if (!input) return 0;
+
+    const char *equals = strchr(input, '=');
+    if (!equals) return 0;
+
+    /* Extract key */
+    size_t key_len = equals - input;
+    *key_out = malloc(key_len + 1);
+    if (!*key_out) return 0;
+    memcpy(*key_out, input, key_len);
+    (*key_out)[key_len] = '\0';
+    trim_whitespace(*key_out);
+
+    /* Extract value */
+    const char *value_start = equals + 1;
+
+    /* Check if value is quoted */
+    if (*value_start == '"' || *value_start == '\'') {
+        char quote = *value_start;
+        value_start++;
+        const char *value_end = strchr(value_start, quote);
+        if (!value_end) {
+            /* Unmatched quote, treat rest as value */
+            *value_out = strdup(value_start);
+            return 1;
+        }
+        size_t value_len = value_end - value_start;
+        *value_out = malloc(value_len + 1);
+        if (!*value_out) {
+            free(*key_out);
+            return 0;
+        }
+        memcpy(*value_out, value_start, value_len);
+        (*value_out)[value_len] = '\0';
+    } else {
+        /* Unquoted value - take until comma or end */
+        const char *value_end = strchr(value_start, ',');
+        if (!value_end) {
+            value_end = value_start + strlen(value_start);
+        }
+        size_t value_len = value_end - value_start;
+        *value_out = malloc(value_len + 1);
+        if (!*value_out) {
+            free(*key_out);
+            return 0;
+        }
+        memcpy(*value_out, value_start, value_len);
+        (*value_out)[value_len] = '\0';
+        trim_whitespace(*value_out);
+    }
+
+    return 1;
+}
+
+/**
+ * Parse command-line metadata from KEY=VALUE string
+ * Handles quoted values and comma-separated pairs
+ */
+apex_metadata_item *apex_parse_command_metadata(const char *arg) {
+    if (!arg || !*arg) return NULL;
+
+    apex_metadata_item *items = NULL;
+    const char *p = arg;
+
+    while (*p) {
+        /* Skip whitespace */
+        while (*p && isspace((unsigned char)*p)) p++;
+        if (!*p) break;
+
+        /* Find the equals sign for this pair */
+        const char *equals = strchr(p, '=');
+        if (!equals) break;  /* No equals sign, invalid */
+
+        /* Find where this KEY=VALUE pair ends */
+        const char *value_start = equals + 1;
+        const char *pair_end = NULL;
+
+        /* Check if value is quoted */
+        if (*value_start == '"' || *value_start == '\'') {
+            char quote = *value_start;
+            const char *quote_end = strchr(value_start + 1, quote);
+            if (quote_end) {
+                pair_end = quote_end + 1;
+            } else {
+                /* Unmatched quote - take rest of string */
+                pair_end = p + strlen(p);
+            }
+        } else {
+            /* Unquoted value - find next comma that's followed by KEY= pattern
+             * We look for comma followed by whitespace and then KEY= */
+            const char *search = value_start;
+            pair_end = p + strlen(p);  /* Default to end of string */
+
+            const char *comma = strchr(search, ',');
+            if (comma) {
+                /* Found a comma - check if it starts a new KEY= pair */
+                const char *after_comma = comma + 1;
+                while (*after_comma && isspace((unsigned char)*after_comma)) after_comma++;
+
+                /* Look for KEY= pattern (alphanumeric key followed by =) */
+                if ((isalnum((unsigned char)*after_comma) || *after_comma == '_')) {
+                    const char *next_equals = strchr(after_comma, '=');
+                    if (next_equals) {
+                        /* Check if there's another comma between after_comma and next_equals */
+                        const char *comma_between = strchr(after_comma, ',');
+                        if (!comma_between || comma_between > next_equals) {
+                            /* This comma starts the next KEY= pair */
+                            pair_end = comma;
+                        }
+                    }
+                }
+            }
+            /* If no comma or comma doesn't start KEY= pair, pair_end stays at end of string */
+        }
+
+        /* Extract this pair */
+        size_t pair_len = pair_end - p;
+        char *pair = malloc(pair_len + 1);
+        if (!pair) break;
+        memcpy(pair, p, pair_len);
+        pair[pair_len] = '\0';
+
+        /* Parse key=value */
+        char *key = NULL;
+        char *value = NULL;
+        if (parse_key_value_pair(pair, &key, &value)) {
+            if (key && value) {
+                add_metadata_item(&items, key, value);
+                free(key);
+                free(value);
+            }
+        }
+
+        free(pair);
+
+        /* Move to next pair */
+        if (pair_end < p + strlen(p) && *pair_end == ',') {
+            p = pair_end + 1;
+        } else {
+            break;
+        }
+    }
+
+    return items;
+}
+
+/**
+ * Merge multiple metadata lists with precedence
+ * Later lists take precedence over earlier ones
+ */
+apex_metadata_item *apex_merge_metadata(apex_metadata_item *first, ...) {
+    apex_metadata_item *result = NULL;
+
+    /* Start with a copy of the first list (if any) */
+    apex_metadata_item *src;
+    if (first) {
+        src = first;
+        while (src) {
+            add_metadata_item(&result, src->key, src->value);
+            src = src->next;
+        }
+    }
+
+    /* Merge remaining lists */
+    va_list args;
+    va_start(args, first);
+
+    apex_metadata_item *next_list;
+    while ((next_list = va_arg(args, apex_metadata_item*)) != NULL) {
+        /* For each item in next_list, add or replace in result */
+        src = next_list;
+        while (src) {
+            /* Remove existing item with same key (case-insensitive) */
+            apex_metadata_item *prev = NULL;
+            apex_metadata_item *curr = result;
+            while (curr) {
+                if (strcasecmp(curr->key, src->key) == 0) {
+                    /* Remove this item */
+                    if (prev) {
+                        prev->next = curr->next;
+                    } else {
+                        result = curr->next;
+                    }
+                    free(curr->key);
+                    free(curr->value);
+                    apex_metadata_item *to_free = curr;
+                    curr = curr->next;
+                    free(to_free);
+                    break;
+                }
+                prev = curr;
+                curr = curr->next;
+            }
+            /* Add new item */
+            add_metadata_item(&result, src->key, src->value);
+            src = src->next;
+        }
+    }
+
+    va_end(args);
     return result;
 }

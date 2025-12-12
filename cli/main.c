@@ -3,6 +3,7 @@
  */
 
 #include "apex/apex.h"
+#include "../src/extensions/metadata.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,6 +27,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]alpha-lists     Support alpha list markers (a., b., c. and A., B., C.)\n");
     fprintf(stderr, "  --[no-]mixed-lists     Allow mixed list markers at same level (inherit type from first item)\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
+    fprintf(stderr, "  --meta-file FILE       Load metadata from external file (YAML, MMD, or Pandoc format)\n");
+    fprintf(stderr, "  --meta KEY=VALUE       Set metadata key-value pair (can be used multiple times, supports quotes and comma-separated pairs)\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
     fprintf(stderr, "  --no-math              Disable math support\n");
@@ -133,6 +136,8 @@ int main(int argc, char *argv[]) {
     apex_options options = apex_options_default();
     const char *input_file = NULL;
     const char *output_file = NULL;
+    const char *meta_file = NULL;
+    apex_metadata_item *cmdline_metadata = NULL;
 
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
@@ -255,6 +260,37 @@ int main(int argc, char *argv[]) {
             options.enable_metadata_transforms = true;
         } else if (strcmp(argv[i], "--no-transforms") == 0) {
             options.enable_metadata_transforms = false;
+        } else if (strcmp(argv[i], "--meta-file") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --meta-file requires an argument\n");
+                return 1;
+            }
+            meta_file = argv[i];
+        } else if (strncmp(argv[i], "--meta", 6) == 0) {
+            const char *arg_value;
+            if (strlen(argv[i]) > 6 && argv[i][6] == '=') {
+                /* --meta=KEY=VALUE format */
+                arg_value = argv[i] + 7;
+            } else {
+                /* --meta KEY=VALUE format */
+                if (++i >= argc) {
+                    fprintf(stderr, "Error: --meta requires an argument\n");
+                    return 1;
+                }
+                arg_value = argv[i];
+            }
+            apex_metadata_item *new_meta = apex_parse_command_metadata(arg_value);
+            if (new_meta) {
+                /* Merge with existing command-line metadata */
+                if (cmdline_metadata) {
+                    apex_metadata_item *merged = apex_merge_metadata(cmdline_metadata, new_meta, NULL);
+                    apex_free_metadata(cmdline_metadata);
+                    apex_free_metadata(new_meta);
+                    cmdline_metadata = merged;
+                } else {
+                    cmdline_metadata = new_meta;
+                }
+            }
         } else if (argv[i][0] == '-') {
             fprintf(stderr, "Error: Unknown option '%s'\n", argv[i]);
             print_usage(argv[0]);
@@ -276,12 +312,153 @@ int main(int argc, char *argv[]) {
     }
 
     if (!markdown) {
+        if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
         return 1;
     }
 
+    /* Load metadata from file if specified */
+    apex_metadata_item *file_metadata = NULL;
+    if (meta_file) {
+        file_metadata = apex_load_metadata_from_file(meta_file);
+        if (!file_metadata) {
+            fprintf(stderr, "Warning: Could not load metadata from file '%s'\n", meta_file);
+        }
+    }
+
+    /* Extract document metadata to merge with external sources
+     * We'll extract it here and then inject the merged result */
+    apex_metadata_item *doc_metadata = NULL;
+    size_t doc_metadata_end = 0;
+
+    if (options.mode == APEX_MODE_MULTIMARKDOWN ||
+        options.mode == APEX_MODE_KRAMDOWN ||
+        options.mode == APEX_MODE_UNIFIED) {
+        /* Make a copy to extract metadata without modifying original */
+        char *doc_copy = malloc(input_len + 1);
+        if (doc_copy) {
+            memcpy(doc_copy, markdown, input_len);
+            doc_copy[input_len] = '\0';
+            char *doc_ptr = doc_copy;
+            doc_metadata = apex_extract_metadata(&doc_ptr);
+            if (doc_metadata) {
+                /* Calculate where metadata ended in original */
+                doc_metadata_end = doc_ptr - doc_copy;
+            }
+            free(doc_copy);
+        }
+    }
+
+    /* Merge metadata in priority order: file -> document -> command-line */
+    apex_metadata_item *merged_metadata = NULL;
+    if (file_metadata || doc_metadata || cmdline_metadata) {
+        merged_metadata = apex_merge_metadata(
+            file_metadata,
+            doc_metadata,
+            cmdline_metadata,
+            NULL
+        );
+    }
+
+    /* Build enhanced markdown with merged metadata as YAML front matter */
+    char *enhanced_markdown = NULL;
+    size_t enhanced_len = input_len;
+
+    if (merged_metadata) {
+        /* Build YAML front matter from merged metadata */
+        size_t yaml_size = 512;
+        char *yaml_buf = malloc(yaml_size);
+        if (yaml_buf) {
+            size_t yaml_pos = 0;
+            yaml_buf[yaml_pos++] = '-';
+            yaml_buf[yaml_pos++] = '-';
+            yaml_buf[yaml_pos++] = '-';
+            yaml_buf[yaml_pos++] = '\n';
+
+            /* Use extracted metadata position if available */
+            bool has_existing_metadata = (doc_metadata_end > 0);
+            size_t metadata_start_pos = 0;
+            size_t metadata_end_pos = doc_metadata_end;
+
+            /* Add all merged metadata */
+            apex_metadata_item *item = merged_metadata;
+            while (item) {
+                /* Escape value if it contains special characters */
+                bool needs_quotes = strchr(item->value, ':') || strchr(item->value, '\n') ||
+                                    strchr(item->value, '"') || strchr(item->value, '\\');
+
+                size_t needed = strlen(item->key) + strlen(item->value) + (needs_quotes ? 4 : 0) + 10;
+                if (yaml_pos + needed >= yaml_size) {
+                    yaml_size = (yaml_pos + needed) * 2;
+                    char *new_buf = realloc(yaml_buf, yaml_size);
+                    if (!new_buf) {
+                        free(yaml_buf);
+                        yaml_buf = NULL;
+                        break;
+                    }
+                    yaml_buf = new_buf;
+                }
+
+                if (needs_quotes) {
+                    yaml_pos += sprintf(yaml_buf + yaml_pos, "%s: \"%s\"\n", item->key, item->value);
+                } else {
+                    yaml_pos += sprintf(yaml_buf + yaml_pos, "%s: %s\n", item->key, item->value);
+                }
+                item = item->next;
+            }
+
+            if (yaml_buf) {
+                /* Add closing --- */
+                yaml_buf[yaml_pos++] = '-';
+                yaml_buf[yaml_pos++] = '-';
+                yaml_buf[yaml_pos++] = '-';
+                yaml_buf[yaml_pos++] = '\n';
+                yaml_buf[yaml_pos] = '\0';
+
+                if (has_existing_metadata) {
+                    /* Replace existing metadata */
+                    size_t before_len = metadata_start_pos;
+                    size_t after_len = input_len - metadata_end_pos;
+                    enhanced_len = before_len + yaml_pos + after_len;
+                    enhanced_markdown = malloc(enhanced_len + 1);
+                    if (enhanced_markdown) {
+                        if (before_len > 0) {
+                            memcpy(enhanced_markdown, markdown, before_len);
+                        }
+                        memcpy(enhanced_markdown + before_len, yaml_buf, yaml_pos);
+                        if (after_len > 0) {
+                            memcpy(enhanced_markdown + before_len + yaml_pos, markdown + metadata_end_pos, after_len);
+                        }
+                        enhanced_markdown[enhanced_len] = '\0';
+                    }
+                } else {
+                    /* Prepend metadata */
+                    enhanced_len = yaml_pos + input_len;
+                    enhanced_markdown = malloc(enhanced_len + 1);
+                    if (enhanced_markdown) {
+                        memcpy(enhanced_markdown, yaml_buf, yaml_pos);
+                        memcpy(enhanced_markdown + yaml_pos, markdown, input_len);
+                        enhanced_markdown[enhanced_len] = '\0';
+                    }
+                }
+                free(yaml_buf);
+            }
+        }
+    }
+
+    /* Use enhanced markdown if we created it, otherwise use original */
+    char *final_markdown = enhanced_markdown ? enhanced_markdown : markdown;
+    size_t final_len = enhanced_markdown ? enhanced_len : input_len;
+
     /* Convert to HTML */
-    char *html = apex_markdown_to_html(markdown, input_len, &options);
+    char *html = apex_markdown_to_html(final_markdown, final_len, &options);
+
+    /* Cleanup */
+    if (enhanced_markdown) free(enhanced_markdown);
     free(markdown);
+    if (file_metadata) apex_free_metadata(file_metadata);
+    if (doc_metadata) apex_free_metadata(doc_metadata);
+    if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
+    if (merged_metadata) apex_free_metadata(merged_metadata);
 
     if (!html) {
         fprintf(stderr, "Error: Conversion failed\n");

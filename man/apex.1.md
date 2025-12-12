@@ -51,8 +51,11 @@ If no file is specified, **apex** reads from stdin.
 **--enable-includes**
 :   Enable file inclusion.
 
-**--[no-]transforms**
-:   Enable metadata variable transforms (`[%key:transform]` syntax). Enabled by default in unified mode, disabled in other modes.
+**--meta-file** *FILE*
+:   Load metadata from an external file. Auto-detects format: YAML (starts with `---`), MultiMarkdown (key: value pairs), or Pandoc (starts with `%`). Metadata from the file is merged with document metadata, with document metadata taking precedence.
+
+**--meta** *KEY=VALUE*
+:   Set a metadata key-value pair. Can be used multiple times. Supports comma-separated pairs (e.g., `--meta KEY1=value1,KEY2=value2`). Values can be quoted to include spaces and special characters. Command-line metadata takes precedence over both file and document metadata.
 
 **--hardbreaks**
 :   Treat newlines as hard breaks.

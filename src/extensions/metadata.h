@@ -66,6 +66,27 @@ const char *apex_metadata_get(apex_metadata_item *metadata, const char *key);
  */
 char *apex_metadata_replace_variables(const char *text, apex_metadata_item *metadata, const apex_options *options);
 
+/**
+ * Load metadata from a file
+ * Auto-detects format: YAML (---), MMD (key: value), or Pandoc (% lines)
+ * Returns a metadata list, or NULL on error
+ */
+apex_metadata_item *apex_load_metadata_from_file(const char *filepath);
+
+/**
+ * Parse command-line metadata from KEY=VALUE string
+ * Handles quoted values and comma-separated pairs
+ * Returns a metadata list, or NULL on error
+ */
+apex_metadata_item *apex_parse_command_metadata(const char *arg);
+
+/**
+ * Merge multiple metadata lists with precedence
+ * Later lists take precedence over earlier ones
+ * Returns a new merged list (caller must free with apex_free_metadata)
+ */
+apex_metadata_item *apex_merge_metadata(apex_metadata_item *first, ...);
+
 #ifdef __cplusplus
 }
 #endif
