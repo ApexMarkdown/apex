@@ -6,11 +6,59 @@ Apex is a unified Markdown processor that combines the best features from Common
 
 ## Features
 
+### Compatibility Modes
+
 - **Multiple compatibility modes**: CommonMark, GFM, MultiMarkdown, Kramdown, and Unified (all features)
-- **Rich extensions**: Tables, footnotes, definition lists, smart typography, math, wiki links, task lists, and more
-- **Flexible output**: Pretty-printed HTML, standalone documents, custom styling
-- **Header ID generation**: Automatic or manual header IDs with multiple format options
+- **Mode-specific features**: Each mode enables appropriate extensions for maximum compatibility
+
+### Markdown Extensions
+
+- **Tables**: GitHub Flavored Markdown tables with advanced features (rowspan, colspan, captions)
 - **Relaxed tables**: Support for tables without separator rows (Kramdown-style)
+- **Footnotes**: Three syntaxes supported (reference-style, Kramdown inline, MultiMarkdown inline)
+- **Definition lists**: Kramdown-style definition lists with Markdown content support
+- **Task lists**: GitHub-style checkboxes (`- [ ]` and `- [x]`)
+- **Strikethrough**: `~~text~~` syntax from GFM
+- **Smart typography**: Automatic conversion of quotes, dashes, ellipses, and more
+- **Math support**: LaTeX math expressions with `$...$` (inline) and `$$...$$` (display)
+- **Wiki links**: `[[Page Name]]` and `[[Page Name|Display Text]]` syntax
+- **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
+- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
+- **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
+
+### Document Features
+
+- **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks
+- **Metadata variables**: Insert metadata values with `[%key]` syntax
+- **Table of Contents**: Automatic TOC generation with depth control (`<!--TOC-->`, `{{TOC}}`)
+- **File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`)
+- **CSV/TSV support**: Automatic table conversion from CSV and TSV files
+- **Inline Attribute Lists (IAL)**: Kramdown-style attributes `{: #id .class}`
+- **Special markers**: Page breaks (`<!--BREAK-->`), autoscroll pauses (`<!--PAUSE:N-->`), end-of-block markers
+
+### Critic Markup
+
+- **Change tracking**: Additions (`{++text++}`), deletions (`{--text--}`), substitutions (`{~~old~>new~~}`)
+- **Annotations**: Highlights (`{==text==}`) and comments (`{>>text<<}`)
+- **Accept mode**: `--accept` flag to apply all changes for final output
+- **Reject mode**: `--reject` flag to revert all changes to original
+
+### Output Options
+
+- **Flexible output**: Compact HTML fragments, pretty-printed HTML, or complete standalone documents
+- **Standalone documents**: Generate complete HTML5 documents with `<html>`, `<head>`, `<body>` tags
+- **Custom styling**: Link external CSS files in standalone mode
+- **Pretty-print**: Formatted HTML with proper indentation for readability
+- **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
+- **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
+
+### Advanced Features
+
+- **Hard breaks**: Option to treat newlines as hard line breaks
+- **Feature toggles**: Granular control to enable/disable specific features (tables, footnotes, math, smart typography, etc.)
+- **Unsafe HTML**: Option to allow or block raw HTML in documents
+- **Autolinks**: Automatic URL detection and linking
+- **Superscript/Subscript**: Support for `^superscript^` and `~subscript~` syntax
 
 ## Installation
 

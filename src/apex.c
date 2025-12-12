@@ -1323,7 +1323,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Postprocess wiki links if enabled */
     if (options->enable_wiki_links) {
-        apex_process_wiki_links_in_tree(document, NULL);
+        /* Fast path: skip AST walk if no wiki link markers present */
+        if (strstr(text_ptr, "[[") != NULL) {
+            apex_process_wiki_links_in_tree(document, NULL);
+        }
     }
 
     /* Postprocess callouts if enabled */

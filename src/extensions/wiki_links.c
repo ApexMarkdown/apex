@@ -238,80 +238,187 @@ void apex_process_wiki_links_in_tree(cmark_node *node, wiki_link_config *config)
         const char *literal = cmark_node_get_literal(node);
         if (!literal) goto recurse;
 
-        /* Look for [[ in the text */
-        const char *start = strstr(literal, "[[");
-        if (!start) goto recurse;
+        /* Fast path: no wiki markers present */
+        const char *first_marker = strstr(literal, "[[");
+        if (!first_marker) goto recurse;
 
-        /* Find matching ]] */
-        const char *end = strstr(start + 2, "]]");
-        if (!end) goto recurse;
-
-        /* Extract wiki link content */
-        size_t prefix_len = start - literal;
-        size_t content_len = end - (start + 2);
-        size_t suffix_len = strlen(end + 2);
-
-        if (content_len == 0) goto recurse;
-
-        /* Parse wiki link */
-        char *page = NULL;
-        char *display = NULL;
-        char *section = NULL;
-        parse_wiki_link(start + 2, content_len, &page, &display, &section);
-
-        if (!page) goto recurse;
-
-        /* Create URL */
+        /* Default configuration if none provided */
         if (!config) config = &default_config;
-        char *url = page_to_url(page, section, config);
 
-        if (url) {
-            /* Create new nodes to replace this text node */
+        /* Rebuild this text node in a single pass to avoid repeated rescans */
+        const char *cursor = literal;
+        cmark_node *insert_after = NULL;
+        bool changed = false;
 
-            /* Create link node */
-            cmark_node *link = cmark_node_new(CMARK_NODE_LINK);
-            cmark_node_set_url(link, url);
+        while (1) {
+            const char *open = strstr(cursor, "[[");
+            if (!open) {
+                /* Append any trailing text */
+                size_t tail_len = strlen(cursor);
+                if (tail_len > 0) {
+                    char *tail = malloc(tail_len + 1);
+                    if (tail) {
+                        memcpy(tail, cursor, tail_len);
+                        tail[tail_len] = '\0';
+                        cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                        cmark_node_set_literal(text, tail);
+                        free(tail);
+                        if (!insert_after) {
+                            cmark_node_insert_before(node, text);
+                        } else {
+                            cmark_node_insert_after(insert_after, text);
+                        }
+                        insert_after = text;
+                        changed = true;
+                    }
+                }
+                break;
+            }
 
-            /* Create text for link */
-            cmark_node *link_text = cmark_node_new(CMARK_NODE_TEXT);
-            cmark_node_set_literal(link_text, display ? display : page);
-            cmark_node_append_child(link, link_text);
-
-            /* Insert link after current node */
-            cmark_node_insert_after(node, link);
-
-            /* Create prefix text if needed */
+            /* Copy text preceding the wiki link */
+            size_t prefix_len = (size_t)(open - cursor);
             if (prefix_len > 0) {
                 char *prefix = malloc(prefix_len + 1);
                 if (prefix) {
-                    memcpy(prefix, literal, prefix_len);
+                    memcpy(prefix, cursor, prefix_len);
                     prefix[prefix_len] = '\0';
-                    cmark_node_set_literal(node, prefix);
+                    cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                    cmark_node_set_literal(text, prefix);
                     free(prefix);
+                    if (!insert_after) {
+                        cmark_node_insert_before(node, text);
+                    } else {
+                        cmark_node_insert_after(insert_after, text);
+                    }
+                    insert_after = text;
+                    changed = true;
+                }
+            }
+
+            /* Look for closing marker after [[ */
+            const char *close = strstr(open + 2, "]]");
+            if (!close) {
+                /* No closing marker - treat the rest as plain text */
+                size_t remaining_len = strlen(open);
+                char *remaining = malloc(remaining_len + 1);
+                if (remaining) {
+                    memcpy(remaining, open, remaining_len);
+                    remaining[remaining_len] = '\0';
+                    cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                    cmark_node_set_literal(text, remaining);
+                    free(remaining);
+                    if (!insert_after) {
+                        cmark_node_insert_before(node, text);
+                    } else {
+                        cmark_node_insert_after(insert_after, text);
+                    }
+                    insert_after = text;
+                    changed = true;
+                }
+                break;
+            }
+
+            size_t content_len = (size_t)(close - (open + 2));
+
+            /* If empty content, keep literal text and continue */
+            if (content_len == 0) {
+                size_t raw_len = (size_t)((close + 2) - open);
+                char *raw = malloc(raw_len + 1);
+                if (raw) {
+                    memcpy(raw, open, raw_len);
+                    raw[raw_len] = '\0';
+                    cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                    cmark_node_set_literal(text, raw);
+                    free(raw);
+                    if (!insert_after) {
+                        cmark_node_insert_before(node, text);
+                    } else {
+                        cmark_node_insert_after(insert_after, text);
+                    }
+                    insert_after = text;
+                    changed = true;
+                }
+                cursor = close + 2;
+                continue;
+            }
+
+            /* Parse wiki link content */
+            char *page = NULL;
+            char *display = NULL;
+            char *section = NULL;
+            parse_wiki_link(open + 2, (int)content_len, &page, &display, &section);
+
+            if (page) {
+                char *url = page_to_url(page, section, config);
+                if (url) {
+                    cmark_node *link = cmark_node_new(CMARK_NODE_LINK);
+                    cmark_node_set_url(link, url);
+
+                    cmark_node *link_text = cmark_node_new(CMARK_NODE_TEXT);
+                    cmark_node_set_literal(link_text, display ? display : page);
+                    cmark_node_append_child(link, link_text);
+
+                    if (!insert_after) {
+                        cmark_node_insert_before(node, link);
+                    } else {
+                        cmark_node_insert_after(insert_after, link);
+                    }
+                    insert_after = link;
+                    changed = true;
+                    free(url);
+                } else {
+                    /* Fallback: keep literal text if URL creation fails */
+                    size_t raw_len = (size_t)((close + 2) - open);
+                    char *raw = malloc(raw_len + 1);
+                    if (raw) {
+                        memcpy(raw, open, raw_len);
+                        raw[raw_len] = '\0';
+                        cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                        cmark_node_set_literal(text, raw);
+                        free(raw);
+                        if (!insert_after) {
+                            cmark_node_insert_before(node, text);
+                        } else {
+                            cmark_node_insert_after(insert_after, text);
+                        }
+                        insert_after = text;
+                        changed = true;
+                    }
                 }
             } else {
-                /* No prefix, we can remove the original node */
-                cmark_node_unlink(node);
-                cmark_node_free(node);
+                /* Fallback: keep literal text if parsing fails */
+                size_t raw_len = (size_t)((close + 2) - open);
+                char *raw = malloc(raw_len + 1);
+                if (raw) {
+                    memcpy(raw, open, raw_len);
+                    raw[raw_len] = '\0';
+                    cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                    cmark_node_set_literal(text, raw);
+                    free(raw);
+                    if (!insert_after) {
+                        cmark_node_insert_before(node, text);
+                    } else {
+                        cmark_node_insert_after(insert_after, text);
+                    }
+                    insert_after = text;
+                    changed = true;
+                }
             }
 
-            /* Create suffix text if needed */
-            if (suffix_len > 0) {
-                cmark_node *suffix_node = cmark_node_new(CMARK_NODE_TEXT);
-                cmark_node_set_literal(suffix_node, end + 2);
-                cmark_node_insert_after(link, suffix_node);
+            free(page);
+            free(display);
+            free(section);
 
-                /* Recursively process suffix for more wiki links */
-                apex_process_wiki_links_in_tree(suffix_node, config);
-            }
-
-            free(url);
+            /* Move past the current wiki link */
+            cursor = close + 2;
         }
 
-        free(page);
-        free(display);
-        free(section);
-        return;  /* Don't recurse into children after modifying tree */
+        if (changed) {
+            /* Remove the original text node after rebuilding */
+            cmark_node_unlink(node);
+            cmark_node_free(node);
+            return;  /* Don't recurse into children after modifying tree */
+        }
     }
 
 recurse:
