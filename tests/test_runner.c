@@ -2848,8 +2848,10 @@ static void test_indices(void) {
     assert_contains(html, "<ul>", "Index uses simple list when not grouped");
     apex_free_string(html);
 
-    /* Test index in MultiMarkdown mode (should be enabled by default) */
+    /* Test index in MultiMarkdown mode (now requires explicit --indices flag) */
     apex_options opts_mmd = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    opts_mmd.enable_indices = true;
+    opts_mmd.enable_mmark_index_syntax = true;
     const char *mmd_test = "This is about protocols (!Protocol).";
     html = apex_markdown_to_html(mmd_test, strlen(mmd_test), &opts_mmd);
     assert_contains(html, "class=\"index\"", "Indices enabled in MultiMarkdown mode");

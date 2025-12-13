@@ -732,8 +732,13 @@ static bool is_pure_ial_paragraph(cmark_node *para) {
  * Process IAL for a single node
  * Check if node has inline IAL or if next sibling is IAL paragraph
  */
-static bool process_node_ial(cmark_node *node, ald_entry *alds) {
-    if (!node) return false;
+/**
+ * Process IAL for a node
+ * Returns the node to free (if any), or NULL
+ * Caller must free the returned node after iteration is complete
+ */
+static cmark_node *process_node_ial(cmark_node *node, ald_entry *alds) {
+    if (!node) return NULL;
 
     cmark_node_type type = cmark_node_get_type(node);
 
@@ -763,7 +768,7 @@ static bool process_node_ial(cmark_node *node, ald_entry *alds) {
             }
 
             apex_free_attributes(attrs);
-            return true;
+            return NULL;  /* No node to free */
         }
         /* If no inline IAL, fall through to check for next-line IAL */
     }
@@ -771,7 +776,7 @@ static bool process_node_ial(cmark_node *node, ald_entry *alds) {
     /* Handle span-level IAL (links, images, emphasis, etc. with inline attributes) */
     if (type == CMARK_NODE_PARAGRAPH) {
         if (process_span_ial(node, alds)) {
-            return true;  /* Span IAL processed */
+            return NULL;  /* Span IAL processed, no node to free */
         }
         /* No span IAL found, fall through to check for next-line IAL */
     }
@@ -784,18 +789,18 @@ static bool process_node_ial(cmark_node *node, ald_entry *alds) {
         type != CMARK_NODE_LIST &&
         type != CMARK_NODE_ITEM &&
         type != CMARK_NODE_TABLE) {  /* Tables can have IAL */
-        return false;
+        return NULL;  /* No node to free */
     }
 
 
     /* Look at next sibling for IAL paragraph */
     cmark_node *next = cmark_node_next(node);
     if (!next) {
-        return false;
+        return NULL;  /* No node to free */
     }
 
     if (cmark_node_get_type(next) != CMARK_NODE_PARAGRAPH) {
-        return false;
+        return NULL;  /* No node to free */
     }
 
     /* Check if it's a pure IAL paragraph */
@@ -807,15 +812,13 @@ static bool process_node_ial(cmark_node *node, ald_entry *alds) {
             cmark_node_set_user_data(node, attr_str);
             apex_free_attributes(attrs);
 
-
-            /* Remove IAL paragraph */
-            cmark_node_unlink(next);
-            cmark_node_free(next);
-            return true;
+            /* Return node to be unlinked and freed after iteration completes */
+            /* Don't unlink here - that invalidates the iterator */
+            return next;  /* Return node to unlink and free after iteration */
         }
     }
 
-    return false;
+    return NULL;  /* No node to free */
 }
 
 /**
@@ -824,7 +827,12 @@ static bool process_node_ial(cmark_node *node, ald_entry *alds) {
 void apex_process_ial_in_tree(cmark_node *node, ald_entry *alds) {
     if (!node) return;
 
-    /* Use iterative approach to avoid issues with node removal */
+    /* Collect nodes to unlink and free after iteration to avoid use-after-free */
+    cmark_node **nodes_to_free = NULL;
+    size_t free_count = 0;
+    size_t free_capacity = 0;
+
+    /* First pass: process IAL and collect nodes to remove */
     cmark_iter *iter = cmark_iter_new(node);
     cmark_event_type ev_type;
 
@@ -833,11 +841,35 @@ void apex_process_ial_in_tree(cmark_node *node, ald_entry *alds) {
 
         /* Only process on ENTER events */
         if (ev_type == CMARK_EVENT_ENTER) {
-            process_node_ial(cur, alds);
+            /* Process node and collect any nodes that need to be freed */
+            cmark_node *node_to_free = process_node_ial(cur, alds);
+            if (node_to_free) {
+                /* Expand array if needed */
+                if (free_count >= free_capacity) {
+                    free_capacity = free_capacity ? free_capacity * 2 : 16;
+                    cmark_node **new_array = realloc(nodes_to_free, free_capacity * sizeof(cmark_node*));
+                    if (new_array) {
+                        nodes_to_free = new_array;
+                    } else {
+                        /* If realloc fails, unlink and free immediately */
+                        cmark_node_unlink(node_to_free);
+                        cmark_node_free(node_to_free);
+                        continue;
+                    }
+                }
+                nodes_to_free[free_count++] = node_to_free;
+            }
         }
     }
 
     cmark_iter_free(iter);
+
+    /* Second pass: unlink and free collected nodes after iteration is complete */
+    for (size_t i = 0; i < free_count; i++) {
+        cmark_node_unlink(nodes_to_free[i]);
+        cmark_node_free(nodes_to_free[i]);
+    }
+    free(nodes_to_free);
 }
 
 /**

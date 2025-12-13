@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <time.h>
+#include <sys/time.h>
 
 /* cmark-gfm headers */
 #include "cmark-gfm.h"
@@ -930,6 +932,11 @@ static char *apex_preprocess_alpha_lists(const char *text) {
 static char *apex_postprocess_alpha_lists_html(const char *html) {
     if (!html) return NULL;
 
+    /* Early exit: check if alpha list markers exist before processing */
+    if (strstr(html, "[apex-alpha-list:") == NULL) {
+        return NULL;  /* No alpha list markers, skip processing */
+    }
+
     size_t html_len = strlen(html);
     size_t output_capacity = html_len + 1024;  /* Extra space for style attributes */
     char *output = malloc(output_capacity);
@@ -939,103 +946,124 @@ static char *apex_postprocess_alpha_lists_html(const char *html) {
     char *write = output;
     size_t remaining = output_capacity;
 
+    /* Helper macro for buffer expansion */
+    #define ENSURE_SPACE(needed) do { \
+        if (remaining < (needed)) { \
+            size_t used = write - output; \
+            size_t new_capacity = (used + (needed) + 1) * 2; \
+            char *new_output = realloc(output, new_capacity); \
+            if (!new_output) { \
+                free(output); \
+                return NULL; \
+            } \
+            output = new_output; \
+            write = output + used; \
+            remaining = new_capacity - used; \
+        } \
+    } while(0)
+
+    /* Single-pass optimization: look for markers as we go */
+    const char *read_start = read;  /* Track where we started reading from */
     while (*read) {
-        /* Look for alpha list marker paragraph: <p>[apex-alpha-list:lower]</p> or <p>[apex-alpha-list:upper]</p> */
-        const char *marker_lower = strstr(read, "<p>[apex-alpha-list:lower]</p>");
-        const char *marker_upper = strstr(read, "<p>[apex-alpha-list:upper]</p>");
-        const char *marker = NULL;
-        bool is_upper = false;
+        /* Check for marker patterns */
+        if (read[0] == '<' && read[1] == 'p' && read[2] == '>' && read[3] == '[') {
+            /* Potential marker start */
+            if (strncmp(read + 4, "apex-alpha-list:", 16) == 0) {
+                bool is_upper = false;
+                const char *marker_end = NULL;
 
-        if (marker_lower && (!marker_upper || marker_lower < marker_upper)) {
-            marker = marker_lower;
-            is_upper = false;
-        } else if (marker_upper) {
-            marker = marker_upper;
-            is_upper = true;
-        }
+                /* Check for lower or upper */
+                if (read + 20 < html + html_len && strncmp(read + 20, "lower]</p>", 9) == 0) {
+                    marker_end = read + 29;  /* "<p>[apex-alpha-list:lower]</p>" */
+                    is_upper = false;
+                } else if (read + 20 < html + html_len && strncmp(read + 20, "upper]</p>", 9) == 0) {
+                    marker_end = read + 29;  /* "<p>[apex-alpha-list:upper]</p>" */
+                    is_upper = true;
+                }
 
-        if (marker) {
-            /* Copy everything up to the marker */
-            size_t copy_len = marker - read;
-            if (copy_len > remaining) copy_len = remaining;
-            memcpy(write, read, copy_len);
-            write += copy_len;
-            remaining -= copy_len;
-
-            /* Skip the marker paragraph */
-            read = marker + (is_upper ? 30 : 30);  /* Both are 30 chars: "<p>[apex-alpha-list:lower]</p>" or upper */
-
-            /* Skip whitespace and newlines */
-            while (*read && (*read == ' ' || *read == '\t' || *read == '\n' || *read == '\r')) {
-                *write++ = *read++;
-                remaining--;
-            }
-
-            /* Look for the next <ol> tag */
-            const char *ol_start = strstr(read, "<ol");
-            if (ol_start) {
-                /* Copy everything up to and including "<ol" */
-                size_t copy_len = ol_start - read;
-                if (copy_len > remaining) copy_len = remaining;
-                memcpy(write, read, copy_len);
-                write += copy_len;
-                remaining -= copy_len;
-                read = ol_start;
-
-                /* Find the end of the <ol> tag */
-                const char *tag_end = strchr(read, '>');
-                if (tag_end) {
-                    /* Check if there's already a style attribute */
-                    bool has_style = false;
-                    for (const char *p = read; p < tag_end; p++) {
-                        if (strncmp(p, "style=", 6) == 0) {
-                            has_style = true;
-                            break;
-                        }
-                    }
-
-                    if (!has_style) {
-                        /* Copy "<ol" and attributes up to '>' */
-                        size_t tag_len = tag_end - read;
-                        if (tag_len > remaining) tag_len = remaining;
-                        memcpy(write, read, tag_len);
-                        write += tag_len;
-                        remaining -= tag_len;
-
-                        /* Add style attribute before the closing '>' */
-                        const char *style = is_upper
-                            ? " style=\"list-style-type: upper-alpha\">"
-                            : " style=\"list-style-type: lower-alpha\">";
-                        size_t style_len = strlen(style);
-                        if (style_len <= remaining) {
-                            memcpy(write, style, style_len);
-                            write += style_len;
-                            remaining -= style_len;
-                        }
-                        read = tag_end + 1;
-                    } else {
-                        /* Already has style, copy as-is */
-                        size_t copy_len = tag_end - read + 1;
-                        if (copy_len > remaining) copy_len = remaining;
-                        memcpy(write, read, copy_len);
+                if (marker_end) {
+                    /* Found a marker - copy everything up to it */
+                    size_t copy_len = read - read_start;
+                    ENSURE_SPACE(copy_len);
+                    if (copy_len > 0) {
+                        memcpy(write, read_start, copy_len);
                         write += copy_len;
                         remaining -= copy_len;
-                        read = tag_end + 1;
                     }
-                } else {
-                    /* No closing '>', copy as-is */
-                    *write++ = *read++;
-                    remaining--;
+                    read_start = marker_end + 1;
+                    read = marker_end + 1;
+
+                    /* Skip whitespace (but copy it) */
+                    const char *whitespace_start = read;
+                    while (*read && (*read == ' ' || *read == '\t' || *read == '\n' || *read == '\r')) {
+                        read++;
+                    }
+                    /* Copy whitespace in batch */
+                    size_t whitespace_len = read - whitespace_start;
+                    if (whitespace_len > 0) {
+                        ENSURE_SPACE(whitespace_len);
+                        memcpy(write, whitespace_start, whitespace_len);
+                        write += whitespace_len;
+                        remaining -= whitespace_len;
+                    }
+                    read_start = read;
+
+                    /* Look for <ol> tag (single character check, then verify) */
+                    if (read[0] == '<' && read[1] == 'o' && read[2] == 'l' &&
+                        (read[3] == '>' || read[3] == ' ' || read[3] == '\t' || read[3] == '\n')) {
+                        const char *ol_start = read;
+                        const char *tag_end = strchr(ol_start, '>');
+
+                        if (tag_end) {
+                            /* Check if already has style attribute */
+                            bool has_style = false;
+                            for (const char *p = ol_start; p < tag_end; p++) {
+                                if (strncmp(p, "style=", 6) == 0) {
+                                    has_style = true;
+                                    break;
+                                }
+                            }
+
+                            if (!has_style) {
+                                /* Copy "<ol" and attributes */
+                                size_t tag_len = tag_end - ol_start;
+                                ENSURE_SPACE(tag_len + 50);  /* Extra for style attribute */
+                                memcpy(write, ol_start, tag_len);
+                                write += tag_len;
+                                remaining -= tag_len;
+
+                                /* Add style attribute */
+                                const char *style = is_upper
+                                    ? " style=\"list-style-type: upper-alpha\">"
+                                    : " style=\"list-style-type: lower-alpha\">";
+                                size_t style_len = strlen(style);
+                                memcpy(write, style, style_len);
+                                write += style_len;
+                                remaining -= style_len;
+                                read = tag_end + 1;
+                                read_start = read;
+                                continue;
+                            }
+                        }
+                    }
                 }
-            } else {
-                /* No <ol> found, continue normally */
-                continue;
             }
-        } else {
-            *write++ = *read++;
-            remaining--;
         }
+
+        /* Normal character - just advance */
+        read++;
     }
+
+    /* Copy any remaining characters */
+    size_t remaining_len = read - read_start;
+    if (remaining_len > 0) {
+        ENSURE_SPACE(remaining_len);
+        memcpy(write, read_start, remaining_len);
+        write += remaining_len;
+        remaining -= remaining_len;
+    }
+
+    #undef ENSURE_SPACE
 
     *write = '\0';
     return output;
@@ -1348,9 +1376,9 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_citations = true;  /* MultiMarkdown: citations enabled (if bibliography provided) */
             opts.enable_sup_sub = true;  /* MultiMarkdown: support sup/sub */
             opts.enable_autolink = true;  /* MultiMarkdown: autolinks enabled */
-            opts.enable_indices = true;  /* MultiMarkdown: indices enabled */
-            opts.enable_mmark_index_syntax = true;  /* MultiMarkdown: mmark index syntax */
-            opts.enable_textindex_syntax = false;  /* MultiMarkdown: TextIndex syntax disabled by default */
+            opts.enable_indices = false;  /* Indices disabled by default - use --indices to enable */
+            opts.enable_mmark_index_syntax = false;  /* Disabled by default - use --indices to enable */
+            opts.enable_textindex_syntax = false;  /* Disabled by default - use --indices to enable */
             break;
 
         case APEX_MODE_KRAMDOWN:
@@ -1531,12 +1559,36 @@ static void apex_register_extensions(cmark_parser *parser, const apex_options *o
 /**
  * Main conversion function using cmark-gfm
  */
+/* Profiling helpers */
+static double get_time_ms(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+}
+
+static bool profiling_enabled(void) {
+    const char *env = getenv("APEX_PROFILE");
+    return env && (strcmp(env, "1") == 0 || strcmp(env, "yes") == 0 || strcmp(env, "true") == 0);
+}
+
+#define PROFILE_START(name) \
+    double name##_start = 0; \
+    if (profiling_enabled()) { name##_start = get_time_ms(); }
+
+#define PROFILE_END(name) \
+    if (profiling_enabled()) { \
+        double name##_elapsed = get_time_ms() - name##_start; \
+        fprintf(stderr, "[PROFILE] %-30s: %8.2f ms\n", #name, name##_elapsed); \
+    }
+
 char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options *options) {
     if (!markdown || len == 0) {
         char *empty = malloc(1);
         if (empty) empty[0] = '\0';
         return empty;
     }
+
+    PROFILE_START(total);
 
     /* Use default options if none provided, and create a mutable copy */
     apex_options default_opts;
@@ -1570,7 +1622,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         options->mode == APEX_MODE_KRAMDOWN ||
         options->mode == APEX_MODE_UNIFIED) {
         /* Extract metadata FIRST */
+        PROFILE_START(metadata);
         metadata = apex_extract_metadata(&text_ptr);
+        PROFILE_END(metadata);
 
         /* Extract ALDs for Kramdown */
         if (options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
@@ -1598,7 +1652,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      */
     char *metadata_replaced = NULL;
     if (metadata && options->enable_metadata_variables) {
+        PROFILE_START(metadata_replace_pre);
         metadata_replaced = apex_metadata_replace_variables(text_ptr, metadata, options);
+        PROFILE_END(metadata_replace_pre);
         if (metadata_replaced) {
             text_ptr = metadata_replaced;
         }
@@ -1613,13 +1669,16 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Load from CLI bibliography files if specified */
     if (options->bibliography_files) {
+        PROFILE_START(bibliography_load);
         bibliography = apex_load_bibliography((const char **)options->bibliography_files, options->base_directory);
+        PROFILE_END(bibliography_load);
     }
 
     /* Also check metadata for bibliography (merge with CLI bibliography if both exist) */
     if (metadata) {
         const char *bib_value = apex_metadata_get(metadata, "bibliography");
         if (bib_value) {
+            PROFILE_START(bibliography_load_meta);
             /* Load bibliography from metadata */
             char *resolved_path = NULL;
             if (options->base_directory) {
@@ -1663,6 +1722,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                 }
                 free(resolved_path);
             }
+            PROFILE_END(bibliography_load_meta);
         }
     }
 
@@ -1691,7 +1751,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     if (options->enable_citations && should_process_citations) {
+        PROFILE_START(citations);
         citations_processed = apex_process_citations(text_ptr, &citation_registry, options);
+        PROFILE_END(citations);
         if (citations_processed) {
             text_ptr = citations_processed;
         }
@@ -1701,7 +1763,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     apex_index_registry index_registry = {0};
     char *indices_processed = NULL;
     if (options->enable_indices) {
+        PROFILE_START(indices);
         indices_processed = apex_process_index_entries(text_ptr, &index_registry, options);
+        PROFILE_END(indices);
         if (indices_processed) {
             text_ptr = indices_processed;
         }
@@ -1713,7 +1777,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      */
     char *autolinks_processed = NULL;
     if (options->enable_autolink) {
+        PROFILE_START(autolinks);
         autolinks_processed = apex_preprocess_autolinks(text_ptr, options);
+        PROFILE_END(autolinks);
         if (autolinks_processed) {
             text_ptr = autolinks_processed;
         }
@@ -1722,7 +1788,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Preprocess IAL markers (insert blank lines before them so cmark parses correctly) */
     char *ial_preprocessed = NULL;
     if (options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
+        PROFILE_START(ial_preprocess);
         ial_preprocessed = apex_preprocess_ial(text_ptr);
+        PROFILE_END(ial_preprocess);
         if (ial_preprocessed) {
             text_ptr = ial_preprocessed;
         }
@@ -1731,7 +1799,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process file includes before parsing (preprocessing) */
     char *includes_processed = NULL;
     if (options->enable_file_includes) {
+        PROFILE_START(includes);
         includes_processed = apex_process_includes(text_ptr, options->base_directory, metadata, 0);
+        PROFILE_END(includes);
         if (includes_processed) {
             text_ptr = includes_processed;
         }
@@ -1741,7 +1811,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* This ensures ^ markers are converted to blank lines before alpha list processing */
     char *markers_processed_early = NULL;
     if (options->enable_marked_extensions) {
+        PROFILE_START(special_markers);
         markers_processed_early = apex_process_special_markers(text_ptr);
+        PROFILE_END(special_markers);
         if (markers_processed_early) {
             text_ptr = markers_processed_early;
         }
@@ -1750,7 +1822,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process alpha lists before parsing (preprocessing) */
     char *alpha_lists_processed = NULL;
     if (options->allow_alpha_lists) {
+        PROFILE_START(alpha_lists);
         alpha_lists_processed = apex_preprocess_alpha_lists(text_ptr);
+        PROFILE_END(alpha_lists);
         if (alpha_lists_processed) {
             text_ptr = alpha_lists_processed;
         }
@@ -1759,14 +1833,18 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process inline footnotes before parsing (Kramdown ^[...] and MMD [^... ...]) */
     char *inline_footnotes_processed = NULL;
     if (options->enable_footnotes) {
+        PROFILE_START(inline_footnotes);
         inline_footnotes_processed = apex_process_inline_footnotes(text_ptr);
+        PROFILE_END(inline_footnotes);
         if (inline_footnotes_processed) {
             text_ptr = inline_footnotes_processed;
         }
     }
 
     /* Process ==highlight== syntax before parsing */
+    PROFILE_START(highlights);
     char *highlights_processed = apex_process_highlights(text_ptr);
+    PROFILE_END(highlights);
     if (highlights_processed) {
         text_ptr = highlights_processed;
     }
@@ -1774,7 +1852,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process superscript and subscript syntax before parsing */
     char *sup_sub_processed = NULL;
     if (options->enable_sup_sub) {
+        PROFILE_START(sup_sub);
         sup_sub_processed = apex_process_sup_sub(text_ptr);
+        PROFILE_END(sup_sub);
         if (sup_sub_processed) {
             text_ptr = sup_sub_processed;
         }
@@ -1783,7 +1863,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process relaxed tables before parsing (preprocessing) */
     char *relaxed_tables_processed = NULL;
     if (options->relaxed_tables && options->enable_tables) {
+        PROFILE_START(relaxed_tables);
         relaxed_tables_processed = apex_process_relaxed_tables(text_ptr);
+        PROFILE_END(relaxed_tables);
         if (relaxed_tables_processed) {
             text_ptr = relaxed_tables_processed;
         }
@@ -1792,15 +1874,19 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process definition lists before parsing (preprocessing) */
     char *deflist_processed = NULL;
     if (options->enable_definition_lists) {
+        PROFILE_START(definition_lists);
         deflist_processed = apex_process_definition_lists(text_ptr, options->unsafe);
+        PROFILE_END(definition_lists);
         if (deflist_processed) {
             text_ptr = deflist_processed;
         }
     }
 
     /* Process HTML markdown attributes before parsing (preprocessing) */
+    PROFILE_START(html_markdown);
     char *html_markdown_processed = NULL;
     html_markdown_processed = apex_process_html_markdown(text_ptr);
+    PROFILE_END(html_markdown);
     if (html_markdown_processed) {
         text_ptr = html_markdown_processed;
     }
@@ -1808,8 +1894,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process Critic Markup before parsing (preprocessing) */
     char *critic_processed = NULL;
     if (options->enable_critic_markup) {
+        PROFILE_START(critic);
         critic_mode_t critic_mode = (critic_mode_t)options->critic_mode;
         critic_processed = apex_process_critic_markup_text(text_ptr, critic_mode);
+        PROFILE_END(critic);
         if (critic_processed) {
             text_ptr = critic_processed;
         }
@@ -1819,6 +1907,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     int cmark_opts = apex_to_cmark_options(options);
 
     /* Create parser */
+    PROFILE_START(parsing);
     cmark_parser *parser = cmark_parser_new(cmark_opts);
     if (!parser) {
         free(working_text);
@@ -1832,6 +1921,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Parse the markdown (without metadata) */
     cmark_parser_feed(parser, text_ptr, strlen(text_ptr));
     cmark_node *document = cmark_parser_finish(parser);
+    PROFILE_END(parsing);
 
     if (!document) {
         cmark_parser_free(parser);
@@ -1868,7 +1958,12 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Process IAL (Inline Attribute Lists) if in Kramdown or Unified mode */
     if (alds || options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
-        apex_process_ial_in_tree(document, alds);
+        /* Fast path: skip AST walk if no IAL markers present */
+        if (strstr(text_ptr, "{:") != NULL) {
+            PROFILE_START(ial);
+            apex_process_ial_in_tree(document, alds);
+            PROFILE_END(ial);
+        }
     }
 
     /* Merge lists with mixed markers if enabled */
@@ -1882,6 +1977,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      * Unified mode: use standard renderer to preserve autolinks/raw HTML
      * Kramdown or ALDs: use custom renderer for attributes/IAL
      */
+    PROFILE_START(rendering);
     char *html;
     if (options->mode == APEX_MODE_UNIFIED) {
         html = cmark_render_html(document, cmark_opts, NULL);
@@ -1890,6 +1986,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     } else {
         html = cmark_render_html(document, cmark_opts, NULL);
     }
+    PROFILE_END(rendering);
 
     /* Post-process HTML for advanced table attributes (rowspan/colspan) */
     if (options->enable_tables && html) {
@@ -1961,7 +2058,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Adjust header levels and quote language based on metadata */
     if (html) {
         if (base_header_level > 1) {
+            PROFILE_START(adjust_header_levels);
             char *adjusted_html = apex_adjust_header_levels(html, base_header_level);
+            PROFILE_END(adjust_header_levels);
             if (adjusted_html) {
                 free(html);
                 html = adjusted_html;
@@ -1969,7 +2068,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
 
         if (quotes_lang_metadata) {
+            PROFILE_START(adjust_quotes);
             char *adjusted_quotes = apex_adjust_quote_language(html, quotes_lang_metadata);
+            PROFILE_END(adjust_quotes);
             if (adjusted_quotes) {
                 free(html);
                 html = adjusted_quotes;
@@ -1979,7 +2080,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Inject header IDs if enabled */
     if (options->generate_header_ids && html) {
+        PROFILE_START(header_ids);
         char *processed_html = apex_inject_header_ids(html, document, true, options->header_anchors, options->id_format);
+        PROFILE_END(header_ids);
         if (processed_html && processed_html != html) {
             free(html);
             html = processed_html;
@@ -1988,7 +2091,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Obfuscate email links if requested */
     if (options->obfuscate_emails && html) {
+        PROFILE_START(obfuscate_emails);
         char *obfuscated = apex_obfuscate_email_links(html);
+        PROFILE_END(obfuscate_emails);
         if (obfuscated) {
             free(html);
             html = obfuscated;
@@ -1997,7 +2102,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Embed images as base64 data URLs if requested (local images only) */
     if (options->embed_images && html) {
+        PROFILE_START(embed_images);
         char *embedded = apex_embed_images(html, options, options->base_directory);
+        PROFILE_END(embed_images);
         if (embedded) {
             free(html);
             html = embedded;
@@ -2008,7 +2115,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      * Note: Most replacements happen in preprocessing, but this handles edge cases in HTML
      */
     if (metadata && options->enable_metadata_variables && html) {
+        PROFILE_START(metadata_replace);
         char *replaced = apex_metadata_replace_variables(html, metadata, options);
+        PROFILE_END(metadata_replace);
         if (replaced && replaced != html) {
             free(html);
             html = replaced;
@@ -2020,7 +2129,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Process TOC markers if enabled (Marked extensions) */
     if (options->enable_marked_extensions && html) {
+        PROFILE_START(toc);
         char *with_toc = apex_process_toc(html, document, options->id_format);
+        PROFILE_END(toc);
         if (with_toc) {
             free(html);
             html = with_toc;
@@ -2029,7 +2140,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Replace abbreviations if any were found */
     if (abbreviations && html) {
+        PROFILE_START(abbreviations);
         char *with_abbrs = apex_replace_abbreviations(html, abbreviations);
+        PROFILE_END(abbreviations);
         if (with_abbrs) {
             free(html);
             html = with_abbrs;
@@ -2038,7 +2151,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Replace GitHub emoji if in GFM or Unified mode */
     if ((options->mode == APEX_MODE_GFM || options->mode == APEX_MODE_UNIFIED) && html) {
+        PROFILE_START(emoji);
         char *with_emoji = apex_replace_emoji(html);
+        PROFILE_END(emoji);
         if (with_emoji) {
             free(html);
             html = with_emoji;
@@ -2063,7 +2178,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     if (options->enable_citations && html && should_render_citations) {
         if (citation_registry.count > 0) {
+            PROFILE_START(citations_render);
             char *with_citations = apex_render_citations(html, &citation_registry, options);
+            PROFILE_END(citations_render);
             if (with_citations) {
                 free(html);
                 html = with_citations;
@@ -2072,7 +2189,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
         /* Insert bibliography at marker or end of document (even if no citations, if bibliography loaded) */
         if (html && !options->suppress_bibliography && citation_registry.bibliography) {
+            PROFILE_START(bibliography);
             char *with_bibliography = apex_insert_bibliography(html, &citation_registry, options);
+            PROFILE_END(bibliography);
             if (with_bibliography) {
                 free(html);
                 html = with_bibliography;
@@ -2082,7 +2201,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Render index markers and insert index */
     if (options->enable_indices && html && index_registry.count > 0) {
+        PROFILE_START(index_render);
         char *with_index_markers = apex_render_index_markers(html, &index_registry, options);
+        PROFILE_END(index_render);
         if (with_index_markers) {
             free(html);
             html = with_index_markers;
@@ -2090,7 +2211,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
         /* Insert index at marker or end of document */
         if (html) {
+            PROFILE_START(index_insert);
             char *with_index = apex_insert_index(html, &index_registry, options);
+            PROFILE_END(index_insert);
             if (with_index) {
                 free(html);
                 html = with_index;
@@ -2103,7 +2226,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Clean up HTML tag spacing (compress multiple spaces, remove spaces before >) */
     if (html) {
+        PROFILE_START(html_clean);
         char *cleaned = apex_clean_html_tag_spacing(html);
+        PROFILE_END(html_clean);
         if (cleaned) {
             free(html);
             html = cleaned;
@@ -2112,7 +2237,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Convert thead to tbody for relaxed tables (if relaxed tables were processed) */
     if (html && options->relaxed_tables && options->enable_tables && relaxed_tables_processed) {
+        PROFILE_START(relaxed_tables_convert);
         char *converted = apex_convert_relaxed_table_headers(html);
+        PROFILE_END(relaxed_tables_convert);
         if (converted) {
             free(html);
             html = converted;
@@ -2121,7 +2248,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Post-process HTML to add style attributes to alpha lists */
     if (options->allow_alpha_lists && html) {
+        PROFILE_START(alpha_lists_postprocess);
         char *processed_html = apex_postprocess_alpha_lists_html(html);
+        PROFILE_END(alpha_lists_postprocess);
         if (processed_html && processed_html != html) {
             free(html);
             html = processed_html;
@@ -2130,7 +2259,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Remove empty paragraphs created by ^ marker (zero-width space only) */
     if (html && options->enable_marked_extensions) {
+        PROFILE_START(remove_empty_paragraphs);
         char *cleaned = apex_remove_empty_paragraphs(html);
+        PROFILE_END(remove_empty_paragraphs);
         if (cleaned && cleaned != html) {
             free(html);
             html = cleaned;
@@ -2174,9 +2305,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             css_path = css_metadata;  /* Use extracted metadata value */
         }
 
+        PROFILE_START(standalone_wrap);
         char *document = apex_wrap_html_document(html, local_opts.document_title, css_path,
                                                  html_header_metadata, html_footer_metadata,
                                                  language_metadata);
+        PROFILE_END(standalone_wrap);
         if (document) {
             free(html);
             html = document;
@@ -2192,7 +2325,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Remove blank lines within tables (applies to both pretty and non-pretty) */
     if (html) {
+        PROFILE_START(remove_table_blank_lines);
         char *cleaned = apex_remove_table_blank_lines(html);
+        PROFILE_END(remove_table_blank_lines);
         if (cleaned) {
             free(html);
             html = cleaned;
@@ -2202,8 +2337,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Remove table separator rows that were incorrectly rendered as data rows */
     /* This happens when smart typography converts --- to — in separator rows */
     if (html && local_opts.enable_tables) {
+        PROFILE_START(remove_table_separator_rows);
         extern char *apex_remove_table_separator_rows(const char *html);
         char *cleaned = apex_remove_table_separator_rows(html);
+        PROFILE_END(remove_table_separator_rows);
         if (cleaned) {
             free(html);
             html = cleaned;
@@ -2212,11 +2349,19 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Pretty-print HTML if requested */
     if (local_opts.pretty && html) {
+        PROFILE_START(pretty_print);
         char *pretty = apex_pretty_print_html(html);
+        PROFILE_END(pretty_print);
         if (pretty) {
             free(html);
             html = pretty;
         }
+    }
+
+    PROFILE_END(total);
+
+    if (profiling_enabled()) {
+        fprintf(stderr, "[PROFILE] %-30s: %8s\n", "---", "---");
     }
 
     return html;

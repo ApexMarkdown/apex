@@ -567,7 +567,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
     /* Process HTML to inject IDs */
     size_t html_len = strlen(html);
     size_t capacity = html_len + header_count * 100;  /* Extra space for IDs */
-    char *output = malloc(capacity);
+    char *output = malloc(capacity + 1);  /* +1 for null terminator */
     if (!output) {
         /* Clean up */
         while (header_map) {
@@ -582,7 +582,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
 
     const char *read = html;
     char *write = output;
-    size_t remaining = capacity;
+    size_t remaining = capacity;  /* Reserve 1 byte for null terminator */
     int current_header_idx = 0;
 
     while (*read) {
@@ -625,7 +625,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
             if (use_anchors && header && header->id) {
                 /* For anchor tags: copy the entire header tag, then inject anchor after '>' */
                 size_t tag_len = tag_end - tag_start + 1;  /* Include '>' */
-                if (tag_len < remaining) {
+                if (tag_len <= remaining) {
                     memcpy(write, tag_start, tag_len);
                     write += tag_len;
                     remaining -= tag_len;
@@ -638,7 +638,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                         "<a href=\"#%s\" aria-hidden=\"true\" class=\"anchor\" id=\"%s\"></a>",
                         header->id, header->id);
                 size_t anchor_len = strlen(anchor_tag);
-                if (anchor_len < remaining) {
+                if (anchor_len <= remaining) {
                     memcpy(write, anchor_tag, anchor_len);
                     write += anchor_len;
                     remaining -= anchor_len;
@@ -653,7 +653,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
 
                 /* Copy '<hN' */
                 size_t tag_prefix_len = after_tag_name - tag_start;
-                if (tag_prefix_len < remaining) {
+                if (tag_prefix_len <= remaining) {
                     memcpy(write, tag_start, tag_prefix_len);
                     write += tag_prefix_len;
                     remaining -= tag_prefix_len;
@@ -669,7 +669,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                 /* If there are existing attributes, copy them */
                 if (read > attr_start) {
                     size_t attr_len = read - attr_start;
-                    if (attr_len < remaining) {
+                    if (attr_len <= remaining) {
                         memcpy(write, attr_start, attr_len);
                         write += attr_len;
                         remaining -= attr_len;
@@ -677,18 +677,16 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                 }
 
                 /* Add space before id attribute if needed */
-                if (read > attr_start || *read == '>') {
-                    if (remaining > 0) {
-                        *write++ = ' ';
-                        remaining--;
-                    }
+                if ((read > attr_start || *read == '>') && remaining > 0) {
+                    *write++ = ' ';
+                    remaining--;
                 }
 
                 /* Inject id="..." */
                 char id_attr_str[512];
                 snprintf(id_attr_str, sizeof(id_attr_str), "id=\"%s\"", header->id);
                 size_t id_len = strlen(id_attr_str);
-                if (id_len < remaining) {
+                if (id_len <= remaining) {
                     memcpy(write, id_attr_str, id_len);
                     write += id_len;
                     remaining -= id_len;
@@ -707,7 +705,7 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
             } else {
                 /* No ID to inject, just copy the tag */
                 size_t tag_len = tag_end - tag_start + 1;
-                if (tag_len < remaining) {
+                if (tag_len <= remaining) {
                     memcpy(write, tag_start, tag_len);
                     write += tag_len;
                     remaining -= tag_len;
@@ -728,6 +726,17 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
         }
     }
 
+    /* Ensure we have space for null terminator */
+    if (remaining < 1) {
+        size_t used = write - output;
+        size_t new_capacity = (used + 1) * 2;
+        char *new_output = realloc(output, new_capacity + 1);
+        if (new_output) {
+            output = new_output;
+            write = output + used;
+            remaining = new_capacity - used;
+        }
+    }
     *write = '\0';
 
     /* Clean up */

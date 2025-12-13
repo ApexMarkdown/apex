@@ -18,6 +18,7 @@
 
 #include "definition_list.h"
 #include "parser.h"
+#include <ctype.h>
 #include "node.h"
 #include "html.h"
 #include "render.h"
@@ -55,6 +56,209 @@ static bool is_definition_line(const unsigned char *input, int len, int *indent)
 
     *indent = spaces;
     return true;
+}
+
+/**
+ * Extract reference link IDs from text (e.g., "1670-042" from "[KeyRemap4MacBook][1670-042]")
+ * Returns a dynamically allocated array of strings (IDs), with NULL terminator
+ * Caller must free each string and the array itself
+ */
+static char **extract_reference_link_ids(const char *text, size_t *count) {
+    if (!text || !count) return NULL;
+
+    *count = 0;
+    size_t capacity = 16;
+    char **ids = malloc(capacity * sizeof(char*));
+    if (!ids) return NULL;
+
+    const char *p = text;
+    while (*p) {
+        if (*p == '[') {
+            const char *text_start = p + 1;
+            const char *text_end = strchr(text_start, ']');
+            if (text_end) {
+                if (text_end[1] == '[' && text_end[2] == ']') {
+                    /* Found shortcut reference [text][] - use text as the ID */
+                    size_t text_len = text_end - text_start;
+                    if (text_len > 0) {
+                        char *id = malloc(text_len + 1);
+                        if (id) {
+                            memcpy(id, text_start, text_len);
+                            id[text_len] = '\0';
+
+                            /* Check if we already have this ID */
+                            bool found = false;
+                            for (size_t i = 0; i < *count; i++) {
+                                if (strcmp(ids[i], id) == 0) {
+                                    found = true;
+                                    free(id);
+                                    break;
+                                }
+                            }
+
+                            if (!found) {
+                                /* Add to array */
+                                if (*count >= capacity) {
+                                    capacity *= 2;
+                                    char **new_ids = realloc(ids, capacity * sizeof(char*));
+                                    if (!new_ids) {
+                                        free(id);
+                                        break;
+                                    }
+                                    ids = new_ids;
+                                }
+                                ids[*count] = id;
+                                (*count)++;
+                            }
+                        }
+                    }
+                    p = text_end + 3;  /* Skip past ]] */
+                    continue;
+                } else if (text_end[1] == '[') {
+                    /* Found [text][ref] pattern */
+                    const char *ref_start = text_end + 2;
+                    const char *ref_end = strchr(ref_start, ']');
+                    if (ref_end) {
+                        /* Extract the reference ID */
+                        size_t ref_len = ref_end - ref_start;
+                        if (ref_len > 0) {
+                            char *id = malloc(ref_len + 1);
+                            if (id) {
+                                memcpy(id, ref_start, ref_len);
+                                id[ref_len] = '\0';
+
+                                /* Check if we already have this ID */
+                                bool found = false;
+                                for (size_t i = 0; i < *count; i++) {
+                                    if (strcmp(ids[i], id) == 0) {
+                                        found = true;
+                                        free(id);
+                                        break;
+                                    }
+                                }
+
+                                if (!found) {
+                                    /* Add to array */
+                                    if (*count >= capacity) {
+                                        capacity *= 2;
+                                        char **new_ids = realloc(ids, capacity * sizeof(char*));
+                                        if (!new_ids) {
+                                            free(id);
+                                            break;
+                                        }
+                                        ids = new_ids;
+                                    }
+                                    ids[*count] = id;
+                                    (*count)++;
+                                }
+                            }
+                        }
+                        p = ref_end + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        p++;
+    }
+
+    /* Add NULL terminator */
+    if (*count >= capacity) {
+        char **new_ids = realloc(ids, (capacity + 1) * sizeof(char*));
+        if (new_ids) ids = new_ids;
+    }
+    if (ids) ids[*count] = NULL;
+
+    return ids;
+}
+
+/**
+ * Extract specific reference definitions from the full reference definitions string
+ * based on a list of reference IDs
+ * Returns a string containing only the needed definitions, or NULL if none found
+ * Caller must free the returned string
+ */
+static char *extract_specific_reference_definitions(const char *all_refs, char **needed_ids) {
+    if (!all_refs || !needed_ids || !needed_ids[0]) return NULL;
+
+    size_t result_capacity = 1024;
+    size_t result_len = 0;
+    char *result = malloc(result_capacity);
+    if (!result) return NULL;
+    result[0] = '\0';
+
+    const char *p = all_refs;
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        if (!line_end) line_end = p + strlen(p);
+
+        /* Skip leading whitespace */
+        const char *content_start = line_start;
+        while (content_start < line_end && (*content_start == ' ' || *content_start == '\t')) {
+            content_start++;
+        }
+
+        /* Check if this is a reference link definition: [id]: URL */
+        if (content_start < line_end && *content_start == '[') {
+            const char *id_end = strchr(content_start + 1, ']');
+            if (id_end && id_end < line_end && id_end[1] == ':') {
+                /* Extract the ID from this definition */
+                size_t def_id_len = id_end - (content_start + 1);
+                char *def_id = malloc(def_id_len + 1);
+                if (def_id) {
+                    memcpy(def_id, content_start + 1, def_id_len);
+                    def_id[def_id_len] = '\0';
+
+                    /* Check if this ID is in our needed list */
+                    bool needed = false;
+                    for (size_t i = 0; needed_ids[i]; i++) {
+                        if (strcmp(needed_ids[i], def_id) == 0) {
+                            needed = true;
+                            break;
+                        }
+                    }
+
+                    if (needed) {
+                        /* Include this definition */
+                        size_t line_len = line_end - line_start;
+                        if (line_end < p + strlen(p) && *line_end == '\n') {
+                            line_len++; /* Include newline */
+                        }
+
+                        /* Expand buffer if needed */
+                        if (result_len + line_len + 1 >= result_capacity) {
+                            result_capacity = (result_len + line_len + 1) * 2;
+                            char *new_result = realloc(result, result_capacity);
+                            if (!new_result) {
+                                free(def_id);
+                                break;
+                            }
+                            result = new_result;
+                        }
+
+                        /* Copy the line */
+                        memcpy(result + result_len, line_start, line_len);
+                        result_len += line_len;
+                        result[result_len] = '\0';
+                    }
+
+                    free(def_id);
+                }
+            }
+        }
+
+        /* Move to next line */
+        p = line_end;
+        if (*p == '\n') p++;
+    }
+
+    if (result_len == 0) {
+        free(result);
+        return NULL;
+    }
+
+    return result;
 }
 
 /**
@@ -223,8 +427,41 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     if (!text) return NULL;
 
     size_t text_len = strlen(text);
+
+    /* Quick scan: check if any definition list patterns exist before processing */
+    /* Simple scan for : followed by space/tab/newline (fastest check) */
+    bool has_def_list_pattern = false;
+    const char *p = text;
+    const char *end = text + text_len - 1;  /* -1 to safely check p[1] */
+
+    while (p < end) {
+        if (*p == ':' && (p[1] == ' ' || p[1] == '\t' || p[1] == '\n')) {
+            /* Found : followed by space/tab/newline - likely a definition marker */
+            /* Quick check: is it at start of line or after whitespace/blockquote? */
+            const char *before = p;
+            while (before > text && before[-1] != '\n') {
+                char prev = before[-1];
+                if (prev != ' ' && prev != '\t' && prev != '>') {
+                    break;  /* Found non-whitespace before :, skip */
+                }
+                before--;
+            }
+            /* If at start of text or after newline, it's a definition */
+            if (before == text || before[-1] == '\n') {
+                has_def_list_pattern = true;
+                break;
+            }
+        }
+        p++;
+    }
+
+    /* Early exit if no definition list patterns found */
+    if (!has_def_list_pattern) {
+        return NULL;
+    }
+
     size_t output_capacity = text_len * 3;  /* Generous for HTML tags */
-    char *output = malloc(output_capacity);
+    char *output = malloc(output_capacity + 1);  /* +1 for null terminator */
     if (!output) return NULL;
 
     /* Extract all reference link definitions from the document */
@@ -232,7 +469,30 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
     const char *read = text;
     char *write = output;
+    /* Reserve 1 byte for null terminator, so we have output_capacity bytes to write */
     size_t remaining = output_capacity;
+
+    /* Helper macro to expand buffer if needed */
+    /* Always reserves 1 byte for null terminator */
+    #define ENSURE_SPACE(needed) do { \
+        /* We need 'needed' bytes for content + 1 for null terminator = needed+1 total */ \
+        /* So we need remaining > needed (not >=) to have space for both */ \
+        if (remaining <= (needed)) { \
+            size_t used = write - output; \
+            /* Allocate enough space: used + needed + 1 for null terminator, then double for safety */ \
+            size_t min_capacity = used + (needed) + 1; \
+            output_capacity = (min_capacity < 1024) ? 2048 : min_capacity * 2; \
+            char *new_output = realloc(output, output_capacity + 1); \
+            if (!new_output) { \
+                free(output); \
+                free(ref_definitions); \
+                return NULL; \
+            } \
+            output = new_output; \
+            write = output + used; \
+            remaining = output_capacity - used; \
+        } \
+    } while(0)
 
     bool in_def_list = false;
     bool in_blockquote_context = false;  /* Track if we're processing blockquote-prefixed definition lists */
@@ -242,10 +502,37 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     bool term_has_blockquote = false;  /* Track if buffered term has blockquote prefix */
     int term_blockquote_depth = 0;  /* Track blockquote depth of buffered term */
 
+    const char *prev_read_pos = NULL;
+    int iteration_count = 0;
+    const int MAX_ITERATIONS = 1000000;  /* Safety limit */
+
     while (*read) {
+        /* Safety: prevent infinite loops */
+        if (++iteration_count > MAX_ITERATIONS) {
+            /* Something is wrong - return original text to avoid hanging */
+            free(output);
+            free(ref_definitions);
+            return strdup(text);
+        }
+
+        /* Safety: if we haven't advanced, break to prevent infinite loop */
+        if (prev_read_pos == read) {
+            break;
+        }
+        prev_read_pos = read;
+
         const char *line_start = read;
         const char *line_end = strchr(read, '\n');
-        if (!line_end) line_end = read + strlen(read);
+        if (!line_end) {
+            /* No newline found - we're at the last line */
+            /* Find the end by looking for null terminator */
+            line_end = read;
+            while (*line_end != '\0') line_end++;
+            /* If line_end == read, we're at the end - break */
+            if (line_end == read) {
+                break;
+            }
+        }
 
         size_t line_length = line_end - line_start;
 
@@ -323,19 +610,22 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 /* Start new definition list */
                 const char *dl_start = "<dl>\n";
                 size_t dl_len = strlen(dl_start);
-                if (in_blockquote_context && dl_len < remaining) {
-                    /* Add > prefix(es) at start of line for blockquote context */
-                    for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
-                        *write++ = '>';
-                        *write++ = ' ';
-                        remaining -= 2;
+                    if (in_blockquote_context) {
+                        /* Add > prefix(es) at start of line for blockquote context */
+                        size_t prefix_needed = blockquote_depth * 2;
+                        /* Need prefix_needed + 1 for null terminator */
+                        ENSURE_SPACE(prefix_needed + 1);
+                        for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
+                            *write++ = '>';
+                            *write++ = ' ';
+                            remaining -= 2;
+                        }
                     }
-                }
-                if (dl_len < remaining) {
-                    memcpy(write, dl_start, dl_len);
-                    write += dl_len;
-                    remaining -= dl_len;
-                }
+                /* Need dl_len + 1 for null terminator */
+                ENSURE_SPACE(dl_len + 1);
+                memcpy(write, dl_start, dl_len);
+                write += dl_len;
+                remaining -= dl_len;
 
                 /* Write term from buffer */
                 if (term_len > 0) {
@@ -354,7 +644,10 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
                     if (in_blockquote_context) {
                         /* Add > prefix(es) at start of line for blockquote context */
-                        for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                        size_t prefix_needed = blockquote_depth * 2;
+                        /* Need prefix_needed + 1 for null terminator */
+                        ENSURE_SPACE(prefix_needed + 1);
+                        for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
                             *write++ = '>';
                             *write++ = ' ';
                             remaining -= 2;
@@ -363,47 +656,106 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
                     const char *dt_start = "<dt>";
                     size_t dt_start_len = strlen(dt_start);
-                    if (dt_start_len < remaining) {
-                        memcpy(write, dt_start, dt_start_len);
-                        write += dt_start_len;
-                        remaining -= dt_start_len;
-                    }
+                    /* Need dt_start_len + 1 for null terminator */
+                    ENSURE_SPACE(dt_start_len + 1);
+                    memcpy(write, dt_start, dt_start_len);
+                    write += dt_start_len;
+                    remaining -= dt_start_len;
 
                     /* Parse term text as inline Markdown */
                     char *term_html = NULL;
                     if (term_content_len > 0) {
-                        /* Create temporary buffer for term text with reference definitions */
-                        size_t term_text_size = term_content_len + 1;
-                        if (ref_definitions) {
-                            term_text_size += strlen(ref_definitions) + 2; /* +2 for newline and null terminator */
-                        }
-                        char *term_text = malloc(term_text_size);
-                        if (term_text) {
-                            size_t offset = 0;
-                            /* Prepend reference definitions if available */
-                            if (ref_definitions) {
-                                size_t ref_len = strlen(ref_definitions);
-                                memcpy(term_text, ref_definitions, ref_len);
-                                offset = ref_len;
-                                /* Add newline if refs don't end with one */
-                                if (ref_len > 0 && ref_definitions[ref_len - 1] != '\n') {
-                                    term_text[offset++] = '\n';
-                                }
+                        /* Quick check: does this text contain any markdown syntax? */
+                        bool has_markdown = false;
+                        const char *p = term_content;
+                        const char *end = term_content + term_content_len;
+                        while (p < end) {
+                            char c = *p++;
+                            /* Check for common markdown patterns */
+                            if (c == '*' || c == '_' || c == '[' || c == ']' || c == '!' ||
+                                c == '`' || c == '\\' || (c == '<' && p < end && (*p == '!' || isalnum((unsigned char)*p)))) {
+                                has_markdown = true;
+                                break;
                             }
-                            /* Append term content */
-                            memcpy(term_text + offset, term_content, term_content_len);
-                            term_text[offset + term_content_len] = '\0';
+                        }
 
-                            /* Parse as Markdown and render to HTML */
-                            int parser_opts = CMARK_OPT_DEFAULT;
-                            int render_opts = CMARK_OPT_DEFAULT;
-                            if (unsafe) {
-                                parser_opts |= CMARK_OPT_UNSAFE;
-                                render_opts |= CMARK_OPT_UNSAFE;
+                        if (!has_markdown) {
+                            /* Plain text - just HTML escape */
+                            size_t escaped_len = 0;
+                            for (const char *p = term_content; p < term_content + term_content_len; p++) {
+                                if (*p == '&') escaped_len += 5;  /* &amp; */
+                                else if (*p == '<' || *p == '>') escaped_len += 4;  /* &lt; &gt; */
+                                else if (*p == '"') escaped_len += 6;  /* &quot; */
+                                else escaped_len += 1;
+                            }
+                            term_html = malloc(escaped_len + 1);
+                            if (term_html) {
+                                char *out = term_html;
+                                for (const char *p = term_content; p < term_content + term_content_len; p++) {
+                                    if (*p == '&') { memcpy(out, "&amp;", 5); out += 5; }
+                                    else if (*p == '<') { memcpy(out, "&lt;", 4); out += 4; }
+                                    else if (*p == '>') { memcpy(out, "&gt;", 4); out += 4; }
+                                    else if (*p == '"') { memcpy(out, "&quot;", 6); out += 6; }
+                                    else *out++ = *p;
+                                }
+                                *out = '\0';
+                            }
+                        } else {
+                            /* Note: We don't prepend reference definitions here because:
+                             * 1. It causes cmark to hang on large files with many references
+                             * 2. Reference definitions are already available in the main document context
+                             * 3. Inline parsing should work with references from the main document
+                             */
+                            char *term_text = malloc(term_content_len + 1);
+                            if (term_text) {
+                                memcpy(term_text, term_content, term_content_len);
+                                term_text[term_content_len] = '\0';
+
+                                /* Parse as Markdown and render to HTML */
+                                int parser_opts = CMARK_OPT_DEFAULT | CMARK_OPT_SMART;  /* Enable smart typography */
+                                int render_opts = CMARK_OPT_DEFAULT;
+                                if (unsafe) {
+                                    parser_opts |= CMARK_OPT_UNSAFE;
+                                    render_opts |= CMARK_OPT_UNSAFE;
+                                }
+
+                            /* Extract only the reference definitions actually used in this term */
+                            size_t final_term_len = term_content_len;
+                            char *final_term_text = term_text;
+                            if (ref_definitions) {
+                                size_t id_count = 0;
+                                char **needed_ids = extract_reference_link_ids(term_text, &id_count);
+                                if (needed_ids && id_count > 0) {
+                                    char *selected_refs = extract_specific_reference_definitions(ref_definitions, needed_ids);
+                                    if (selected_refs) {
+                                        size_t ref_len = strlen(selected_refs);
+                                        size_t new_size = ref_len + term_content_len + 2;  /* +2 for newline and null */
+                                        char *new_term_text = malloc(new_size);
+                                        if (new_term_text) {
+                                            size_t offset = 0;
+                                            memcpy(new_term_text, selected_refs, ref_len);
+                                            offset = ref_len;
+                                            if (ref_len > 0 && selected_refs[ref_len - 1] != '\n') {
+                                                new_term_text[offset++] = '\n';
+                                            }
+                                            memcpy(new_term_text + offset, term_text, term_content_len);
+                                            new_term_text[offset + term_content_len] = '\0';
+                                            free(term_text);
+                                            final_term_text = new_term_text;
+                                            final_term_len = offset + term_content_len;
+                                        }
+                                        free(selected_refs);
+                                    }
+                                    /* Free the IDs array */
+                                    for (size_t i = 0; i < id_count; i++) {
+                                        free(needed_ids[i]);
+                                    }
+                                    free(needed_ids);
+                                }
                             }
                             cmark_parser *temp_parser = cmark_parser_new(parser_opts);
                             if (temp_parser) {
-                                cmark_parser_feed(temp_parser, term_text, offset + term_content_len);
+                                cmark_parser_feed(temp_parser, final_term_text, final_term_len);
                                 cmark_node *doc = cmark_parser_finish(temp_parser);
                                 if (doc) {
                                     /* Render and extract just the content (strip <p> tags) */
@@ -427,21 +779,23 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                                 }
                                 cmark_parser_free(temp_parser);
                             }
-                            free(term_text);
+                            free(final_term_text);
+                        }
                         }
                     }
 
                     /* Write processed HTML or original text */
                     if (term_html) {
                         size_t html_len = strlen(term_html);
-                        if (html_len < remaining) {
-                            memcpy(write, term_html, html_len);
-                            write += html_len;
-                            remaining -= html_len;
-                        }
+                        /* Need html_len + 1 for null terminator */
+                        ENSURE_SPACE(html_len + 1);
+                        memcpy(write, term_html, html_len);
+                        write += html_len;
+                        remaining -= html_len;
                         free(term_html);
-                    } else if ((size_t)term_content_len < remaining) {
-                        /* Fallback to original text if parsing failed */
+                    } else {
+                        /* Need term_content_len + 1 for null terminator */
+                        ENSURE_SPACE((size_t)term_content_len + 1);
                         memcpy(write, term_content, term_content_len);
                         write += term_content_len;
                         remaining -= (size_t)term_content_len;
@@ -449,11 +803,11 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
                     const char *dt_end = "</dt>\n";
                     size_t dt_end_len = strlen(dt_end);
-                    if (dt_end_len < remaining) {
-                        memcpy(write, dt_end, dt_end_len);
-                        write += dt_end_len;
-                        remaining -= dt_end_len;
-                    }
+                    /* Need dt_end_len + 1 for null terminator */
+                    ENSURE_SPACE(dt_end_len + 1);
+                    memcpy(write, dt_end, dt_end_len);
+                    write += dt_end_len;
+                    remaining -= dt_end_len;
 
                     term_len = 0;
                     term_has_blockquote = false;
@@ -465,7 +819,10 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             /* Write definition */
             if (in_blockquote_context) {
                 /* Add > prefix(es) at start of line for blockquote context */
-                for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                size_t prefix_needed = blockquote_depth * 2;
+                /* Need prefix_needed + 1 for null terminator */
+                ENSURE_SPACE(prefix_needed + 1);
+                for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
                     *write++ = '>';
                     *write++ = ' ';
                     remaining -= 2;
@@ -474,11 +831,11 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
             const char *dd_start = "<dd>";
             size_t dd_start_len = strlen(dd_start);
-            if (dd_start_len < remaining) {
-                memcpy(write, dd_start, dd_start_len);
-                write += dd_start_len;
-                remaining -= dd_start_len;
-            }
+            /* Need dd_start_len + 1 for null terminator */
+            ENSURE_SPACE(dd_start_len + 1);
+            memcpy(write, dd_start, dd_start_len);
+            write += dd_start_len;
+            remaining -= dd_start_len;
 
             /* Extract definition text (after : and space) */
             p++;  /* Skip : */
@@ -489,38 +846,93 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             /* Parse definition text as inline Markdown */
             char *def_html = NULL;
             if (def_text_len > 0) {
-                /* Create temporary buffer for definition text with reference definitions */
-                size_t def_text_size = def_text_len + 1;
-                if (ref_definitions) {
-                    def_text_size += strlen(ref_definitions) + 2; /* +2 for newline and null terminator */
+                /* Quick check: does this text contain any markdown syntax? */
+                bool has_markdown = false;
+                const char *check_p = p;
+                const char *check_end = p + def_text_len;
+                while (check_p < check_end) {
+                    char c = *check_p++;
+                    /* Check for common markdown patterns */
+                    if (c == '*' || c == '_' || c == '[' || c == ']' || c == '!' ||
+                        c == '`' || c == '\\' || (c == '<' && check_p < check_end && (*check_p == '!' || isalnum((unsigned char)*check_p)))) {
+                        has_markdown = true;
+                        break;
+                    }
                 }
-                char *def_text = malloc(def_text_size);
-                if (def_text) {
-                    size_t offset = 0;
-                    /* Prepend reference definitions if available */
+
+                if (!has_markdown) {
+                    /* Plain text - just HTML escape */
+                    size_t escaped_len = 0;
+                    for (const char *esc_p = p; esc_p < p + def_text_len; esc_p++) {
+                        if (*esc_p == '&') escaped_len += 5;  /* &amp; */
+                        else if (*esc_p == '<' || *esc_p == '>') escaped_len += 4;  /* &lt; &gt; */
+                        else if (*esc_p == '"') escaped_len += 6;  /* &quot; */
+                        else escaped_len += 1;
+                    }
+                    def_html = malloc(escaped_len + 1);
+                    if (def_html) {
+                        char *out = def_html;
+                        for (const char *esc_p = p; esc_p < p + def_text_len; esc_p++) {
+                            if (*esc_p == '&') { memcpy(out, "&amp;", 5); out += 5; }
+                            else if (*esc_p == '<') { memcpy(out, "&lt;", 4); out += 4; }
+                            else if (*esc_p == '>') { memcpy(out, "&gt;", 4); out += 4; }
+                            else if (*esc_p == '"') { memcpy(out, "&quot;", 6); out += 6; }
+                            else *out++ = *esc_p;
+                        }
+                        *out = '\0';
+                    }
+                } else {
+                    char *def_text = malloc(def_text_len + 1);
+                    if (def_text) {
+                        memcpy(def_text, p, def_text_len);
+                        def_text[def_text_len] = '\0';
+
+                        /* Parse as Markdown and render to HTML */
+                        int parser_opts = CMARK_OPT_DEFAULT | CMARK_OPT_SMART;  /* Enable smart typography */
+                        int render_opts = CMARK_OPT_DEFAULT;
+                        if (unsafe) {
+                            parser_opts |= CMARK_OPT_UNSAFE;
+                            render_opts |= CMARK_OPT_UNSAFE;
+                        }
+
+                    /* Extract only the reference definitions actually used in this definition */
+                    size_t final_def_len = def_text_len;
+                    char *final_def_text = def_text;
                     if (ref_definitions) {
-                        size_t ref_len = strlen(ref_definitions);
-                        memcpy(def_text, ref_definitions, ref_len);
-                        offset = ref_len;
-                        /* Add newline if refs don't end with one */
-                        if (ref_len > 0 && ref_definitions[ref_len - 1] != '\n') {
-                            def_text[offset++] = '\n';
+                        size_t id_count = 0;
+                        char **needed_ids = extract_reference_link_ids(def_text, &id_count);
+                        if (needed_ids && id_count > 0) {
+                            char *selected_refs = extract_specific_reference_definitions(ref_definitions, needed_ids);
+                            if (selected_refs) {
+                                size_t ref_len = strlen(selected_refs);
+                                size_t new_size = ref_len + def_text_len + 2;  /* +2 for newline and null */
+                                char *new_def_text = malloc(new_size);
+                                if (new_def_text) {
+                                    size_t offset = 0;
+                                    memcpy(new_def_text, selected_refs, ref_len);
+                                    offset = ref_len;
+                                    if (ref_len > 0 && selected_refs[ref_len - 1] != '\n') {
+                                        new_def_text[offset++] = '\n';
+                                    }
+                                    memcpy(new_def_text + offset, def_text, def_text_len);
+                                    new_def_text[offset + def_text_len] = '\0';
+                                    free(def_text);
+                                    final_def_text = new_def_text;
+                                    final_def_len = offset + def_text_len;
+                                }
+                                free(selected_refs);
+                            }
+                            /* Free the IDs array */
+                            for (size_t i = 0; i < id_count; i++) {
+                                free(needed_ids[i]);
+                            }
+                            free(needed_ids);
                         }
                     }
-                    /* Append definition content */
-                    memcpy(def_text + offset, p, def_text_len);
-                    def_text[offset + def_text_len] = '\0';
 
-                    /* Parse as Markdown and render to HTML */
-                    int parser_opts = CMARK_OPT_DEFAULT;
-                    int render_opts = CMARK_OPT_DEFAULT;
-                    if (unsafe) {
-                        parser_opts |= CMARK_OPT_UNSAFE;
-                        render_opts |= CMARK_OPT_UNSAFE;
-                    }
                     cmark_parser *temp_parser = cmark_parser_new(parser_opts);
                     if (temp_parser) {
-                        cmark_parser_feed(temp_parser, def_text, offset + def_text_len);
+                        cmark_parser_feed(temp_parser, final_def_text, final_def_len);
                         cmark_node *doc = cmark_parser_finish(temp_parser);
                         if (doc) {
                             /* Render and extract just the content (strip <p> tags) */
@@ -544,21 +956,23 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                         }
                         cmark_parser_free(temp_parser);
                     }
-                    free(def_text);
+                    free(final_def_text);
+                }
                 }
             }
 
             /* Write processed HTML or original text */
             if (def_html) {
                 size_t html_len = strlen(def_html);
-                if (html_len < remaining) {
-                    memcpy(write, def_html, html_len);
-                    write += html_len;
-                    remaining -= html_len;
-                }
+                /* Need html_len + 1 for null terminator */
+                ENSURE_SPACE(html_len + 1);
+                memcpy(write, def_html, html_len);
+                write += html_len;
+                remaining -= html_len;
                 free(def_html);
-            } else if (def_text_len < remaining) {
-                /* Fallback to original text if parsing failed */
+            } else {
+                /* Need def_text_len + 1 for null terminator */
+                ENSURE_SPACE(def_text_len + 1);
                 memcpy(write, p, def_text_len);
                 write += def_text_len;
                 remaining -= def_text_len;
@@ -566,11 +980,11 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
             const char *dd_end = "</dd>\n";
             size_t dd_end_len = strlen(dd_end);
-            if (dd_end_len < remaining) {
-                memcpy(write, dd_end, dd_end_len);
-                write += dd_end_len;
-                remaining -= dd_end_len;
-            }
+            /* Need dd_end_len + 1 for null terminator */
+            ENSURE_SPACE(dd_end_len + 1);
+            memcpy(write, dd_end, dd_end_len);
+            write += dd_end_len;
+            remaining -= dd_end_len;
         } else if (line_length == 0 || (line_length == 1 && *line_start == '\r')) {
             /* Blank line */
             if (in_def_list) {
@@ -579,7 +993,9 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 size_t dl_end_len = strlen(dl_end);
                 if (in_blockquote_context && dl_end_len < remaining) {
                     /* Add > prefix(es) at start of line for blockquote context */
-                    for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+                    size_t prefix_needed = blockquote_depth * 2;
+                    ENSURE_SPACE(prefix_needed + 1);
+                    for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
                         *write++ = '>';
                         *write++ = ' ';
                         remaining -= 2;
@@ -599,22 +1015,19 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             } else {
                 /* Flush any buffered term before writing blank line */
                 if (term_len > 0) {
-                    if ((size_t)term_len < remaining) {
-                        memcpy(write, term_buffer, term_len);
-                        write += term_len;
-                        remaining -= (size_t)term_len;
-                    }
-                    if (remaining > 0) {
-                        *write++ = '\n';
-                        remaining--;
-                    }
+                    /* Need term_len bytes + 1 for newline + 1 for null terminator */
+                    ENSURE_SPACE((size_t)term_len + 2);
+                    memcpy(write, term_buffer, term_len);
+                    write += term_len;
+                    remaining -= (size_t)term_len;
+                    *write++ = '\n';
+                    remaining--;
                     term_len = 0;
                 }
                 /* Regular blank line */
-                if (remaining > 0) {
-                    *write++ = '\n';
-                    remaining--;
-                }
+                ENSURE_SPACE(1);
+                *write++ = '\n';
+                remaining--;
             }
         } else {
             /* Regular line */
@@ -623,19 +1036,22 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 /* End current list first */
                 const char *dl_end = "</dl>\n\n";
                 size_t dl_end_len = strlen(dl_end);
-                if (in_blockquote_context && dl_end_len < remaining) {
-                    /* Add > prefix(es) at start of line for blockquote context */
-                    for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
-                        *write++ = '>';
-                        *write++ = ' ';
-                        remaining -= 2;
+                    if (in_blockquote_context) {
+                        /* Add > prefix(es) at start of line for blockquote context */
+                        size_t prefix_needed = blockquote_depth * 2;
+                        /* Need prefix_needed + 1 for null terminator */
+                        ENSURE_SPACE(prefix_needed + 1);
+                        for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
+                            *write++ = '>';
+                            *write++ = ' ';
+                            remaining -= 2;
+                        }
                     }
-                }
-                if (dl_end_len < remaining) {
-                    memcpy(write, dl_end, dl_end_len);
-                    write += dl_end_len;
-                    remaining -= dl_end_len;
-                }
+                /* Need dl_end_len + 1 for null terminator */
+                ENSURE_SPACE(dl_end_len + 1);
+                memcpy(write, dl_end, dl_end_len);
+                write += dl_end_len;
+                remaining -= dl_end_len;
                 in_def_list = false;
                 in_blockquote_context = false;
                 blockquote_depth = 0;
@@ -643,82 +1059,108 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
             /* If we have a buffered term that wasn't used, write it first */
             if (term_len > 0) {
-                if ((size_t)term_len < remaining) {
-                    memcpy(write, term_buffer, term_len);
-                    write += term_len;
-                    remaining -= (size_t)term_len;
-                }
-                if (remaining > 0) {
-                    *write++ = '\n';
-                    remaining--;
-                }
+                /* Need term_len bytes + 1 for newline + 1 for null terminator */
+                ENSURE_SPACE((size_t)term_len + 2);
+                memcpy(write, term_buffer, term_len);
+                write += term_len;
+                remaining -= (size_t)term_len;
+                *write++ = '\n';
+                remaining--;
                 term_len = 0;
             }
 
             /* If this is a table row, write it through immediately without buffering */
             if (is_table_row) {
-                if (line_length < remaining) {
-                    memcpy(write, line_start, line_length);
-                    write += line_length;
-                    remaining -= line_length;
-                }
-                if (remaining > 0 && *line_end == '\n') {
+                size_t needed = line_length + (*line_end == '\n' ? 1 : 0);
+                /* Need needed + 1 for null terminator */
+                ENSURE_SPACE(needed + 1);
+                memcpy(write, line_start, line_length);
+                write += line_length;
+                remaining -= line_length;
+                if (*line_end == '\n' && remaining > 0) {
                     *write++ = '\n';
                     remaining--;
                 }
                 /* Move to next line and continue */
+                const char *old_read_continue = read;
                 read = line_end;
                 if (*read == '\n') read++;
+                /* Safety: ensure we advanced */
+                if (read <= old_read_continue) {
+                    /* We're stuck - break instead of continue */
+                    break;
+                }
                 continue;
             }
             /* If this is a list item, write it through immediately without buffering */
             else if (is_list_item) {
-                if (line_length < remaining) {
-                    memcpy(write, line_start, line_length);
-                    write += line_length;
-                    remaining -= line_length;
-                }
-                if (remaining > 0 && *line_end == '\n') {
+                size_t needed = line_length + (*line_end == '\n' ? 1 : 0);
+                /* Need needed + 1 for null terminator */
+                ENSURE_SPACE(needed + 1);
+                memcpy(write, line_start, line_length);
+                write += line_length;
+                remaining -= line_length;
+                if (*line_end == '\n' && remaining > 0) {
                     *write++ = '\n';
                     remaining--;
                 }
                 /* Move to next line and continue */
+                const char *old_read_continue = read;
                 read = line_end;
                 if (*read == '\n') read++;
+                /* Safety: ensure we advanced */
+                if (read <= old_read_continue) {
+                    /* We're stuck - break instead of continue */
+                    break;
+                }
                 continue;
             }
             /* Check if line contains IAL syntax - if so, write immediately without buffering */
             else if (strstr(line_start, "{:") != NULL) {
                 /* Contains IAL - don't buffer it */
-                if (line_length < remaining) {
-                    memcpy(write, line_start, line_length);
-                    write += line_length;
-                    remaining -= line_length;
-                }
-                if (remaining > 0 && *line_end == '\n') {
+                size_t needed = line_length + (*line_end == '\n' ? 1 : 0);
+                /* Need needed + 1 for null terminator */
+                ENSURE_SPACE(needed + 1);
+                memcpy(write, line_start, line_length);
+                write += line_length;
+                remaining -= line_length;
+                if (*line_end == '\n' && remaining > 0) {
                     *write++ = '\n';
                     remaining--;
                 }
                 /* Move to next line and continue */
+                const char *old_read_continue = read;
                 read = line_end;
                 if (*read == '\n') read++;
+                /* Safety: ensure we advanced */
+                if (read <= old_read_continue) {
+                    /* We're stuck - break instead of continue */
+                    break;
+                }
                 continue;
             }
             /* Check if line is a header (starts with #) - write immediately without buffering */
             else if (p < line_end && *p == '#') {
                 /* Header - don't buffer it */
-                if (line_length < remaining) {
-                    memcpy(write, line_start, line_length);
-                    write += line_length;
-                    remaining -= line_length;
-                }
-                if (remaining > 0 && *line_end == '\n') {
+                size_t needed = line_length + (*line_end == '\n' ? 1 : 0);
+                /* Need needed + 1 for null terminator */
+                ENSURE_SPACE(needed + 1);
+                memcpy(write, line_start, line_length);
+                write += line_length;
+                remaining -= line_length;
+                if (*line_end == '\n' && remaining > 0) {
                     *write++ = '\n';
                     remaining--;
                 }
                 /* Move to next line and continue */
+                const char *old_read_continue = read;
                 read = line_end;
                 if (*read == '\n') read++;
+                /* Safety: ensure we advanced */
+                if (read <= old_read_continue) {
+                    /* We're stuck - break instead of continue */
+                    break;
+                }
                 continue;
             }
             /* Save current line as potential term */
@@ -745,53 +1187,76 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 /* Don't write yet - wait to see if next line is definition */
             } else {
                 /* Line too long for buffer, just copy through */
-                if (line_length < remaining) {
-                    memcpy(write, line_start, line_length);
-                    write += line_length;
-                    remaining -= line_length;
-                }
-                if (remaining > 0 && *line_end == '\n') {
+                size_t needed = line_length + (*line_end == '\n' ? 1 : 0);
+                /* Need needed + 1 for null terminator */
+                ENSURE_SPACE(needed + 1);
+                memcpy(write, line_start, line_length);
+                write += line_length;
+                remaining -= line_length;
+                if (*line_end == '\n' && remaining > 0) {
                     *write++ = '\n';
                     remaining--;
                 }
             }
         }
 
-        /* Move to next line */
+        /* Move to next line - ensure we always advance */
+        const char *old_read = read;
         read = line_end;
-        if (*read == '\n') read++;
+        if (*read == '\n') {
+            read++;
+        }
+        /* If we're at the end of the string, break */
+        if (*read == '\0') {
+            break;
+        }
+        /* Critical safety check: if we haven't advanced, break immediately */
+        if (read <= old_read) {
+            /* We're stuck - this should never happen, but break to prevent infinite loop */
+            /* Force advance one character as last resort */
+            if (*read != '\0') {
+                read++;
+            } else {
+                break;
+            }
+        }
+        /* Additional safety: if we've processed more than the text length, something is wrong */
+        if (read > text + text_len) {
+            break;
+        }
     }
 
     /* Close any open definition list */
     if (in_def_list) {
         const char *dl_end = "</dl>\n";
         size_t dl_end_len = strlen(dl_end);
-        if (in_blockquote_context && dl_end_len < remaining) {
+        if (in_blockquote_context) {
             /* Add > prefix(es) at start of line for blockquote context */
-            for (int i = 0; i < blockquote_depth && remaining >= 2; i++) {
+            size_t prefix_needed = blockquote_depth * 2;
+            /* Need prefix_needed + 1 for null terminator */
+            ENSURE_SPACE(prefix_needed + 1);
+            for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
                 *write++ = '>';
                 *write++ = ' ';
                 remaining -= 2;
             }
         }
-        if (dl_end_len < remaining) {
-            memcpy(write, dl_end, dl_end_len);
-            write += dl_end_len;
-            remaining -= dl_end_len;
-        }
+        /* Need dl_end_len + 1 for null terminator */
+        ENSURE_SPACE(dl_end_len + 1);
+        memcpy(write, dl_end, dl_end_len);
+        write += dl_end_len;
+        remaining -= dl_end_len;
     }
 
     /* Write any remaining term */
     if (term_len > 0) {
-        if ((size_t)term_len < remaining) {
-            memcpy(write, term_buffer, term_len);
-            write += term_len;
-            remaining -= (size_t)term_len;
-        }
-        if (remaining > 0) {
-            *write++ = '\n';
-            remaining--;
-        }
+        /* Need term_len bytes + 1 for newline + 1 for null terminator */
+        ENSURE_SPACE((size_t)term_len + 2);
+        memcpy(write, term_buffer, term_len);
+        write += term_len;
+        remaining -= (size_t)term_len;
+        *write++ = '\n';
+        remaining--;
     }
 
     /* Free reference definitions if we extracted them */
@@ -799,7 +1264,30 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         free(ref_definitions);
     }
 
+    /* Ensure space for null terminator */
+    if (remaining < 1) {
+        size_t used = write - output;
+        output_capacity = (used + 2) * 2;
+        char *new_output = realloc(output, output_capacity + 1);
+        if (!new_output) {
+            free(output);
+            return NULL;
+        }
+        output = new_output;
+        write = output + used;
+        remaining = output_capacity - used;
+    }
     *write = '\0';
+
+    #undef ENSURE_SPACE
+
+    /* If we didn't write anything, return original text to avoid empty output */
+    if (write == output) {
+        free(output);
+        free(ref_definitions);
+        return strdup(text);
+    }
+
     return output;
 }
 

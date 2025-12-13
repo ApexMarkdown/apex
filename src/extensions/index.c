@@ -330,6 +330,40 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
     }
 
     size_t text_len = strlen(text);
+
+    /* Quick scan: check if any index patterns exist before processing */
+    bool has_mmark_pattern = false;
+    bool has_textindex_pattern = false;
+
+    if (options->enable_mmark_index_syntax) {
+        /* Look for (! or (!! patterns */
+        const char *p = text;
+        while (*p && p < text + text_len - 2) {
+            if (*p == '(' && p[1] == '!') {
+                has_mmark_pattern = true;
+                break;
+            }
+            p++;
+        }
+    }
+
+    if (options->enable_textindex_syntax && !has_mmark_pattern) {
+        /* Look for {^ pattern */
+        const char *p = text;
+        while (*p && p < text + text_len - 1) {
+            if (*p == '{' && p[1] == '^') {
+                has_textindex_pattern = true;
+                break;
+            }
+            p++;
+        }
+    }
+
+    /* Early exit if no patterns found */
+    if (!has_mmark_pattern && !has_textindex_pattern) {
+        return NULL;
+    }
+
     size_t capacity = text_len * 2;  /* Generous buffer */
     char *output = malloc(capacity);
     if (!output) return NULL;

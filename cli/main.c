@@ -10,6 +10,29 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <sys/time.h>
+
+/* Profiling helpers (same as in apex.c) */
+static double get_time_ms(void) {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+}
+
+static bool profiling_enabled(void) {
+    const char *env = getenv("APEX_PROFILE");
+    return env && (strcmp(env, "1") == 0 || strcmp(env, "yes") == 0 || strcmp(env, "true") == 0);
+}
+
+#define PROFILE_START(name) \
+    double name##_start = 0; \
+    if (profiling_enabled()) { name##_start = get_time_ms(); }
+
+#define PROFILE_END(name) \
+    if (profiling_enabled()) { \
+        double name##_elapsed = get_time_ms() - name##_start; \
+        fprintf(stderr, "[PROFILE] %-30s: %8.2f ms\n", #name, name##_elapsed); \
+    }
 
 #define BUFFER_SIZE 4096
 
@@ -69,6 +92,7 @@ static void print_version(void) {
 }
 
 static char *read_file(const char *filename, size_t *len) {
+    PROFILE_START(file_read);
     FILE *fp = fopen(filename, "rb");
     if (!fp) {
         fprintf(stderr, "Error: Cannot open file '%s'\n", filename);
@@ -98,6 +122,7 @@ static char *read_file(const char *filename, size_t *len) {
     size_t bytes_read = fread(buffer, 1, file_size, fp);
     buffer[bytes_read] = '\0';
     fclose(fp);
+    PROFILE_END(file_read);
 
     if (len) *len = bytes_read;
     return buffer;
@@ -387,10 +412,13 @@ int main(int argc, char *argv[]) {
     size_t input_len;
     char *markdown;
 
+    PROFILE_START(cli_total);
     if (input_file) {
         markdown = read_file(input_file, &input_len);
     } else {
+        PROFILE_START(stdin_read);
         markdown = read_stdin(&input_len);
+        PROFILE_END(stdin_read);
     }
 
     if (!markdown) {
@@ -399,6 +427,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Load metadata from file if specified */
+    PROFILE_START(metadata_file_load);
     apex_metadata_item *file_metadata = NULL;
     if (meta_file) {
         file_metadata = apex_load_metadata_from_file(meta_file);
@@ -406,9 +435,11 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Warning: Could not load metadata from file '%s'\n", meta_file);
         }
     }
+    PROFILE_END(metadata_file_load);
 
     /* Extract document metadata to merge with external sources
      * We'll extract it here and then inject the merged result */
+    PROFILE_START(metadata_extract_cli);
     apex_metadata_item *doc_metadata = NULL;
     size_t doc_metadata_end = 0;
 
@@ -429,8 +460,10 @@ int main(int argc, char *argv[]) {
             free(doc_copy);
         }
     }
+    PROFILE_END(metadata_extract_cli);
 
     /* Merge metadata in priority order: file -> document -> command-line */
+    PROFILE_START(metadata_merge);
     apex_metadata_item *merged_metadata = NULL;
     if (file_metadata || doc_metadata || cmdline_metadata) {
         merged_metadata = apex_merge_metadata(
@@ -440,8 +473,10 @@ int main(int argc, char *argv[]) {
             NULL
         );
     }
+    PROFILE_END(metadata_merge);
 
     /* Build enhanced markdown with merged metadata as YAML front matter */
+    PROFILE_START(metadata_yaml_build);
     char *enhanced_markdown = NULL;
     size_t enhanced_len = input_len;
 
@@ -528,6 +563,7 @@ int main(int argc, char *argv[]) {
             }
         }
     }
+    PROFILE_END(metadata_yaml_build);
 
     /* Set bibliography files in options (NULL-terminated array) */
     if (bibliography_count > 0) {
@@ -586,6 +622,7 @@ int main(int argc, char *argv[]) {
     }
 
     /* Write output */
+    PROFILE_START(file_write);
     if (output_file) {
         FILE *fp = fopen(output_file, "w");
         if (!fp) {
@@ -593,11 +630,17 @@ int main(int argc, char *argv[]) {
             apex_free_string(html);
             return 1;
         }
-        fputs(html, fp);
+        size_t html_len = strlen(html);
+        fwrite(html, 1, html_len, fp);
         fclose(fp);
     } else {
-        fputs(html, stdout);
+        size_t html_len = strlen(html);
+        fwrite(html, 1, html_len, stdout);
+        /* Don't fflush - let the system buffer for better performance */
     }
+    PROFILE_END(file_write);
+
+    PROFILE_END(cli_total);
 
     apex_free_string(html);
 

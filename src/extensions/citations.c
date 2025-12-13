@@ -415,6 +415,30 @@ char *apex_process_citations(const char *text, apex_citation_registry *registry,
     }
 
     size_t len = strlen(text);
+
+    /* Quick scan: check if any citation patterns exist before processing */
+    /* Look for various citation patterns:
+     * - [@key] or [@!key] or [@?key] (Pandoc-style)
+     * - @key (author-in-text)
+     * - [#key] (MultiMarkdown-style)
+     */
+    bool has_citation_pattern = false;
+    const char *p = text;
+    while (*p && p < text + len - 1) {
+        if ((*p == '[' && p[1] == '@') ||  /* Pandoc [@...] */
+            (*p == '[' && p[1] == '#') ||  /* MultiMarkdown [#...] */
+            (*p == '@' && (p == text || isspace((unsigned char)p[-1]) || p[-1] == '('))) {  /* Author-in-text @... */
+            has_citation_pattern = true;
+            break;
+        }
+        p++;
+    }
+
+    /* Early exit if no citation patterns found */
+    if (!has_citation_pattern) {
+        return NULL;
+    }
+
     size_t capacity = len * 2;  /* Room for placeholders */
     char *output = malloc(capacity);
     if (!output) return NULL;
