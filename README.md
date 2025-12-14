@@ -178,6 +178,60 @@ apex input.md --mode kramdown
 - `--no-indices` - Disable index processing
 - `--no-index` - Suppress index generation (markers still created)
 
+### All Options
+
+```
+Apex Markdown Processor v0.1.25
+One Markdown processor to rule them all
+
+Usage: build/apex [options] [file]
+
+Options:
+  --accept               Accept all Critic Markup changes (apply edits)
+  --[no-]includes        Enable file inclusion (enabled by default in unified mode)
+  --hardbreaks           Treat newlines as hard breaks
+  -h, --help             Show this help message
+  --header-anchors        Generate <a> anchor tags instead of header IDs
+  --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown
+                          (modes auto-set format; use this to override in unified mode)
+  --[no-]alpha-lists     Support alpha list markers (a., b., c. and A., B., C.)
+  --[no-]mixed-lists     Allow mixed list markers at same level (inherit type from first item)
+  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)
+  --meta-file FILE       Load metadata from external file (YAML, MMD, or Pandoc format)
+  --meta KEY=VALUE       Set metadata key-value pair (can be used multiple times, supports quotes and comma-separated pairs)
+  --no-footnotes         Disable footnote support
+  --no-ids                Disable automatic header ID generation
+  --no-math              Disable math support
+  --no-smart             Disable smart typography
+  --no-tables            Disable table support
+  -o, --output FILE      Write output to FILE instead of stdout
+  --pretty               Pretty-print HTML with indentation and whitespace
+  --[no-]autolink        Enable autolinking of URLs and email addresses
+  --obfuscate-emails     Obfuscate email links/text using HTML entities
+  --[no-]relaxed-tables  Enable relaxed table parsing (no separator rows required)
+  --[no-]sup-sub         Enable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax
+  --[no-]transforms      Enable metadata variable transforms [%key:transform] (enabled by default in unified mode)
+  --[no-]unsafe          Allow raw HTML in output (default: true for unified/mmd/kramdown, false for commonmark/gfm)
+  --[no-]wikilinks       Enable wiki link syntax [[PageName]] (disabled by default)
+  --embed-images         Embed local images as base64 data URLs in HTML output
+  --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)
+  --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times
+  --csl FILE              Citation style file (CSL format)
+  --indices               Enable index processing (mmark and TextIndex syntax)
+  --no-indices            Disable index processing
+  --no-index              Suppress index generation (markers still created)
+  --no-bibliography       Suppress bibliography output
+  --link-citations       Link citations to bibliography entries
+  --show-tooltips         Show tooltips on citations
+  --reject               Reject all Critic Markup changes (revert edits)
+  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)
+  --css FILE, --style FILE  Link to CSS file in document head (requires --standalone, overrides CSS metadata)
+  --title TITLE          Document title (requires --standalone, default: "Document")
+  -v, --version          Show version information
+
+If no file is specified, reads from stdin.
+```
+
 ### Per-Document Configuration via Metadata
 
 Most command-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. Boolean options accept `true`/`false`, `yes`/`no`, or `1`/`0` (case-insensitive). String options use the value directly.

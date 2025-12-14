@@ -178,6 +178,12 @@ apex input.md --mode kramdown
 - `--no-indices` - Disable index processing
 - `--no-index` - Suppress index generation (markers still created)
 
+### All Options
+
+```
+@cli(build/apex -h 2>&1)
+```
+
 ### Per-Document Configuration via Metadata
 
 Most command-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. Boolean options accept `true`/`false`, `yes`/`no`, or `1`/`0` (case-insensitive). String options use the value directly.
