@@ -31,8 +31,8 @@ If no file is specified, **apex** reads from stdin.
 **-s**, **--standalone**
 :   Generate complete HTML document with `<html>`, `<head>`, and `<body>` tags.
 
-**--style** *FILE*
-:   Link to CSS file in document head (requires **--standalone**).
+**--style** *FILE*, **--css** *FILE*
+:   Link to CSS file in document head (requires **--standalone**). Overrides CSS metadata if specified.
 
 **--title** *TITLE*
 :   Document title (requires **--standalone**, default: "Document").
@@ -52,10 +52,10 @@ If no file is specified, **apex** reads from stdin.
 :   Enable or disable file inclusion. Enabled by default in unified mode.
 
 **--meta-file** *FILE*
-:   Load metadata from an external file. Auto-detects format: YAML (starts with `---`), MultiMarkdown (key: value pairs), or Pandoc (starts with `%`). Metadata from the file is merged with document metadata, with document metadata taking precedence.
+:   Load metadata from an external file. Auto-detects format: YAML (starts with `---`), MultiMarkdown (key: value pairs), or Pandoc (starts with `%`). Metadata from the file is merged with document metadata, with document metadata taking precedence. Metadata can also control command-line options (see METADATA CONTROL OF OPTIONS below).
 
 **--meta** *KEY=VALUE*
-:   Set a metadata key-value pair. Can be used multiple times. Supports comma-separated pairs (e.g., `--meta KEY1=value1,KEY2=value2`). Values can be quoted to include spaces and special characters. Command-line metadata takes precedence over both file and document metadata.
+:   Set a metadata key-value pair. Can be used multiple times. Supports comma-separated pairs (e.g., `--meta KEY1=value1,KEY2=value2`). Values can be quoted to include spaces and special characters. Command-line metadata takes precedence over both file and document metadata. Metadata can also control command-line options (see METADATA CONTROL OF OPTIONS below).
 
 **--hardbreaks**
 :   Treat newlines as hard breaks.
@@ -237,6 +237,42 @@ Process from stdin:
 **unified** (default)
 :   All features enabled. Combines features from all modes.
 
+# METADATA CONTROL OF OPTIONS
+
+Most command-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per-document configuration without needing separate command-line invocations.
+
+**Boolean options** accept `true`/`false`, `yes`/`no`, or `1`/`0` (case-insensitive). **String options** use the value directly.
+
+**Supported boolean options:**
+`indices`, `wikilinks`, `includes`, `relaxed-tables`, `alpha-lists`, `mixed-lists`, `sup-sub`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`
+
+**Supported string options:**
+`bibliography`, `csl`, `title`, `style` (or `css`), `id-format`, `base-dir`, `mode`
+
+**Example YAML front matter:**
+```
+---
+indices: false
+wikilinks: true
+bibliography: references.bib
+title: My Research Paper
+pretty: true
+standalone: true
+---
+```
+
+**Example MultiMarkdown metadata:**
+```
+indices: false
+wikilinks: true
+bibliography: references.bib
+title: My Research Paper
+```
+
+When processing multiple files with `apex *.md`, each file can use its own configuration via metadata. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
+
+**Note:** If `mode` is specified in metadata, it resets all options to that mode's defaults before applying other metadata options.
+
 # FEATURES
 
 Apex supports a wide range of Markdown extensions:
@@ -251,6 +287,7 @@ Apex supports a wide range of Markdown extensions:
 - **Task Lists**: GFM-style task lists
 - **Metadata**: YAML front matter, MultiMarkdown metadata, Pandoc title blocks
 - **Metadata Transforms**: Transform metadata values with `[%key:transform]` syntax (case conversion, string manipulation, regex replacement, date formatting, etc.)
+- **Metadata Control of Options**: Control command-line options via metadata for per-document configuration
 - **Header IDs**: Automatic or manual header IDs with multiple format options
 - **Relaxed Tables**: Support for tables without separator rows (Kramdown-style)
 - **Superscript/Subscript**: MultiMarkdown-style superscript (`^text`) and subscript (`~text~` within words) syntax. Subscript uses paired tildes within word boundaries (e.g., `H~2~O`), while tildes at word boundaries create underline

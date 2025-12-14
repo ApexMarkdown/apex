@@ -38,6 +38,7 @@ Apex is a unified Markdown processor that combines the best features from Common
 - **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks
 - **Metadata variables**: Insert metadata values with `[%key]` syntax
 - **Metadata transforms**: Transform metadata values with `[%key:transform]` syntax - supports case conversion, string manipulation, regex replacement, date formatting, and more. See [Metadata Transforms](https://github.com/ttscoff/apex/wiki/Metadata-Transforms) for complete documentation
+- **Metadata control of options**: Control command-line options via metadata - set boolean flags (`indices: false`, `wikilinks: true`) and string options (`bibliography: refs.bib`, `title: My Document`) directly in document metadata for per-document configuration
 - **Table of Contents**: Automatic TOC generation with depth control (`<!--TOC-->`, `{{TOC}}`)
 - **File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`)
 - **CSV/TSV support**: Automatic table conversion from CSV and TSV files
@@ -177,11 +178,31 @@ apex input.md --mode kramdown
 - `--no-indices` - Disable index processing
 - `--no-index` - Suppress index generation (markers still created)
 
+### Per-Document Configuration via Metadata
+
+Most command-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. Boolean options accept `true`/`false`, `yes`/`no`, or `1`/`0` (case-insensitive). String options use the value directly.
+
+**Example:**
+
+```yaml
+---
+indices: false
+wikilinks: true
+bibliography: references.bib
+title: My Research Paper
+pretty: true
+standalone: true
+---
+```
+
+This allows you to process multiple files with `apex *.md` and have each file use its own configuration. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
+
 ## Documentation
 
 For complete documentation, see the [Apex Wiki](https://github.com/ttscoff/apex/wiki).
 
 Key documentation pages:
+
 - [Citations and Bibliography](https://github.com/ttscoff/apex/wiki/Citations) - Complete guide to citations and bibliographies
 - [Command Line Options](https://github.com/ttscoff/apex/wiki/Command-Line-Options) - All CLI flags explained
 - [Syntax Reference](https://github.com/ttscoff/apex/wiki/Syntax) - Complete syntax reference
