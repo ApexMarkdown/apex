@@ -1,5 +1,5 @@
 <!--README-->
-[![Version: <!--VER-->0.1.25<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.25<!--END VER-->-528c9e)](https://github.com/ttscoff/apex/releases/latest)[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: <!--VER-->0.1.25<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.25<!--END VER-->-528c9e)](https://github.com/ttscoff/apex/releases/latest) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <!--GITHUB-->
 # Apex
