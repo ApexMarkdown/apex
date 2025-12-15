@@ -674,6 +674,14 @@ static void test_math(void) {
         printf(COLOR_RED "✗" COLOR_RESET " Dollar signs false triggered\n");
     }
     apex_free_string(html);
+
+    /* Test that math/autolinks are not applied inside Liquid {% %} tags */
+    const char *liquid_md = "Before {% kbd $@3 %} after";
+    html = apex_markdown_to_html(liquid_md, strlen(liquid_md), &opts);
+    assert_contains(html, "{% kbd $@3 %}", "Liquid tag content preserved exactly");
+    assert_not_contains(html, "class=\"math", "No math span created inside Liquid tag");
+    assert_not_contains(html, "mailto:", "No email autolink created inside Liquid tag");
+    apex_free_string(html);
 }
 
 /**

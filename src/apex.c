@@ -496,9 +496,28 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
     bool in_code_block = false;
     bool in_inline_code = false;
     int code_block_backticks = 0;  /* Count of consecutive backticks for code blocks */
+    bool in_liquid = false;
 
     while (*r) {
         const char *loop_start = r;
+
+        /* Handle Liquid tags: copy {% ... %} without processing */
+        if (!in_liquid && *r == '{' && r[1] == '%') {
+            in_liquid = true;
+            *w++ = *r++;
+            *w++ = *r++;
+            continue;
+        }
+        if (in_liquid) {
+            if (*r == '%' && r[1] == '}') {
+                *w++ = *r++;
+                *w++ = *r++;
+                in_liquid = false;
+            } else {
+                *w++ = *r++;
+            }
+            continue;
+        }
 
         /* Check if we're at the start of a reference link definition: [id]: URL */
         if (r == text || r[-1] == '\n') {

@@ -33,8 +33,39 @@ char *apex_process_sup_sub(const char *text) {
     bool in_inline_code = false;
     bool in_math_inline = false;
     bool in_math_display = false;
+    bool in_liquid = false;
 
     while (*read) {
+        /* Track Liquid tags (skip processing inside them) */
+        if (!in_liquid && *read == '{' && read[1] == '%') {
+            in_liquid = true;
+            if (remaining > 1) {
+                *write++ = *read++;
+                *write++ = *read++;
+                remaining -= 2;
+            } else {
+                read += 2;
+            }
+            continue;
+        }
+        if (in_liquid) {
+            if (*read == '%' && read[1] == '}') {
+                if (remaining > 1) {
+                    *write++ = *read++;
+                    *write++ = *read++;
+                    remaining -= 2;
+                } else {
+                    read += 2;
+                }
+                in_liquid = false;
+            } else if (remaining > 0) {
+                *write++ = *read++;
+                remaining--;
+            } else {
+                read++;
+            }
+            continue;
+        }
         /* Track code blocks (skip processing inside them) */
         if (*read == '`') {
             if (read[1] == '`' && read[2] == '`') {
