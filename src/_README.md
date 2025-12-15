@@ -1,5 +1,5 @@
 <!--README-->
-[![Version: <!--VER-->0.1.26<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.26<!--END VER-->-528c9e)](https://github.com/ttscoff/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: <!--VER-->0.1.26<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.26<!--END VER-->-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <!--GITHUB-->
 # Apex
@@ -39,7 +39,7 @@ Apex is a unified Markdown processor that combines the best features from Common
 
 - **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks
 - **Metadata variables**: Insert metadata values with `[%key]` syntax
-- **Metadata transforms**: Transform metadata values with `[%key:transform]` syntax - supports case conversion, string manipulation, regex replacement, date formatting, and more. See [Metadata Transforms](https://github.com/ttscoff/apex/wiki/Metadata-Transforms) for complete documentation
+- **Metadata transforms**: Transform metadata values with `[%key:transform]` syntax - supports case conversion, string manipulation, regex replacement, date formatting, and more. See [Metadata Transforms](https://github.com/ApexMarkdown/apex/wiki/Metadata-Transforms) for complete documentation
 - **Metadata control of options**: Control command-line options via metadata - set boolean flags (`indices: false`, `wikilinks: true`) and string options (`bibliography: refs.bib`, `title: My Document`, `wikilink-space: dash`, `wikilink-extension: html`) directly in document metadata for per-document configuration
 - **Table of Contents**: Automatic TOC generation with depth control using HTML (`<!--TOC-->`), MMD (`{{TOC}}` / `{{TOC:2-4}}`), and Kramdown `{:toc}` markers. Headings marked with `{:.no_toc}` are excluded from the generated TOC.
 - **File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`), with support for address ranges and wildcard/glob patterns such as `{{file.*}}`, `{{*.md}}`, and `{{c?de.py}}`.
@@ -91,6 +91,10 @@ Apex is a unified Markdown processor that combines the best features from Common
 - **Autolinks**: Automatic URL detection and linking
 - **Superscript/Subscript**: Support for `^superscript^` and `~subscript~` syntax
 
+### Extensibility and Plugins
+
+Apex supports a flexible plugin system that lets you add new syntax and post-processing features in any language while keeping the core parser stable and fast. Plugins are disabled by default so there is no performance impact unless you opt in. Enable them per run with `--plugins`, or per document with a `plugins: true` (or `enable-plugins: true`) key in your metadata. For a complete guide to writing and installing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki.
+
 ## Installation
 
 ### Homebrew (macOS/Linux)
@@ -103,7 +107,7 @@ brew install ttscoff/thelab/apex
 ### Building from Source
 
 ```bash
-git clone https://github.com/ttscoff/apex.git
+git clone https://github.com/ApexMarkdown/apex.git
 cd apex
 git submodule update --init --recursive
 make
@@ -121,7 +125,7 @@ make install
 
 ### Pre-built Binaries
 
-Download pre-built binaries from the [latest release](https://github.com/ttscoff/apex/releases/latest). Binaries are available for:
+Download pre-built binaries from the [latest release](https://github.com/ApexMarkdown/apex/releases/latest). Binaries are available for:
 
 - macOS (Universal binary for arm64 and x86_64)
 - Linux (x86_64 and arm64)
@@ -210,13 +214,13 @@ This allows you to process multiple files with `apex *.md` and have each file us
 
 ## Documentation
 
-For complete documentation, see the [Apex Wiki](https://github.com/ttscoff/apex/wiki).
+For complete documentation, see the [Apex Wiki](https://github.com/ApexMarkdown/apex/wiki).
 
 Key documentation pages:
 
-- [Citations and Bibliography](https://github.com/ttscoff/apex/wiki/Citations) - Complete guide to citations and bibliographies
-- [Command Line Options](https://github.com/ttscoff/apex/wiki/Command-Line-Options) - All CLI flags explained
-- [Syntax Reference](https://github.com/ttscoff/apex/wiki/Syntax) - Complete syntax reference
+- [Citations and Bibliography](https://github.com/ApexMarkdown/apex/wiki/Citations) - Complete guide to citations and bibliographies
+- [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options) - All CLI flags explained
+- [Syntax Reference](https://github.com/ApexMarkdown/apex/wiki/Syntax) - Complete syntax reference
 
 ## Contributing
 
@@ -230,5 +234,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE]([LICENSE](https://github.com/ttscoff/apex/blob/main/LICENSE)) file for details.
+This project is licensed under the MIT License - see the [LICENSE]([LICENSE](https://github.com/ApexMarkdown/apex/blob/main/LICENSE)) file for details.
 <!--END README-->

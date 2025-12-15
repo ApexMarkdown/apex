@@ -2146,6 +2146,12 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->unsafe = false;
             }
+        } else if (strcasecmp(key, "plugins") == 0 || strcasecmp(key, "enable-plugins") == 0 || strcasecmp(key, "enable_plugins") == 0) {
+            if (is_true_value(value)) {
+                options->enable_plugins = true;
+            } else if (is_false_value(value)) {
+                options->enable_plugins = false;
+            }
         } else if (strcasecmp(key, "tables") == 0) {
             if (is_true_value(value)) {
                 options->enable_tables = true;

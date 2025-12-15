@@ -37,6 +37,7 @@
 #include "extensions/relaxed_tables.h"
 #include "extensions/citations.h"
 #include "extensions/index.h"
+#include "plugins.h"
 
 /* Custom renderer */
 #include "html_renderer.h"
@@ -731,6 +732,336 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
     return out;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Liquid tag protection                                                     */
+/*                                                                           */
+/* Any text between {% and %} is Liquid templating syntax and should be      */
+/* ignored by Apex processing (math, autolinks, etc.). We implement this by  */
+/* temporarily replacing Liquid tags with unique placeholder tokens before   */
+/* parsing, then restoring the original tags in the final HTML.              */
+/* ------------------------------------------------------------------------- */
+
+static char *apex_protect_liquid_tags(const char *text,
+                                      char ***out_tags,
+                                      size_t *out_count) {
+    if (!text || !out_tags || !out_count) {
+        return NULL;
+    }
+
+    size_t len = strlen(text);
+    /* Start with a modest expansion factor; we can grow as needed. */
+    size_t capacity = (len > 0) ? len + 64 : 64;
+    char *output = malloc(capacity);
+    if (!output) {
+        return NULL;
+    }
+
+    const char *read = text;
+    char *write = output;
+    size_t remaining = capacity;
+
+    char **tags = NULL;
+    size_t tag_count = 0;
+    size_t tag_capacity = 0;
+
+    const char *ph_prefix = "APEX_LIQUID_TAG_";
+    size_t ph_prefix_len = strlen(ph_prefix);
+
+    while (*read) {
+        const char *start = strstr(read, "{%");
+        if (!start) {
+            /* No more Liquid tags, copy remainder */
+            size_t chunk_len = strlen(read);
+            if (chunk_len >= remaining) {
+                size_t used = (size_t)(write - output);
+                capacity = used + chunk_len + 1;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    /* Cleanup on failure */
+                    for (size_t i = 0; i < tag_count; i++) {
+                        free(tags[i]);
+                    }
+                    free(tags);
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+                write = output + used;
+                remaining = capacity - used;
+            }
+            memcpy(write, read, chunk_len);
+            write += chunk_len;
+            remaining -= chunk_len;
+            break;
+        }
+
+        /* Copy text before the tag */
+        size_t prefix_copy_len = (size_t)(start - read);
+        if (prefix_copy_len >= remaining) {
+            size_t used = (size_t)(write - output);
+            capacity = used + prefix_copy_len + 64;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                for (size_t i = 0; i < tag_count; i++) {
+                    free(tags[i]);
+                }
+                free(tags);
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+            write = output + used;
+            remaining = capacity - used;
+        }
+        memcpy(write, read, prefix_copy_len);
+        write += prefix_copy_len;
+        remaining -= prefix_copy_len;
+
+        /* Find end of Liquid tag */
+        const char *end = strstr(start + 2, "%}");
+        if (!end) {
+            /* No closing %}; copy rest as-is and stop */
+            size_t chunk_len = strlen(start);
+            if (chunk_len >= remaining) {
+                size_t used = (size_t)(write - output);
+                capacity = used + chunk_len + 1;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    for (size_t i = 0; i < tag_count; i++) {
+                        free(tags[i]);
+                    }
+                    free(tags);
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+                write = output + used;
+                remaining = capacity - used;
+            }
+            memcpy(write, start, chunk_len);
+            write += chunk_len;
+            remaining -= chunk_len;
+            break;
+        }
+
+        size_t tag_len = (size_t)((end + 2) - start);
+
+        /* Store original Liquid tag */
+        if (tag_count == tag_capacity) {
+            size_t new_cap = tag_capacity ? tag_capacity * 2 : 8;
+            char **new_tags = realloc(tags, new_cap * sizeof(char *));
+            if (!new_tags) {
+                for (size_t i = 0; i < tag_count; i++) {
+                    free(tags[i]);
+                }
+                free(tags);
+                free(output);
+                return NULL;
+            }
+            tags = new_tags;
+            tag_capacity = new_cap;
+        }
+
+        tags[tag_count] = malloc(tag_len + 1);
+        if (!tags[tag_count]) {
+            for (size_t i = 0; i < tag_count; i++) {
+                free(tags[i]);
+            }
+            free(tags);
+            free(output);
+            return NULL;
+        }
+        memcpy(tags[tag_count], start, tag_len);
+        tags[tag_count][tag_len] = '\0';
+
+        /* Build placeholder: APEX_LIQUID_TAG_<index> */
+        char placeholder[64];
+        int ph_len = snprintf(placeholder, sizeof(placeholder), "%s%zu", ph_prefix, tag_count);
+        if (ph_len <= 0 || (size_t)ph_len >= sizeof(placeholder)) {
+            /* Cleanup on formatting error */
+            for (size_t i = 0; i <= tag_count; i++) {
+                free(tags[i]);
+            }
+            free(tags);
+            free(output);
+            return NULL;
+        }
+
+        size_t placeholder_len = (size_t)ph_len;
+        if (placeholder_len >= remaining) {
+            size_t used = (size_t)(write - output);
+            capacity = used + placeholder_len + 64;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                for (size_t i = 0; i <= tag_count; i++) {
+                    free(tags[i]);
+                }
+                free(tags);
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+            write = output + used;
+            remaining = capacity - used;
+        }
+
+        memcpy(write, placeholder, placeholder_len);
+        write += placeholder_len;
+        remaining -= placeholder_len;
+
+        tag_count++;
+        read = end + 2;
+    }
+
+    *write = '\0';
+    *out_tags = tags;
+    *out_count = tag_count;
+
+    /* If we didn't actually find any Liquid tags, clean up and signal no-op */
+    if (tag_count == 0) {
+        free(output);
+        *out_tags = NULL;
+        *out_count = 0;
+        return NULL;
+    }
+
+    (void)ph_prefix_len; /* silence unused warning */
+    return output;
+}
+
+static char *apex_restore_liquid_tags(const char *html,
+                                      char **tags,
+                                      size_t tag_count) {
+    if (!html || !tags || tag_count == 0) {
+        return NULL;
+    }
+
+    const char *ph_prefix = "APEX_LIQUID_TAG_";
+    size_t ph_prefix_len = strlen(ph_prefix);
+    size_t html_len = strlen(html);
+
+    /* Allocate generously: HTML + space for tags being longer than placeholders */
+    size_t capacity = html_len + tag_count * 64;
+    if (capacity < html_len + 1) {
+        capacity = html_len + 1;
+    }
+
+    char *output = malloc(capacity);
+    if (!output) {
+        return NULL;
+    }
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        const char *ph_start = strstr(read, ph_prefix);
+        if (!ph_start) {
+            /* Copy remainder */
+            size_t chunk_len = strlen(read);
+            if (chunk_len >= remaining) {
+                size_t used = (size_t)(write - output);
+                capacity = used + chunk_len + 1;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+                write = output + used;
+                remaining = capacity - used;
+            }
+            memcpy(write, read, chunk_len);
+            write += chunk_len;
+            remaining -= chunk_len;
+            break;
+        }
+
+        /* Copy text before the placeholder */
+        size_t prefix_copy_len = (size_t)(ph_start - read);
+        if (prefix_copy_len >= remaining) {
+            size_t used = (size_t)(write - output);
+            capacity = used + prefix_copy_len + 64;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+            write = output + used;
+            remaining = capacity - used;
+        }
+        memcpy(write, read, prefix_copy_len);
+        write += prefix_copy_len;
+        remaining -= prefix_copy_len;
+
+        /* Parse index after prefix */
+        const char *idx_start = ph_start + ph_prefix_len;
+        size_t idx = 0;
+        const char *p = idx_start;
+        if (!(*p >= '0' && *p <= '9')) {
+            /* Not actually a placeholder, copy prefix char and continue */
+            if (remaining > 0) {
+                *write++ = *ph_start;
+                remaining--;
+            }
+            read = ph_start + 1;
+            continue;
+        }
+        while (*p >= '0' && *p <= '9') {
+            idx = idx * 10 + (size_t)(*p - '0');
+            p++;
+        }
+
+        if (idx >= tag_count) {
+            /* Out-of-range index, treat as normal text */
+            size_t placeholder_len = (size_t)(p - ph_start);
+            if (placeholder_len >= remaining) {
+                size_t used = (size_t)(write - output);
+                capacity = used + placeholder_len + 64;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+                write = output + used;
+                remaining = capacity - used;
+            }
+            memcpy(write, ph_start, placeholder_len);
+            write += placeholder_len;
+            remaining -= placeholder_len;
+            read = p;
+            continue;
+        }
+
+        /* Insert original Liquid tag */
+        size_t tag_len = strlen(tags[idx]);
+        if (tag_len >= remaining) {
+            size_t used = (size_t)(write - output);
+            capacity = used + tag_len + 64;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+            write = output + used;
+            remaining = capacity - used;
+        }
+        memcpy(write, tags[idx], tag_len);
+        write += tag_len;
+        remaining -= tag_len;
+
+        read = p;
+    }
+
+    *write = '\0';
+    (void)ph_prefix_len; /* silence unused warning */
+    return output;
+}
+
 /**
  * Preprocess alpha list markers (a., b., c. and A., B., C.)
  * Converts them to numbered markers (1., 2., 3.) and adds markers for post-processing
@@ -1209,7 +1540,8 @@ apex_options apex_options_default(void) {
     apex_options opts;
     opts.mode = APEX_MODE_UNIFIED;
 
-    /* Enable all features by default in unified mode */
+    /* Enable all features by default in unified mode; plugins are opt-in */
+    opts.enable_plugins = false;
     opts.enable_tables = true;
     opts.enable_footnotes = true;
     opts.enable_definition_lists = true;
@@ -1619,10 +1951,38 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     memcpy(working_text, markdown, len);
     working_text[len] = '\0';
 
+    /* Discover plugins once per conversion. This currently supports
+     * text-level pre-parse plugins described by simple YAML manifests
+     * in project and global plugin directories.
+     */
+    apex_plugin_manager *plugin_manager = NULL;
+    if (options->enable_plugins) {
+        plugin_manager = apex_plugins_load(options);
+    }
+
+    /* Optional pre-parse plugin hook: run all configured pre_parse plugins
+     * over the raw markdown before any Apex-specific preprocessing.
+     */
+    if (plugin_manager) {
+        char *plugin_text = apex_plugins_run_text_phase(plugin_manager,
+                                                        APEX_PLUGIN_PHASE_PRE_PARSE,
+                                                        working_text,
+                                                        options);
+        if (plugin_text) {
+            free(working_text);
+            working_text = plugin_text;
+            len = strlen(working_text);
+        }
+    }
+
     apex_metadata_item *metadata = NULL;
     abbr_item *abbreviations = NULL;
     ald_entry *alds = NULL;
     char *text_ptr = working_text;
+    /* Liquid tag placeholders (for {% ... %} tags) */
+    char **liquid_tags = NULL;
+    size_t liquid_tag_count = 0;
+    char *liquid_protected = NULL;
 
 
     if (options->mode == APEX_MODE_MULTIMARKDOWN ||
@@ -1910,6 +2270,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Protect Liquid {% ... %} tags so they are not modified by later
+     * processing (including parsing, math, and autolinks). We'll restore
+     * them after rendering the final HTML.
+     */
+    liquid_protected = apex_protect_liquid_tags(text_ptr, &liquid_tags, &liquid_tag_count);
+    if (liquid_protected) {
+        text_ptr = liquid_protected;
+    }
+
     /* Convert options to cmark-gfm format */
     int cmark_opts = apex_to_cmark_options(options);
 
@@ -1999,6 +2368,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         html = cmark_render_html(document, cmark_opts, NULL);
     }
     PROFILE_END(rendering);
+
+    /* Restore any protected Liquid tags in the rendered HTML */
+    if (html && liquid_tags && liquid_tag_count > 0) {
+        char *restored_html = apex_restore_liquid_tags(html, liquid_tags, liquid_tag_count);
+        if (restored_html) {
+            free(html);
+            html = restored_html;
+        }
+    }
 
     /* Post-process HTML for advanced table attributes (rowspan/colspan) */
     if (options->enable_tables && html) {
@@ -2301,13 +2679,39 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (autolinks_processed) free(autolinks_processed);
     if (html_markdown_processed) free(html_markdown_processed);
     if (critic_processed) free(critic_processed);
+    if (liquid_protected) free(liquid_protected);
+    if (liquid_tags) {
+        for (size_t i = 0; i < liquid_tag_count; i++) {
+            free(liquid_tags[i]);
+        }
+        free(liquid_tags);
+    }
     apex_free_metadata(metadata);
     apex_free_abbreviations(abbreviations);
     apex_free_alds(alds);
     apex_free_citation_registry(&citation_registry);
 
+    /* Post-render plugin phase: allow plugins to transform the final HTML
+     * fragment before standalone wrapping and pretty-printing.
+     */
+    if (plugin_manager && html) {
+        char *plugin_html = apex_plugins_run_text_phase(plugin_manager,
+                                                        APEX_PLUGIN_PHASE_POST_RENDER,
+                                                        html,
+                                                        &local_opts);
+        if (plugin_html) {
+            free(html);
+            html = plugin_html;
+        }
+    }
+
     /* Undefine the macro */
     #undef options
+
+    /* Free plugin manager after all phases complete */
+    if (plugin_manager) {
+        apex_plugins_free(plugin_manager);
+    }
 
     /* Wrap in complete HTML document if requested */
     if (local_opts.standalone && html) {

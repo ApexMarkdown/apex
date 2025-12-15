@@ -38,6 +38,7 @@ typedef struct {
     apex_mode_t mode;
 
     /* Feature flags */
+    bool enable_plugins;  /* Enable external/plugin processing */
     bool enable_tables;
     bool enable_footnotes;
     bool enable_definition_lists;

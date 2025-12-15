@@ -2,7 +2,7 @@
  * Apex CLI - Command-line interface for the Apex Markdown processor
  */
 
-#include "apex/apex.h"
+#include "../include/apex/apex.h"
 #include "../src/extensions/metadata.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,6 +62,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
     fprintf(stderr, "  --[no-]autolink        Enable autolinking of URLs and email addresses\n");
     fprintf(stderr, "  --obfuscate-emails     Obfuscate email links/text using HTML entities\n");
+    fprintf(stderr, "  --[no-]plugins         Enable or disable external/plugin processing (default: off)\n");
     fprintf(stderr, "  --[no-]relaxed-tables  Enable relaxed table parsing (no separator rows required)\n");
     fprintf(stderr, "  --[no-]sup-sub         Enable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
     fprintf(stderr, "  --[no-]transforms      Enable metadata variable transforms [%%key:transform] (enabled by default in unified mode)\n");
@@ -172,6 +173,8 @@ static char *read_stdin(size_t *len) {
 
 int main(int argc, char *argv[]) {
     apex_options options = apex_options_default();
+    bool plugins_cli_override = false;
+    bool plugins_cli_value = false;
     const char *input_file = NULL;
     const char *output_file = NULL;
     const char *meta_file = NULL;
@@ -216,6 +219,14 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             output_file = argv[i];
+        } else if (strcmp(argv[i], "--plugins") == 0) {
+            options.enable_plugins = true;
+            plugins_cli_override = true;
+            plugins_cli_value = true;
+        } else if (strcmp(argv[i], "--no-plugins") == 0) {
+            options.enable_plugins = false;
+            plugins_cli_override = true;
+            plugins_cli_value = false;
         } else if (strcmp(argv[i], "--no-tables") == 0) {
             options.enable_tables = false;
         } else if (strcmp(argv[i], "--no-footnotes") == 0) {
@@ -298,6 +309,8 @@ int main(int argc, char *argv[]) {
             options.enable_autolink = false;
         } else if (strcmp(argv[i], "--obfuscate-emails") == 0) {
             options.obfuscate_emails = true;
+        } else if (strcmp(argv[i], "--no-plugins") == 0) {
+            options.enable_plugins = false;
         } else if (strcmp(argv[i], "--wikilinks") == 0) {
             options.enable_wiki_links = true;
         } else if (strcmp(argv[i], "--no-wikilinks") == 0) {
@@ -612,6 +625,11 @@ int main(int argc, char *argv[]) {
         if (saved_bibliography_files && !options.bibliography_files) {
             options.bibliography_files = saved_bibliography_files;
         }
+    }
+
+    /* Re-apply explicit CLI override for plugins so it wins over metadata. */
+    if (plugins_cli_override) {
+        options.enable_plugins = plugins_cli_value;
     }
 
     /* Use enhanced markdown if we created it, otherwise use original */

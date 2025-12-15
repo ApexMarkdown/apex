@@ -1,0 +1,11 @@
+---
+id: emoji-span
+description: Wrap :emoji: markers in a span for styling
+phase: post_render
+pattern: "(:[a-zA-Z0-9_+-]+:)"
+replacement: "<span class=\"emoji\">$1</span>"
+flags: "i"
+priority: 200
+timeout_ms: 0
+---
+
