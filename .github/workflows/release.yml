@@ -59,9 +59,8 @@ jobs:
               env:
                   VERSION: ${{ env.VERSION }}
               run: |
-                  cd release
-                  shasum -a 256 apex-${VERSION}-macos-universal.tar.gz > apex-${VERSION}-macos-universal.tar.gz.sha256
-                  cat apex-${VERSION}-macos-universal.tar.gz.sha256
+                  shasum -a 256 "release/apex-${VERSION}-macos-universal.tar.gz" > "release/apex-${VERSION}-macos-universal.tar.gz.sha256"
+                  cat "release/apex-${VERSION}-macos-universal.tar.gz.sha256"
 
             - name: Upload macOS release
               uses: softprops/action-gh-release@v1
@@ -123,9 +122,8 @@ jobs:
               env:
                   VERSION: ${{ env.VERSION }}
               run: |
-                  cd release
-                  sha256sum apex-${VERSION}-linux-*.tar.gz > apex-${VERSION}-linux-x86_64.tar.gz.sha256
-                  cat apex-${VERSION}-linux-*.tar.gz.sha256
+                  sha256sum release/apex-${VERSION}-linux-*.tar.gz > release/apex-${VERSION}-linux-x86_64.tar.gz.sha256
+                  cat release/apex-${VERSION}-linux-*.tar.gz.sha256
 
             - name: Upload Linux release
               uses: softprops/action-gh-release@v1
@@ -187,9 +185,8 @@ jobs:
               env:
                   VERSION: ${{ env.VERSION }}
               run: |
-                  cd release
-                  sha256sum apex-${VERSION}-linux-*.tar.gz > apex-${VERSION}-linux-aarch64.tar.gz.sha256
-                  cat apex-${VERSION}-linux-*.tar.gz.sha256
+                  sha256sum release/apex-${VERSION}-linux-*.tar.gz > release/apex-${VERSION}-linux-aarch64.tar.gz.sha256
+                  cat release/apex-${VERSION}-linux-*.tar.gz.sha256
 
             - name: Upload Linux ARM release
               uses: softprops/action-gh-release@v1
