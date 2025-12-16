@@ -1,5 +1,5 @@
 
-[![Version: 0.1.28](https://img.shields.io/badge/Version-0.1.28-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.29](https://img.shields.io/badge/Version-0.1.29-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
 # Apex
@@ -93,7 +93,15 @@ There are so many variations of Markdown, extending its features in all kinds of
 
 ### Extensibility and Plugins
 
-Apex supports a flexible plugin system that lets you add new syntax and post-processing features in any language while keeping the core parser stable and fast. Plugins are disabled by default so there is no performance impact unless you opt in. Enable them per run with `--plugins`, or per document with a `plugins: true` (or `enable-plugins: true`) key in your metadata. For a complete guide to writing and installing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki.
+Apex supports a flexible plugin system that lets you add new syntax and post-processing features in any language while keeping the core parser stable and fast. Plugins are disabled by default so there is no performance impact unless you opt in. Enable them per run with `--plugins`, or per document with a `plugins: true` (or `enable-plugins: true`) key in your metadata.
+
+You can manage plugins from the CLI:
+
+- Install from the central directory with `--install-plugin ID`.
+- Uninstall a local plugin with `--uninstall-plugin ID`.
+- See installed and available plugins with `--list-plugins`.
+
+For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki.
 
 ## Installation
 
@@ -122,33 +130,6 @@ make install
 ```
 
 **Note:** The default `make` command runs both `cmake -S . -B build` (to configure the project) and `cmake --build build` (to compile). If you prefer to run cmake commands directly, you can use those instead.
-
-#### Building the macOS Framework
-
-To build the macOS framework (for use in Xcode projects), use CMake with the framework target:
-
-```bash
-# Configure with framework support (enabled by default on macOS)
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-
-# For universal binary (arm64 + x86_64):
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-
-# Build the framework
-cmake --build build --target apex_framework
-
-# Install the framework (defaults to /Library/Frameworks, requires sudo)
-sudo cmake --install build
-# Or to install to a custom location (no sudo needed):
-cmake --install build --prefix ./install
-```
-
-The framework will be installed with:
-- The `apex.h` header in `Apex.framework/Headers/`
-- The required `libcmark-gfm` and `libcmark-gfm-extensions` dylibs bundled in `Apex.framework/Frameworks/`
-- All dylib paths properly configured for use in Xcode projects
-
-**Note:** The `CMAKE_POLICY_VERSION_MINIMUM=3.5` flag is required for compatibility with newer CMake versions when building cmark-gfm as a subdirectory.
 
 ### Pre-built Binaries
 
@@ -217,7 +198,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.28
+Apex Markdown Processor v0.1.29
 One Markdown processor to rule them all
 
 Usage: build/apex [options] [file]
@@ -291,7 +272,7 @@ standalone: true
 ---
 ```
 
-This allows you to process multiple files with `apex *.md` and have each file use its own configuration. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files. If no `--meta-file` is given, Apex will automatically look for `$XDG_CONFIG_HOME/apex/config.yml` (or `~/.config/apex/config.yml` when `XDG_CONFIG_HOME` is not set) and, if found, load it as if it were passed via `--meta-file`.
+This allows you to process multiple files with `apex *.md` and have each file use its own configuration. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
 
 ## Documentation
 

@@ -2,6 +2,37 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.30] - 2025-12-16
+
+### Changed
+
+- Make --list-plugins show installed plugins before remote ones.
+- Prevent remote plugins that are already installed from being listed under Available Plugins.
+- Build system now detects libyaml via multiple methods (yaml-0.1, yaml, libyaml) for better cross-platform support.
+- Homebrew formula now includes libyaml as a dependency to ensure full YAML support.
+- Suppressed unused-parameter warnings from vendored cmark-gfm extensions to reduce build noise.
+
+### New
+
+- Add --uninstall-plugin CLI flag to remove installed plugins.
+- Run optional post_install command from plugin.yml after cloning a plugin.
+- Full YAML parsing support using libyaml for arrays and nested structures in metadata and plugin manifests.
+- Plugin bundle support allowing multiple plugins to be defined in a single plugin.yml manifest.
+- Expose APEX_FILE_PATH to external plugins so scripts can see the original input path or base directory when processing.
+
+### Improved
+
+- Split() metadata transform now accepts regular expressions as delimiters (for example split(,\s*)).
+- YAML arrays are automatically normalized to comma-separated strings for backward compatibility with existing metadata transforms.
+- External plugin environment now includes the source file path (when available) alongside APEX_PLUGIN_DIR and APEX_SUPPORT_DIR.
+
+### Fixed
+
+- Tighten mutual-exclusion checks between install and uninstall plugin flags.
+- Ensure CMake policy version is compatible with vendored cmark-gfm on newer CMake releases.
+- Install the Apex framework with its public apex.h header correctly embedded in Apex.framework/Headers for Xcode use.
+- Bundle libcmark-gfm and libcmark-gfm-extensions dylibs into Apex.framework so dependent apps no longer hit missing library errors at runtime.
+
 ## [0.1.29] - 2025-12-15
 
 ### Changed
@@ -442,6 +473,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 - Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.30]: https://github.com/ttscoff/apex/releases/tag/v0.1.30
 [0.1.29]: https://github.com/ttscoff/apex/releases/tag/v0.1.29
 [0.1.28]: https://github.com/ttscoff/apex/releases/tag/v0.1.28
 [0.1.27]: https://github.com/ttscoff/apex/releases/tag/v0.1.27
