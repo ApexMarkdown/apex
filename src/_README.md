@@ -1,5 +1,5 @@
 <!--README-->
-[![Version: <!--VER-->0.1.34<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.34<!--END VER-->-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: <!--VER-->0.1.35<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.35<!--END VER-->-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <!--GITHUB-->
 # Apex
@@ -37,6 +37,7 @@ Apex is a unified Markdown processor that combines the best features from Common
 
 ### Document Features
 
+<!--JEKYLL {%raw%}-->
 - **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks
 - **Metadata variables**: Insert metadata values with `[%key]` syntax
 - **Metadata transforms**: Transform metadata values with `[%key:transform]` syntax - supports case conversion, string manipulation, regex replacement, date formatting, and more. See [Metadata Transforms](https://github.com/ApexMarkdown/apex/wiki/Metadata-Transforms) for complete documentation
@@ -46,6 +47,7 @@ Apex is a unified Markdown processor that combines the best features from Common
 - **CSV/TSV support**: Automatic table conversion from CSV and TSV files
 - **Inline Attribute Lists (IAL)**: Kramdown-style attributes `{: #id .class}`
 - **Special markers**: Page breaks (`<!--BREAK-->`), autoscroll pauses (`<!--PAUSE:N-->`), end-of-block markers
+<!--JEKYLL {%endraw%}-->
 
 ### Citations and Bibliography
 

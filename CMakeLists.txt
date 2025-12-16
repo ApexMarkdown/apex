@@ -236,9 +236,11 @@ if(APPLE)
 
             # Copy and fix cmark-gfm dylib
             if(CMARK_GFM_DYLIB_BUILD)
-                get_filename_component(CMARK_GFM_NAME \"\${CMARK_GFM_DYLIB_BUILD}\" NAME)
+                # Get first file from glob result (in case multiple files found)
+                list(GET CMARK_GFM_DYLIB_BUILD 0 CMARK_GFM_DYLIB_SINGLE)
+                get_filename_component(CMARK_GFM_NAME \"\${CMARK_GFM_DYLIB_SINGLE}\" NAME)
                 set(CMARK_GFM_DEST \"\${FRAMEWORK_FRAMEWORKS_DIR}/\${CMARK_GFM_NAME}\")
-                file(COPY \"\${CMARK_GFM_DYLIB_BUILD}\" DESTINATION \"\${FRAMEWORK_FRAMEWORKS_DIR}\")
+                file(COPY \"\${CMARK_GFM_DYLIB_SINGLE}\" DESTINATION \"\${FRAMEWORK_FRAMEWORKS_DIR}\")
                 # Fix install name
                 execute_process(
                     COMMAND install_name_tool -id \"@rpath/Apex.framework/Frameworks/\${CMARK_GFM_NAME}\" \"\${CMARK_GFM_DEST}\"
@@ -255,9 +257,11 @@ if(APPLE)
 
             # Copy and fix cmark-gfm-extensions dylib
             if(CMARK_GFM_EXTENSIONS_DYLIB_BUILD)
-                get_filename_component(CMARK_GFM_EXTENSIONS_NAME \"\${CMARK_GFM_EXTENSIONS_DYLIB_BUILD}\" NAME)
+                # Get first file from glob result (in case multiple files found)
+                list(GET CMARK_GFM_EXTENSIONS_DYLIB_BUILD 0 CMARK_GFM_EXTENSIONS_DYLIB_SINGLE)
+                get_filename_component(CMARK_GFM_EXTENSIONS_NAME \"\${CMARK_GFM_EXTENSIONS_DYLIB_SINGLE}\" NAME)
                 set(CMARK_GFM_EXTENSIONS_DEST \"\${FRAMEWORK_FRAMEWORKS_DIR}/\${CMARK_GFM_EXTENSIONS_NAME}\")
-                file(COPY \"\${CMARK_GFM_EXTENSIONS_DYLIB_BUILD}\" DESTINATION \"\${FRAMEWORK_FRAMEWORKS_DIR}\")
+                file(COPY \"\${CMARK_GFM_EXTENSIONS_DYLIB_SINGLE}\" DESTINATION \"\${FRAMEWORK_FRAMEWORKS_DIR}\")
                 # Fix install name
                 execute_process(
                     COMMAND install_name_tool -id \"@rpath/Apex.framework/Frameworks/\${CMARK_GFM_EXTENSIONS_NAME}\" \"\${CMARK_GFM_EXTENSIONS_DEST}\"
@@ -272,7 +276,9 @@ if(APPLE)
                 )
                 # Fix cmark-gfm-extensions to reference cmark-gfm from within framework
                 if(CMARK_GFM_DYLIB_BUILD)
-                    get_filename_component(CMARK_GFM_NAME \"\${CMARK_GFM_DYLIB_BUILD}\" NAME)
+                    # Get first file from glob result (in case multiple files found)
+                    list(GET CMARK_GFM_DYLIB_BUILD 0 CMARK_GFM_DYLIB_SINGLE)
+                    get_filename_component(CMARK_GFM_NAME \"\${CMARK_GFM_DYLIB_SINGLE}\" NAME)
                     execute_process(
                         COMMAND install_name_tool -change \"@rpath/\${CMARK_GFM_NAME}\" \"@rpath/Apex.framework/Frameworks/\${CMARK_GFM_NAME}\" \"\${CMARK_GFM_EXTENSIONS_DEST}\"
                         RESULT_VARIABLE RESULT
