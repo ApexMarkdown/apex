@@ -161,6 +161,15 @@ release-macos:
 	@cd $(BUILD_DIR) && $(MAKE) -j$$(sysctl -n hw.ncpu) apex_cli
 	@mkdir -p $(RELEASE_DIR)/apex-$(VERSION)-macos-universal
 	@cp $(BUILD_DIR)/apex $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex
+	@echo "Fixing libyaml library path for Homebrew compatibility..."
+	@if otool -L $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex | grep -q "libyaml-universal"; then \
+		echo "  Changing libyaml path to Homebrew location..."; \
+		install_name_tool -change "/Users/runner/work/apex/apex/deps/libyaml-universal/lib/libyaml-0.2.dylib" "/opt/homebrew/lib/libyaml-0.2.dylib" $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex 2>/dev/null || \
+		install_name_tool -change "/Users/runner/work/apex/apex/deps/libyaml-universal/lib/libyaml-0.2.dylib" "/usr/local/lib/libyaml-0.2.dylib" $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex 2>/dev/null || \
+		echo "  Warning: Could not fix libyaml path"; \
+	else \
+		echo "  No libyaml-universal path found, skipping fix"; \
+	fi
 	@if [ -n "$(SIGNING_IDENTITY)" ] && [ "$(SIGNING_IDENTITY)" != "none" ]; then \
 		echo "Signing binary with identity: $(SIGNING_IDENTITY)..."; \
 		codesign --force --sign "$(SIGNING_IDENTITY)" --timestamp --options runtime $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex || echo "Warning: Code signing failed (this is OK for ad-hoc signing)"; \

@@ -19,6 +19,15 @@ class Apex < Formula
 
   def install
     bin.install "apex"
+    # Fix libyaml path to point to Homebrew's libyaml
+    # This handles both Apple Silicon (/opt/homebrew) and Intel (/usr/local) installations
+    libyaml_path = "#{HOMEBREW_PREFIX}/lib/libyaml-0.2.dylib"
+    if File.exist?(libyaml_path)
+      system "install_name_tool", "-change",
+             "/Users/runner/work/apex/apex/deps/libyaml-universal/lib/libyaml-0.2.dylib",
+             libyaml_path,
+             bin/"apex"
+    end
   end
 
   test do
