@@ -16,6 +16,24 @@ jobs:
               with:
                   submodules: recursive
 
+            - name: Build universal libyaml (arm64 + x86_64)
+              run: |
+                  set -euo pipefail
+                  YAML_VERSION=0.2.5
+                  YAML_PREFIX="$PWD/deps/libyaml-universal"
+                  mkdir -p "$YAML_PREFIX"
+                  echo "Downloading libyaml ${YAML_VERSION}..."
+                  curl -L "https://github.com/yaml/libyaml/archive/refs/tags/${YAML_VERSION}.tar.gz" -o libyaml.tar.gz
+                  tar -xzf libyaml.tar.gz
+                  cd "libyaml-${YAML_VERSION}"
+                  echo "Configuring universal libyaml..."
+                  CFLAGS="-arch arm64 -arch x86_64" LDFLAGS="-arch arm64 -arch x86_64" ./configure --prefix="$YAML_PREFIX"
+                  echo "Building libyaml..."
+                  make -j"$(sysctl -n hw.ncpu)"
+                  echo "Installing libyaml to ${YAML_PREFIX}..."
+                  make install
+                  echo "PKG_CONFIG_PATH=${YAML_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> "$GITHUB_ENV"
+
             - name: Set up version
               id: version
               run: |
