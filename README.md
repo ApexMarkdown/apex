@@ -8,7 +8,7 @@
 Apex is a unified Markdown processor that combines the best features from CommonMark, GitHub Flavored Markdown (GFM), MultiMarkdown, Kramdown, and Marked. One processor to rule them all.
 
 
-![](apex-header-2-rb@2x.webp)
+![](apex-header-2-rb@2x.webp?2)
 
 
 There are so many variations of Markdown, extending its features in all kinds of ways. But picking one flavor means giving up the features of another flavor. So I'm building Apex with the goal of making all of the most popular features of various processors available in one tool.
