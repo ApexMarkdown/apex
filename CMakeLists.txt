@@ -75,10 +75,18 @@ add_subdirectory(vendor/cmark-gfm)
 # Silence noisy warnings from vendored cmark-gfm extensions
 if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     if(TARGET libcmark-gfm-extensions)
-        target_compile_options(libcmark-gfm-extensions PRIVATE -Wno-unused-parameter)
+        target_compile_options(libcmark-gfm-extensions PRIVATE -Wno-unused-parameter -Wno-c99-extensions)
     endif()
     if(TARGET libcmark-gfm-extensions_static)
-        target_compile_options(libcmark-gfm-extensions_static PRIVATE -Wno-unused-parameter)
+        target_compile_options(libcmark-gfm-extensions_static PRIVATE -Wno-unused-parameter -Wno-c99-extensions)
+    endif()
+    # Also suppress c99-extensions and unused-parameter warnings for cmark-gfm library targets
+    # The project name "cmark-gfm" creates an invalid macro #define cmark-gfm 1
+    if(TARGET libcmark-gfm)
+        target_compile_options(libcmark-gfm PRIVATE -Wno-c99-extensions -Wno-unused-parameter)
+    endif()
+    if(TARGET libcmark-gfm_static)
+        target_compile_options(libcmark-gfm_static PRIVATE -Wno-c99-extensions -Wno-unused-parameter)
     endif()
 endif()
 

@@ -1131,12 +1131,24 @@ static void test_advanced_tables(void) {
     opts.relaxed_tables = false;  /* Use standard GFM table syntax for these tests */
     char *html;
 
-    /* Test table with caption - detection works but removal/rendering needs work */
+    /* Test table with caption before table */
     const char *caption_table = "[Table Caption]\n\n| H1 | H2 |\n|----|----|"
                                 "\n| C1 | C2 |";
     html = apex_markdown_to_html(caption_table, strlen(caption_table), &opts);
     assert_contains(html, "<table>", "Caption table renders");
-    // Note: Caption removal and figure wrapping need additional work
+    assert_contains(html, "<figure", "Caption table wrapped in figure");
+    assert_contains(html, "<figcaption>", "Caption has figcaption tag");
+    assert_contains(html, "Table Caption", "Caption text is present");
+    assert_contains(html, "</figure>", "Caption figure is closed");
+    apex_free_string(html);
+
+    /* Test table with caption after table */
+    const char *caption_table_after = "| H1 | H2 |\n|----|----|"
+                                     "\n| C1 | C2 |\n\n[Table Caption After]";
+    html = apex_markdown_to_html(caption_table_after, strlen(caption_table_after), &opts);
+    assert_contains(html, "<table>", "Caption table after renders");
+    assert_contains(html, "<figure", "Caption table after wrapped in figure");
+    assert_contains(html, "Table Caption After", "Caption text after is present");
     apex_free_string(html);
 
     /* Test rowspan with ^^ */

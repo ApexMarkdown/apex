@@ -451,7 +451,6 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
 
                             /* Copy up to injection point (but for self-closing tags, don't include the space before /) */
                             size_t prefix_len;
-                            bool needs_space_before_attrs = false;
                             if (is_self_closing && inject_point > read && inject_point[-1] == ' ') {
                                 /* Don't copy the space before / - we'll add it back after attributes */
                                 prefix_len = inject_point - read - 1;

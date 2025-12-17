@@ -98,6 +98,48 @@ static void process_table_spans(cmark_node *table) {
                 row = cmark_node_next(row);
                 continue;
             }
+            /* Check if this row only contains '—' cells (separator row or empty row) */
+            bool skip_row = false;
+            cmark_node *check_cell = cmark_node_first_child(row);
+            bool all_dash = true;
+            bool has_cells = false;
+            while (check_cell) {
+                if (cmark_node_get_type(check_cell) == CMARK_NODE_TABLE_CELL) {
+                    has_cells = true;
+                    cmark_node *check_text = cmark_node_first_child(check_cell);
+                    if (check_text && cmark_node_get_type(check_text) == CMARK_NODE_TEXT) {
+                        const char *check_content = cmark_node_get_literal(check_text);
+                        if (check_content && strcmp(check_content, "—") != 0) {
+                            all_dash = false;
+                            break;
+                        }
+                    } else {
+                        /* Empty cell, check if it's really empty */
+                        if (cmark_node_first_child(check_cell)) {
+                            all_dash = false;
+                            break;
+                        }
+                    }
+                }
+                check_cell = cmark_node_next(check_cell);
+            }
+            /* Skip rows that only contain '—' characters (alignment/separator rows) */
+            if (has_cells && all_dash) {
+                /* Mark the entire row for removal in HTML output */
+                cmark_node *dash_cell = cmark_node_first_child(row);
+                while (dash_cell) {
+                    if (cmark_node_get_type(dash_cell) == CMARK_NODE_TABLE_CELL) {
+                        char *existing = (char *)cmark_node_get_user_data(dash_cell);
+                        if (existing) free(existing);
+                        cmark_node_set_user_data(dash_cell, strdup(" data-remove=\"true\""));
+                    }
+                    dash_cell = cmark_node_next(dash_cell);
+                }
+                /* Don't update prev_row when skipping - keep it pointing to the previous valid row */
+                row = cmark_node_next(row);
+                continue;
+            }
+
             cmark_node *cell = cmark_node_first_child(row);
             cmark_node *prev_cell = NULL;
             int col_index = 0;
@@ -131,9 +173,15 @@ static void process_table_spans(cmark_node *table) {
                                 sscanf(strstr(prev_attrs, "colspan="), "colspan=\"%d\"", &current_colspan);
                             }
 
-                            /* Increment colspan */
+                            /* Increment colspan - append or replace */
                             char new_attrs[256];
-                            snprintf(new_attrs, sizeof(new_attrs), " colspan=\"%d\"", current_colspan + 1);
+                            if (prev_attrs && !strstr(prev_attrs, "colspan=")) {
+                                /* Append to existing attributes */
+                                snprintf(new_attrs, sizeof(new_attrs), "%s colspan=\"%d\"", prev_attrs, current_colspan + 1);
+                            } else {
+                                /* Replace or create new */
+                                snprintf(new_attrs, sizeof(new_attrs), " colspan=\"%d\"", current_colspan + 1);
+                            }
                             /* Free old user_data before setting new */
                             if (prev_attrs) free(prev_attrs);
                             cmark_node_set_user_data(target_cell, strdup(new_attrs));
@@ -164,6 +212,7 @@ static void process_table_spans(cmark_node *table) {
                                             /* Found a real cell (not marked for removal) */
                                             target_cell = candidate;
                                         }
+                                        /* Found the cell at this column index - break regardless */
                                         break;
                                     }
                                     prev_col++;
@@ -191,17 +240,23 @@ static void process_table_spans(cmark_node *table) {
                                 sscanf(strstr(prev_attrs, "rowspan="), "rowspan=\"%d\"", &current_rowspan);
                             }
 
-                            /* Increment rowspan */
+                            /* Increment rowspan - append or replace */
                             char new_attrs[256];
-                            snprintf(new_attrs, sizeof(new_attrs), " rowspan=\"%d\"", current_rowspan + 1);
+                            if (prev_attrs && !strstr(prev_attrs, "rowspan=")) {
+                                /* Append to existing attributes */
+                                snprintf(new_attrs, sizeof(new_attrs), "%s rowspan=\"%d\"", prev_attrs, current_rowspan + 1);
+                            } else {
+                                /* Replace or create new */
+                                snprintf(new_attrs, sizeof(new_attrs), " rowspan=\"%d\"", current_rowspan + 1);
+                            }
                             /* Free old user_data before setting new */
-                            char *old_attrs = (char *)cmark_node_get_user_data(target_cell);
-                            if (old_attrs) free(old_attrs);
+                            if (prev_attrs) free(prev_attrs);
                             cmark_node_set_user_data(target_cell, strdup(new_attrs));
-
-                            /* Mark current cell for removal */
-                            cmark_node_set_user_data(cell, strdup(" data-remove=\"true\""));
                         }
+                        /* Always mark rowspan cell for removal, even if target not found */
+                        char *existing = (char *)cmark_node_get_user_data(cell);
+                        if (existing) free(existing);
+                        cmark_node_set_user_data(cell, strdup(" data-remove=\"true\""));
                     }
 
                     prev_cell = cell;
@@ -210,6 +265,7 @@ static void process_table_spans(cmark_node *table) {
                 cell = cmark_node_next(cell);
             }
 
+            /* Update prev_row after processing this row */
             prev_row = row;
         }
         row = cmark_node_next(row);
