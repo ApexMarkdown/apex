@@ -34,6 +34,9 @@ If no file is specified, **apex** reads from stdin.
 **--style** *FILE*, **--css** *FILE*
 :   Link to CSS file in document head (requires **--standalone**). Overrides CSS metadata if specified.
 
+**--script** *VALUE*
+:   Inject `<script>` tags either before `</body>` in standalone mode or at the end of the HTML fragment in snippet mode. *VALUE* can be a path, a URL, or one of the following shorthands: `mermaid`, `mathjax`, `katex`, `highlightjs`, `highlight.js`, `prism`, `prismjs`, `htmx`, `alpine`, `alpinejs`. Can be used multiple times or with a comma-separated list (e.g., `--script mermaid,mathjax`).
+
 **--title** *TITLE*
 :   Document title (requires **--standalone**, default: "Document").
 

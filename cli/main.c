@@ -101,6 +101,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
     fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
     fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file in document head (requires --standalone, overrides CSS metadata)\n");
+    fprintf(stderr, "  --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).\n");
+    fprintf(stderr, "                          VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.\n");
     fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
     fprintf(stderr, "  -v, --version          Show version information\n\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
@@ -110,6 +112,38 @@ static void print_version(void) {
     printf("Apex %s\n", apex_version_string());
     printf("Copyright (c) 2025 Brett Terpstra\n");
     printf("Licensed under MIT License\n");
+}
+
+/* Helper to append a script tag string to a dynamic NULL-terminated array.
+ * On success, returns 0 and updates *tags, *count, and *capacity.
+ * On failure, prints an error and returns non-zero.
+ */
+static int add_script_tag(char ***tags, size_t *count, size_t *capacity, const char *tag_str) {
+    if (!tag_str || !*tag_str) return 0;
+
+    if (!*tags) {
+        *tags = malloc((*capacity) * sizeof(char *));
+        if (!*tags) {
+            fprintf(stderr, "Error: Memory allocation failed\n");
+            return 1;
+        }
+    } else if (*count >= *capacity) {
+        *capacity *= 2;
+        char **new_tags = realloc(*tags, (*capacity) * sizeof(char *));
+        if (!new_tags) {
+            fprintf(stderr, "Error: Memory allocation failed\n");
+            return 1;
+        }
+        *tags = new_tags;
+    }
+
+    (*tags)[*count] = strdup(tag_str);
+    if (!(*tags)[*count]) {
+        fprintf(stderr, "Error: Memory allocation failed\n");
+        return 1;
+    }
+    (*count)++;
+    return 0;
 }
 
 /**
@@ -308,6 +342,11 @@ int main(int argc, char *argv[]) {
     size_t bibliography_count = 0;
     size_t bibliography_capacity = 4;
 
+    /* Script tags (NULL-terminated array of raw <script> HTML snippets) */
+    char **script_tags = NULL;
+    size_t script_tag_count = 0;
+    size_t script_tag_capacity = 4;
+
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -386,6 +425,111 @@ int main(int argc, char *argv[]) {
             }
             options.stylesheet_path = argv[i];
             options.standalone = true;  /* Imply standalone if CSS is specified */
+        } else if (strcmp(argv[i], "--script") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --script requires an argument\n");
+                return 1;
+            }
+            /* Argument may be a single value or comma-separated list */
+            const char *arg = argv[i];
+            char *arg_copy = strdup(arg);
+            if (!arg_copy) {
+                fprintf(stderr, "Error: Memory allocation failed\n");
+                return 1;
+            }
+
+            char *token = arg_copy;
+            while (token && *token) {
+                /* Find next comma and split */
+                char *comma = strchr(token, ',');
+                if (comma) {
+                    *comma = '\0';
+                }
+
+                /* Trim leading/trailing whitespace */
+                char *start = token;
+                while (*start == ' ' || *start == '\t' || *start == '\n' || *start == '\r') {
+                    start++;
+                }
+                char *end = start + strlen(start);
+                while (end > start && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\n' || end[-1] == '\r')) {
+                    end--;
+                }
+                *end = '\0';
+
+                if (*start) {
+                    /* Map common shorthands to CDN script tags, otherwise treat as src */
+                    const char *lower = start;
+                    /* Simple case-insensitive checks for known shorthands */
+                    if (strcasecmp(lower, "mermaid") == 0) {
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script src=\"https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else if (strcasecmp(lower, "mathjax") == 0) {
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else if (strcasecmp(lower, "katex") == 0) {
+                        /* KaTeX typically needs both the core script and auto-render helper */
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else if (strcasecmp(lower, "highlightjs") == 0 || strcasecmp(lower, "highlight.js") == 0) {
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script src=\"https://cdn.jsdelivr.net/npm/highlight.js@11/lib/highlight.min.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else if (strcasecmp(lower, "prism") == 0 || strcasecmp(lower, "prismjs") == 0) {
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script src=\"https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else if (strcasecmp(lower, "htmx") == 0) {
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script src=\"https://unpkg.com/htmx.org@1.9.10\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else if (strcasecmp(lower, "alpine") == 0 || strcasecmp(lower, "alpinejs") == 0) {
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity,
+                                           "<script defer src=\"https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js\"></script>") != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    } else {
+                        /* Treat as a path or URL and create a simple script tag */
+                        char buf[2048];
+                        int n = snprintf(buf, sizeof(buf), "<script src=\"%s\"></script>", start);
+                        if (n < 0 || (size_t)n >= sizeof(buf)) {
+                            fprintf(stderr, "Error: --script value too long\n");
+                            free(arg_copy);
+                            return 1;
+                        }
+                        if (add_script_tag(&script_tags, &script_tag_count, &script_tag_capacity, buf) != 0) {
+                            free(arg_copy);
+                            return 1;
+                        }
+                    }
+                }
+
+                if (!comma) break;
+                token = comma + 1;
+            }
+
+            free(arg_copy);
         } else if (strcmp(argv[i], "--title") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --title requires an argument\n");
@@ -1230,6 +1374,18 @@ int main(int argc, char *argv[]) {
         options.enable_plugins = plugins_cli_value;
     }
 
+    /* Attach any collected script tags to options as a NULL-terminated array */
+    if (script_tags) {
+        /* Ensure NULL terminator */
+        script_tags = realloc(script_tags, (script_tag_count + 1) * sizeof(char *));
+        if (!script_tags) {
+            fprintf(stderr, "Error: Memory allocation failed\n");
+            return 1;
+        }
+        script_tags[script_tag_count] = NULL;
+        options.script_tags = script_tags;
+    }
+
     /* Use enhanced markdown if we created it, otherwise use original */
     char *final_markdown = enhanced_markdown ? enhanced_markdown : markdown;
     size_t final_len = enhanced_markdown ? enhanced_len : input_len;
@@ -1277,6 +1433,14 @@ int main(int argc, char *argv[]) {
     /* Free bibliography files array */
     if (bibliography_files) {
         free(bibliography_files);
+    }
+
+    /* Free script tags array and contents */
+    if (script_tags) {
+        for (size_t i = 0; i < script_tag_count; i++) {
+            free(script_tags[i]);
+        }
+        free(script_tags);
     }
 
     /* Free base_directory if we allocated it */

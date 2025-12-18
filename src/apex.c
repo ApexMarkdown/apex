@@ -1800,6 +1800,9 @@ apex_options apex_options_default(void) {
     opts.wikilink_space = 0;  /* Default: dash (0=dash, 1=none, 2=underscore, 3=space) */
     opts.wikilink_extension = NULL;  /* Default: no extension */
 
+    /* Script injection options */
+    opts.script_tags = NULL;
+
     /* Source file information (used by plugins via APEX_FILE_PATH) */
     opts.input_file_path = NULL;
 
@@ -2935,6 +2938,35 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Build script HTML (if any) from script_tags before wrapping or appending */
+    char *scripts_html = NULL;
+    if (local_opts.script_tags) {
+        /* Join script tag snippets with newlines */
+        size_t total_len = 0;
+        size_t count = 0;
+        for (char **p = local_opts.script_tags; *p; ++p) {
+            size_t len = strlen(*p);
+            if (len == 0) continue;
+            total_len += len + 1; /* +1 for newline */
+            count++;
+        }
+
+        if (count > 0 && total_len > 0) {
+            scripts_html = malloc(total_len + 1); /* +1 for null terminator */
+            if (scripts_html) {
+                size_t pos = 0;
+                for (char **p = local_opts.script_tags; *p; ++p) {
+                    size_t len = strlen(*p);
+                    if (len == 0) continue;
+                    memcpy(scripts_html + pos, *p, len);
+                    pos += len;
+                    scripts_html[pos++] = '\n';
+                }
+                scripts_html[pos] = '\0';
+            }
+        }
+    }
+
     /* Undefine the macro */
     #undef options
 
@@ -2950,16 +2982,75 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         if (!css_path) {
             css_path = css_metadata;  /* Use extracted metadata value */
         }
+        /* Combine any existing HTML footer metadata with scripts (footer first, then scripts) */
+        char *footer_with_scripts = NULL;
+        if (html_footer_metadata || scripts_html) {
+            size_t footer_len = html_footer_metadata ? strlen(html_footer_metadata) : 0;
+            size_t scripts_len = scripts_html ? strlen(scripts_html) : 0;
+            size_t extra_newline = (footer_len > 0 && scripts_len > 0) ? 1 : 0;
+
+            footer_with_scripts = malloc(footer_len + extra_newline + scripts_len + 1);
+            if (footer_with_scripts) {
+                size_t pos = 0;
+                if (footer_len > 0) {
+                    memcpy(footer_with_scripts + pos, html_footer_metadata, footer_len);
+                    pos += footer_len;
+                }
+                if (extra_newline) {
+                    footer_with_scripts[pos++] = '\n';
+                }
+                if (scripts_len > 0) {
+                    memcpy(footer_with_scripts + pos, scripts_html, scripts_len);
+                    pos += scripts_len;
+                }
+                footer_with_scripts[pos] = '\0';
+            }
+        }
+
+        const char *footer_to_use = footer_with_scripts ? footer_with_scripts : html_footer_metadata;
 
         PROFILE_START(standalone_wrap);
         char *document = apex_wrap_html_document(html, local_opts.document_title, css_path,
-                                                 html_header_metadata, html_footer_metadata,
+                                                 html_header_metadata, footer_to_use,
                                                  language_metadata);
         PROFILE_END(standalone_wrap);
         if (document) {
             free(html);
             html = document;
         }
+
+        if (footer_with_scripts) {
+            free(footer_with_scripts);
+        }
+    } else if (html && scripts_html) {
+        /* Snippet mode: append scripts to the end of the HTML fragment */
+        size_t html_len = strlen(html);
+        size_t scripts_len = strlen(scripts_html);
+        size_t extra_newline = (html_len > 0 && scripts_len > 0 && html[html_len - 1] != '\n') ? 1 : 0;
+
+        char *combined = malloc(html_len + extra_newline + scripts_len + 1);
+        if (combined) {
+            size_t pos = 0;
+            if (html_len > 0) {
+                memcpy(combined + pos, html, html_len);
+                pos += html_len;
+            }
+            if (extra_newline) {
+                combined[pos++] = '\n';
+            }
+            if (scripts_len > 0) {
+                memcpy(combined + pos, scripts_html, scripts_len);
+                pos += scripts_len;
+            }
+            combined[pos] = '\0';
+
+            free(html);
+            html = combined;
+        }
+    }
+
+    if (scripts_html) {
+        free(scripts_html);
     }
 
     /* Free duplicated metadata strings */

@@ -122,6 +122,15 @@ typedef struct {
     int wikilink_space;  /* Space replacement: 0=dash, 1=none, 2=underscore, 3=space */
     const char *wikilink_extension;  /* File extension to append (e.g., "html") */
 
+    /* Script injection options */
+    /* Raw <script>...</script> HTML snippets to inject either:
+     * - Before </body> when generating standalone HTML
+     * - At the end of the HTML fragment in snippet mode
+     *
+     * This is typically populated by the CLI --script flag.
+     */
+    char **script_tags;  /* NULL-terminated array of script tag strings (may be NULL for none) */
+
     /* Source file information for plugins */
     /* When Apex is invoked on a file, this is the full path to that file. */
     /* When reading from stdin, this is either the base directory (if set) or empty. */
