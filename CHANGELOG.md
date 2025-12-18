@@ -2,6 +2,31 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.38] - 2025-12-18
+
+### Changed
+
+- In standalone mode, insert script tags just before </body>
+- In snippet mode, append script tags at the end of the HTML fragment
+- When --embed-css is used with --css, replace the stylesheet <link> tag with an inline <style> block containing the CSS file contents
+
+### New
+
+- Support Pandoc-style "Table: Caption" syntax and
+- Add --script CLI flag to inject scripts into HTML output
+- Support shorthands for common JS libraries (mermaid, mathjax, katex, highlightjs, prism, htmx, alpine)
+- Add --embed-css option to inline CSS files into the standalone document head
+
+### Improved
+
+- Compress extraneous newlines between HTML elements
+- Remove unused apex_remote_trim helper to eliminate compiler warnings
+
+### Fixed
+
+- Prevent caption paragraphs from being reused across
+- Skip URL encoding for footnote definitions ([^id]: ...) so footnote
+
 ## [0.1.37] - 2025-12-17
 
 ### Changed
@@ -544,6 +569,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 - Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.38]: https://github.com/ttscoff/apex/releases/tag/v0.1.38
 [0.1.37]: https://github.com/ttscoff/apex/releases/tag/v0.1.37
 [0.1.36]: https://github.com/ttscoff/apex/releases/tag/v0.1.36
 [0.1.35]: https://github.com/ttscoff/apex/releases/tag/v0.1.35

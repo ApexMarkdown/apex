@@ -1,5 +1,5 @@
 
-[![Version: 0.1.36](https://img.shields.io/badge/Version-0.1.36-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.37](https://img.shields.io/badge/Version-0.1.37-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
 # Apex
@@ -22,7 +22,7 @@ There are so many variations of Markdown, extending its features in all kinds of
 
 ### Markdown Extensions
 
-- **Tables**: GitHub Flavored Markdown tables with advanced features (rowspan, colspan, captions)
+- **Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, and captions before/after tables, including Pandoc-style `Table: Caption`)
 - **Relaxed tables**: Support for tables without separator rows (Kramdown-style)
 - **Footnotes**: Three syntaxes supported (reference-style, Kramdown inline, MultiMarkdown inline)
 - **Definition lists**: Kramdown-style definition lists with Markdown content support
@@ -204,7 +204,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.36
+Apex Markdown Processor v0.1.37
 One Markdown processor to rule them all
 
 Usage: build/apex [options] [file]
@@ -255,6 +255,9 @@ Options:
   --reject               Reject all Critic Markup changes (revert edits)
   -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)
   --css FILE, --style FILE  Link to CSS file in document head (requires --standalone, overrides CSS metadata)
+  --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)
+  --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).
+                          VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.
   --title TITLE          Document title (requires --standalone, default: "Document")
   -v, --version          Show version information
 
