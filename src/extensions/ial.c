@@ -1666,6 +1666,66 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             ref_name[ref_name_len] = '\0';
                         }
 
+                        /* Detect footnote-style reference: [^id]: ... */
+                        bool is_footnote_ref = false;
+                        if (ref_name && ref_name_len > 0) {
+                            const char *name_p = ref_name;
+                            while (*name_p == ' ' || *name_p == '\t') name_p++;
+                            if (*name_p == '^') {
+                                is_footnote_ref = true;
+                            }
+                        }
+
+                        /* Footnote definitions should not have their "URL" (the footnote text)
+                         * percent-encoded. Copy the line as-is and skip URL encoding.
+                         */
+                        if (is_footnote_ref) {
+                            /* Write the entire definition line unchanged */
+                            size_t line_len = line_end - ref_start;
+                            if (*line_end == '\n') {
+                                line_len++; /* Include newline */
+                            }
+
+                            if (line_len > remaining) {
+                                size_t written = write - output;
+                                size_t new_capacity = (written + line_len + 1) * 2;
+                                char *new_output = realloc(output, new_capacity);
+                                if (!new_output) {
+                                    free(output);
+                                    free(url);
+                                    free(ref_name);
+                                    if (attrs) apex_free_attributes(attrs);
+                                    apex_free_image_attributes(local_img_attrs);
+                                    return NULL;
+                                }
+                                output = new_output;
+                                write = output + written;
+                                remaining = new_capacity - written;
+                            }
+
+                            memcpy(write, ref_start, line_len);
+                            write += line_len;
+                            remaining -= line_len;
+
+                            /* Advance read past this line (including newline if present) */
+                            const char *next = line_end;
+                            if (*next == '\n') {
+                                next++;
+                            } else if (*next == '\r') {
+                                if (next[1] == '\n') {
+                                    next += 2;
+                                } else {
+                                    next++;
+                                }
+                            }
+                            read = next;
+
+                            free(url);
+                            free(ref_name);
+                            if (attrs) apex_free_attributes(attrs);
+                            continue;
+                        }
+
                         /* URL encode the URL (if enabled) - always encode for reference definitions */
                         char *encoded_url = do_url_encoding ? url_encode(url) : strdup(url);
                         if (encoded_url) {
