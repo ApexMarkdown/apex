@@ -392,7 +392,7 @@ static tfoot_row *collect_tfoot_rows(cmark_node *document) {
     return list;
 }
 
-char *apex_inject_table_attributes(const char *html, cmark_node *document) {
+char *apex_inject_table_attributes(const char *html, cmark_node *document, int caption_position) {
     if (!html || !document) return (char *)html;
 
     /* Collect all cells (for mapping calculation) */
@@ -497,15 +497,16 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
 
             /* Fix missing space before id or class attributes */
             if (read[6] == 'i' && strncmp(read + 6, "id=", 3) == 0) {
-                /* If we have a caption, write figure tag first */
-                if (cap) {
+                /* If we have a caption and it should be above, write figure tag and caption first */
+                if (cap && caption_position == 0) {
+                    /* Write <figure><figcaption>caption</figcaption> */
                     const char *fig_open = "<figure class=\"table-figure\">\n<figcaption>";
                     size_t fig_open_len = strlen(fig_open);
                     const char *fig_close_cap = "</figcaption>\n";
                     size_t fig_close_cap_len = strlen(fig_close_cap);
 
                     /* Ensure we have space */
-                    while (written + fig_open_len + strlen(cap->caption) + fig_close_cap_len + 100 > capacity) {
+                    while (written + fig_open_len + strlen(cap->caption) * 6 + fig_close_cap_len + 100 > capacity) {
                         capacity *= 2;
                         char *new_output = realloc(output, capacity);
                         if (!new_output) break;
@@ -513,7 +514,6 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
                         write = output + written;
                     }
 
-                    /* Write <figure><figcaption>caption</figcaption> */
                     memcpy(write, fig_open, fig_open_len);
                     write += fig_open_len;
                     written += fig_open_len;
@@ -551,6 +551,20 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
                     memcpy(write, fig_close_cap, fig_close_cap_len);
                     write += fig_close_cap_len;
                     written += fig_close_cap_len;
+                } else if (cap && caption_position == 1) {
+                    /* Caption below - just open figure tag */
+                    const char *fig_open = "<figure class=\"table-figure\">\n";
+                    size_t fig_open_len = strlen(fig_open);
+                    while (written + fig_open_len + 100 > capacity) {
+                        capacity *= 2;
+                        char *new_output = realloc(output, capacity);
+                        if (!new_output) break;
+                        output = new_output;
+                        write = output + written;
+                    }
+                    memcpy(write, fig_open, fig_open_len);
+                    write += fig_open_len;
+                    written += fig_open_len;
                 }
 
                 /* Write "<table " then copy the rest of the tag */
@@ -573,59 +587,74 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
 
             /* Normal table tag (no spacing fix needed) - check for caption */
             if (cap) {
-                /* Wrap table in <figure> and add <figcaption> */
-                const char *fig_open = "<figure class=\"table-figure\">\n<figcaption>";
-                size_t fig_open_len = strlen(fig_open);
-                const char *fig_close_cap = "</figcaption>\n";
-                size_t fig_close_cap_len = strlen(fig_close_cap);
+                if (caption_position == 0) {
+                    /* Caption above - write <figure><figcaption>caption</figcaption> */
+                    const char *fig_open = "<figure class=\"table-figure\">\n<figcaption>";
+                    size_t fig_open_len = strlen(fig_open);
+                    const char *fig_close_cap = "</figcaption>\n";
+                    size_t fig_close_cap_len = strlen(fig_close_cap);
 
-                /* Ensure we have space */
-                while (written + fig_open_len + strlen(cap->caption) + fig_close_cap_len + 100 > capacity) {
-                    capacity *= 2;
-                    char *new_output = realloc(output, capacity);
-                    if (!new_output) break;
-                    output = new_output;
-                    write = output + written;
-                }
-
-                /* Write <figure><figcaption>caption</figcaption> */
-                memcpy(write, fig_open, fig_open_len);
-                write += fig_open_len;
-                written += fig_open_len;
-
-                /* Write caption text (escape HTML entities if needed) */
-                const char *cap_text = cap->caption;
-                while (*cap_text) {
-                    if (*cap_text == '&') {
-                        const char *amp = "&amp;";
-                        memcpy(write, amp, 5);
-                        write += 5;
-                        written += 5;
-                    } else if (*cap_text == '<') {
-                        const char *lt = "&lt;";
-                        memcpy(write, lt, 4);
-                        write += 4;
-                        written += 4;
-                    } else if (*cap_text == '>') {
-                        const char *gt = "&gt;";
-                        memcpy(write, gt, 4);
-                        write += 4;
-                        written += 4;
-                    } else if (*cap_text == '"') {
-                        const char *quot = "&quot;";
-                        memcpy(write, quot, 6);
-                        write += 6;
-                        written += 6;
-                    } else {
-                        *write++ = *cap_text;
-                        written++;
+                    /* Ensure we have space */
+                    while (written + fig_open_len + strlen(cap->caption) * 6 + fig_close_cap_len + 100 > capacity) {
+                        capacity *= 2;
+                        char *new_output = realloc(output, capacity);
+                        if (!new_output) break;
+                        output = new_output;
+                        write = output + written;
                     }
-                    cap_text++;
-                }
 
-                memcpy(write, fig_close_cap, fig_close_cap_len);
-                write += fig_close_cap_len;
-                written += fig_close_cap_len;
+                    memcpy(write, fig_open, fig_open_len);
+                    write += fig_open_len;
+                    written += fig_open_len;
+
+                    /* Write caption text (escape HTML entities if needed) */
+                    const char *cap_text = cap->caption;
+                    while (*cap_text) {
+                        if (*cap_text == '&') {
+                            const char *amp = "&amp;";
+                            memcpy(write, amp, 5);
+                            write += 5;
+                            written += 5;
+                        } else if (*cap_text == '<') {
+                            const char *lt = "&lt;";
+                            memcpy(write, lt, 4);
+                            write += 4;
+                            written += 4;
+                        } else if (*cap_text == '>') {
+                            const char *gt = "&gt;";
+                            memcpy(write, gt, 4);
+                            write += 4;
+                            written += 4;
+                        } else if (*cap_text == '"') {
+                            const char *quot = "&quot;";
+                            memcpy(write, quot, 6);
+                            write += 6;
+                            written += 6;
+                        } else {
+                            *write++ = *cap_text;
+                            written++;
+                        }
+                        cap_text++;
+                    }
+
+                    memcpy(write, fig_close_cap, fig_close_cap_len);
+                    write += fig_close_cap_len;
+                    written += fig_close_cap_len;
+                } else {
+                    /* Caption below - just open figure tag */
+                    const char *fig_open = "<figure class=\"table-figure\">\n";
+                    size_t fig_open_len = strlen(fig_open);
+                    while (written + fig_open_len + 100 > capacity) {
+                        capacity *= 2;
+                        char *new_output = realloc(output, capacity);
+                        if (!new_output) break;
+                        output = new_output;
+                        write = output + written;
+                    }
+                    memcpy(write, fig_open, fig_open_len);
+                    write += fig_open_len;
+                    written += fig_open_len;
+                }
             }
         } else if (strncmp(read, "</table>", 8) == 0) {
             /* Close tfoot or tbody if still open */
@@ -669,7 +698,68 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
             }
 
             if (cap) {
-                /* Close </figure> after table */
+                /* Write </table> first */
+                memcpy(write, read, 8);
+                write += 8;
+                read += 8;
+                written += 8;
+
+                if (caption_position == 1) {
+                    /* Caption below - write <figcaption>caption</figcaption> before </figure> */
+                    const char *fig_cap_open = "<figcaption>";
+                    const char *fig_cap_close = "</figcaption>\n";
+                    size_t fig_cap_open_len = strlen(fig_cap_open);
+                    size_t fig_cap_close_len = strlen(fig_cap_close);
+
+                    /* Ensure we have space */
+                    while (written + fig_cap_open_len + strlen(cap->caption) * 6 + fig_cap_close_len + 100 > capacity) {
+                        capacity *= 2;
+                        char *new_output = realloc(output, capacity);
+                        if (!new_output) break;
+                        output = new_output;
+                        write = output + written;
+                    }
+
+                    memcpy(write, fig_cap_open, fig_cap_open_len);
+                    write += fig_cap_open_len;
+                    written += fig_cap_open_len;
+
+                    /* Write caption text (escape HTML entities if needed) */
+                    const char *cap_text = cap->caption;
+                    while (*cap_text) {
+                        if (*cap_text == '&') {
+                            const char *amp = "&amp;";
+                            memcpy(write, amp, 5);
+                            write += 5;
+                            written += 5;
+                        } else if (*cap_text == '<') {
+                            const char *lt = "&lt;";
+                            memcpy(write, lt, 4);
+                            write += 4;
+                            written += 4;
+                        } else if (*cap_text == '>') {
+                            const char *gt = "&gt;";
+                            memcpy(write, gt, 4);
+                            write += 4;
+                            written += 4;
+                        } else if (*cap_text == '"') {
+                            const char *quot = "&quot;";
+                            memcpy(write, quot, 6);
+                            write += 6;
+                            written += 6;
+                        } else {
+                            *write++ = *cap_text;
+                            written++;
+                        }
+                        cap_text++;
+                    }
+
+                    memcpy(write, fig_cap_close, fig_cap_close_len);
+                    write += fig_cap_close_len;
+                    written += fig_cap_close_len;
+                }
+
+                /* Close </figure> */
                 const char *fig_close = "</figure>\n";
                 size_t fig_close_len = strlen(fig_close);
 
@@ -682,13 +772,6 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
                     write = output + written;
                 }
 
-                /* Write </table> first */
-                memcpy(write, read, 8);
-                write += 8;
-                read += 8;
-                written += 8;
-
-                /* Then write </figure> */
                 memcpy(write, fig_close, fig_close_len);
                 write += fig_close_len;
                 written += fig_close_len;
@@ -1039,7 +1122,6 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document) {
         /* Check for cell opening tags */
         if (in_row && (strncmp(read, "<td", 3) == 0 || strncmp(read, "<th", 3) == 0)) {
             /* Extract cell content for debugging */
-            const char *cell_start = read;
             char cell_preview[100] = {0};
             const char *content_start = strchr(read, '>');
             if (content_start) {

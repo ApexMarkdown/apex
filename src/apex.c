@@ -1764,6 +1764,7 @@ apex_options apex_options_default(void) {
 
     /* Table options */
     opts.relaxed_tables = true;  /* Default: enabled in unified mode (can be disabled with --no-relaxed-tables) */
+    opts.caption_position = 1;  /* Default: below (1=below, 0=above) */
 
     /* List options */
     /* Since default mode is unified, enable these by default */
@@ -2600,8 +2601,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Post-process HTML for advanced table attributes (rowspan/colspan) */
     if (options->enable_tables && html) {
-        extern char *apex_inject_table_attributes(const char *html, cmark_node *document);
-        char *processed_html = apex_inject_table_attributes(html, document);
+        extern char *apex_inject_table_attributes(const char *html, cmark_node *document, int caption_position);
+        char *processed_html = apex_inject_table_attributes(html, document, options->caption_position);
         if (processed_html && processed_html != html) {
             free(html);
             html = processed_html;
@@ -3295,6 +3296,9 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
             "    th, td { border: 1px solid #ddd; padding: 0.5rem; }\n"
             "    th { background: #f5f5f5; }\n"
             "    tfoot td { background: #e8e8e8; }\n"
+            "    figure.table-figure { width: fit-content; margin: 1em 0; }\n"
+            "    figure.table-figure table { width: auto; }\n"
+            "    figcaption { text-align: center; font-weight: bold; font-size: 0.8em; }\n"
             "    .page-break { page-break-after: always; }\n"
             "    .callout { padding: 1rem; margin: 1rem 0; border-left: 4px solid; }\n"
             "    .callout-note { border-color: #3b82f6; background: #eff6ff; }\n"

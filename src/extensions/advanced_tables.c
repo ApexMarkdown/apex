@@ -169,7 +169,6 @@ static void process_table_spans(cmark_node *table) {
     cmark_node *prev_row = NULL;
     bool is_first_row = true; /* Track header row */
     bool in_tfoot_section = false; /* Track if we've entered tfoot section */
-    int row_idx = -1; /* Track current row index for debugging */
 
     /* Track active rowspan cells per column (inspired by Jekyll Spaceship).
      * active_rowspan[col] points to the cell node that's currently being rowspanned in that column.
@@ -291,12 +290,6 @@ static void process_table_spans(cmark_node *table) {
 
             while (cell) {
                 if (cmark_node_get_type(cell) == CMARK_NODE_TABLE_CELL) {
-                    /* Get cell content for debugging */
-                    cmark_node *text_node = cmark_node_first_child(cell);
-                    const char *cell_text = text_node ? cmark_node_get_literal(text_node) : "?";
-                    bool is_rowspan = is_rowspan_cell(cell);
-                    bool is_colspan = is_colspan_cell(cell);
-
                     /* Check for colspan */
                     if (is_colspan_cell(cell)) {
                         /* Find the first non-empty cell going backwards (skip cells marked for removal) */
@@ -409,11 +402,6 @@ static void process_table_spans(cmark_node *table) {
                     if (!is_rowspan_cell(cell)) {
                         char *cell_attrs = (char *)cmark_node_get_user_data(cell);
                         if (!cell_attrs || !strstr(cell_attrs, "data-remove")) {
-                            /* Get previous active cell content for debugging */
-                            cmark_node *prev_active_cell = active_rowspan[col_index];
-                            cmark_node *prev_text_node = prev_active_cell ? cmark_node_first_child(prev_active_cell) : NULL;
-                            const char *prev_text = prev_text_node ? cmark_node_get_literal(prev_text_node) : "NULL";
-
                             /* This is a regular cell, so it becomes the new active cell for this column */
                             active_rowspan[col_index] = cell;
                         }

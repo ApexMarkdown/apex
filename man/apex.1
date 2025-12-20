@@ -141,6 +141,12 @@ Allow mixed list markers at same level (inherit type from first item).
 Enable relaxed table parsing (no separator rows required).
 Default: enabled in unified/kramdown modes, disabled in
 commonmark/gfm/multimarkdown modes.
+.TP
+\f[B]\[en]captions\f[R] \f[I]POSITION\f[R]
+Table caption position: \f[B]above\f[R] or \f[B]below\f[R].
+Default: \f[B]below\f[R].
+Captions are rendered as \f[CR]<figcaption>\f[R] elements within
+\f[CR]<figure class="table-figure">\f[R] wrappers.
 .SS HTML and Links
 .TP
 \f[B]\[en]unsafe\f[R], \f[B]\[en]no\-unsafe\f[R]

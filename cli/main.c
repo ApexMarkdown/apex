@@ -82,6 +82,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --install-plugin ID    Install plugin by id from directory, or by Git URL/GitHub shorthand (user/repo)\n");
     fprintf(stderr, "  --uninstall-plugin ID  Uninstall a locally installed plugin by id\n");
     fprintf(stderr, "  --[no-]relaxed-tables  Enable relaxed table parsing (no separator rows required)\n");
+    fprintf(stderr, "  --captions POSITION    Table caption position: above or below (default: below)\n");
     fprintf(stderr, "  --[no-]sup-sub         Enable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
     fprintf(stderr, "  --[no-]transforms      Enable metadata variable transforms [%%key:transform] (enabled by default in unified mode)\n");
     fprintf(stderr, "  --[no-]unsafe          Allow raw HTML in output (default: true for unified/mmd/kramdown, false for commonmark/gfm)\n");
@@ -570,6 +571,19 @@ int main(int argc, char *argv[]) {
             options.relaxed_tables = true;
         } else if (strcmp(argv[i], "--no-relaxed-tables") == 0) {
             options.relaxed_tables = false;
+        } else if (strcmp(argv[i], "--captions") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --captions requires an argument (above or below)\n");
+                return 1;
+            }
+            if (strcmp(argv[i], "above") == 0) {
+                options.caption_position = 0;
+            } else if (strcmp(argv[i], "below") == 0) {
+                options.caption_position = 1;
+            } else {
+                fprintf(stderr, "Error: --captions must be 'above' or 'below'\n");
+                return 1;
+            }
         } else if (strcmp(argv[i], "--alpha-lists") == 0) {
             options.allow_alpha_lists = true;
         } else if (strcmp(argv[i], "--no-alpha-lists") == 0) {

@@ -23,6 +23,7 @@ Apex is a unified Markdown processor that combines the best features from Common
 ### Markdown Extensions
 
 - **Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, and captions before/after tables, including Pandoc-style `Table: Caption`)
+- **Table caption positioning**: Control caption placement with `--captions above` or `--captions below` (default: below)
 - **Relaxed tables**: Support for tables without separator rows (Kramdown-style)
 - **Footnotes**: Three syntaxes supported (reference-style, Kramdown inline, MultiMarkdown inline)
 - **Definition lists**: Kramdown-style definition lists with Markdown content support
@@ -188,6 +189,7 @@ apex input.md --mode kramdown
 - `--title TITLE` - Document title (requires `--standalone`)
 - `--relaxed-tables` - Enable relaxed table parsing (default in unified/kramdown modes)
 - `--no-relaxed-tables` - Disable relaxed table parsing
+- `--captions POSITION` - Table caption position: `above` or `below` (default: `below`)
 - `--id-format FORMAT` - Header ID format: `gfm`, `mmd`, or `kramdown`
 - `--no-ids` - Disable automatic header ID generation
 - `--header-anchors` - Generate `<a>` anchor tags instead of header IDs
