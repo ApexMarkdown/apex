@@ -173,6 +173,100 @@ static cell_attr *collect_table_cell_attributes(cmark_node *document) {
 }
 
 /**
+ * Process cell alignment colons and return alignment style
+ * Detects leading/trailing colons (respecting escaped colons) and returns
+ * the appropriate text-align style string, or NULL if no alignment detected.
+ * Modifies content_start and content_end to remove the colons.
+ *
+ * Based on Jekyll Spaceship's handle_text_align function.
+ *
+ * @param content_start Pointer to start of cell content (after >)
+ * @param content_end Pointer to end of cell content (before </td> or </th>)
+ * @param align_out Output parameter: receives alignment string (must be freed) or NULL
+ * @return true if alignment was detected and processed, false otherwise
+ */
+static bool process_cell_alignment(const char **content_start, const char **content_end, char **align_out) {
+    if (!content_start || !content_end || !align_out) return false;
+
+    const char *start = *content_start;
+    const char *end = *content_end;
+
+    if (start >= end) return false;
+
+    /* Check for leading colon (left or center align)
+     * Must be at start (after whitespace), not escaped, and not followed by another colon */
+    bool has_leading_colon = false;
+    const char *p = start;
+    while (p < end && isspace((unsigned char)*p)) p++;  /* Skip leading whitespace */
+
+    if (p < end && *p == ':') {
+        /* Check if it's escaped (backslash before colon) */
+        bool is_escaped = (p > start && *(p - 1) == '\\');
+        /* Check if it's followed by another colon (:: means something else, not alignment) */
+        bool is_double_colon = (p + 1 < end && *(p + 1) == ':');
+        if (!is_escaped && !is_double_colon) {
+            has_leading_colon = true;
+        }
+    }
+
+    /* Check for trailing colon (right or center align)
+     * Must be at end (before whitespace) and not escaped */
+    bool has_trailing_colon = false;
+    p = end - 1;
+    while (p >= start && isspace((unsigned char)*p)) p--;  /* Skip trailing whitespace */
+
+    if (p >= start && *p == ':') {
+        /* Check if it's escaped (backslash before colon) */
+        if (p == start || *(p - 1) != '\\') {
+            has_trailing_colon = true;
+        }
+    }
+
+    if (!has_leading_colon && !has_trailing_colon) {
+        *align_out = NULL;
+        return false;
+    }
+
+    /* Determine alignment */
+    const char *align_str = NULL;
+    if (has_leading_colon && has_trailing_colon) {
+        align_str = "text-align: center";
+    } else if (has_leading_colon) {
+        align_str = "text-align: left";
+    } else if (has_trailing_colon) {
+        align_str = "text-align: right";
+    }
+
+    if (align_str) {
+        *align_out = strdup(align_str);
+
+        /* Update content_start and content_end to remove the colons */
+        if (has_leading_colon) {
+            /* Skip leading whitespace and colon */
+            p = start;
+            while (p < end && isspace((unsigned char)*p)) p++;
+            if (p < end && *p == ':') {
+                *content_start = p + 1;
+            }
+        }
+
+        if (has_trailing_colon) {
+            /* Skip trailing whitespace and colon */
+            p = end - 1;
+            while (p >= *content_start && isspace((unsigned char)*p)) p--;
+            if (p >= *content_start && *p == ':') {
+                *content_end = p;
+            }
+        }
+
+        return true;
+    }
+
+    *align_out = NULL;
+    return false;
+}
+
+/**
  * Get text fingerprint from paragraph node (first 50 chars for matching)
  */
 static char *get_para_text_fingerprint(cmark_node *node) {
@@ -408,8 +502,10 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
     para_to_remove *paras_to_remove = NULL;
     table_caption *captions = collect_table_captions(document, &paras_to_remove);
 
-    /* If nothing to do, return original */
-    if (!attrs && !captions && !paras_to_remove) return (char *)html;
+    /* If nothing to do, return original
+     * Note: We always process cell alignment, so we can't return early
+     * even if there are no other attributes/captions to process */
+    /* if (!attrs && !captions && !paras_to_remove) return (char *)html; */
 
     /* Allocate output buffer (same size as input, we'll realloc if needed) */
     size_t capacity = strlen(html) * 2;
@@ -1336,6 +1432,69 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                 col_idx++;
                 prev_cell_matching = matching;  /* Track this cell for next cell's colspan check */
                 continue;
+            }
+
+            /* Process cell alignment (check for leading/trailing colons) for cells without spans */
+            const char *cell_content_start = strchr(read, '>');
+            if (cell_content_start) {
+                cell_content_start++;  /* Move past '>' */
+                bool is_th = strncmp(read, "<th", 3) == 0;
+                const char *close_tag = is_th ? "</th>" : "</td>";
+                const char *cell_content_end = strstr(cell_content_start, close_tag);
+
+                if (cell_content_end && cell_content_end > cell_content_start) {
+                    /* Check for alignment colons */
+                    const char *content_start = cell_content_start;
+                    const char *content_end = cell_content_end;
+                    char *align_style = NULL;
+
+                    if (process_cell_alignment(&content_start, &content_end, &align_style)) {
+                        /* Alignment detected - modify the cell */
+                        /* Copy the opening tag up to '>' */
+                        while (*read && *read != '>') {
+                            *write++ = *read++;
+                        }
+
+                        /* Add style attribute before closing '>' */
+                        if (*read == '>') {
+                            /* Add style attribute */
+                            *write++ = ' ';
+                            *write++ = 's';
+                            *write++ = 't';
+                            *write++ = 'y';
+                            *write++ = 'l';
+                            *write++ = 'e';
+                            *write++ = '=';
+                            *write++ = '"';
+                            const char *style_str = align_style;
+                            while (*style_str) {
+                                *write++ = *style_str++;
+                            }
+                            *write++ = '"';
+                            free(align_style);
+                        }
+
+                        /* Copy the '>' */
+                        if (*read == '>') {
+                            *write++ = *read++;
+                        }
+
+                        /* Copy modified content (with colons removed) */
+                        while (content_start < content_end) {
+                            *write++ = *content_start++;
+                        }
+
+                        /* Skip original content and write closing tag */
+                        read = cell_content_end;
+                        memcpy(write, close_tag, 5);
+                        write += 5;
+                        read += 5;
+
+                        col_idx++;
+                        prev_cell_matching = matching;
+                        continue;
+                    }
+                }
             }
 
             col_idx++;

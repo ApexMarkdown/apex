@@ -41,10 +41,10 @@ Use `^^` to merge cells vertically (rowspan):
 | d-4 | d-5 | d-6 |
 [table with footer]
 
-| h1  | h2  | h3  |
-| --- | :-: | --- |
-| d1  | d2  | d3  |
-| d1  | d2  | d3  |
+| h1  | h2 asdfasdf asdf | h3  |
+| --- | :--------------: | --- |
+| d1  |       : d2       | d3  |
+| d1  |       d2 :       | d3  |
 
 Table: Table with Pandoc caption
 
@@ -56,5 +56,6 @@ Table: Table with Pandoc caption
 Table: Table without header row
 
 [Relaxed table]
-| a   | b   | c   |
-| 1-1 | 2-2 | 3-3 |
+| a      | b      | c      |
+| 1----d | 2----b | 3----c |
+| data 1 | data 2 | data 3 |
