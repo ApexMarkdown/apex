@@ -169,7 +169,6 @@ static void process_table_spans(cmark_node *table) {
     cmark_node *prev_row = NULL;
     bool is_first_row = true; /* Track header row */
     bool in_tfoot_section = false; /* Track if we've entered tfoot section */
-    int row_index = 0; /* For debugging rowspan behavior */
 
     /* Track active rowspan cells per column (inspired by Jekyll Spaceship).
      * active_rowspan[col] points to the cell node that's currently being rowspanned in that column.

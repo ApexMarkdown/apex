@@ -437,7 +437,6 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     while (p < end) {
         /* Look for start of line (beginning of text or after newline) */
         if (p == text || p[-1] == '\n') {
-            const char *line_start = p;
             const char *check = p;
             int spaces = 0;
 

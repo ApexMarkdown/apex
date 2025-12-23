@@ -333,6 +333,8 @@ Apex supports a wide range of Markdown extensions:
 
 For complete documentation, see the [Apex Wiki](https://github.com/ttscoff/apex/wiki).
 
+Project homepage: <https://github.com/ApexMarkdown/apex>
+
 # AUTHOR
 
 Brett Terpstra
