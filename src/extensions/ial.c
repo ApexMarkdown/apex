@@ -341,7 +341,24 @@ static apex_attributes *find_ald(ald_entry *alds, const char *name) {
 }
 
 /**
+ * Check if an attribute key already exists in the attributes structure
+ * Returns the index if found, or -1 if not found
+ */
+static int find_attribute_index(apex_attributes *attrs, const char *key) {
+    if (!attrs || !key) return -1;
+    for (int i = 0; i < attrs->attr_count; i++) {
+        if (attrs->keys[i] && strcmp(attrs->keys[i], key) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
  * Merge attributes (for ALD references)
+ * Base attributes are copied first, then override attributes are applied.
+ * Override attributes replace base attributes with the same key/ID.
+ * Classes are appended (duplicates allowed, HTML will handle them).
  */
 static apex_attributes *merge_attributes(apex_attributes *base, apex_attributes *override) {
     apex_attributes *merged = create_attributes();
@@ -360,15 +377,26 @@ static apex_attributes *merge_attributes(apex_attributes *base, apex_attributes 
 
     /* Override with new attributes */
     if (override) {
+        /* Override ID if present */
         if (override->id) {
             free(merged->id);
             merged->id = strdup(override->id);
         }
+        /* Append classes (allow duplicates) */
         for (int i = 0; i < override->class_count; i++) {
             add_class(merged, override->classes[i]);
         }
+        /* Override key-value attributes (replace if key exists, otherwise add) */
         for (int i = 0; i < override->attr_count; i++) {
-            add_attribute(merged, override->keys[i], override->values[i]);
+            int existing_idx = find_attribute_index(merged, override->keys[i]);
+            if (existing_idx >= 0) {
+                /* Replace existing attribute */
+                free(merged->values[existing_idx]);
+                merged->values[existing_idx] = strdup(override->values[i]);
+            } else {
+                /* Add new attribute */
+                add_attribute(merged, override->keys[i], override->values[i]);
+            }
         }
     }
 
@@ -377,7 +405,7 @@ static apex_attributes *merge_attributes(apex_attributes *base, apex_attributes 
 
 /**
  * Check if text ends with IAL pattern
- * Pattern: {: attributes} or {:.class} or {: ref-name}
+ * Pattern: {: attributes} or {:.class} or {: ref-name} or {: ref-name .class #id}
  */
 static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out, ald_entry *alds) {
     if (!text) return false;
@@ -391,47 +419,99 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
     if (!ial_end) return false;
 
     /* Check if this is at the end (only whitespace after) */
-    const char *p = ial_end + 1;
-    while (*p && isspace((unsigned char)*p)) p++;
-    if (*p) return false; /* Not at end */
+    const char *p_check = ial_end + 1;
+    while (*p_check && isspace((unsigned char)*p_check)) p_check++;
+    if (*p_check) return false; /* Not at end */
 
     /* Parse IAL content */
     const char *content_start = ial_start + 2;
     int content_len = ial_end - content_start;
 
-    /* Check if it's a reference (single word, no special chars) */
-    char ref_name[256];
-    if (content_len > 0 && content_len < (int)sizeof(ref_name)) {
-        memcpy(ref_name, content_start, content_len);
-        ref_name[content_len] = '\0';
+    if (content_len <= 0) {
+        *attrs_out = NULL;
+        return false;
+    }
 
-        /* Trim whitespace */
-        char *trimmed = ref_name;
-        while (isspace((unsigned char)*trimmed)) trimmed++;
-        char *end = trimmed + strlen(trimmed) - 1;
-        while (end > trimmed && isspace((unsigned char)*end)) *end-- = '\0';
+    /* Copy content to work with */
+    char buffer[2048];
+    if (content_len >= (int)sizeof(buffer)) content_len = (int)sizeof(buffer) - 1;
+    memcpy(buffer, content_start, content_len);
+    buffer[content_len] = '\0';
 
-        /* Check if it's a simple reference (no # . or =) */
+    char *p = buffer;
+
+    /* Skip leading whitespace */
+    while (*p && isspace((unsigned char)*p)) p++;
+    if (!*p) {
+        *attrs_out = NULL;
+        return false;
+    }
+
+    /* Extract first token */
+    char *token_start = p;
+    while (*p && !isspace((unsigned char)*p) && *p != '#' && *p != '.' && *p != '=') p++;
+
+    apex_attributes *ald_attrs = NULL;
+    const char *remaining_content = NULL;
+    int remaining_len = 0;
+
+    if (p > token_start) {
+        /* Check if first token is a simple word (ALD reference) */
+        char saved = *p;
+        *p = '\0';
+
         bool is_ref = true;
-        for (char *c = trimmed; *c; c++) {
+        for (char *c = token_start; *c; c++) {
             if (*c == '#' || *c == '.' || *c == '=') {
                 is_ref = false;
                 break;
             }
         }
 
-        if (is_ref && *trimmed) {
+        *p = saved; /* Restore */
+
+        if (is_ref && *token_start) {
+            /* Trim the token */
+            char *trimmed = token_start;
+            while (isspace((unsigned char)*trimmed)) trimmed++;
+            char *end = trimmed + strlen(trimmed) - 1;
+            while (end > trimmed && isspace((unsigned char)*end)) *end-- = '\0';
+
             /* Look up ALD */
-            apex_attributes *found = find_ald(alds, trimmed);
-            if (found) {
-                /* Copy the ALD attributes */
-                *attrs_out = merge_attributes(found, NULL);
-                return true;
+            if (*trimmed) {
+                ald_attrs = find_ald(alds, trimmed);
             }
         }
     }
 
-    /* Not a reference, parse as regular IAL */
+    /* If we found an ALD, check for remaining content */
+    if (ald_attrs) {
+        /* Skip whitespace after token */
+        while (*p && isspace((unsigned char)*p)) p++;
+
+        if (*p) {
+            /* There's remaining content - parse it as additional attributes */
+            remaining_content = content_start + (p - buffer);
+            remaining_len = content_len - (p - buffer);
+        }
+    }
+
+    /* Parse additional attributes if any */
+    apex_attributes *additional_attrs = NULL;
+    if (remaining_content && remaining_len > 0) {
+        additional_attrs = parse_ial_content(remaining_content, remaining_len);
+    }
+
+    /* Merge ALD with additional attributes */
+    if (ald_attrs) {
+        *attrs_out = merge_attributes(ald_attrs, additional_attrs);
+        if (additional_attrs) {
+            apex_free_attributes(additional_attrs);
+        }
+        return true;
+    }
+
+    /* No ALD found, parse as regular IAL */
     *attrs_out = parse_ial_content(content_start, content_len);
     return *attrs_out != NULL;
 }
@@ -616,39 +696,89 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
         const char *content_start = ial_start + 2;
         int content_len = close - content_start;
 
-        /* Check if it's a reference (single word, no special chars) */
-        char ref_name[256];
-        if (content_len > 0 && content_len < (int)sizeof(ref_name)) {
-            memcpy(ref_name, content_start, content_len);
-            ref_name[content_len] = '\0';
+        if (content_len <= 0) {
+            child = next;
+            continue;
+        }
 
-            /* Trim whitespace */
-            char *trimmed = ref_name;
-            while (isspace((unsigned char)*trimmed)) trimmed++;
-            char *end = trimmed + strlen(trimmed) - 1;
-            while (end > trimmed && isspace((unsigned char)*end)) *end-- = '\0';
+        /* Copy content to work with */
+        char buffer[2048];
+        if (content_len >= (int)sizeof(buffer)) content_len = (int)sizeof(buffer) - 1;
+        memcpy(buffer, content_start, content_len);
+        buffer[content_len] = '\0';
 
-            /* Check if it's a simple reference (no # . or =) */
+        char *p = buffer;
+
+        /* Skip leading whitespace */
+        while (isspace((unsigned char)*p)) p++;
+        if (!*p) {
+            child = next;
+            continue;
+        }
+
+        /* Extract first token */
+        char *token_start = p;
+        while (*p && !isspace((unsigned char)*p) && *p != '#' && *p != '.' && *p != '=') p++;
+
+        apex_attributes *ald_attrs = NULL;
+        const char *remaining_content = NULL;
+        int remaining_len = 0;
+
+        if (p > token_start) {
+            /* Check if first token is a simple word (ALD reference) */
+            char saved = *p;
+            *p = '\0';
+
             bool is_ref = true;
-            for (char *c = trimmed; *c; c++) {
+            for (char *c = token_start; *c; c++) {
                 if (*c == '#' || *c == '.' || *c == '=') {
                     is_ref = false;
                     break;
                 }
             }
 
-            if (is_ref && *trimmed) {
+            *p = saved; /* Restore */
+
+            if (is_ref && *token_start) {
+                /* Trim the token */
+                char *trimmed = token_start;
+                while (isspace((unsigned char)*trimmed)) trimmed++;
+                char *end = trimmed + strlen(trimmed) - 1;
+                while (end > trimmed && isspace((unsigned char)*end)) *end-- = '\0';
+
                 /* Look up ALD */
-                apex_attributes *found = find_ald(alds, trimmed);
-                if (found) {
-                    /* Copy the ALD attributes */
-                    attrs = merge_attributes(found, NULL);
+                if (*trimmed) {
+                    ald_attrs = find_ald(alds, trimmed);
                 }
             }
         }
 
-        /* If not a reference, parse as regular IAL */
-        if (!attrs) {
+        /* If we found an ALD, check for remaining content */
+        if (ald_attrs) {
+            /* Skip whitespace after token */
+            while (*p && isspace((unsigned char)*p)) p++;
+
+            if (*p) {
+                /* There's remaining content - parse it as additional attributes */
+                remaining_content = content_start + (p - buffer);
+                remaining_len = content_len - (p - buffer);
+            }
+        }
+
+        /* Parse additional attributes if any */
+        apex_attributes *additional_attrs = NULL;
+        if (remaining_content && remaining_len > 0) {
+            additional_attrs = parse_ial_content(remaining_content, remaining_len);
+        }
+
+        /* Merge ALD with additional attributes */
+        if (ald_attrs) {
+            attrs = merge_attributes(ald_attrs, additional_attrs);
+            if (additional_attrs) {
+                apex_free_attributes(additional_attrs);
+            }
+        } else {
+            /* No ALD found, parse as regular IAL */
             attrs = parse_ial_content(content_start, content_len);
         }
 
