@@ -295,7 +295,7 @@ Process from stdin:
 :   MultiMarkdown compatibility. Includes metadata, definition lists, footnotes, and more.
 
 **kramdown**
-:   Kramdown compatibility. Includes relaxed tables, IAL (Inline Attribute Lists), and more.
+:   Kramdown compatibility. Includes relaxed tables, IAL (Inline Attribute Lists) for adding HTML attributes to elements, and more.
 
 **unified** (default)
 :   All features enabled. Combines features from all modes.
@@ -356,6 +356,7 @@ Apex supports a wide range of Markdown extensions:
 - **Inline Tables from CSV/TSV**: Convert inline CSV/TSV text to tables using ```table fences or `<!--TABLE-->` markers
 - **Superscript/Subscript**: MultiMarkdown-style superscript (`^text`) and subscript (`~text~` within words) syntax. Subscript uses paired tildes within word boundaries (e.g., `H~2~O`), while tildes at word boundaries create underline
 - **Image Embedding**: Embed local images as base64 data URLs with `--embed-images` flag
+- **Inline Attribute Lists (IAL)**: Kramdown-style syntax for adding HTML attributes (IDs, classes, key-value pairs) to block-level and inline elements. Supports Attribute List Definitions (ALDs) for reusable attribute sets. Available in kramdown and unified modes. See [Inline Attribute Lists](https://github.com/ttscoff/apex/wiki/Inline-Attribute-Lists) for complete documentation
 
 # SEE ALSO
 

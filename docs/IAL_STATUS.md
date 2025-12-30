@@ -2,7 +2,11 @@
 
 ## Overview
 
-Apex has **partial support** for Kramdown Inline Attribute Lists (IAL). The feature is functional for basic use cases but has significant limitations.
+Apex has **full support** for Kramdown Inline Attribute Lists (IAL) and Attribute List Definitions (ALDs). All features are implemented and working, including inline IALs for span-level elements.
+
+**Note:** This document is maintained for historical reference. For up-to-date documentation, see:
+- [Wiki: Inline Attribute Lists](https://github.com/yourusername/apex.wiki/Inline-Attribute-Lists) (complete user guide)
+- [Docs: IAL Features](IAL_FEATURES.md) (technical implementation details)
 
 ## What Works ✅
 
@@ -52,30 +56,40 @@ Paragraph text.
 
 Works correctly!
 
-## What Doesn't Work ❌
+## What Now Works ✅ (Updated)
 
-### Inline IAL (Same Line)
+### Inline IAL (Same Line for Headings)
 
-**NOT SUPPORTED:**
+**NOW SUPPORTED:**
 
 ```markdown
-## Heading {: #id .class}          ← Does NOT work
-This is [styled text]{: .highlight} ← Does NOT work
+## Heading {: #id .class}          ← ✅ Works
 ```
 
-These appear literally in the output instead of being processed.
+Headings can have IALs on the same line or the next line.
 
-**Reason**: The IAL parser only looks for attributes on SEPARATE paragraphs, not inline within headings or spans.
+### Span-Level IAL
 
-### Fragile Matching
+**NOW FULLY SUPPORTED:**
 
-The HTML injection uses **line-number proximity matching** which is unreliable:
+```markdown
+This is [styled link](url){: .highlight} ← ✅ Works
+**bold text**{:.bold-style}              ← ✅ Works
+*italic text*{:.italic-style}            ← ✅ Works
+`code span`{:.code-class}                ← ✅ Works
+```
 
-- Only the LAST element on a given line gets attributes
-- Multiple elements on adjacent lines may not match correctly
-- Complex documents with lots of nesting fail to match
+All span-level elements (links, images, emphasis, strong, code) now support inline IALs.
 
-**Example that fails:**
+### Robust Element Matching ✅
+
+**FIXED:** The HTML renderer now uses **element indexing** with separate counters for each element type:
+
+- Links, images, strong, emphasis, and code spans each have their own counter
+- Attributes are matched by element type and index position
+- Works correctly even when multiple elements share the same URL or content
+
+**Example that now works:**
 
 ```markdown
 Para 1.
@@ -85,7 +99,7 @@ Para 2.
 {: .second}
 ```
 
-Often only one paragraph gets attributes, not both.
+Both paragraphs correctly receive their attributes.
 
 ## Current Implementation
 
@@ -99,39 +113,30 @@ Often only one paragraph gets attributes, not both.
 
 ### Stage 2: HTML Rendering (`html_renderer.c`)
 
-1. **Collect Nodes** - Walk AST gathering nodes with user_data
-2. **Match by Line** - When rendering HTML, match tags by line number (⚠️ fragile!)
-3. **Inject Attributes** - Insert attribute string into opening tags
+1. **Collect Nodes** - Walk AST gathering nodes with user_data, track element indices
+2. **Match by Type and Index** - Match HTML tags to AST nodes using element type and index (✅ robust!)
+3. **Inject Attributes** - Insert attribute string into opening tags with proper spacing
 4. **Skip Special Attrs** - Ignore `data-remove`, `data-caption`, `colspan`, `rowspan`
 
-## Known Issues
+## Issues Resolved ✅
 
-### Issue 1: Line Number Matching
+### Issue 1: Element Matching - ✅ FIXED
 
-**Problem**: Matching HTML tags to AST nodes by line number is unreliable.
+**Solution Implemented**: Element indexing with separate counters for each inline element type (links, images, strong, emphasis, code).
 
-**Impact**:
-- Multiple IALs in a document may not all render
-- First/last bias in matching
-- Fails in complex nested structures
+**Result**: Reliable matching even when multiple elements share the same URL or content.
 
-**Solution Needed**: Use node-to-HTML tracking or unique markers instead of line numbers.
+### Issue 2: Inline Heading Syntax - ✅ FIXED
 
-### Issue 2: No Inline Syntax
+**Solution Implemented**: IAL parsing for headings supports both same-line and next-line syntax.
 
-**Problem**: `## Heading {: #id}` syntax is not parsed.
+**Result**: `## Heading {: #id}` now works correctly.
 
-**Impact**: All IAL must be on separate lines, which is verbose and non-standard for Kramdown.
+### Issue 3: Span-Level IAL - ✅ FIXED
 
-**Solution Needed**: Parse IAL within heading text nodes and other inline contexts.
+**Solution Implemented**: Recursive IAL processing for inline elements (links, images, strong, emphasis, code spans), including nested structures.
 
-### Issue 3: No Span-Level IAL
-
-**Problem**: `[text]{: .class}` syntax is not supported.
-
-**Impact**: Cannot apply attributes to inline elements (spans, links, emphasis, etc.).
-
-**Solution Needed**: Implement span-level IAL parser and renderer.
+**Result**: `[text]{: .class}`, `**bold**{:.style}`, and nested structures all work correctly.
 
 ## Workarounds
 
@@ -199,23 +204,23 @@ Para.
 → <table class="table-class">... ✅
 ```
 
-### Failing Tests
+### Previously Failing Tests (Now Working ✅)
 
 ```markdown
 # Test 4: Inline heading IAL
-## Heading {: #fails}
-→ <h2>Heading {: #fails}</h2> ❌
+## Heading {: #works}
+→ <h2 id="works">Heading</h2> ✅
 
 # Test 5: Span IAL
-[text]{: .fails}
-→ <p>[text]{: .fails}</p> ❌
+[text](url){: .works}
+→ <p><a href="url" class="works">text</a></p> ✅
 
 # Test 6: Multiple paragraphs
 Para 1.
 {: .first}
 Para 2.
 {: .second}
-→ Only one gets attributes ❌
+→ Both get attributes correctly ✅
 ```
 
 ## Recommendations
@@ -223,51 +228,45 @@ Para 2.
 ### For Production Use
 
 **DO:**
-- ✅ Use IAL on separate lines after blocks
-- ✅ Use for headings, paragraphs, tables
-- ✅ Keep IAL simple (1-2 classes, one ID)
-- ✅ Test output to verify attributes applied
+- ✅ Use IAL on separate lines after blocks OR on same line for headings
+- ✅ Use for headings, paragraphs, lists, blockquotes, tables
+- ✅ Use inline IALs for links, images, emphasis, strong, code spans
+- ✅ Use ALDs for reusable attribute sets
+- ✅ Use key-value pairs for custom attributes
+- ✅ Test output to verify attributes applied (good practice)
 
 **DON'T:**
-- ❌ Use inline IAL syntax `{: }` on same line as heading
-- ❌ Use span-level IAL `[text]{: }`
-- ❌ Rely on multiple IALs rendering in complex documents
-- ❌ Use for production-critical styling (verify each case)
-
-### Priority Improvements
-
-1. **High Priority**: Fix line-number matching to be deterministic
-2. **Medium Priority**: Add inline heading support `## H {: #id}`
-3. **Lower Priority**: Add span-level IAL `[text]{: .class}`
+- ❌ Put blank lines between block elements and their IALs (IAL won't apply)
+- ❌ Use invalid attribute syntax (always use proper quotes for values with spaces)
 
 ## Comparison with Kramdown
 
 | Feature | Kramdown | Apex | Status |
 |---------|----------|------|--------|
-| Block IAL (next line) | ✅ | ✅ | Working |
-| Inline heading IAL | ✅ | ❌ | Not implemented |
-| Span IAL | ✅ | ❌ | Not implemented |
-| ALD (references) | ✅ | ✅ | Working |
-| All block types | ✅ | ⚠️ | Partial |
-| Reliable matching | ✅ | ❌ | Needs fix |
+| Block IAL (next line) | ✅ | ✅ | ✅ Working |
+| Inline heading IAL | ✅ | ✅ | ✅ Implemented |
+| Span IAL | ✅ | ✅ | ✅ Implemented |
+| ALD (references) | ✅ | ✅ | ✅ Working |
+| All block types | ✅ | ✅ | ✅ Supported |
+| Key-value pairs | ✅ | ✅ | ✅ Supported |
+| Nested inline IALs | ✅ | ✅ | ✅ Supported |
+| Reliable matching | ✅ | ✅ | ✅ Fixed (element indexing) |
 
 ## Conclusion
 
-IAL support is **functional but limited**. It works well for:
-- Simple documents
-- One IAL per element
-- Block-level attributes only
-- Testing/verification workflow
+IAL support is **fully functional and production-ready**. All Kramdown IAL features are implemented:
+- ✅ Block-level IALs (all block types)
+- ✅ Inline IALs (links, images, emphasis, strong, code)
+- ✅ Same-line and next-line syntax for headings
+- ✅ Attribute List Definitions (ALDs)
+- ✅ Key-value pairs
+- ✅ Nested inline elements
+- ✅ Robust element matching
 
-It is **NOT production-ready** for:
-- Complex multi-IAL documents
-- Inline attribute syntax
-- Mission-critical styling
-
-**Recommendation**: Use with caution, test output, have fallback styling.
+**Recommendation**: Ready for production use. For complete documentation, see [Wiki: Inline Attribute Lists](https://github.com/yourusername/apex.wiki/Inline-Attribute-Lists).
 
 ---
 
-*Last Updated: 2025-12-05*
-*Apex Version: 0.1.0*
+*Last Updated: 2025-01-XX*
+*Status: Fully Implemented*
 
