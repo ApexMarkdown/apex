@@ -14,6 +14,7 @@
 #include "node.h"
 #include "render.h"
 #include "table.h"
+#include "ial.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -480,7 +481,226 @@ static void process_table_spans(cmark_node *table) {
 /**
  * Check if a paragraph is a table caption ([Caption Text])
  */
-static bool is_table_caption(cmark_node *para, char **caption_text) {
+/**
+ * Check if a paragraph is adjacent to a table (before or after)
+ */
+static bool is_adjacent_to_table(cmark_node *para) {
+    if (!para) return false;
+
+    /* Check previous sibling */
+    cmark_node *prev = cmark_node_previous(para);
+    if (prev && cmark_node_get_type(prev) == CMARK_NODE_TABLE) {
+        return true;
+    }
+
+    /* Check next sibling */
+    cmark_node *next = cmark_node_next(para);
+    if (next && cmark_node_get_type(next) == CMARK_NODE_TABLE) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * Parse IAL attributes from text (supports both {: ...} and {#id .class} formats)
+ * Returns attributes structure or NULL if no IAL found
+ */
+static apex_attributes *parse_ial_from_text(const char *text) {
+    if (!text) return NULL;
+
+    /* Look for IAL pattern: {: ... } or {#id .class} */
+    /* Search from the end backwards to find the last IAL (in case there are multiple) */
+    const char *ial_start = NULL;
+
+    /* Find the last opening brace that looks like an IAL */
+    const char *p = text;
+    const char *last_ial = NULL;
+
+    while (*p) {
+        if (*p == '{') {
+            /* Check if this looks like an IAL */
+            if (p[1] == ':') {
+                /* Kramdown format: {: ... } */
+                last_ial = p + 2; /* Skip {: */
+            } else if (p[1] == '#' || p[1] == '.') {
+                /* Pandoc format: {#id .class} */
+                last_ial = p + 1; /* Skip { */
+            }
+        }
+        p++;
+    }
+
+    if (last_ial) {
+        ial_start = last_ial;
+    }
+
+    if (!ial_start) return NULL;
+
+    /* Find closing brace */
+    const char *ial_end = strchr(ial_start, '}');
+    if (!ial_end) return NULL;
+
+    /* Parse IAL content */
+    int content_len = ial_end - ial_start;
+    if (content_len <= 0) return NULL;
+
+    /* Use parse_ial_content from ial.c - it already handles the content format */
+    /* We need to access the static function, so we'll duplicate the logic here */
+    /* Actually, we can't access static functions, so we'll create a wrapper */
+    apex_attributes *attrs = malloc(sizeof(apex_attributes));
+    if (!attrs) return NULL;
+    memset(attrs, 0, sizeof(apex_attributes));
+
+    char buffer[2048];
+    if (content_len >= (int)sizeof(buffer)) content_len = (int)sizeof(buffer) - 1;
+    memcpy(buffer, ial_start, content_len);
+    buffer[content_len] = '\0';
+
+    /* Parse attributes manually (similar to parse_ial_content) */
+    char *buf_p = buffer;
+    while (*buf_p) {
+        /* Skip whitespace */
+        while (isspace((unsigned char)*buf_p)) buf_p++;
+        if (!*buf_p) break;
+
+        /* Check for ID (#id) */
+        if (*buf_p == '#') {
+            buf_p++;
+            char *id_start = buf_p;
+            while (*buf_p && !isspace((unsigned char)*buf_p) && *buf_p != '.' && *buf_p != '}') buf_p++;
+            if (buf_p > id_start) {
+                char saved = *buf_p;
+                *buf_p = '\0';
+                attrs->id = strdup(id_start);
+                *buf_p = saved;
+            }
+            continue;
+        }
+
+        /* Check for class (.class) */
+        if (*buf_p == '.') {
+            buf_p++;
+            char *class_start = buf_p;
+            while (*buf_p && !isspace((unsigned char)*buf_p) && *buf_p != '.' && *buf_p != '#' && *buf_p != '}') buf_p++;
+            if (buf_p > class_start) {
+                char saved = *buf_p;
+                *buf_p = '\0';
+                attrs->classes = realloc(attrs->classes, sizeof(char*) * (attrs->class_count + 1));
+                attrs->classes[attrs->class_count++] = strdup(class_start);
+                *buf_p = saved;
+            }
+            continue;
+        }
+
+        /* Check for key="value" */
+        char *key_start = buf_p;
+        while (*buf_p && *buf_p != '=' && *buf_p != ' ' && *buf_p != '\t' && *buf_p != '}') buf_p++;
+
+        if (*buf_p == '=') {
+            char saved = *buf_p;
+            *buf_p = '\0';
+            char *key = strdup(key_start);
+            *buf_p = saved;
+            buf_p++; /* Skip = */
+
+            /* Parse value */
+            char *value = NULL;
+            if (*buf_p == '"' || *buf_p == '\'') {
+                char quote = *buf_p++;
+                char *value_start = buf_p;
+                while (*buf_p && *buf_p != quote) {
+                    if (*buf_p == '\\' && *(buf_p+1)) buf_p++;
+                    buf_p++;
+                }
+                if (*buf_p == quote) {
+                    *buf_p = '\0';
+                    value = strdup(value_start);
+                    *buf_p = quote;
+                    buf_p++;
+                }
+            } else {
+                char *value_start = buf_p;
+                while (*buf_p && !isspace((unsigned char)*buf_p) && *buf_p != '}') buf_p++;
+                char saved_val = *buf_p;
+                *buf_p = '\0';
+                value = strdup(value_start);
+                *buf_p = saved_val;
+            }
+
+            attrs->keys = realloc(attrs->keys, sizeof(char*) * (attrs->attr_count + 1));
+            attrs->values = realloc(attrs->values, sizeof(char*) * (attrs->attr_count + 1));
+            attrs->keys[attrs->attr_count] = key;
+            attrs->values[attrs->attr_count] = value ? value : strdup("");
+            attrs->attr_count++;
+            continue;
+        }
+
+        /* Unknown token, skip */
+        buf_p++;
+    }
+
+    return attrs;
+}
+
+/**
+ * Convert attributes to HTML attribute string
+ */
+static char *attributes_to_html_string(apex_attributes *attrs) {
+    if (!attrs) return NULL;
+
+    char buffer[4096];
+    char *p = buffer;
+    bool first_attr = true;
+
+    #define APPEND(s) do { \
+        size_t len = strlen(s); \
+        if ((size_t)(p - buffer) + len < sizeof(buffer)) { \
+            memcpy(p, s, len); \
+            p += len; \
+        } \
+    } while (0)
+
+    if (attrs->id) {
+        APPEND(" id=\"");
+        APPEND(attrs->id);
+        APPEND("\"");
+        first_attr = false;
+    }
+
+    if (attrs->class_count > 0) {
+        if (first_attr) {
+            APPEND(" class=\"");
+        } else {
+            APPEND(" class=\"");
+        }
+        for (int i = 0; i < attrs->class_count; i++) {
+            if (i > 0) APPEND(" ");
+            APPEND(attrs->classes[i]);
+        }
+        APPEND("\"");
+        first_attr = false;
+    }
+
+    for (int i = 0; i < attrs->attr_count; i++) {
+        char attr_str[1024];
+        const char *val = attrs->values[i];
+        if (first_attr) {
+            snprintf(attr_str, sizeof(attr_str), "%s=\"%s\"", attrs->keys[i], val);
+            first_attr = false;
+        } else {
+            snprintf(attr_str, sizeof(attr_str), " %s=\"%s\"", attrs->keys[i], val);
+        }
+        APPEND(attr_str);
+    }
+
+    #undef APPEND
+
+    *p = '\0';
+    return strdup(buffer);
+}
+
+static bool is_table_caption(cmark_node *para, char **caption_text, const char **original_text_ptr) {
     if (!para || cmark_node_get_type(para) != CMARK_NODE_PARAGRAPH) return false;
 
     /* Get first child (should be text) */
@@ -490,38 +710,154 @@ static bool is_table_caption(cmark_node *para, char **caption_text) {
     const char *text = cmark_node_get_literal(text_node);
     if (!text) return false;
 
-    /* Check for [Caption] format */
-    if (text[0] != '[') return false;
-
-    const char *end = strchr(text + 1, ']');
-    if (!end) return false;
-
-    /* Make sure rest is whitespace/empty */
-    const char *after = end + 1;
-    while (*after && isspace((unsigned char)*after)) after++;
-    if (*after != '\0') return false;
-
-    /* Extract caption */
-    size_t len = end - (text + 1);
-    *caption_text = malloc(len + 1);
-    if (*caption_text) {
-        memcpy(*caption_text, text + 1, len);
-        (*caption_text)[len] = '\0';
+    /* Store original text for IAL extraction */
+    if (original_text_ptr) {
+        *original_text_ptr = text;
     }
 
-    return true;
+    /* Check for [Caption] format */
+    if (text[0] == '[') {
+        const char *end = strchr(text + 1, ']');
+        if (end) {
+            /* Check if there's IAL after the closing bracket */
+            const char *after = end + 1;
+            while (*after && isspace((unsigned char)*after)) after++;
+
+            /* Look for IAL pattern after bracket */
+            bool has_ial = false;
+            if (*after == '{') {
+                if ((after[1] == ':' || after[1] == '#' || after[1] == '.') &&
+                    strchr(after, '}')) {
+                    has_ial = true;
+                }
+            }
+
+            if (!has_ial && *after == '\0') {
+                /* No IAL, just [Caption] */
+                size_t len = end - (text + 1);
+                *caption_text = malloc(len + 1);
+                if (*caption_text) {
+                    memcpy(*caption_text, text + 1, len);
+                    (*caption_text)[len] = '\0';
+                }
+                return true;
+            } else if (has_ial) {
+                /* Has IAL after [Caption] */
+                size_t len = end - (text + 1);
+                *caption_text = malloc(len + 1);
+                if (*caption_text) {
+                    memcpy(*caption_text, text + 1, len);
+                    (*caption_text)[len] = '\0';
+                }
+                return true;
+            }
+        }
+    }
+
+    /* Check for : caption format (Pandoc-style) */
+    /* Only recognize this if adjacent to a table to avoid conflict with definition lists */
+    if (is_adjacent_to_table(para)) {
+        const char *p = text;
+
+        /* Skip leading whitespace (up to 3 spaces, matching definition list rules) */
+        int spaces = 0;
+        while (spaces < 3 && p[spaces] == ' ') {
+            spaces++;
+        }
+
+        /* Must start with : */
+        if (p[spaces] == ':') {
+            /* Must be followed by space or tab */
+            if (p[spaces + 1] == ' ' || p[spaces + 1] == '\t') {
+                const char *caption_start = p + spaces + 2; /* Skip : and space */
+
+                /* Find IAL at the end (if any) */
+                const char *ial_start = NULL;
+                const char *caption_end = p + strlen(p);
+
+                /* Look for IAL pattern from the end */
+                const char *search = caption_end - 1;
+                while (search >= caption_start) {
+                    if (*search == '}') {
+                        /* Found closing brace, look backwards for opening brace */
+                        const char *open = search;
+                        while (open >= caption_start && *open != '{') {
+                            open--;
+                        }
+                        if (open >= caption_start && *open == '{') {
+                            /* Check if it's a valid IAL pattern */
+                            if ((open[1] == ':' || open[1] == '#' || open[1] == '.') &&
+                                search > open) {
+                                ial_start = open;
+                                caption_end = open; /* Caption ends before IAL */
+                                break;
+                            }
+                        }
+                    }
+                    search--;
+                }
+
+                /* Extract caption text (trim whitespace) */
+                while (caption_start < caption_end && isspace((unsigned char)*caption_start)) {
+                    caption_start++;
+                }
+                while (caption_end > caption_start && isspace((unsigned char)*(caption_end - 1))) {
+                    caption_end--;
+                }
+
+                if (caption_end > caption_start) {
+                    size_t len = caption_end - caption_start;
+                    *caption_text = malloc(len + 1);
+                    if (*caption_text) {
+                        memcpy(*caption_text, caption_start, len);
+                        (*caption_text)[len] = '\0';
+                    }
+                    return true;
+                } else if (ial_start) {
+                    /* Caption is empty but has IAL - still valid */
+                    *caption_text = strdup("");
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 /**
- * Add caption to table
+ * Add caption to table and extract IAL attributes from caption text
  */
-static void add_table_caption(cmark_node *table, const char *caption) {
+static void add_table_caption(cmark_node *table, const char *caption, const char *original_text) {
     if (!table || !caption) return;
+
+    /* Extract IAL attributes from original text if present */
+    apex_attributes *ial_attrs = NULL;
+    if (original_text) {
+        ial_attrs = parse_ial_from_text(original_text);
+    }
 
     /* Store caption in user_data */
     char *attrs = malloc(strlen(caption) + 50);
     if (attrs) {
         snprintf(attrs, strlen(caption) + 50, " data-caption=\"%s\"", caption);
+
+        /* Append IAL attributes if found */
+        if (ial_attrs) {
+            char *ial_str = attributes_to_html_string(ial_attrs);
+            if (ial_str) {
+                size_t new_len = strlen(attrs) + strlen(ial_str) + 1;
+                char *new_attrs = realloc(attrs, new_len);
+                if (new_attrs) {
+                    attrs = new_attrs;
+                    strcat(attrs, ial_str);
+                    free(ial_str);
+                } else {
+                    free(ial_str);
+                }
+            }
+            apex_free_attributes(ial_attrs);
+        }
 
         /* Append to existing user_data if present */
         char *existing = (char *)cmark_node_get_user_data(table);
@@ -544,6 +880,27 @@ static void add_table_caption(cmark_node *table, const char *caption) {
         } else {
             cmark_node_set_user_data(table, attrs);
         }
+    } else if (ial_attrs) {
+        /* No caption text but IAL attributes found - apply them */
+        char *ial_str = attributes_to_html_string(ial_attrs);
+        if (ial_str) {
+            char *existing = (char *)cmark_node_get_user_data(table);
+            if (existing) {
+                char *combined = malloc(strlen(existing) + strlen(ial_str) + 1);
+                if (combined) {
+                    strcpy(combined, existing);
+                    strcat(combined, ial_str);
+                    free(existing);
+                    cmark_node_set_user_data(table, combined);
+                    free(ial_str);
+                } else {
+                    free(ial_str);
+                }
+            } else {
+                cmark_node_set_user_data(table, ial_str);
+            }
+        }
+        apex_free_attributes(ial_attrs);
     }
 }
 
@@ -572,8 +929,9 @@ cmark_node *apex_process_advanced_tables(cmark_node *root) {
                     /* Skip paragraphs that have already been used as captions */
                     if (!prev_data || !strstr(prev_data, "data-remove")) {
                         char *caption = NULL;
-                        if (is_table_caption(prev, &caption)) {
-                            add_table_caption(cur, caption);
+                        const char *original_text = NULL;
+                        if (is_table_caption(prev, &caption, &original_text)) {
+                            add_table_caption(cur, caption, original_text);
                             /* Mark caption paragraph for removal so it is not reused */
                             cmark_node_set_user_data(prev, strdup(" data-remove=\"true\""));
                             free(caption);
@@ -588,8 +946,9 @@ cmark_node *apex_process_advanced_tables(cmark_node *root) {
                     /* Skip paragraphs that have already been used as captions */
                     if (!next_data || !strstr(next_data, "data-remove")) {
                         char *caption = NULL;
-                        if (is_table_caption(next, &caption)) {
-                            add_table_caption(cur, caption);
+                        const char *original_text = NULL;
+                        if (is_table_caption(next, &caption, &original_text)) {
+                            add_table_caption(cur, caption, original_text);
                             /* Mark caption paragraph for removal so it is not reused */
                             cmark_node_set_user_data(next, strdup(" data-remove=\"true\""));
                             free(caption);
@@ -627,7 +986,7 @@ cmark_node *apex_process_advanced_tables(cmark_node *root) {
                                             if (caption) {
                                                 memcpy(caption, text + 1, caption_len);
                                                 caption[caption_len] = '\0';
-                                                add_table_caption(cur, caption);
+                                                add_table_caption(cur, caption, text);
                                                 free(caption);
                                                 /* Mark the entire row for removal */
                                                 char *existing = (char *)cmark_node_get_user_data(caption_row);

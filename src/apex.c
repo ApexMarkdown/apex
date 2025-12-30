@@ -1013,6 +1013,7 @@ static char *apex_preprocess_table_captions(const char *text) {
         bool is_table_row_line = false;
         bool is_bracket_caption_line = false;
         bool is_pandoc_caption_line = false;
+        bool is_colon_caption_line = false;
         bool is_blank_line = false;
 
         if (!in_code_block) {
@@ -1031,6 +1032,21 @@ static char *apex_preprocess_table_captions(const char *text) {
             } else if ((size_t)(line_end - p) >= 6 &&
                        strncmp(p, "Table:", 6) == 0) {
                 is_pandoc_caption_line = true;
+            } else if (prev_line_was_table_row) {
+                /* Check for : Caption format (Pandoc-style, only after tables) */
+                /* Skip up to 3 leading spaces (matching definition list rules) */
+                const char *check = p;
+                int spaces = 0;
+                while (spaces < 3 && check < line_end && *check == ' ') {
+                    spaces++;
+                    check++;
+                }
+                /* Must start with : followed by space or tab */
+                if (check < line_end && *check == ':' &&
+                    (check + 1) < line_end &&
+                    (check[1] == ' ' || check[1] == '\t')) {
+                    is_colon_caption_line = true;
+                }
             }
         }
 
@@ -1079,6 +1095,86 @@ static char *apex_preprocess_table_captions(const char *text) {
                 if (has_newline) {
                     *write++ = '\n';
                 }
+            }
+        } else if (!in_code_block &&
+                   prev_line_was_table_row &&
+                   is_colon_caption_line) {
+            /* Case 3: Pandoc-style ': Caption {#id .class}' -> convert to '[Caption {#id .class}]' */
+            /* Skip leading whitespace (up to 3 spaces) */
+            const char *caption_start = p;
+            int spaces = 0;
+            while (spaces < 3 && caption_start < line_end && *caption_start == ' ') {
+                spaces++;
+                caption_start++;
+            }
+            /* Skip ': ' */
+            if (caption_start < line_end && *caption_start == ':' &&
+                (caption_start + 1) < line_end &&
+                (caption_start[1] == ' ' || caption_start[1] == '\t')) {
+                caption_start += 2; /* Skip ': ' */
+            }
+
+            /* Find end of caption (before IAL if present, or end of line) */
+            const char *caption_end = line_end;
+            /* Look for IAL pattern from the end */
+            const char *search = caption_end - 1;
+            while (search >= caption_start) {
+                if (*search == '}') {
+                    /* Found closing brace, look backwards for opening brace */
+                    const char *open = search;
+                    while (open >= caption_start && *open != '{') {
+                        open--;
+                    }
+                    if (open >= caption_start && *open == '{') {
+                        /* Check if it's a valid IAL pattern */
+                        if ((open[1] == ':' || open[1] == '#' || open[1] == '.') &&
+                            search > open) {
+                            caption_end = open; /* Caption ends before IAL */
+                            break;
+                        }
+                    }
+                }
+                search--;
+            }
+
+            /* Trim whitespace from caption */
+            while (caption_start < caption_end && isspace((unsigned char)*caption_start)) {
+                caption_start++;
+            }
+            while (caption_end > caption_start && isspace((unsigned char)*(caption_end - 1))) {
+                caption_end--;
+            }
+
+            /* Write blank line, then [Caption] */
+            *write++ = '\n';
+            *write++ = '[';
+
+            /* Write caption text */
+            if (caption_end > caption_start) {
+                size_t caption_len = (size_t)(caption_end - caption_start);
+                memcpy(write, caption_start, caption_len);
+                write += caption_len;
+            }
+
+            *write++ = ']';
+
+            /* Write IAL if present (from original line, after the bracket) */
+            if (caption_end < line_end) {
+                /* There's IAL after the caption */
+                const char *ial_start = caption_end;
+                while (ial_start < line_end && isspace((unsigned char)*ial_start)) {
+                    ial_start++;
+                }
+                if (ial_start < line_end) {
+                    /* Add space before IAL */
+                    *write++ = ' ';
+                    size_t ial_len = (size_t)(line_end - ial_start);
+                    memcpy(write, ial_start, ial_len);
+                    write += ial_len;
+                }
+            }
+            if (has_newline) {
+                *write++ = '\n';
             }
         } else {
             /* Default: copy line unchanged */

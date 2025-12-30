@@ -1,3 +1,13 @@
+This table uses Pandoc captions and attributes
+
+| Key | Value |
+| --- | :---: |
+| one |   1   |
+| two |   2   |
+
+: Key value table {:.testing}
+
+
 This table combines both rowspan and colspan features:
 
 [Employee Performance Q4 2025]
@@ -29,17 +39,17 @@ Use `^^` to merge cells vertically (rowspan):
 | ----------- | -------- | ------------- | ------- | ------- | --------- |
 | Engineering | Alice    | 93.5          | 94      | 96      | 94.25     |
 | Foogling    | Jake     | 60.3          | 20      | 20      | 30.1      |
-| boggling | 24 |||||
+| boggling    | 24       |               |         |         |           |
 | =====       | =======  | =========     | =====   | ======= | ========= |
-| footer      | row      | with          | colspan |||
+| footer      | row      | with          | colspan |         |           |
 
 [colspans]
-| header |||
-| ---- | ---- | ---- |
-| data | data | data |
-| data | data | data |
-| ==== | === | === |
-| footer |||
+| header |      |      |
+| ------ | ---- | ---- |
+| data   | data | data |
+| data   | data | data |
+| ====   | ===  | ===  |
+| footer |      |      |
 
 
 | h1  |  h2   | h3  |

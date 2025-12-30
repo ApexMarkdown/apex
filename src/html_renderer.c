@@ -42,6 +42,118 @@ typedef struct attr_node {
     struct attr_node *next;
 } attr_node;
 
+/**
+ * Extract IAL attributes (id, class, key="value") from attribute string,
+ * excluding internal attributes like data-caption, data-remove, colspan, rowspan
+ * Returns a newly allocated string with just the IAL attributes, or NULL if none found
+ */
+static char *extract_ial_from_table_attrs(const char *attrs) {
+    if (!attrs) return NULL;
+
+    size_t result_cap = strlen(attrs) + 1;
+    char *result = malloc(result_cap);
+    if (!result) return NULL;
+    char *write = result;
+    *write = '\0';
+
+    const char *p = attrs;
+
+    /* Skip leading whitespace */
+    while (*p && isspace((unsigned char)*p)) p++;
+
+    while (*p) {
+        const char *attr_start = p;
+
+        /* Find end of attribute name or = */
+        const char *attr_name_end = p;
+        while (*attr_name_end && *attr_name_end != '=' && *attr_name_end != ' ' && *attr_name_end != '\t') {
+            attr_name_end++;
+        }
+
+        size_t attr_name_len = attr_name_end - attr_start;
+
+        /* Check if this is an internal attribute we should skip */
+        bool skip = false;
+        if (attr_name_len == 11 && strncmp(attr_start, "data-caption", 11) == 0) skip = true;
+        else if (attr_name_len == 11 && strncmp(attr_start, "data-remove", 11) == 0) skip = true;
+        else if (attr_name_len == 7 && strncmp(attr_start, "colspan", 7) == 0) skip = true;
+        else if (attr_name_len == 7 && strncmp(attr_start, "rowspan", 7) == 0) skip = true;
+
+        if (!skip) {
+            /* This is an IAL attribute - find the full attribute (name="value" or name='value') */
+            const char *attr_end = attr_name_end;
+            if (*attr_end == '=') {
+                attr_end++;
+                if (*attr_end == '"' || *attr_end == '\'') {
+                    char q = *attr_end;
+                    attr_end++;
+                    while (*attr_end && *attr_end != q) {
+                        if (*attr_end == '\\' && *(attr_end + 1)) attr_end++;
+                        attr_end++;
+                    }
+                    if (*attr_end == q) attr_end++;
+                } else {
+                    /* Unquoted value */
+                    while (*attr_end && *attr_end != ' ' && *attr_end != '\t') attr_end++;
+                }
+            }
+
+            /* Copy this attribute to result */
+            size_t attr_len = attr_end - attr_start;
+            if ((size_t)(write - result) + attr_len + 2 >= result_cap) {
+                /* Need to realloc */
+                size_t current_len = write - result;
+                result_cap = (current_len + attr_len + 2) * 2;
+                char *new_result = realloc(result, result_cap);
+                if (!new_result) {
+                    free(result);
+                    return NULL;
+                }
+                result = new_result;
+                write = result + current_len;
+            }
+
+            /* Add space before attribute if needed (always for first attribute, or if previous doesn't end with space) */
+            if (write == result || (write > result && write[-1] != ' ')) {
+                *write++ = ' ';
+            }
+            memcpy(write, attr_start, attr_len);
+            write += attr_len;
+            *write = '\0';
+
+            p = attr_end;
+        } else {
+            /* Skip this attribute - find its end */
+            if (*attr_name_end == '=') {
+                attr_name_end++;
+                if (*attr_name_end == '"' || *attr_name_end == '\'') {
+                    char q = *attr_name_end;
+                    attr_name_end++;
+                    while (*attr_name_end && *attr_name_end != q) {
+                        if (*attr_name_end == '\\' && *(attr_name_end + 1)) attr_name_end++;
+                        attr_name_end++;
+                    }
+                    if (*attr_name_end == q) attr_name_end++;
+                } else {
+                    while (*attr_name_end && *attr_name_end != ' ' && *attr_name_end != '\t') attr_name_end++;
+                }
+            }
+            p = attr_name_end;
+        }
+
+        /* Skip whitespace before next attribute */
+        while (*p && isspace((unsigned char)*p)) p++;
+    }
+
+    if (write == result) {
+        /* No IAL attributes found */
+        free(result);
+        return NULL;
+    }
+
+    return result;
+}
+
 /* Counters for element indexing */
 typedef struct {
     int para_count;
@@ -464,11 +576,79 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                 if (matching) {
                     /* Skip internal attributes and table span attributes */
                     /* Table spans are handled by apex_inject_table_attributes() */
+                    /* For tables, we need to extract IAL attributes even if data-caption is present */
+                    bool skip_all = false;
+                    bool extract_ial_from_caption = false;
+
                     if (strstr(matching->attrs, "data-remove") ||
-                        strstr(matching->attrs, "data-caption") ||
                         strstr(matching->attrs, "colspan=") ||
                         strstr(matching->attrs, "rowspan=")) {
+                        skip_all = true;
+                    } else if (strstr(matching->attrs, "data-caption") && elem_type == CMARK_NODE_TABLE) {
+                        /* For tables with captions, extract IAL attributes (id, class, etc.) but skip data-caption */
+                        extract_ial_from_caption = true;
+                    }
+
+                    if (skip_all) {
                         /* These are handled elsewhere, don't inject here */
+                    } else if (extract_ial_from_caption) {
+                        /* Extract IAL attributes from the attribute string, excluding data-caption */
+                        char *ial_attrs = extract_ial_from_table_attrs(matching->attrs);
+                        if (ial_attrs && *ial_attrs) {
+                            /* Find where to inject attributes (before closing > of <table> tag) */
+                            const char *inject_point = tag_end;
+                            if (*inject_point == '>') {
+                                /* Copy up to injection point */
+                                size_t prefix_len = inject_point - read;
+                                if (prefix_len <= remaining) {
+                                    memcpy(write, read, prefix_len);
+                                    write += prefix_len;
+                                    remaining -= prefix_len;
+                                }
+
+                                /* Inject IAL attributes - ensure leading space */
+                                /* Check if we need to add a space before the attributes */
+                                bool needs_leading_space = (ial_attrs[0] != ' ');
+                                size_t ial_len = strlen(ial_attrs);
+                                size_t total_len = ial_len + (needs_leading_space ? 1 : 0);
+
+                                if (total_len <= remaining) {
+                                    if (needs_leading_space) {
+                                        *write++ = ' ';
+                                        remaining--;
+                                    }
+                                    memcpy(write, ial_attrs, ial_len);
+                                    write += ial_len;
+                                    remaining -= ial_len;
+                                } else {
+                                    /* Buffer too small - need to expand */
+                                    size_t current_pos = write - output;
+                                    size_t new_cap = (current_pos + total_len + 1) * 2;
+                                    char *new_output = realloc(output, new_cap);
+                                    if (new_output) {
+                                        output = new_output;
+                                        write = output + current_pos;
+                                        remaining = new_cap - current_pos;
+                                        if (needs_leading_space) {
+                                            *write++ = ' ';
+                                            remaining--;
+                                        }
+                                        memcpy(write, ial_attrs, ial_len);
+                                        write += ial_len;
+                                        remaining -= ial_len;
+                                    }
+                                }
+                                if (remaining > 0) {
+                                    *write++ = '>';
+                                    remaining--;
+                                }
+                                read = inject_point + 1;
+                                free(ial_attrs);
+                                continue;
+                            }
+                        }
+                        if (ial_attrs) free(ial_attrs);
+                        /* No IAL attributes to inject, but table still needs to be copied - fall through */
                     } else {
                         /* Find where to inject attributes */
                         const char *inject_point = NULL;
