@@ -2,6 +2,23 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.41] - 2025-12-30
+
+### New
+
+- Inline Attribute Lists (IALs) can now appear immediately after inline elements within paragraphs, not just at the end of paragraphs
+- IALs can be applied to strong (bold), emphasis (italic), and code elements in addition to links and images
+- IALs now work with nested inline elements, allowing attributes to be applied to italic text inside bold text and similar nested structures
+- Added comprehensive test suite for inline IAL functionality covering links, strong, emphasis, code, multiple IALs, and edge cases
+- Added IAL demo markdown file (tests/ial_demo.md) demonstrating all supported IAL features
+- Added script (tests/generate_ial_demo.sh) to automatically generate an HTML file with interactive attribute inspection tooltips
+
+### Fixed
+
+- IALs (Inline Attribute Lists) are now correctly applied to the intended link element when multiple links in a document share the same URL
+- IALs are now correctly applied to the intended element when multiple elements share the same URL or content, using separate element counters for each inline element type
+- Block-level HTML elements now correctly include a space between the tag name and attributes when IAL attributes are injected
+
 ## [0.1.40] - 2025-12-23
 
 ### Changed
@@ -658,6 +675,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 - Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.41]: https://github.com/ttscoff/apex/releases/tag/v0.1.41
 [0.1.40]: https://github.com/ttscoff/apex/releases/tag/v0.1.40
 [0.1.39]: https://github.com/ttscoff/apex/releases/tag/v0.1.39
 [0.1.38]: https://github.com/ttscoff/apex/releases/tag/v0.1.38
