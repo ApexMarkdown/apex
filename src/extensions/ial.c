@@ -410,9 +410,13 @@ static apex_attributes *merge_attributes(apex_attributes *base, apex_attributes 
 static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out, ald_entry *alds) {
     if (!text) return false;
 
-    /* Find {: from the end */
+    /* Find { from the end - support both {: ...} and {#id .class} formats */
     const char *ial_start = strrchr(text, '{');
-    if (!ial_start || ial_start[1] != ':') return false;
+    if (!ial_start) return false;
+
+    /* Check if it's a valid IAL format: {: or {# or {. */
+    char second_char = ial_start[1];
+    if (second_char != ':' && second_char != '#' && second_char != '.') return false;
 
     /* Find closing } */
     const char *ial_end = strchr(ial_start, '}');
@@ -424,7 +428,8 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
     if (*p_check) return false; /* Not at end */
 
     /* Parse IAL content */
-    const char *content_start = ial_start + 2;
+    /* For {: format, skip {: (2 chars); for {# or {. format, skip { (1 char) */
+    const char *content_start = (second_char == ':') ? ial_start + 2 : ial_start + 1;
     int content_len = ial_end - content_start;
 
     if (content_len <= 0) {
@@ -616,11 +621,14 @@ static bool extract_ial_from_paragraph(cmark_node *para, apex_attributes **attrs
     while (isspace((unsigned char)*text)) text++;
     if (*text == '\0') return false;
 
-    /* Must start with {: */
-    if (text[0] != '{' || text[1] != ':') return false;
+    /* Must start with {: or {# or {. */
+    if (text[0] != '{') return false;
+    char second_char = text[1];
+    if (second_char != ':' && second_char != '#' && second_char != '.') return false;
 
     /* Find closing } */
-    const char *close = strchr(text + 2, '}');
+    /* For {: format, skip {: (2 chars); for {# or {. format, skip { (1 char) */
+    const char *close = (second_char == ':') ? strchr(text + 2, '}') : strchr(text + 1, '}');
     if (!close) return false;
 
     /* Check nothing after } except whitespace */
@@ -668,7 +676,7 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
             continue;
         }
 
-        /* Look for IAL pattern: {: ... } at the start (after optional whitespace) */
+        /* Look for IAL pattern: {: ... } or {#id .class} at the start (after optional whitespace) */
         const char *text_ptr = text;
 
         /* Skip leading whitespace */
@@ -676,8 +684,13 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
             text_ptr++;
         }
 
-        /* Check if it starts with {: */
-        if (text_ptr[0] != '{' || text_ptr[1] != ':') {
+        /* Check if it starts with {: or {# or {. */
+        if (text_ptr[0] != '{') {
+            child = next;
+            continue;
+        }
+        char second_char = text_ptr[1];
+        if (second_char != ':' && second_char != '#' && second_char != '.') {
             child = next;
             continue;
         }
@@ -693,7 +706,8 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
         apex_attributes *attrs = NULL;
 
         /* Parse IAL content directly (since we know it's valid IAL syntax) */
-        const char *content_start = ial_start + 2;
+        /* For {: format, skip {: (2 chars); for {# or {. format, skip { (1 char) */
+        const char *content_start = (second_char == ':') ? ial_start + 2 : ial_start + 1;
         int content_len = close - content_start;
 
         if (content_len <= 0) {
@@ -1161,7 +1175,7 @@ void apex_process_ial_in_tree(cmark_node *node, ald_entry *alds) {
 }
 
 /**
- * Check if a line is a pure IAL (starts with {: and ends with })
+ * Check if a line is a pure IAL (starts with {: or {# or {. and ends with })
  */
 static bool is_ial_line(const char *line, size_t len) {
     const char *p = line;
@@ -1170,11 +1184,15 @@ static bool is_ial_line(const char *line, size_t len) {
     /* Skip leading whitespace */
     while (p < end && isspace((unsigned char)*p)) p++;
 
-    /* Must start with {: */
-    if (p + 2 > end || p[0] != '{' || p[1] != ':') return false;
+    /* Must start with {: or {# or {. */
+    if (p + 2 > end || p[0] != '{') return false;
+    char second_char = p[1];
+    if (second_char != ':' && second_char != '#' && second_char != '.') return false;
 
     /* Find closing } */
-    const char *close = memchr(p + 2, '}', end - (p + 2));
+    /* For {: format, skip {: (2 chars); for {# or {. format, skip { (1 char) */
+    const char *search_start = (second_char == ':') ? p + 2 : p + 1;
+    const char *close = memchr(search_start, '}', end - search_start);
     if (!close) return false;
 
     /* Check nothing substantial after the } */
