@@ -2,6 +2,18 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.42] - 2025-12-30
+
+### New
+
+- ALD references can now be combined with additional attributes in the same IAL (e.g., {:id .class3} where id is an ALD reference and .class3 is an additional class)
+
+### Improved
+
+- When merging ALD attributes with additional attributes, duplicate key-value pairs are now replaced instead of duplicated (e.g., if ALD defines rel="x" and IAL includes rel="y", the result is rel="y")
+- Classes from additional attributes are appended to ALD classes, and IDs in IALs override ALD IDs when specified
+- Enhanced merge_attributes function to properly handle attribute key conflicts by replacing existing values rather than creating duplicates
+
 ## [0.1.41] - 2025-12-30
 
 ### New
@@ -675,6 +687,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 - Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.42]: https://github.com/ttscoff/apex/releases/tag/v0.1.42
 [0.1.41]: https://github.com/ttscoff/apex/releases/tag/v0.1.41
 [0.1.40]: https://github.com/ttscoff/apex/releases/tag/v0.1.40
 [0.1.39]: https://github.com/ttscoff/apex/releases/tag/v0.1.39
