@@ -51,6 +51,11 @@ typedef struct {
     int list_count;
     int item_count;
     int code_count;
+    int link_count;
+    int image_count;
+    int strong_count;
+    int emph_count;
+    int code_inline_count;
 } element_counters;
 
 /**
@@ -144,9 +149,12 @@ static void collect_nodes_with_attrs_recursive(cmark_node *node, attr_node **lis
     else if (type == CMARK_NODE_LIST) elem_idx = counters->list_count++;
     else if (type == CMARK_NODE_ITEM) elem_idx = counters->item_count++;
     else if (type == CMARK_NODE_CODE_BLOCK) elem_idx = counters->code_count++;
-    /* Inline elements need indices too */
-    else if (type == CMARK_NODE_LINK) elem_idx = counters->para_count++;
-    else if (type == CMARK_NODE_IMAGE) elem_idx = counters->para_count++;
+    /* Inline elements need indices too - each type has its own counter */
+    else if (type == CMARK_NODE_LINK) elem_idx = counters->link_count++;
+    else if (type == CMARK_NODE_IMAGE) elem_idx = counters->image_count++;
+    else if (type == CMARK_NODE_STRONG) elem_idx = counters->strong_count++;
+    else if (type == CMARK_NODE_EMPH) elem_idx = counters->emph_count++;
+    else if (type == CMARK_NODE_CODE) elem_idx = counters->code_inline_count++;
 
     /* Check if this node has attributes */
     void *user_data = cmark_node_get_user_data(node);
@@ -287,11 +295,23 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
             } else if (tag_len == 1 && *tag_start == 'a') {
                 /* Links - inline elements */
                 elem_type = CMARK_NODE_LINK;
-                elem_idx = html_counters.para_count++;
+                elem_idx = html_counters.link_count++;
             } else if (tag_len == 3 && memcmp(tag_start, "img", 3) == 0) {
                 /* Images - inline elements */
                 elem_type = CMARK_NODE_IMAGE;
-                elem_idx = html_counters.para_count++;
+                elem_idx = html_counters.image_count++;
+            } else if (tag_len == 6 && memcmp(tag_start, "strong", 6) == 0) {
+                /* Strong - inline elements */
+                elem_type = CMARK_NODE_STRONG;
+                elem_idx = html_counters.strong_count++;
+            } else if (tag_len == 2 && memcmp(tag_start, "em", 2) == 0) {
+                /* Emphasis - inline elements */
+                elem_type = CMARK_NODE_EMPH;
+                elem_idx = html_counters.emph_count++;
+            } else if (tag_len == 4 && memcmp(tag_start, "code", 4) == 0) {
+                /* Code - inline elements */
+                elem_type = CMARK_NODE_CODE;
+                elem_idx = html_counters.code_inline_count++;
             }
 
             /* Check if we should skip this element (marked for removal) */
@@ -377,6 +397,17 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                             fp_idx = url_len;
                         }
                     }
+                } else if (elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH || elem_type == CMARK_NODE_CODE) {
+                    /* For inline elements (strong, emph, code), extract text content */
+                    const char *content_start = tag_name_end;
+                    while (*content_start && *content_start != '>') content_start++;
+                    if (*content_start == '>') content_start++;
+
+                    const char *text_p = content_start;
+                    while (*text_p && *text_p != '<' && fp_idx < 50) {
+                        html_fingerprint[fp_idx++] = *text_p++;
+                    }
+                    html_fingerprint[fp_idx] = '\0';
                 } else {
                     /* For block elements, extract text content */
                     const char *content_start = tag_name_end;
@@ -405,8 +436,10 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                     /* Try fingerprint match first (works for both block and inline) */
                     if (a->text_fingerprint && fp_idx > 0 &&
                         strncmp(a->text_fingerprint, html_fingerprint, 50) == 0) {
-                        /* For links and images, also check element_index to handle duplicate URLs */
-                        if (elem_type == CMARK_NODE_LINK || elem_type == CMARK_NODE_IMAGE) {
+                        /* For inline elements, also check element_index to handle duplicates */
+                        if (elem_type == CMARK_NODE_LINK || elem_type == CMARK_NODE_IMAGE ||
+                            elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH ||
+                            elem_type == CMARK_NODE_CODE) {
                             if (a->element_index == elem_idx) {
                                 matching = a;
                                 used[idx] = true;
@@ -440,7 +473,9 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                         /* Find where to inject attributes */
                         const char *inject_point = NULL;
 
-                        if (elem_type == CMARK_NODE_IMAGE || elem_type == CMARK_NODE_LINK) {
+                        if (elem_type == CMARK_NODE_IMAGE || elem_type == CMARK_NODE_LINK ||
+                            elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH ||
+                            elem_type == CMARK_NODE_CODE) {
                             /* For inline elements (img, a), inject before the closing > or /> */
                             /* Find the closing > for this tag */
                             const char *close_pos = tag_end;
@@ -510,12 +545,22 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                                 remaining -= prefix_len;
                             }
 
-                            /* Add space before attributes if needed */
-                            if (*inject_point != '>') {
-                                if (remaining > 0) {
-                                    *write++ = ' ';
-                                    remaining--;
+                            /* Always add space before attributes for block elements */
+                            /* We're injecting right after the tag name, so we need a space */
+                            /* Check if there's already whitespace to avoid doubling spaces */
+                            bool needs_space = true;
+                            if (inject_point > read) {
+                                /* Check the character immediately before inject_point */
+                                const char *before_inject = inject_point - 1;
+                                if (isspace((unsigned char)*before_inject)) {
+                                    /* There's already whitespace, don't add another */
+                                    needs_space = false;
                                 }
+                            }
+
+                            if (needs_space && remaining > 0) {
+                                *write++ = ' ';
+                                remaining--;
                             }
 
                             /* Inject attributes */

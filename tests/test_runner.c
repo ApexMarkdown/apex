@@ -1039,6 +1039,75 @@ static void test_ial(void) {
     // html = apex_markdown_to_html("- Item 1\n{: .special}\n- Item 2", 31, &opts);
     // assert_contains(html, "class=\"special\"", "List item IAL");
     // apex_free_string(html);
+
+    /* Test inline IAL on links */
+    const char *link_ial = "Here's a [link](https://example.com){:.button} with text after.";
+    html = apex_markdown_to_html(link_ial, strlen(link_ial), &opts);
+    assert_contains(html, "class=\"button\"", "Inline IAL on link");
+    assert_contains(html, "with text after", "Text after IAL preserved");
+    assert_not_contains(html, "{:.button}", "IAL removed from output");
+    apex_free_string(html);
+
+    /* Test inline IAL on links with duplicate URLs */
+    const char *dup_urls = "First [link](https://example.com) and [second](https://example.com){:.special} link.";
+    html = apex_markdown_to_html(dup_urls, strlen(dup_urls), &opts);
+    assert_contains(html, "<a href=\"https://example.com\">link</a>", "First link without class");
+    assert_contains(html, "class=\"special\"", "Second link with class");
+    assert_not_contains(html, "{:.special}", "IAL removed from output");
+    apex_free_string(html);
+
+    /* Test inline IAL on strong/emph */
+    html = apex_markdown_to_html("This is **bold**{:.bold-style} text.", 40, &opts);
+    assert_contains(html, "class=\"bold-style\"", "Inline IAL on strong");
+    assert_contains(html, "<strong", "Strong tag present");
+    assert_not_contains(html, "{:.bold-style}", "IAL removed from output");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("This is *italic*{:.italic-style} text.", 42, &opts);
+    assert_contains(html, "class=\"italic-style\"", "Inline IAL on emphasis");
+    assert_contains(html, "<em", "Em tag present");
+    assert_not_contains(html, "{:.italic-style}", "IAL removed from output");
+    apex_free_string(html);
+
+    /* Test inline IAL on code */
+    html = apex_markdown_to_html("Use `code`{:.code-inline} here.", 34, &opts);
+    assert_contains(html, "class=\"code-inline\"", "Inline IAL on code");
+    assert_contains(html, "<code", "Code tag present");
+    assert_not_contains(html, "{:.code-inline}", "IAL removed from output");
+    apex_free_string(html);
+
+    /* Test multiple inline IALs in same paragraph */
+    const char *multi_ial = "[link](url){:.link} and **bold**{:.bold} and *em*{:.em}.";
+    html = apex_markdown_to_html(multi_ial, strlen(multi_ial), &opts);
+    assert_contains(html, "class=\"link\"", "First IAL applied");
+    assert_contains(html, "class=\"bold\"", "Second IAL applied");
+    assert_contains(html, "class=\"em\"", "Third IAL applied");
+    apex_free_string(html);
+
+    /* Test inline IAL with multiple classes */
+    const char *multi_class = "[link](url){:.primary .large .button} text.";
+    html = apex_markdown_to_html(multi_class, strlen(multi_class), &opts);
+    assert_contains(html, "class=\"primary large button\"", "Multiple classes in inline IAL");
+    apex_free_string(html);
+
+    /* Test inline IAL with ID and classes */
+    const char *id_class = "**bold**{:#bold-id .highlight .important}";
+    html = apex_markdown_to_html(id_class, strlen(id_class), &opts);
+    assert_contains(html, "id=\"bold-id\"", "Inline IAL with ID");
+    assert_contains(html, "class=\"highlight important\"", "Inline IAL ID with classes");
+    apex_free_string(html);
+
+    /* Test inline IAL at end of paragraph (should still work) */
+    const char *end_ial = "End with [link](url){:.end-link}.";
+    html = apex_markdown_to_html(end_ial, strlen(end_ial), &opts);
+    assert_contains(html, "class=\"end-link\"", "Inline IAL at paragraph end");
+    apex_free_string(html);
+
+    /* Test inline IAL with whitespace (spaces around IAL) */
+    const char *spaced_ial = "[link](url){: .spaced-class } text.";
+    html = apex_markdown_to_html(spaced_ial, strlen(spaced_ial), &opts);
+    assert_contains(html, "class=\"spaced-class\"", "Inline IAL with spaces");
+    apex_free_string(html);
 }
 
 /**

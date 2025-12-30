@@ -556,105 +556,249 @@ static bool extract_ial_from_paragraph(cmark_node *para, apex_attributes **attrs
  * Handle span-level IAL (inline elements with attributes)
  * Example: [Link](url){: .class} or ![Image](img){: #id}
  *
- * The IAL applies to the last inline element (link, image, emphasis, etc.)
- * before the text node containing the IAL.
+ * The IAL applies to the immediately preceding inline element (link, image, emphasis, etc.)
+ * IALs can appear inline within paragraphs, not just at the end.
+ * This function processes IALs recursively to handle nested inline elements.
+ */
+static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds) {
+    cmark_node_type container_type = cmark_node_get_type(container);
+    /* Only process paragraphs and inline elements that can contain other inline elements */
+    if (container_type != CMARK_NODE_PARAGRAPH &&
+        container_type != CMARK_NODE_STRONG &&
+        container_type != CMARK_NODE_EMPH &&
+        container_type != CMARK_NODE_LINK) {
+        return false;
+    }
+
+    bool found_ial = false;
+
+    /* Process all text nodes in the container to find IALs */
+    /* Save next sibling before processing in case we need to unlink the node */
+    for (cmark_node *child = cmark_node_first_child(container); child; ) {
+        cmark_node *next = cmark_node_next(child);  /* Save next before potential modification */
+
+        if (cmark_node_get_type(child) != CMARK_NODE_TEXT) {
+            child = next;
+            continue;
+        }
+
+        const char *text = cmark_node_get_literal(child);
+        if (!text) {
+            child = next;
+            continue;
+        }
+
+        /* Look for IAL pattern: {: ... } at the start (after optional whitespace) */
+        const char *text_ptr = text;
+
+        /* Skip leading whitespace */
+        while (*text_ptr && isspace((unsigned char)*text_ptr)) {
+            text_ptr++;
+        }
+
+        /* Check if it starts with {: */
+        if (text_ptr[0] != '{' || text_ptr[1] != ':') {
+            child = next;
+            continue;
+        }
+
+        const char *ial_start = text_ptr;
+        const char *close = strchr(ial_start, '}');
+        if (!close) {
+            child = next;
+            continue;
+        }
+
+        /* Extract attributes from IAL - we need a version that doesn't require it to be at end */
+        apex_attributes *attrs = NULL;
+
+        /* Parse IAL content directly (since we know it's valid IAL syntax) */
+        const char *content_start = ial_start + 2;
+        int content_len = close - content_start;
+
+        /* Check if it's a reference (single word, no special chars) */
+        char ref_name[256];
+        if (content_len > 0 && content_len < (int)sizeof(ref_name)) {
+            memcpy(ref_name, content_start, content_len);
+            ref_name[content_len] = '\0';
+
+            /* Trim whitespace */
+            char *trimmed = ref_name;
+            while (isspace((unsigned char)*trimmed)) trimmed++;
+            char *end = trimmed + strlen(trimmed) - 1;
+            while (end > trimmed && isspace((unsigned char)*end)) *end-- = '\0';
+
+            /* Check if it's a simple reference (no # . or =) */
+            bool is_ref = true;
+            for (char *c = trimmed; *c; c++) {
+                if (*c == '#' || *c == '.' || *c == '=') {
+                    is_ref = false;
+                    break;
+                }
+            }
+
+            if (is_ref && *trimmed) {
+                /* Look up ALD */
+                apex_attributes *found = find_ald(alds, trimmed);
+                if (found) {
+                    /* Copy the ALD attributes */
+                    attrs = merge_attributes(found, NULL);
+                }
+            }
+        }
+
+        /* If not a reference, parse as regular IAL */
+        if (!attrs) {
+            attrs = parse_ial_content(content_start, content_len);
+        }
+
+        if (!attrs) {
+            child = next;
+            continue;
+        }
+
+        /* Find the inline element immediately before this text node */
+        cmark_node *target = NULL;
+        cmark_node *prev = cmark_node_previous(child);
+
+        /* Skip over any text nodes to find the actual inline element */
+        while (prev) {
+            cmark_node_type prev_type = cmark_node_get_type(prev);
+            if (prev_type == CMARK_NODE_LINK ||
+                prev_type == CMARK_NODE_IMAGE ||
+                prev_type == CMARK_NODE_EMPH ||
+                prev_type == CMARK_NODE_STRONG ||
+                prev_type == CMARK_NODE_CODE) {
+                target = prev;
+                break;
+            }
+            /* If it's a text node, continue walking backwards */
+            if (prev_type == CMARK_NODE_TEXT) {
+                prev = cmark_node_previous(prev);
+                continue;
+            }
+            /* If it's some other node type, stop - IAL can't apply to it */
+            break;
+        }
+
+        if (!target) {
+            /* No inline element found - IAL doesn't apply to anything */
+            apex_free_attributes(attrs);
+            child = next;
+            continue;
+        }
+
+        /* Verify that the target is actually within this container (could be nested) */
+        /* Walk up from target to see if we reach container */
+        cmark_node *target_parent = cmark_node_parent(target);
+        bool target_in_container = false;
+        while (target_parent) {
+            if (target_parent == container) {
+                target_in_container = true;
+                break;
+            }
+            /* If we reach a non-inline element, stop */
+            cmark_node_type parent_type = cmark_node_get_type(target_parent);
+            if (parent_type != CMARK_NODE_STRONG &&
+                parent_type != CMARK_NODE_EMPH &&
+                parent_type != CMARK_NODE_LINK &&
+                parent_type != CMARK_NODE_PARAGRAPH) {
+                break;
+            }
+            target_parent = cmark_node_parent(target_parent);
+        }
+
+        if (!target_in_container) {
+            apex_free_attributes(attrs);
+            child = next;
+            continue;
+        }
+
+        /* Apply attributes to the target inline element */
+        char *attr_str = attributes_to_html(attrs);
+        cmark_node_set_user_data(target, attr_str);
+        apex_free_attributes(attrs);
+
+        /* Remove the IAL from the text node, preserving any text after it */
+        size_t prefix_len = text_ptr - text;  /* Text before IAL (whitespace) */
+        const char *suffix = close + 1;  /* Text after IAL closing brace */
+
+        /* Build new text: prefix (if any) + suffix (if any) */
+        size_t suffix_len = strlen(suffix);
+        size_t new_len = prefix_len + suffix_len;
+        char *new_text = NULL;
+
+        if (new_len > 0) {
+            new_text = malloc(new_len + 1);
+            if (new_text) {
+                /* Copy prefix (leading whitespace before IAL) */
+                if (prefix_len > 0) {
+                    memcpy(new_text, text, prefix_len);
+                }
+                /* Copy suffix (text after IAL) */
+                if (suffix_len > 0) {
+                    strcpy(new_text + prefix_len, suffix);
+                } else {
+                    new_text[prefix_len] = '\0';
+                }
+
+                /* Trim trailing whitespace from prefix */
+                if (prefix_len > 0 && suffix_len == 0) {
+                    char *end = new_text + prefix_len - 1;
+                    while (end >= new_text && isspace((unsigned char)*end)) {
+                        *end-- = '\0';
+                    }
+                }
+
+                /* Remove node if empty, otherwise update it */
+                if (strlen(new_text) == 0) {
+                    cmark_node_unlink(child);
+                    cmark_node_free(child);
+                    free(new_text);
+                    new_text = NULL;
+                    /* Don't update child here - use saved 'next' */
+                } else {
+                    cmark_node_set_literal(child, new_text);
+                }
+            }
+        } else {
+            /* No prefix and no suffix - remove the node */
+            cmark_node_unlink(child);
+            cmark_node_free(child);
+            /* Don't update child here - use saved 'next' */
+        }
+
+        if (new_text) {
+            free(new_text);
+        }
+
+        found_ial = true;
+        /* Continue with next sibling (may be NULL if we unlinked) */
+        child = next;
+    }
+
+    /* Recursively process inline elements that can contain other inline elements */
+    /* Use a separate loop to avoid modifying the container while iterating */
+    for (cmark_node *inline_child = cmark_node_first_child(container); inline_child; inline_child = cmark_node_next(inline_child)) {
+        cmark_node_type child_type = cmark_node_get_type(inline_child);
+        if (child_type == CMARK_NODE_STRONG ||
+            child_type == CMARK_NODE_EMPH ||
+            child_type == CMARK_NODE_LINK) {
+            if (process_span_ial_in_container(inline_child, alds)) {
+                found_ial = true;
+            }
+        }
+    }
+
+    return found_ial;
+}
+
+/**
+ * Handle span-level IAL for paragraphs (wrapper for recursive function)
  */
 static bool process_span_ial(cmark_node *para, ald_entry *alds) {
     if (cmark_node_get_type(para) != CMARK_NODE_PARAGRAPH) return false;
-
-    /* Get last child - must be a text node with IAL */
-    cmark_node *last_child = cmark_node_last_child(para);
-    if (!last_child || cmark_node_get_type(last_child) != CMARK_NODE_TEXT) {
-        return false;
-    }
-
-    const char *text = cmark_node_get_literal(last_child);
-    if (!text) return false;
-
-    /* Check if it ends with {: ... } */
-    const char *ial_start = strrchr(text, '{');
-    if (!ial_start || ial_start[1] != ':') {
-        return false;
-    }
-
-    const char *close = strchr(ial_start, '}');
-    if (!close) {
-        return false;
-    }
-
-    /* Check nothing after } except whitespace */
-    const char *after = close + 1;
-    while (*after && isspace((unsigned char)*after)) after++;
-    if (*after != '\0') {
-        return false;
-    }
-
-    /* Find the inline element immediately before this IAL text node */
-    /* Walk backwards from the IAL text node to find the immediately preceding inline element */
-    cmark_node *target = NULL;
-    cmark_node *prev = cmark_node_previous(last_child);
-
-    /* Skip over any text nodes to find the actual inline element */
-    while (prev) {
-        cmark_node_type prev_type = cmark_node_get_type(prev);
-        if (prev_type == CMARK_NODE_LINK ||
-            prev_type == CMARK_NODE_IMAGE ||
-            prev_type == CMARK_NODE_EMPH ||
-            prev_type == CMARK_NODE_STRONG ||
-            prev_type == CMARK_NODE_CODE) {
-            target = prev;
-            break;
-        }
-        /* If it's a text node, continue walking backwards */
-        if (prev_type == CMARK_NODE_TEXT) {
-            prev = cmark_node_previous(prev);
-            continue;
-        }
-        /* If it's some other node type, stop - IAL can't apply to it */
-        break;
-    }
-
-    if (!target) {
-        return false;  /* No valid inline element found */
-    }
-
-    /* Verify that the target is actually a child of this paragraph */
-    if (cmark_node_parent(target) != para) {
-        return false;  /* Target is not in this paragraph - something went wrong */
-    }
-
-    /* Extract attributes from IAL */
-    apex_attributes *attrs = NULL;
-    if (!extract_ial_from_text(ial_start, &attrs, alds)) return false;
-
-    /* Apply attributes to the target inline element */
-    char *attr_str = attributes_to_html(attrs);
-    cmark_node_set_user_data(target, attr_str);
-    apex_free_attributes(attrs);
-
-    /* Remove the IAL from the text node */
-    size_t prefix_len = ial_start - text;
-    if (prefix_len > 0) {
-        /* Text has content before IAL - trim it */
-        char *new_text = malloc(prefix_len + 1);
-        if (new_text) {
-            memcpy(new_text, text, prefix_len);
-            new_text[prefix_len] = '\0';
-
-            /* Trim trailing whitespace */
-            char *end = new_text + prefix_len - 1;
-            while (end >= new_text && isspace((unsigned char)*end)) *end-- = '\0';
-
-            cmark_node_set_literal(last_child, new_text);
-            free(new_text);
-        }
-    } else {
-        /* IAL is the only content in text node - remove it */
-        cmark_node_unlink(last_child);
-        cmark_node_free(last_child);
-    }
-
-    return true;
+    return process_span_ial_in_container(para, alds);
 }
 
 /**
