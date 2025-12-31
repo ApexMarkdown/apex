@@ -128,6 +128,7 @@ set(APEX_LIB_SOURCES
     src/extensions/advanced_footnotes.c
     src/extensions/advanced_tables.c
     src/extensions/html_markdown.c
+    src/extensions/fenced_divs.c
     src/extensions/table_html_postprocess.c
     src/extensions/inline_footnotes.c
     src/extensions/highlight.c

@@ -102,6 +102,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-relaxed-tables    Disable relaxed table parsing\n");
     fprintf(stderr, "  --no-smart             Disable smart typography\n");
     fprintf(stderr, "  --no-sup-sub           Disable superscript/subscript syntax\n");
+    fprintf(stderr, "  --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
     fprintf(stderr, "  --no-unsafe            Disable raw HTML in output\n");
@@ -999,6 +1000,10 @@ int main(int argc, char *argv[]) {
             options.enable_sup_sub = true;
         } else if (strcmp(argv[i], "--no-sup-sub") == 0) {
             options.enable_sup_sub = false;
+        } else if (strcmp(argv[i], "--divs") == 0) {
+            options.enable_divs = true;
+        } else if (strcmp(argv[i], "--no-divs") == 0) {
+            options.enable_divs = false;
         } else if (strcmp(argv[i], "--autolink") == 0) {
             options.enable_autolink = true;
         } else if (strcmp(argv[i], "--no-autolink") == 0) {

@@ -38,6 +38,7 @@
 #include "extensions/relaxed_tables.h"
 #include "extensions/citations.h"
 #include "extensions/index.h"
+#include "extensions/fenced_divs.h"
 #include "plugins.h"
 
 /* Custom renderer */
@@ -1827,6 +1828,7 @@ apex_options apex_options_default(void) {
     opts.enable_attributes = true;
     opts.enable_callouts = true;
     opts.enable_marked_extensions = true;
+    opts.enable_divs = true;  /* Enabled by default in unified mode */
 
     /* Critic markup mode (0=accept, 1=reject, 2=markup) */
     opts.critic_mode = 2;  /* Default: show markup */
@@ -1934,6 +1936,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_attributes = false;
             opts.enable_callouts = false;
             opts.enable_marked_extensions = false;
+            opts.enable_divs = false;
             opts.enable_file_includes = false;
             opts.enable_metadata_variables = false;
             opts.enable_metadata_transforms = false;
@@ -1961,6 +1964,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_attributes = false;
             opts.enable_callouts = false;
             opts.enable_marked_extensions = false;
+            opts.enable_divs = false;
             opts.enable_file_includes = false;
             opts.enable_metadata_variables = false;
             opts.enable_metadata_transforms = false;
@@ -1989,6 +1993,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_attributes = false;
             opts.enable_callouts = false;
             opts.enable_marked_extensions = false;
+            opts.enable_divs = false;
             opts.enable_file_includes = true;
             opts.enable_metadata_variables = true;
             opts.enable_metadata_transforms = false;
@@ -2020,6 +2025,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
              * Kramdown documents can use <!--TOC--> and {:toc} syntax
              * for table-of-contents generation. */
             opts.enable_marked_extensions = true;
+            opts.enable_divs = false;
             opts.enable_file_includes = false;
             opts.enable_metadata_variables = false;
             opts.enable_metadata_transforms = false;
@@ -2048,6 +2054,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_indices = true;  /* Unified: indices enabled */
             opts.enable_mmark_index_syntax = true;  /* Unified: mmark index syntax */
             opts.enable_textindex_syntax = true;  /* Unified: TextIndex syntax enabled */
+            opts.enable_divs = true;  /* Unified: Pandoc fenced divs enabled */
             break;
     }
 
@@ -2587,6 +2594,18 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Process fenced divs before parsing (preprocessing) */
+    /* Only enabled in Unified mode */
+    char *fenced_divs_processed = NULL;
+    if (options->enable_divs && options->mode == APEX_MODE_UNIFIED) {
+        PROFILE_START(fenced_divs);
+        fenced_divs_processed = apex_process_fenced_divs(text_ptr);
+        PROFILE_END(fenced_divs);
+        if (fenced_divs_processed) {
+            text_ptr = fenced_divs_processed;
+        }
+    }
+
     /* Process HTML markdown attributes before parsing (preprocessing) */
     PROFILE_START(html_markdown);
     char *html_markdown_processed = NULL;
@@ -3050,6 +3069,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (headerless_tables_processed) free(headerless_tables_processed);
     if (table_captions_processed) free(table_captions_processed);
     if (deflist_processed) free(deflist_processed);
+    if (fenced_divs_processed) free(fenced_divs_processed);
     if (metadata_replaced) free(metadata_replaced);
     if (autolinks_processed) free(autolinks_processed);
     if (html_markdown_processed) free(html_markdown_processed);

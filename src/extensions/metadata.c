@@ -496,6 +496,40 @@ static apex_metadata_item *parse_mmd_metadata(const char *text, size_t *consumed
             continue;
         }
 
+        /* Skip list markers (-, +, *, or numbered lists) */
+        /* Check if line starts with a list marker */
+        const char *list_check = trimmed;
+        if (*list_check == '-' || *list_check == '+' || *list_check == '*') {
+            /* Check if followed by space (markdown list syntax) */
+            if (list_check[1] == ' ' || list_check[1] == '\t') {
+                /* This is a list item, not metadata */
+                if (found_metadata) {
+                    *consumed = line_start - text;
+                    return items;
+                }
+                /* Haven't found metadata yet - this isn't metadata */
+                *consumed = 0;
+                return NULL;
+            }
+        }
+        /* Check for numbered lists (digit followed by . or ) and space) */
+        if (isdigit((unsigned char)*list_check)) {
+            const char *p = list_check + 1;
+            /* Skip digits */
+            while (isdigit((unsigned char)*p)) p++;
+            /* Check for . or ) followed by space */
+            if ((*p == '.' || *p == ')') && (p[1] == ' ' || p[1] == '\t')) {
+                /* This is a numbered list item, not metadata */
+                if (found_metadata) {
+                    *consumed = line_start - text;
+                    return items;
+                }
+                /* Haven't found metadata yet - this isn't metadata */
+                *consumed = 0;
+                return NULL;
+            }
+        }
+
         /* Parse key: value */
         char *colon = strchr(line, ':');
         if (colon) {

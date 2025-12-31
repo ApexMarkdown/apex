@@ -53,6 +53,7 @@ typedef struct {
     bool enable_attributes;
     bool enable_callouts;
     bool enable_marked_extensions;
+    bool enable_divs;  /* Enable Pandoc fenced divs (Unified mode only) */
 
     /* Critic markup mode */
     int critic_mode;  /* 0=markup (default), 1=accept, 2=reject */
