@@ -223,14 +223,24 @@ char *apex_process_html_markdown(const char *text) {
         }
 
         if (parse_markdown && content_len > 0) {
-            /* Parse content as Markdown */
+            /* Extract content */
             char *content = malloc(content_len + 1);
             if (content) {
                 memcpy(content, content_start, content_len);
                 content[content_len] = '\0';
 
+                /* Recursively process nested divs with markdown="1" BEFORE parsing */
+                /* This ensures nested divs are processed before cmark-gfm sees them */
+                char *processed_content = apex_process_html_markdown(content);
+                if (processed_content) {
+                    free(content);
+                    content = processed_content;
+                    content_len = strlen(content);
+                }
+
                 /* Create parser and parse */
-                int options = CMARK_OPT_DEFAULT;
+                /* Use CMARK_OPT_UNSAFE to allow raw HTML (including nested divs) */
+                int options = CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE;
                 cmark_parser *parser = cmark_parser_new(options);
                 if (parser) {
                     cmark_parser_feed(parser, content, content_len);
@@ -241,7 +251,7 @@ char *apex_process_html_markdown(const char *text) {
                         char *html = cmark_render_html(doc, options, NULL);
                         if (html) {
                             /* Write opening tag (without markdown attribute) */
-                            char opening_tag[1024];
+                            char opening_tag[2048];
                             size_t tag_written = 0;
 
                             /* Reconstruct tag without markdown attribute */
@@ -253,8 +263,58 @@ char *apex_process_html_markdown(const char *text) {
                             if (attrs_start && attrs_start < content_start) {
                                 const char *attrs_end = strchr(attrs_start, '>');
                                 if (attrs_end) {
-                                    /* TODO: Filter out markdown attribute properly */
-                                    /* For now, just close the tag */
+                                    /* Parse and copy attributes, filtering out markdown attribute */
+                                    const char *attr_pos = attrs_start;
+                                    while (attr_pos < attrs_end) {
+                                        /* Skip whitespace */
+                                        while (attr_pos < attrs_end && isspace((unsigned char)*attr_pos)) {
+                                            attr_pos++;
+                                        }
+                                        if (attr_pos >= attrs_end) break;
+
+                                        /* Check if this is the markdown attribute */
+                                        if (strncmp(attr_pos, "markdown=", 9) == 0) {
+                                            /* Skip markdown attribute */
+                                            attr_pos += 9;
+                                            /* Skip attribute value */
+                                            if (*attr_pos == '"' || *attr_pos == '\'') {
+                                                char quote = *attr_pos++;
+                                                while (attr_pos < attrs_end && *attr_pos != quote) {
+                                                    if (*attr_pos == '\\' && attr_pos + 1 < attrs_end) attr_pos++;
+                                                    attr_pos++;
+                                                }
+                                                if (*attr_pos == quote) attr_pos++;
+                                            } else {
+                                                while (attr_pos < attrs_end && !isspace((unsigned char)*attr_pos) && *attr_pos != '>') {
+                                                    attr_pos++;
+                                                }
+                                            }
+                                            continue;
+                                        }
+
+                                        /* Copy this attribute */
+                                        const char *attr_start = attr_pos;
+                                        while (attr_pos < attrs_end && *attr_pos != '>') {
+                                            /* Check if we've reached the start of the next attribute */
+                                            if (attr_pos > attr_start && (isspace((unsigned char)*attr_pos) || *attr_pos == '>')) {
+                                                /* Check if next token is markdown= */
+                                                const char *next = attr_pos;
+                                                while (next < attrs_end && isspace((unsigned char)*next)) next++;
+                                                if (strncmp(next, "markdown=", 9) == 0) {
+                                                    break; /* Stop before markdown attribute */
+                                                }
+                                            }
+                                            attr_pos++;
+                                        }
+
+                                        /* Copy attribute to opening_tag */
+                                        size_t attr_len = attr_pos - attr_start;
+                                        if (tag_written + attr_len + 1 < sizeof(opening_tag)) {
+                                            opening_tag[tag_written++] = ' ';
+                                            memcpy(opening_tag + tag_written, attr_start, attr_len);
+                                            tag_written += attr_len;
+                                        }
+                                    }
                                     opening_tag[tag_written++] = '>';
                                     opening_tag[tag_written] = '\0';
                                 }
@@ -303,6 +363,20 @@ char *apex_process_html_markdown(const char *text) {
                 memcpy(write_pos, closing_tag_start, closing_len);
                 write_pos += closing_len;
                 remaining -= closing_len;
+            }
+
+            /* Ensure newline after closing tag so following markdown is parsed correctly */
+            /* Check if closing tag ends with newline */
+            bool needs_newline = true;
+            if (closing_len > 0) {
+                const char *last_char = closing_tag_start + closing_len - 1;
+                if (*last_char == '\n' || (*last_char == '\r' && closing_len > 1 && *(last_char - 1) == '\n')) {
+                    needs_newline = false;
+                }
+            }
+            if (needs_newline && remaining > 0) {
+                *write_pos++ = '\n';
+                remaining--;
             }
         } else {
             /* markdown="0" or no parsing - copy everything as-is */

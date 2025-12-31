@@ -147,6 +147,18 @@ static void test_metadata(void) {
     assert_contains(html, "<h1", "Pandoc metadata variable");
     assert_contains(html, "The Title</h1>", "Pandoc metadata variable content");
     apex_free_string(html);
+
+    /* Test that list items with colons are not treated as metadata in unified mode */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *list_with_colon_doc = "## A Header\n\n- Foo: Bar\n- Another item\n- Third item";
+    html = apex_markdown_to_html(list_with_colon_doc, strlen(list_with_colon_doc), &unified_opts);
+    assert_contains(html, "<h2", "List with colon: header is rendered");
+    assert_contains(html, "A Header</h2>", "List with colon: header content");
+    assert_contains(html, "<ul>", "List with colon: unordered list rendered");
+    assert_contains(html, "<li>Foo: Bar</li>", "List with colon: first item with colon rendered");
+    assert_contains(html, "<li>Another item</li>", "List with colon: second item rendered");
+    assert_contains(html, "<li>Third item</li>", "List with colon: third item rendered");
+    apex_free_string(html);
 }
 
 /**
@@ -1997,6 +2009,156 @@ static void test_html_markdown_attributes(void) {
     html = apex_markdown_to_html(no_attr, strlen(no_attr), &opts);
     // Without markdown attribute, HTML content is typically preserved
     assert_contains(html, "<div>", "HTML preserved without markdown attribute");
+    apex_free_string(html);
+}
+
+/**
+ * Test Pandoc fenced divs
+ */
+static void test_fenced_divs(void) {
+    printf("\n=== Fenced Divs Tests ===\n");
+
+    apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    opts.enable_divs = true;
+    char *html;
+
+    /* Test basic fenced div with ID and class */
+    const char *basic_div = "::::: {#special .sidebar}\nHere is a paragraph.\n\nAnd another.\n:::::";
+    html = apex_markdown_to_html(basic_div, strlen(basic_div), &opts);
+    assert_contains(html, "<div", "Basic fenced div renders");
+    assert_contains(html, "id=\"special\"", "Fenced div has ID");
+    assert_contains(html, "class=\"sidebar\"", "Fenced div has class");
+    assert_contains(html, "Here is a paragraph", "Fenced div content preserved");
+    assert_contains(html, "</div>", "Fenced div properly closed");
+    apex_free_string(html);
+
+    /* Test fenced div with single unbraced word (treated as class) */
+    const char *unbraced_class = "::: sidebar\nThis is a div.\n:::";
+    html = apex_markdown_to_html(unbraced_class, strlen(unbraced_class), &opts);
+    assert_contains(html, "<div", "Unbraced class div renders");
+    assert_contains(html, "class=\"sidebar\"", "Unbraced word becomes class");
+    apex_free_string(html);
+
+    /* Test fenced div with multiple classes */
+    const char *multiple_classes = "::::: {.warning .important .highlight}\nWarning text\n:::::";
+    html = apex_markdown_to_html(multiple_classes, strlen(multiple_classes), &opts);
+    assert_contains(html, "<div", "Multiple classes div renders");
+    assert_contains(html, "class=\"warning important highlight\"", "Multiple classes applied");
+    apex_free_string(html);
+
+    /* Test fenced div with custom attributes */
+    const char *custom_attrs = "::::: {#mydiv .container key=\"value\" data-id=\"123\"}\nContent\n:::::";
+    html = apex_markdown_to_html(custom_attrs, strlen(custom_attrs), &opts);
+    assert_contains(html, "<div", "Custom attributes div renders");
+    assert_contains(html, "id=\"mydiv\"", "Custom attributes div has ID");
+    assert_contains(html, "class=\"container\"", "Custom attributes div has class");
+    assert_contains(html, "key=\"value\"", "Custom attribute key present");
+    assert_contains(html, "data-id=\"123\"", "Custom attribute data-id present");
+    apex_free_string(html);
+
+    /* Test fenced div with trailing colons */
+    const char *trailing_colons = "::::: {#special .sidebar} ::::\nContent\n::::::::::::::::::";
+    html = apex_markdown_to_html(trailing_colons, strlen(trailing_colons), &opts);
+    assert_contains(html, "<div", "Trailing colons div renders");
+    assert_contains(html, "id=\"special\"", "Trailing colons div has ID");
+    apex_free_string(html);
+
+    /* Test nested fenced divs */
+    const char *nested_divs = "::: Warning ::::::\nOuter warning.\n\n::: Danger\nInner danger.\n:::\n::::::::::::::::::";
+    html = apex_markdown_to_html(nested_divs, strlen(nested_divs), &opts);
+    assert_contains(html, "<div", "Nested divs render");
+    assert_contains(html, "class=\"Warning\"", "Outer div class");
+    assert_contains(html, "class=\"Danger\"", "Inner div class");
+    assert_contains(html, "Outer warning", "Outer div content");
+    assert_contains(html, "Inner danger", "Inner div content");
+    /* Should have two opening divs and two closing divs */
+    size_t open_count = 0, close_count = 0;
+    const char *p = html;
+    while ((p = strstr(p, "<div")) != NULL) {
+        open_count++;
+        p += 4;
+    }
+    p = html;
+    while ((p = strstr(p, "</div>")) != NULL) {
+        close_count++;
+        p += 6;
+    }
+    if (open_count >= 2 && close_count >= 2) {
+        tests_run++;
+        tests_passed++;
+        printf(COLOR_GREEN "✓" COLOR_RESET " Nested divs properly structured\n");
+    } else {
+        tests_run++;
+        tests_failed++;
+        printf(COLOR_RED "✗" COLOR_RESET " Nested divs properly structured\n");
+    }
+    apex_free_string(html);
+
+    /* Test minimum 3 colons */
+    const char *min_colons = "::: {.minimal}\nMinimal div\n:::";
+    html = apex_markdown_to_html(min_colons, strlen(min_colons), &opts);
+    assert_contains(html, "<div", "Minimum colons div renders");
+    assert_contains(html, "class=\"minimal\"", "Minimum colons div has class");
+    apex_free_string(html);
+
+    /* Test fenced div with only ID */
+    const char *only_id = "::: {#only-id}\nDiv with only ID\n:::";
+    html = apex_markdown_to_html(only_id, strlen(only_id), &opts);
+    assert_contains(html, "<div", "Only ID div renders");
+    assert_contains(html, "id=\"only-id\"", "Only ID div has ID");
+    assert_not_contains(html, "class=", "Only ID div has no class");
+    apex_free_string(html);
+
+    /* Test fenced div with only classes */
+    const char *only_classes = "::: {.only-classes .multiple}\nDiv with only classes\n:::";
+    html = apex_markdown_to_html(only_classes, strlen(only_classes), &opts);
+    assert_contains(html, "<div", "Only classes div renders");
+    assert_contains(html, "class=\"only-classes multiple\"", "Only classes div has classes");
+    assert_not_contains(html, "id=", "Only classes div has no ID");
+    apex_free_string(html);
+
+    /* Test fenced div with quoted attribute values */
+    const char *quoted_values = "::::: {#quoted .test attr1=\"quoted value\" attr2='single quoted'}\nContent\n:::::";
+    html = apex_markdown_to_html(quoted_values, strlen(quoted_values), &opts);
+    assert_contains(html, "<div", "Quoted values div renders");
+    assert_contains(html, "attr1=\"quoted value\"", "Double-quoted attribute");
+    assert_contains(html, "attr2=\"single quoted\"", "Single-quoted attribute converted");
+    apex_free_string(html);
+
+    /* Test fenced div disabled in non-Unified mode */
+    apex_options gfm_opts = apex_options_for_mode(APEX_MODE_GFM);
+    gfm_opts.enable_divs = true;  /* Even if enabled, should not work in GFM mode */
+    const char *div_in_gfm = "::: {.test}\nContent\n:::";
+    html = apex_markdown_to_html(div_in_gfm, strlen(div_in_gfm), &gfm_opts);
+    assert_not_contains(html, "<div", "Fenced divs disabled in GFM mode");
+    apex_free_string(html);
+
+    /* Test fenced div disabled with --no-divs flag */
+    apex_options no_divs_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    no_divs_opts.enable_divs = false;
+    const char *div_disabled = "::: {.test}\nContent\n:::";
+    html = apex_markdown_to_html(div_disabled, strlen(div_disabled), &no_divs_opts);
+    assert_not_contains(html, "<div", "Fenced divs disabled with --no-divs");
+    apex_free_string(html);
+
+    /* Test fenced div with mixed content (lists, blockquotes) */
+    const char *mixed_content = "::::: {#mixed .content}\n- List item\n- Another item\n\n> A blockquote\n\nAnd a paragraph.\n:::::";
+    html = apex_markdown_to_html(mixed_content, strlen(mixed_content), &opts);
+    assert_contains(html, "<div", "Mixed content div renders");
+    assert_contains(html, "<ul>", "Mixed content has list");
+    assert_contains(html, "<blockquote>", "Mixed content has blockquote");
+    assert_contains(html, "<p>And a paragraph.</p>", "Mixed content has paragraph");
+    apex_free_string(html);
+
+    /* Test multiple fenced divs in sequence */
+    const char *multiple_divs = "::: {.first}\nFirst div.\n:::\n\n::: {.second}\nSecond div.\n:::\n\n::: {.third}\nThird div.\n:::";
+    html = apex_markdown_to_html(multiple_divs, strlen(multiple_divs), &opts);
+    assert_contains(html, "class=\"first\"", "First div class");
+    assert_contains(html, "class=\"second\"", "Second div class");
+    assert_contains(html, "class=\"third\"", "Third div class");
+    assert_contains(html, "First div", "First div content");
+    assert_contains(html, "Second div", "Second div content");
+    assert_contains(html, "Third div", "Third div content");
     apex_free_string(html);
 }
 
@@ -4032,6 +4194,7 @@ int main(int argc, char *argv[]) {
     test_blockquote_lists();
     test_toc();
     test_html_markdown_attributes();
+    test_fenced_divs();
     test_sup_sub();
     test_mixed_lists();
     test_unsafe_mode();

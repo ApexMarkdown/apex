@@ -469,8 +469,9 @@ char *apex_process_fenced_divs(const char *text) {
             div_stack[div_stack_size].html_attrs = html_attrs;
             div_stack_size++;
 
-            /* Write opening div tag */
-            size_t needed = 5 + (html_attrs ? strlen(html_attrs) : 0) + 1; /* <div...> */
+            /* Write opening div tag with markdown="1" to enable markdown parsing inside */
+            size_t markdown_attr_len = 13; /*  markdown="1" */
+            size_t needed = 5 + (html_attrs ? strlen(html_attrs) : 0) + markdown_attr_len + 1; /* <div...> */
             if (remaining < needed) {
                 size_t written = write - output;
                 output_capacity = (written + needed) * 2;
@@ -490,9 +491,9 @@ char *apex_process_fenced_divs(const char *text) {
             }
 
             if (html_attrs) {
-                write += snprintf(write, remaining, "<div%s>", html_attrs);
+                write += snprintf(write, remaining, "<div%s markdown=\"1\">", html_attrs);
             } else {
-                write += snprintf(write, remaining, "<div>");
+                write += snprintf(write, remaining, "<div markdown=\"1\">");
             }
             remaining = output_capacity - (write - output);
 
