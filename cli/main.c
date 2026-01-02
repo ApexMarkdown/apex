@@ -127,18 +127,6 @@ static void update_progress_if_needed(void) {
     }
 }
 
-/* Periodic progress update - call this from a timer or periodically */
-static void periodic_progress_update(void) {
-    if (!progress_enabled || !last_stage) return;
-
-    double elapsed = get_time_ms() - progress_start_time;
-    if (elapsed >= 1000.0 && progress_shown) {
-        /* Refresh the progress display to keep it visible */
-        fprintf(stderr, "\rProcessing: %s...", last_stage);
-        fflush(stderr);
-    }
-}
-
 /* Check if we should show delayed progress (called after processing completes) */
 static void check_delayed_progress(void) {
     if (!progress_enabled || progress_shown || !last_stage) return;
