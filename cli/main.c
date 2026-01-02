@@ -53,6 +53,114 @@ static bool profiling_enabled(void) {
 
 #define BUFFER_SIZE 4096
 
+/* Progress reporting state */
+static bool progress_enabled = false;
+static bool is_tty = false;
+static double progress_start_time = 0.0;
+static bool progress_shown = false;  /* Track if we've shown any progress yet */
+static const char *last_stage = NULL;  /* Remember last stage in case we need to show it later */
+
+/* Initialize progress reporting */
+static void init_progress(void) {
+    const char *env = getenv("APEX_PROGRESS");
+    is_tty = isatty(STDERR_FILENO);
+
+    if (env && (strcmp(env, "1") == 0 || strcmp(env, "yes") == 0 || strcmp(env, "true") == 0)) {
+        progress_enabled = true;
+    } else if (env && (strcmp(env, "0") == 0 || strcmp(env, "no") == 0 || strcmp(env, "false") == 0)) {
+        progress_enabled = false;
+    } else {
+        /* Default: enable if stderr is a TTY */
+        progress_enabled = is_tty;
+    }
+
+    /* Initialize start time for delay check */
+    progress_start_time = get_time_ms();
+    progress_shown = false;
+    last_stage = NULL;
+}
+
+/* Progress callback function */
+static void progress_callback(const char *stage, int percent, void *user_data) {
+    (void)user_data;  /* Unused for now */
+
+    if (!progress_enabled) return;
+
+    /* Remember the last stage (unless stage is NULL, which means "refresh last stage") */
+    if (stage) {
+        last_stage = stage;
+    }
+
+    /* Check elapsed time */
+    double elapsed = get_time_ms() - progress_start_time;
+
+    /* If less than 1 second has elapsed and we haven't shown progress yet, just remember the stage */
+    if (elapsed < 1000.0 && !progress_shown) {
+        return;  /* Too soon, don't show yet - but remember the stage */
+    }
+
+    /* Once 1 second has passed, show progress (even if it's the same stage or NULL for refresh) */
+    if (elapsed >= 1000.0) {
+        progress_shown = true;
+        const char *display_stage = stage ? stage : (last_stage ? last_stage : "Processing");
+        if (percent >= 0) {
+            fprintf(stderr, "\rProcessing: %s %3d%%", display_stage, percent);
+        } else {
+            fprintf(stderr, "\rProcessing: %s...", display_stage);
+        }
+        fflush(stderr);
+    }
+}
+
+/* Force show progress if enough time has elapsed (called periodically) */
+static void update_progress_if_needed(void) {
+    if (!progress_enabled || !last_stage) return;
+
+    double elapsed = get_time_ms() - progress_start_time;
+    if (elapsed >= 1000.0) {
+        /* 1 second has passed - show progress if we haven't yet, or refresh it */
+        if (!progress_shown) {
+            progress_shown = true;
+        }
+        fprintf(stderr, "\rProcessing: %s...", last_stage);
+        fflush(stderr);
+    }
+}
+
+/* Periodic progress update - call this from a timer or periodically */
+static void periodic_progress_update(void) {
+    if (!progress_enabled || !last_stage) return;
+
+    double elapsed = get_time_ms() - progress_start_time;
+    if (elapsed >= 1000.0 && progress_shown) {
+        /* Refresh the progress display to keep it visible */
+        fprintf(stderr, "\rProcessing: %s...", last_stage);
+        fflush(stderr);
+    }
+}
+
+/* Check if we should show delayed progress (called after processing completes) */
+static void check_delayed_progress(void) {
+    if (!progress_enabled || progress_shown || !last_stage) return;
+
+    double elapsed = get_time_ms() - progress_start_time;
+    if (elapsed >= 1000.0) {
+        /* 1 second has passed, show the last stage we were processing */
+        progress_shown = true;
+        fprintf(stderr, "\rProcessing: %s...", last_stage);
+        fflush(stderr);
+    }
+}
+
+/* Clear progress line */
+static void clear_progress(void) {
+    if (progress_enabled && progress_shown) {
+        /* Only clear if we actually showed progress */
+        fprintf(stderr, "\r%*s\r", 80, "");  /* Clear line with spaces */
+        fflush(stderr);
+    }
+}
+
 static void print_usage(const char *program_name) {
     fprintf(stderr, "Apex Markdown Processor v%s\n", apex_version_string());
     fprintf(stderr, "One Markdown processor to rule them all\n\n");
@@ -108,8 +216,10 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
     fprintf(stderr, "  --no-unsafe            Disable raw HTML in output\n");
     fprintf(stderr, "  --no-wikilinks         Disable wiki link syntax\n");
+    fprintf(stderr, "  --[no-]emoji-autocorrect  Enable/disable emoji name autocorrect (enabled by default in unified mode)\n");
     fprintf(stderr, "  --obfuscate-emails     Obfuscate email links/text using HTML entities\n");
     fprintf(stderr, "  -o, --output FILE      Write output to FILE instead of stdout\n");
+    fprintf(stderr, "  --[no-]progress          Show progress indicator during processing (enabled by default for TTY)\n");
     fprintf(stderr, "  --plugins              Enable external/plugin processing\n");
     fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
@@ -715,6 +825,9 @@ static int apex_cli_combine_from_summary(const char *summary_path, FILE *out) {
 }
 
 int main(int argc, char *argv[]) {
+    /* Initialize progress reporting */
+    init_progress();
+
     apex_options options = apex_options_default();
     bool plugins_cli_override = false;
     bool plugins_cli_value = false;
@@ -1015,6 +1128,10 @@ int main(int argc, char *argv[]) {
             options.enable_autolink = false;
         } else if (strcmp(argv[i], "--obfuscate-emails") == 0) {
             options.obfuscate_emails = true;
+        } else if (strcmp(argv[i], "--progress") == 0) {
+            progress_enabled = true;
+        } else if (strcmp(argv[i], "--no-progress") == 0) {
+            progress_enabled = false;
         } else if (strcmp(argv[i], "--aria") == 0) {
             options.enable_aria = true;
         } else if (strcmp(argv[i], "--no-plugins") == 0) {
@@ -1023,6 +1140,10 @@ int main(int argc, char *argv[]) {
             options.enable_wiki_links = true;
         } else if (strcmp(argv[i], "--no-wikilinks") == 0) {
             options.enable_wiki_links = false;
+        } else if (strcmp(argv[i], "--emoji-autocorrect") == 0) {
+            options.enable_emoji_autocorrect = true;
+        } else if (strcmp(argv[i], "--no-emoji-autocorrect") == 0) {
+            options.enable_emoji_autocorrect = false;
         } else if (strcmp(argv[i], "--wikilink-space") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --wikilink-space requires an argument (dash, none, underscore, or space)\n");
@@ -1948,8 +2069,28 @@ int main(int argc, char *argv[]) {
     char *final_markdown = enhanced_markdown ? enhanced_markdown : markdown;
     size_t final_len = enhanced_markdown ? enhanced_len : input_len;
 
+    /* Set progress callback if enabled */
+    if (progress_enabled) {
+        options.progress_callback = progress_callback;
+        options.progress_user_data = NULL;
+        /* Reset start time when we begin processing */
+        progress_start_time = get_time_ms();
+        progress_shown = false;
+        last_stage = NULL;
+    }
+
     /* Convert to HTML */
     char *html = apex_markdown_to_html(final_markdown, final_len, &options);
+
+    /* Check if we should show delayed progress (in case processing took > 1s but no progress was shown) */
+    if (progress_enabled) {
+        check_delayed_progress();
+        /* Also force an update to show current progress */
+        update_progress_if_needed();
+    }
+
+    /* Clear progress line before output */
+    clear_progress();
 
     /* Cleanup */
     if (enhanced_markdown) free(enhanced_markdown);

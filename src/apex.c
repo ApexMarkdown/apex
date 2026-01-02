@@ -1910,8 +1910,15 @@ apex_options apex_options_default(void) {
     /* ARIA accessibility options */
     opts.enable_aria = false;
 
+    /* Emoji options */
+    opts.enable_emoji_autocorrect = true;  /* Enabled by default in unified mode */
+
     /* Source file information (used by plugins via APEX_FILE_PATH) */
     opts.input_file_path = NULL;
+
+    /* Progress reporting */
+    opts.progress_callback = NULL;
+    opts.progress_user_data = NULL;
 
     return opts;
 }
@@ -1951,6 +1958,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_sup_sub = false;  /* CommonMark: no sup/sub */
             opts.enable_autolink = false;  /* CommonMark: no autolinks */
             opts.enable_citations = false;  /* CommonMark: no citations */
+            opts.enable_emoji_autocorrect = false;  /* CommonMark: no emoji autocorrect */
             break;
 
         case APEX_MODE_GFM:
@@ -1980,6 +1988,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_sup_sub = false;  /* GFM: no sup/sub */
             opts.enable_autolink = true;  /* GFM: autolinks enabled */
             opts.enable_citations = false;  /* GFM: no citations */
+            opts.enable_emoji_autocorrect = false;  /* GFM: no emoji autocorrect by default */
             break;
 
         case APEX_MODE_MULTIMARKDOWN:
@@ -2011,6 +2020,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_indices = false;  /* Indices disabled by default - use --indices to enable */
             opts.enable_mmark_index_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_textindex_syntax = false;  /* Disabled by default - use --indices to enable */
+            opts.enable_emoji_autocorrect = false;  /* MMD: no emoji autocorrect by default */
             break;
 
         case APEX_MODE_KRAMDOWN:
@@ -2042,6 +2052,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_sup_sub = false;  /* Kramdown: no sup/sub */
             opts.enable_autolink = true;  /* Kramdown: autolinks enabled */
             opts.enable_citations = false;  /* Kramdown: no citations (different system) */
+            opts.enable_emoji_autocorrect = false;  /* Kramdown: no emoji autocorrect by default */
             break;
 
         case APEX_MODE_UNIFIED:
@@ -2061,6 +2072,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_textindex_syntax = true;  /* Unified: TextIndex syntax enabled */
             opts.enable_divs = true;  /* Unified: Pandoc fenced divs enabled */
             opts.enable_spans = true;  /* Unified: bracketed spans enabled */
+            opts.enable_emoji_autocorrect = true;  /* Unified: emoji autocorrect enabled */
             break;
     }
 
@@ -2219,6 +2231,14 @@ static bool profiling_enabled(void) {
         double name##_elapsed = get_time_ms() - name##_start; \
         fprintf(stderr, "[PROFILE] %-30s: %8.2f ms\n", #name, name##_elapsed); \
     }
+
+/* Progress reporting helper macro */
+#define PROGRESS_REPORT(stage, percent) \
+    do { \
+        if (options && options->progress_callback) { \
+            options->progress_callback(stage, percent, options->progress_user_data); \
+        } \
+    } while (0)
 
 char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options *options) {
     if (!markdown || len == 0) {
@@ -2418,6 +2438,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     if (options->enable_citations && should_process_citations) {
+        PROGRESS_REPORT("Processing citations", -1);
         PROFILE_START(citations);
         citations_processed = apex_process_citations(text_ptr, &citation_registry, options);
         PROFILE_END(citations);
@@ -2430,6 +2451,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     apex_index_registry index_registry = {0};
     char *indices_processed = NULL;
     if (options->enable_indices) {
+        PROGRESS_REPORT("Processing indices", -1);
         PROFILE_START(indices);
         indices_processed = apex_process_index_entries(text_ptr, &index_registry, options);
         PROFILE_END(indices);
@@ -2444,6 +2466,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      */
     char *autolinks_processed = NULL;
     if (options->enable_autolink) {
+        PROGRESS_REPORT("Processing autolinks", -1);
         PROFILE_START(autolinks);
         autolinks_processed = apex_preprocess_autolinks(text_ptr, options);
         PROFILE_END(autolinks);
@@ -2531,6 +2554,17 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Process emoji autocorrect before parsing (preprocessing) */
+    char *emoji_autocorrect_processed = NULL;
+    if (options->enable_emoji_autocorrect && (options->mode == APEX_MODE_UNIFIED || options->mode == APEX_MODE_GFM)) {
+        PROFILE_START(emoji_autocorrect);
+        emoji_autocorrect_processed = apex_autocorrect_emoji_names(text_ptr);
+        PROFILE_END(emoji_autocorrect);
+        if (emoji_autocorrect_processed) {
+            text_ptr = emoji_autocorrect_processed;
+        }
+    }
+
     /* Process inline footnotes before parsing (Kramdown ^[...] and MMD [^... ...]) */
     char *inline_footnotes_processed = NULL;
     if (options->enable_footnotes) {
@@ -2564,9 +2598,12 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process relaxed tables before parsing (preprocessing) */
     char *relaxed_tables_processed = NULL;
     if (options->relaxed_tables && options->enable_tables) {
+        PROGRESS_REPORT("Processing relaxed tables", -1);
         PROFILE_START(relaxed_tables);
         relaxed_tables_processed = apex_process_relaxed_tables(text_ptr);
         PROFILE_END(relaxed_tables);
+        /* Refresh progress after processing completes (in case it took a while) */
+        PROGRESS_REPORT(NULL, -1);  /* NULL stage = refresh last known stage */
         if (relaxed_tables_processed) {
             text_ptr = relaxed_tables_processed;
         }
@@ -2684,6 +2721,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (options->enable_wiki_links) {
         /* Fast path: skip AST walk if no wiki link markers present */
         if (strstr(text_ptr, "[[") != NULL) {
+            PROGRESS_REPORT("Processing wiki links", -1);
             /* Create wiki link configuration from options */
             wiki_link_config wiki_config;
             wiki_config.base_path = "";
@@ -2763,8 +2801,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Post-process HTML for advanced table attributes (rowspan/colspan) */
     if (options->enable_tables && html) {
+        PROFILE_START(inject_table_attributes);
         extern char *apex_inject_table_attributes(const char *html, cmark_node *document, int caption_position);
         char *processed_html = apex_inject_table_attributes(html, document, options->caption_position);
+        PROFILE_END(inject_table_attributes);
         if (processed_html && processed_html != html) {
             free(html);
             html = processed_html;
@@ -3074,6 +3114,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (ial_preprocessed) free(ial_preprocessed);
     if (spans_preprocessed) free(spans_preprocessed);
     if (includes_processed) free(includes_processed);
+    if (emoji_autocorrect_processed) free(emoji_autocorrect_processed);
     if (markers_processed_early) {
         /* Only free if alpha_lists_processed didn't use it */
         if (!alpha_lists_processed || alpha_lists_processed != markers_processed_early) {

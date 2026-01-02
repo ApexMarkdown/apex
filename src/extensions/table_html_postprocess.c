@@ -489,9 +489,6 @@ static tfoot_row *collect_tfoot_rows(cmark_node *document) {
 char *apex_inject_table_attributes(const char *html, cmark_node *document, int caption_position) {
     if (!html || !document) return (char *)html;
 
-    /* Collect all cells (for mapping calculation) */
-    all_cell *all_cells = collect_all_cells(document);
-
     /* Collect all cells with attributes */
     cell_attr *attrs = collect_table_cell_attributes(document);
 
@@ -502,10 +499,15 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
     para_to_remove *paras_to_remove = NULL;
     table_caption *captions = collect_table_captions(document, &paras_to_remove);
 
-    /* If nothing to do, return original
-     * Note: We always process cell alignment, so we can't return early
-     * even if there are no other attributes/captions to process */
-    /* if (!attrs && !captions && !paras_to_remove) return (char *)html; */
+    /* Early exit: if there are no attributes, captions, or tfoot rows to process,
+     * return the original HTML. This avoids the expensive collect_all_cells() call
+     * and HTML processing for simple tables. */
+    if (!attrs && !captions && !paras_to_remove && !tfoot_rows) {
+        return (char *)html;
+    }
+
+    /* Collect all cells (for mapping calculation) - only needed if we have attributes to process */
+    all_cell *all_cells = collect_all_cells(document);
 
     /* Allocate output buffer (same size as input, we'll realloc if needed) */
     size_t capacity = strlen(html) * 2;

@@ -145,10 +145,23 @@ typedef struct {
     /* ARIA accessibility options */
     bool enable_aria;  /* Add ARIA labels and accessibility attributes to HTML output */
 
+    /* Emoji options */
+    bool enable_emoji_autocorrect;  /* Enable emoji name autocorrect (enabled by default in unified mode) */
+
     /* Source file information for plugins */
     /* When Apex is invoked on a file, this is the full path to that file. */
     /* When reading from stdin, this is either the base directory (if set) or empty. */
     const char *input_file_path;
+
+    /* Progress reporting callback */
+    /* Called during processing to report progress. Parameters:
+     * - stage: Description of current processing stage (e.g., "Processing tables", "Running plugin: kbd")
+     * - percent: Progress percentage (0-100), or -1 if unknown
+     * - user_data: User-provided context (can be NULL)
+     * If NULL, no progress reporting is performed.
+     */
+    void (*progress_callback)(const char *stage, int percent, void *user_data);
+    void *progress_user_data;  /* User data passed to progress callback */
 } apex_options;
 
 /**

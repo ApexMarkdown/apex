@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <time.h>
 
 /**
  * Count the number of columns in a table row (by counting pipes)
@@ -267,11 +269,23 @@ static char *generate_dummy_header_row(int num_columns, bool starts_with_pipe) {
 /**
  * Process relaxed tables - detect tables without separator rows and insert them
  */
-char *apex_process_relaxed_tables(const char *text) {
+static char *apex_process_relaxed_tables_impl(const char *text,
+                                               void (*progress_callback)(const char *stage, int percent, void *user_data),
+                                               void *progress_user_data) {
+    (void)progress_callback;
+    (void)progress_user_data;
+
+    clock_t start = clock();
+    fprintf(stderr, "[TRACE] relaxed_tables: start, text_len=%zu\n", text ? strlen(text) : 0);
+    fflush(stderr);
+
     if (!text) return NULL;
 
     size_t text_len = strlen(text);
     if (text_len == 0) return NULL;
+
+    fprintf(stderr, "[TRACE] relaxed_tables: after strlen, text_len=%zu\n", text_len);
+    fflush(stderr);
 
     /* Check if input ends with a newline */
     bool input_ends_with_newline = (text_len > 0 && text[text_len - 1] == '\n');
@@ -298,8 +312,20 @@ char *apex_process_relaxed_tables(const char *text) {
     size_t rows_capacity = 0;
     size_t rows_count = 0;
 
+    /* Track if we made any changes to avoid expensive strcmp */
+    bool made_changes = false;
+
+    fprintf(stderr, "[TRACE] relaxed_tables: starting main loop\n");
+    fflush(stderr);
+
+    size_t line_count = 0;
     /* Process line by line */
     while (*read) {
+        line_count++;
+        if (line_count % 1000 == 0) {
+            fprintf(stderr, "[TRACE] relaxed_tables: processed %zu lines\n", line_count);
+            fflush(stderr);
+        }
         const char *line_start = read;
         const char *line_end = strchr(read, '\n');
         if (!line_end) {
@@ -357,6 +383,7 @@ char *apex_process_relaxed_tables(const char *text) {
 
                     /* After first row, insert separator */
                     if (i == 0) {
+                        made_changes = true;  /* We're inserting a separator, so output will differ */
                         char *sep = generate_separator_row(rows[0].columns, rows[0].starts_with_pipe);
                         if (sep) {
                             size_t sep_len = strlen(sep);
@@ -838,6 +865,7 @@ char *apex_process_relaxed_tables(const char *text) {
 
                 /* After first row, insert separator */
                 if (i == 0) {
+                    made_changes = true;  /* We're inserting a separator, so output will differ */
                     char *sep = generate_separator_row(rows[0].columns, rows[0].starts_with_pipe);
                     if (sep) {
                         size_t sep_len = strlen(sep);
@@ -1084,11 +1112,36 @@ char *apex_process_relaxed_tables(const char *text) {
         output = new_output;
     }
 
+    fprintf(stderr, "[TRACE] relaxed_tables: finished loop, processed %zu lines, output_len=%zu\n", line_count, output_len);
+    fflush(stderr);
+
     /* Check if we made any changes */
-    if (strcmp(text, output) == 0) {
+    /* Fast path: if we made no changes and lengths match, skip expensive strcmp */
+    if (!made_changes && text_len == output_len) {
+        fprintf(stderr, "[TRACE] relaxed_tables: no changes made, returning NULL (skipped strcmp)\n");
+        fflush(stderr);
         free(output);
         return NULL;  /* No changes */
     }
+
+    /* If we made changes, output definitely differs, return it */
+    /* If lengths differ, output definitely differs, return it */
+    /* Only do strcmp if we're not sure (shouldn't happen with proper made_changes tracking) */
+    if (text_len == output_len) {
+        fprintf(stderr, "[TRACE] relaxed_tables: lengths match but made_changes unclear, doing strcmp (this may be slow)\n");
+        fflush(stderr);
+        if (strcmp(text, output) == 0) {
+            fprintf(stderr, "[TRACE] relaxed_tables: no changes, returning NULL\n");
+            fflush(stderr);
+            free(output);
+            return NULL;  /* No changes */
+        }
+    }
+
+    clock_t end = clock();
+    double elapsed = ((double)(end - start)) / CLOCKS_PER_SEC;
+    fprintf(stderr, "[TRACE] relaxed_tables: done, elapsed=%.3fs\n", elapsed);
+    fflush(stderr);
 
     return output;
 }
@@ -1098,6 +1151,10 @@ char *apex_process_relaxed_tables(const char *text) {
  * This allows alignment to be applied to tables that start with a separator row
  */
 char *apex_process_headerless_tables(const char *text) {
+    clock_t start = clock();
+    fprintf(stderr, "[TRACE] headerless_tables: start, text_len=%zu\n", text ? strlen(text) : 0);
+    fflush(stderr);
+
     if (!text) return NULL;
 
     size_t text_len = strlen(text);
@@ -1115,6 +1172,9 @@ char *apex_process_headerless_tables(const char *text) {
 
     /* Track previous line for context */
     bool prev_line_is_table_row = false;
+
+    /* Track if we made any changes to avoid expensive strcmp */
+    bool made_changes = false;
 
     /* Process line by line */
     while (*read) {
@@ -1177,6 +1237,7 @@ char *apex_process_headerless_tables(const char *text) {
                     char *dummy_header = generate_dummy_header_row(num_columns, starts_with_pipe);
 
                     if (dummy_header) {
+                        made_changes = true;  /* We're inserting a header, so output will differ */
                         size_t header_len = strlen(dummy_header);
 
                         /* Ensure we have space for header + original line */
@@ -1244,12 +1305,47 @@ char *apex_process_headerless_tables(const char *text) {
         return NULL;
     }
 
+    fprintf(stderr, "[TRACE] headerless_tables: finished loop, output_len=%zu, made_changes=%d\n", output_len, made_changes);
+    fflush(stderr);
+
     /* If nothing changed, return NULL to allow caller to use original */
-    if (strcmp(text, output) == 0) {
+    /* Fast path: if we made no changes and lengths match, skip expensive strcmp */
+    if (!made_changes && text_len == output_len) {
+        fprintf(stderr, "[TRACE] headerless_tables: no changes made, returning NULL (skipped strcmp)\n");
+        fflush(stderr);
         free(output);
         return NULL;
     }
 
+    /* If we made changes, output definitely differs, return it */
+    /* If lengths differ, output definitely differs, return it */
+    /* Only do strcmp if we're not sure (shouldn't happen with proper made_changes tracking) */
+    if (text_len == output_len) {
+        fprintf(stderr, "[TRACE] headerless_tables: lengths match but made_changes unclear, doing strcmp (this may be slow)\n");
+        fflush(stderr);
+        if (strcmp(text, output) == 0) {
+            fprintf(stderr, "[TRACE] headerless_tables: no changes, returning NULL\n");
+            fflush(stderr);
+            free(output);
+            return NULL;
+        }
+    }
+
+    clock_t end = clock();
+    double elapsed = ((double)(end - start)) / CLOCKS_PER_SEC;
+    fprintf(stderr, "[TRACE] headerless_tables: done, elapsed=%.3fs\n", elapsed);
+    fflush(stderr);
+
     return output;
 }
 
+/* Public API - calls internal implementation */
+char *apex_process_relaxed_tables(const char *text) {
+    return apex_process_relaxed_tables_impl(text, NULL, NULL);
+}
+
+char *apex_process_relaxed_tables_with_progress(const char *text,
+                                                  void (*progress_callback)(const char *stage, int percent, void *user_data),
+                                                  void *progress_user_data) {
+    return apex_process_relaxed_tables_impl(text, progress_callback, progress_user_data);
+}
