@@ -2,6 +2,59 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.44] - 2026-01-02
+
+### Changed
+
+- Updated emoji_entry structure to support both unicode and image-based emojis with separate unicode and image_url fields
+- Table alignment test now accepts both align="center" and style="text-align: center" attributes to be more flexible with cmark-gfm's output format
+
+### New
+
+- Fenced divs now support specifying different HTML block elements using >blocktype syntax (e.g., ::: >aside {.sidebar} creates <aside> instead of <div>)
+- Support for common HTML5 block elements: aside, article, section, details, summary, header, footer, nav, and custom elements
+- Block type syntax works with all attribute types including IDs, classes, and custom attributes
+- Added comprehensive test coverage for block type feature including nesting, multiple attributes, and edge cases
+- In GFM format, emojis in headers are converted to their textual names in generated IDs (e.g., #  Support -> id="smile-support"), matching Pandoc's GFM behavior
+- Added support for all 861 GitHub emojis (expanded from ~200), including 14 image-based emojis like :bowtie:, :octocat:, and :feelsgood:
+- Added emoji name autocorrect feature using fuzzy matching with Levenshtein distance algorithm to correct typos and formatting errors in emoji names
+- Added --emoji-autocorrect and --no-emoji-autocorrect command-line flags to control emoji autocorrection
+- Emoji autocorrect is enabled by default in unified mode and can be enabled in GFM mode
+- Image-based emojis in headers now use em units (height: 1em) for proper scaling instead of fixed pixel sizes
+
+### Improved
+
+- Fenced div block types can be nested and mixed with regular divs
+- Emoji processing now validates that only complete :emoji_name: patterns are processed (requires at least one character and no spaces between colons)
+- Emoji names are normalized (lowercase, hyphens to underscores) before matching to handle case variations and formatting differences
+- Table processing now completes in under 30ms for large tables (previously timing out after 5+ seconds) by avoiding expensive string comparisons when no changes are made
+- Added early exit in table attribute injection to skip processing for simple tables without special attributes, avoiding expensive AST traversal for tables that don't need it
+- Table post-processing performance significantly improved for large tables (2600+ cells) by implementing lazy cell content extraction, only extracting content when needed for attribute matching or alignment processing
+- Added timeout protection (10 seconds) to table post-processing loop to prevent hangs on extremely large tables, gracefully exiting and returning processed HTML
+- Per-cell alignment processing now disabled automatically for tables with more than 1000 cells to avoid timeouts, while column alignment from delimiter rows continues to work (handled by cmark-gfm)
+- Optimized alignment colon detection to only check first and last non-whitespace characters instead of scanning entire cell content, reducing character comparisons by ~50x
+- Added early exit for tables with only simple attributes (no rowspan/colspan/data-remove) to skip expensive HTML processing when no complex features are needed
+- Content-based cell matching now skipped for tables with more than 500 attributes to avoid performance degradation
+- Added CMARK_OPT_LIBERAL_HTML_TAG option when unsafe mode is enabled to allow cmark-gfm to properly recognize inline HTML tags instead of encoding them
+- MacOS binaries now use @rpath for libyaml instead of hardcoded Homebrew paths, allowing the binary to work when copied to /usr/local/bin as long as libyaml is installed in /usr/local/lib or /opt/homebrew/lib
+- Emoji name resolution now prefers longer, more descriptive names (e.g., "thumbsup" over "+1")
+- Header ID generation now normalizes common Latin diacritics (e, a, c, etc.)
+- Table rowspan matching now extracts cell content for more accurate matching
+
+### Fixed
+
+- Fixed issue where partial emoji patterns or empty patterns could cause incorrect matches
+- Emoji replacement now correctly ignores table alignment patterns like :---: and :|: to prevent incorrect emoji processing in table delimiter rows
+- Emoji patterns (like :bowtie:) inside HTML tag attributes are now correctly ignored and not processed, preventing mangled HTML output when emojis appear in attributes like title=":emoji:"
+- Autolink processing now skips URLs inside HTML tag attributes, preventing URLs in attributes like src="https://..." from being converted to markdown links
+- Inline HTML tags like <img> are no longer HTML-encoded when --unsafe is enabled, preserving raw HTML in paragraphs, blockquotes, and definition lists
+- Header IDs with emojis now correctly replace cmark-gfm's auto-generated IDs instead of being skipped, ensuring custom ID formats (like emoji-to-name conversion) are applied
+- Emoji processing now correctly skips index placeholders (<!--IDX:...-->)
+- Table processing now correctly detects and processes rowspan markers (^^)
+- Table attribute processing optimization no longer incorrectly skips rowspan/colspan attributes
+- Table formatting in fixture
+- Remove unused function
+
 ## [0.1.43] - 2025-12-31
 
 ### Changed
@@ -1876,6 +1929,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.44]: https://github.com/ttscoff/apex/releases/tag/v0.1.44
 [0.1.43]:
 https://github.com/ttscoff/apex/releases/tag/v0.1.43
 [0.1.42]:

@@ -1,5 +1,5 @@
 
-[![Version: 0.1.42](https://img.shields.io/badge/Version-0.1.42-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.43](https://img.shields.io/badge/Version-0.1.43-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
 # Apex
@@ -14,11 +14,12 @@ them all.
 ![](apex-header-2-rb@2x.webp)
 
 
-There are so many variations of Markdown, extending its
-features in all kinds of ways. But picking one flavor means
-giving up the features of another flavor. So I'm building
-Apex with the goal of making all of the most popular
-features of various processors available in one tool.
+There are so many variations of
+Markdown, extending its features in all kinds of ways. But
+picking one flavor means giving up the features of another
+flavor. So I'm building Apex with the goal of making all of
+the most popular features of various processors available in
+one tool.
 
 ## Features
 
@@ -34,12 +35,14 @@ features of various processors available in one tool.
 
 ### Markdown Extensions
 
-**Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, captions before/after tables including Pandoc-style `Table: Caption`, and individual cell alignment using colons `:Left`, `Right:`, `:Center:`)
+**Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, captions before/after tables including Pandoc-style `Table: Caption` and `: Caption` syntax, and individual cell alignment using colons `:Left`, `Right:`, `:Center:`)
 
 - **Table caption positioning**: Control caption placement
 
   with `--captions above` or `--captions below` (default:
   below)
+
+**Table caption IAL**: IAL attributes in table captions (e.g., `: Caption {#id .class}`) are extracted and applied to the table element
 
 - **Relaxed tables**: Support for tables without separator
 
@@ -88,6 +91,7 @@ features of various processors available in one tool.
 ### Document Features
 
 
+
 - **Metadata blocks**: YAML front matter, MultiMarkdown
 
   metadata, and Pandoc title blocks
@@ -112,9 +116,22 @@ features of various processors available in one tool.
 
   and TSV files
 
-- **Inline Attribute Lists (IAL)**: Kramdown-style
+**Inline Attribute Lists (IAL)**: Kramdown-style attributes `{: #id .class}` and Pandoc-style attributes `{#id .class}` - both formats work in all contexts (block-level, inline, paragraphs, headings, table captions)
 
-  attributes `{: #id .class}`
+- **Bracketed spans**: Convert `[text]{IAL}` syntax to HTML
+
+  span elements with attributes, enabled by default in
+  unified mode
+
+**Fenced divs**: Pandoc-style fenced divs `::::: {#id .class} ... :::::` for creating custom block containers, enabled by default in unified mode. Supports block type syntax `>blocktype` to create different HTML elements (e.g., `::: >aside {.sidebar}` creates `<aside>` instead of `<div>`). Common block types include `aside`, `article`, `section`, `details`, `summary`, `header`, `footer`, `nav`, and custom elements
+
+- **Image IAL support**: Inline and reference-style images
+
+  support IAL syntax with automatic width/height conversion
+  (percentages and non-integer/non-px values convert to
+  style attributes, Xpx values convert to integer
+  width/height attributes, bare integers remain as
+  width/height attributes)
 
 **Special markers**: Page breaks (`<!--BREAK-->`), autoscroll pauses (`<!--PAUSE:N-->`), end-of-block markers
 
@@ -216,6 +233,12 @@ features of various processors available in one tool.
 - **Header ID generation**: Automatic or manual header IDs
 
   with multiple format options (GFM, MMD, Kramdown)
+
+- **Emoji-to-name conversion**: In GFM mode, emojis in
+
+  headers are converted to their textual names in IDs (e.g.,
+  `# ???? Support` ??? `id="smile-support"`), matching Pandoc's
+  GFM behavior
 
 - **Header anchors**: Option to generate `<a>` anchor tags
 
@@ -398,10 +421,16 @@ apex input.md --mode kramdown
 
 `--wikilink-extension EXT` - File extension to append to wiki link URLs (e.g. `html`, `md`)
 
+- `--divs` / `--no-divs` - Enable/disable Pandoc fenced divs
+
+  syntax (enabled by default in unified mode)
+
+`--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
+
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.42
+Apex Markdown Processor v0.1.43
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -458,8 +487,10 @@ Options:
   --no-transforms        Disable metadata variable transforms
   --no-unsafe            Disable raw HTML in output
   --no-wikilinks         Disable wiki link syntax
+  --[no-]emoji-autocorrect  Enable/disable emoji name autocorrect (enabled by default in unified mode)
   --obfuscate-emails     Obfuscate email links/text using HTML entities
   -o, --output FILE      Write output to FILE instead of stdout
+  --[no-]progress          Show progress indicator during processing (enabled by default for TTY)
   --plugins              Enable external/plugin processing
   --pretty               Pretty-print HTML with indentation and whitespace
   --reject               Reject all Critic Markup changes (revert edits)
