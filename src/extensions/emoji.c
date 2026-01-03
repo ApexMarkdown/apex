@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdint.h>
 #include "emoji_data.h"
 
 /* Forward declarations */
