@@ -14,9 +14,15 @@ require 'uri'
 begin
   require 'rouge'
   ROUGE_AVAILABLE = true
-rescue LoadError
+  puts "Rouge loaded successfully (version: #{Rouge::VERSION rescue 'unknown'})"
+rescue LoadError => e
   ROUGE_AVAILABLE = false
   puts "Warning: Rouge gem not found. Install with: gem install rouge"
+  puts "Error: #{e.message}" if e.message
+  puts "Syntax highlighting will be disabled."
+rescue => e
+  ROUGE_AVAILABLE = false
+  puts "Warning: Error loading Rouge: #{e.class}: #{e.message}"
   puts "Syntax highlighting will be disabled."
 end
 
@@ -42,12 +48,16 @@ def find_apex_binary
   system_apex = `which apex 2>/dev/null`.strip
   return system_apex if system_apex != '' && File.exist?(system_apex)
 
-  # Try build-release (relative to repo root, not script dir)
-  build_apex = File.expand_path('../build-release/apex', __dir__)
+  # Prioritize build/apex if it exists (most recent build)
+  build_apex = File.expand_path('../build/apex', __dir__)
   return build_apex if File.exist?(build_apex)
 
+  # Try build-release (relative to repo root, not script dir)
+  build_release_apex = File.expand_path('../build-release/apex', __dir__)
+  return build_release_apex if File.exist?(build_release_apex)
+
   # Try other common build directories
-  ['../build/apex', '../build-debug/apex'].each do |path|
+  ['../build-debug/apex'].each do |path|
     full_path = File.expand_path(path, __dir__)
     return full_path if File.exist?(full_path)
   end
@@ -162,12 +172,20 @@ end
 def highlight_code_blocks(html_content)
   return html_content unless ROUGE_AVAILABLE
 
+  code_block_count = 0
+  highlighted_count = 0
+  error_count = 0
+
   begin
     # Find all code blocks - handle various formats
+    # Apex outputs: <pre lang="language"><code>...</code></pre>
+    # Or: <pre><code class="language-xxx">...</code></pre>
     # Use non-greedy matching and ensure we match complete code blocks
-    html_content.gsub(/<pre><code(?:\s+class=["'](?:language-)?([^"'\s]+)["'])?[^>]*>([\s\S]*?)<\/code><\/pre>/i) do |match|
-      lang = $1
-      code = $2
+    # Match <pre> tag (with optional lang attribute), then <code> tag (with optional class), then content, then closing tags
+    result = html_content.gsub(/<pre(\s+lang=["']([^"']+)["'])?[^>]*>\s*<code(\s+class=["'](?:language-)?([^"'\s]+)["'])?[^>]*>([\s\S]*?)<\/code>\s*<\/pre>/i) do |match|
+      code_block_count += 1
+      lang = $2 || $4  # Get lang from <pre lang="..."> ($2) or class from <code class="..."> ($4)
+      code = $5
 
       # Skip if code is empty or suspiciously large (might be a regex error)
       if code.nil? || code.empty? || code.length > 100000
@@ -178,67 +196,57 @@ def highlight_code_blocks(html_content)
           code = code.gsub(/&lt;/, '<').gsub(/&gt;/, '>').gsub(/&amp;/, '&').gsub(/&quot;/, '"')
 
           if lang && !lang.empty?
-            lexer = Rouge::Lexer.find(lang.downcase) || Rouge::Lexers::PlainText
+            lang_normalized = lang.downcase
+            # Handle common language aliases
+            lang_aliases = {
+              'yml' => 'yaml',
+              'md' => 'markdown',
+              'mkd' => 'markdown',
+              'mkdn' => 'markdown',
+              'mdown' => 'markdown'
+            }
+            lang_normalized = lang_aliases[lang_normalized] || lang_normalized
+
+            lexer = Rouge::Lexer.find(lang_normalized)
+            if lexer.nil?
+              puts "  Warning: No lexer found for language '#{lang}' (normalized: '#{lang_normalized}'), using PlainText"
+              lexer = Rouge::Lexers::PlainText
+            end
           else
             lexer = Rouge::Lexers::PlainText
           end
 
           formatter = Rouge::Formatters::HTML.new
           highlighted = formatter.format(lexer.lex(code))
+          highlighted_count += 1
 
           # Return highlighted code with proper classes
           "<pre><code class=\"highlight #{lang ? "language-#{lang}" : ''}\">#{highlighted}</code></pre>"
         rescue => e
+          error_count += 1
           # If highlighting fails, return original
-          puts "Warning: Failed to highlight code block: #{e.message}"
+          puts "  Warning: Failed to highlight code block (lang: #{lang || 'none'}): #{e.class}: #{e.message}"
+          puts "  Backtrace: #{e.backtrace.first(2).join(' | ')}" if $DEBUG
           match
         end
       end
     end
+
+    if code_block_count > 0
+      puts "  Highlighted #{highlighted_count}/#{code_block_count} code blocks"
+      puts "  Errors: #{error_count}" if error_count > 0
+    end
+
+    result
   rescue => e
-    puts "Warning: Error in highlight_code_blocks: #{e.message}"
+    puts "Warning: Error in highlight_code_blocks: #{e.class}: #{e.message}"
+    puts "Backtrace: #{e.backtrace.first(3).join("\n")}" if $DEBUG
     puts "Returning original HTML without highlighting"
     html_content
   end
 end
 
-def rouge_css
-  return '' unless ROUGE_AVAILABLE
-
-  begin
-    theme = Rouge::Themes::Github.new
-    css_content = theme.render
-    # Scope all CSS rules to .highlight
-    scoped_css = css_content.lines.map do |line|
-      # Skip empty lines and comments
-      if line.strip.empty? || line.strip.start_with?('/*') || line.strip.start_with?('*/')
-        line
-      # Scope CSS rules that start with . or # (but not @ rules)
-      elsif line =~ /^\s*([.#][a-z0-9_-]+)/i && !line.strip.start_with?('@')
-        line.gsub(/^(\s*)([.#][a-z0-9_-]+)/i, '\1.highlight \2')
-      else
-        line
-      end
-    end.join
-
-    <<~CSS
-      <style>
-        #{scoped_css}
-      </style>
-    CSS
-  rescue => e
-    puts "Warning: Failed to generate Rouge CSS: #{e.message}"
-    # Fallback to basic styles
-    <<~CSS
-      <style>
-        .highlight { background: #f5f5f5; }
-        .highlight .k { color: #d73a49; }
-        .highlight .s { color: #032f62; }
-        .highlight .n { color: #005cc5; }
-      </style>
-    CSS
-  end
-end
+# Rouge CSS is now included in shared_styles.css
 
 def extract_headers(html_content)
   headers = []
@@ -320,8 +328,8 @@ def inject_toc_into_html(html_content, main_toc_html, page_toc_html)
   shared_css = File.exist?(shared_css_file) ? File.read(shared_css_file) : ''
   toc_css = "<style>\n#{shared_css}\n</style>"
 
-  # Inject CSS into head (including Rouge CSS)
-  combined_css = toc_css + rouge_css
+  # Inject CSS into head (Rouge CSS is included in shared_styles.css)
+  combined_css = toc_css
   if html_content =~ /(<\/head>)/i
     html_content = html_content.sub(/(<\/head>)/i, "#{combined_css}\\1")
   elsif html_content =~ /(<\/style>)/i

@@ -518,6 +518,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     bool term_has_blockquote = false;  /* Track if buffered term has blockquote prefix */
     int term_blockquote_depth = 0;  /* Track blockquote depth of buffered term */
     bool found_any_def_list = false;  /* Track if we actually created any definition lists */
+    bool in_code_block = false;  /* Track if we're inside a fenced code block */
 
     const char *prev_read_pos = NULL;
     int iteration_count = 0;
@@ -552,6 +553,34 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         }
 
         size_t line_length = line_end - line_start;
+
+        /* Check for fenced code blocks (```) */
+        const char *code_check = line_start;
+        while (code_check < line_end && (*code_check == ' ' || *code_check == '\t')) code_check++;
+        bool is_code_fence = false;
+        if (code_check + 3 <= line_end &&
+            code_check[0] == '`' && code_check[1] == '`' && code_check[2] == '`') {
+            is_code_fence = true;
+        }
+
+        /* If we're inside a code block OR this is a code fence line, just copy the line as-is */
+        if (in_code_block || is_code_fence) {
+            /* Toggle code block state when we see a fence */
+            if (is_code_fence) {
+                in_code_block = !in_code_block;
+            }
+            ENSURE_SPACE(line_length + 1);
+            memcpy(write, line_start, line_length);
+            write += line_length;
+            remaining -= line_length;
+            *write++ = '\n';
+            remaining--;
+            read = line_end;
+            if (*read == '\n') {
+                read++;
+            }
+            continue;
+        }
 
         /* Skip table rows (lines that start with |) */
         const char *p = line_start;

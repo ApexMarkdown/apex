@@ -135,11 +135,18 @@ body {
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
+  opacity: 0.2;
 }
 
 .hamburger-menu:hover {
   background: #334155;
   color: #fff;
+  opacity: 1;
+}
+
+/* Move hamburger to the right of the sidebar when menu is open */
+.hamburger-menu.active {
+  left: calc(250px + 12px); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
 }
 
 .hamburger-menu.active {
@@ -781,13 +788,28 @@ apex --mode kramdown document.md
             var targetElement = document.getElementById(targetId);
             if (targetElement) {
               var offset = 20; // Offset from top
-              var elementPosition = targetElement.getBoundingClientRect().top;
-              var offsetPosition = elementPosition + window.pageYOffset - offset;
 
-              window.scrollTo({
-                top: offsetPosition,
-                behavior: 'smooth'
-              });
+              // Function to calculate absolute position from document top
+              function getAbsoluteTop(element) {
+                var top = 0;
+                while (element) {
+                  top += element.offsetTop;
+                  element = element.offsetParent;
+                }
+                return top;
+              }
+
+              var absoluteTop = getAbsoluteTop(targetElement);
+              var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+              var offsetPosition = absoluteTop - offset;
+
+              // Only scroll if we're not already at the target position
+              if (Math.abs(scrollTop - offsetPosition) > 10) {
+                window.scrollTo({
+                  top: Math.max(0, offsetPosition),
+                  behavior: 'smooth'
+                });
+              }
 
               // Update URL hash without triggering scroll
               if (history.pushState) {
