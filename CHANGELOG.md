@@ -31,6 +31,42 @@ All notable changes to Apex will be documented in this file.
 - Swift/Objective-C bridging issues in Apex.swift to work correctly with SPM module structure
 - Fix node type declarations to use enum values instead of extern variables for better module compatibility
 
+## 0.1.50
+
+### Changed
+
+- Removed rouge_css function from documentation generators (generate_docset.rb, generate_single_html.rb, generate_app_docs.rb) in favor of using the shared stylesheet approach.
+
+### New
+
+- Added generate_docset.rb script to generate Dash docsets from Apex documentation
+- Added support for single-page CLI options docset using mmd2cheatset
+- Added support for multi-page docset from wiki files with full navigation
+- Added shared_styles.css with common styling for all documentation generators
+- Added shared_scripts.js with hamburger menu functionality for mobile navigation
+- Added hamburger menu button for mobile navigation that slides sidebar in from left
+- Added mobile menu overlay that closes sidebar when clicked
+
+### Improved
+
+- Documentation generators now use shared CSS and JavaScript files for consistency
+- Sidebar width increased to 180-250px on larger screens to prevent menu item wrapping
+- Hamburger menu fades to 0.2 opacity when not hovered, full opacity on hover
+- Hamburger menu repositions to right of sidebar when menu is open
+- Hash handling on page load now supports both page IDs and section IDs
+- Added hashchange event listener to handle URL hash changes after page load
+- Moved Rouge syntax highlighting CSS to shared stylesheet (shared_styles.css) for better maintainability. All documentation generators now use the centralized GitHub theme CSS instead of generating it dynamically.
+- Documentation generators now prioritize build/apex over build-release/apex when searching for the Apex binary, ensuring the most recently built version is used for documentation generation.
+
+### Fixed
+
+- TOC link navigation now uses getAbsoluteTop function for reliable scroll positioning
+- Hash navigation in single-page HTML files now correctly shows page and scrolls to section
+- TOC links in C API and other pages now scroll correctly instead of only moving 5px
+- Definition lists are no longer incorrectly processed inside fenced code blocks. The definition list preprocessor now detects code block boundaries and skips processing when inside a code block, preserving the literal markdown syntax in code examples.
+- Definition lists are no longer incorrectly processed inside fenced code blocks. The definition list preprocessor now detects code block boundaries and distinguishes between closing fences (```) and opening fences (```markdown). When inside a code block, only closing fences exit the block, while opening fences with language identifiers are treated as content, preventing definition list syntax from being rendered as HTML in code examples.
+- Fixed double-free memory error in definition list preprocessor by setting ref_definitions to NULL after freeing and adding NULL checks in error paths to prevent attempting to free already-freed memory.
+
 ## [0.1.48] - 2026-01-03
 
 ### Fixed
@@ -1996,6 +2032,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.50]: https://github.com/ttscoff/apex/releases/tag/v0.1.50
 [0.1.49]: https://github.com/ttscoff/apex/releases/tag/v0.1.49
 [0.1.48]: https://github.com/ttscoff/apex/releases/tag/v0.1.48
 [0.1.47]: https://github.com/ttscoff/apex/releases/tag/v0.1.47
