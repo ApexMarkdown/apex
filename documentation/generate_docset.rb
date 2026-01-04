@@ -11,6 +11,15 @@ require 'fileutils'
 require 'yaml'
 require 'uri'
 
+begin
+  require 'rouge'
+  ROUGE_AVAILABLE = true
+rescue LoadError
+  ROUGE_AVAILABLE = false
+  puts "Warning: Rouge gem not found. Install with: gem install rouge"
+  puts "Syntax highlighting will be disabled."
+end
+
 # Only require sqlite3 for multi-page docset
 def require_sqlite3
   require 'sqlite3'
@@ -150,6 +159,87 @@ def generate_single_page_docset
   Dir.chdir(original_dir)
 end
 
+def highlight_code_blocks(html_content)
+  return html_content unless ROUGE_AVAILABLE
+
+  begin
+    # Find all code blocks - handle various formats
+    # Use non-greedy matching and ensure we match complete code blocks
+    html_content.gsub(/<pre><code(?:\s+class=["'](?:language-)?([^"'\s]+)["'])?[^>]*>([\s\S]*?)<\/code><\/pre>/i) do |match|
+      lang = $1
+      code = $2
+
+      # Skip if code is empty or suspiciously large (might be a regex error)
+      if code.nil? || code.empty? || code.length > 100000
+        match
+      else
+        begin
+          # Unescape HTML entities
+          code = code.gsub(/&lt;/, '<').gsub(/&gt;/, '>').gsub(/&amp;/, '&').gsub(/&quot;/, '"')
+
+          if lang && !lang.empty?
+            lexer = Rouge::Lexer.find(lang.downcase) || Rouge::Lexers::PlainText
+          else
+            lexer = Rouge::Lexers::PlainText
+          end
+
+          formatter = Rouge::Formatters::HTML.new
+          highlighted = formatter.format(lexer.lex(code))
+
+          # Return highlighted code with proper classes
+          "<pre><code class=\"highlight #{lang ? "language-#{lang}" : ''}\">#{highlighted}</code></pre>"
+        rescue => e
+          # If highlighting fails, return original
+          puts "Warning: Failed to highlight code block: #{e.message}"
+          match
+        end
+      end
+    end
+  rescue => e
+    puts "Warning: Error in highlight_code_blocks: #{e.message}"
+    puts "Returning original HTML without highlighting"
+    html_content
+  end
+end
+
+def rouge_css
+  return '' unless ROUGE_AVAILABLE
+
+  begin
+    theme = Rouge::Themes::Github.new
+    css_content = theme.render
+    # Scope all CSS rules to .highlight
+    scoped_css = css_content.lines.map do |line|
+      # Skip empty lines and comments
+      if line.strip.empty? || line.strip.start_with?('/*') || line.strip.start_with?('*/')
+        line
+      # Scope CSS rules that start with . or # (but not @ rules)
+      elsif line =~ /^\s*([.#][a-z0-9_-]+)/i && !line.strip.start_with?('@')
+        line.gsub(/^(\s*)([.#][a-z0-9_-]+)/i, '\1.highlight \2')
+      else
+        line
+      end
+    end.join
+
+    <<~CSS
+      <style>
+        #{scoped_css}
+      </style>
+    CSS
+  rescue => e
+    puts "Warning: Failed to generate Rouge CSS: #{e.message}"
+    # Fallback to basic styles
+    <<~CSS
+      <style>
+        .highlight { background: #f5f5f5; }
+        .highlight .k { color: #d73a49; }
+        .highlight .s { color: #032f62; }
+        .highlight .n { color: #005cc5; }
+      </style>
+    CSS
+  end
+end
+
 def extract_headers(html_content)
   headers = []
   # Match headers with IDs, handling multi-line formatting
@@ -225,167 +315,177 @@ def generate_page_toc(headers)
 end
 
 def inject_toc_into_html(html_content, main_toc_html, page_toc_html)
-  # Add CSS for the TOC sidebar and page TOC
-  toc_css = <<~CSS
-    <style>
-      .main-toc {
-        position: fixed;
-        left: 0;
-        top: 0;
-        width: auto;
-        min-width: 150px;
-        max-width: 200px;
-        height: 100vh;
-        overflow-y: auto;
-        background: #f5f5f5;
-        border-right: 2px solid #ddd;
-        padding: 20px;
-        font-size: 0.9em;
-        z-index: 100;
-        margin-right: 1rem;
-      }
-      .main-toc ul {
-        list-style: none;
-        padding-left: 0;
-        margin: 0;
-      }
-      .main-toc li {
-        margin: 0.25em 0;
-      }
-      .main-toc a {
-        color: #333;
-        text-decoration: none;
-        display: block;
-        padding: 0.5em;
-        border-radius: 3px;
-      }
-      .main-toc a:hover {
-        background: #e0e0e0;
-      }
-      .page-toc {
-        background: #f9f9f9;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 1rem;
-        margin: 1.5rem 0;
-      }
-      .page-toc ul {
-        list-style: none;
-        padding-left: 0;
-        margin: 0;
-      }
-      .page-toc > ul {
-        padding-left: 0;
-      }
-      .page-toc li {
-        margin: 0.25em 0;
-      }
-      .page-toc a {
-        color: #0066cc;
-        text-decoration: none;
-        display: block;
-        padding: 0.25em 0.5em;
-        border-radius: 3px;
-      }
-      .page-toc a:hover {
-        background: #e0e0e0;
-        color: #004499;
-      }
-      .page-toc ul ul {
-        list-style: none;
-        padding-left: 1.5em;
-        margin-top: 0.25em;
-        margin-left: 0;
-      }
-      .page-toc ul ul ul {
-        padding-left: 1.5em;
-      }
-      .page-toc ul ul a {
-        font-size: 0.9em;
-        color: #555;
-      }
-      .page-toc ul ul ul a {
-        font-size: 0.85em;
-        color: #666;
-      }
-      .page-footer {
-        background: #f5f5f5;
-        border-top: 1px solid #ddd;
-        padding: 1.5rem;
-        margin-top: 3rem;
-        color: #666;
-        font-size: 0.9em;
-      }
-      .page-footer p {
-        margin: 0.5em 0;
-      }
-      .page-footer a {
-        color: #0066cc;
-        text-decoration: none;
-      }
-      .page-footer a:hover {
-        text-decoration: underline;
-      }
-      /* Nested lists in page content */
-      ul ul, ol ol, ul ol, ol ul {
-        padding-left: 1.5em;
-        margin-top: 0.25em;
-      }
-      /* Code blocks */
-      code {
-        background: #f0f0f0;
-        padding: 0.2em 0.4em;
-        border-radius: 3px;
-        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-        font-size: 0.9em;
-        margin: 0 0.1em;
-      }
-      pre {
-        background: #f5f5f5;
-        padding: 1rem;
-        overflow-x: auto;
-        border-radius: 4px;
-        margin: 1em 0;
-      }
-      pre code {
-        background: none;
-        padding: 0;
-        margin: 0;
-      }
-      body {
-        margin-left: 220px;
-      }
-      @media (max-width: 768px) {
-        .main-toc {
-          display: none;
-        }
-        body {
-          margin-left: 0;
-        }
-      }
-    </style>
-  CSS
+  # Load shared CSS
+  shared_css_file = File.join(SCRIPT_DIR, 'shared_styles.css')
+  shared_css = File.exist?(shared_css_file) ? File.read(shared_css_file) : ''
+  toc_css = "<style>\n#{shared_css}\n</style>"
 
-  # Inject CSS into head
+  # Inject CSS into head (including Rouge CSS)
+  combined_css = toc_css + rouge_css
   if html_content =~ /(<\/head>)/i
-    html_content = html_content.sub(/(<\/head>)/i, "#{toc_css}\\1")
+    html_content = html_content.sub(/(<\/head>)/i, "#{combined_css}\\1")
   elsif html_content =~ /(<\/style>)/i
-    html_content = html_content.sub(/(<\/style>)/i, "\\1\n#{toc_css}")
+    html_content = html_content.sub(/(<\/style>)/i, "\\1\n#{combined_css}")
   end
+
+  # Inject hamburger menu and mobile overlay
+  hamburger_html = <<~HTML
+    <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
+    <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
+  HTML
 
   # Inject main TOC into body (left sidebar)
   if html_content =~ /(<body[^>]*>)/i
-    html_content = html_content.sub(/(<body[^>]*>)/i, "\\1\n#{main_toc_html}")
+    html_content = html_content.sub(/(<body[^>]*>)/i, "\\1\n#{hamburger_html}\n#{main_toc_html}")
   else
     puts "Warning: Could not find <body> tag to inject main TOC"
   end
 
-  # Inject page TOC at top of content (after first h1)
+  # Inject page TOC at top of content (after first h1, or at start of body if no h1)
   # Handle multi-line h1 tags (from pretty printing)
-  if html_content =~ /<h1[^>]*>[\s\S]*?<\/h1>/i
-    html_content = html_content.sub(/(<h1[^>]*>[\s\S]*?<\/h1>)/i, "\\1\n#{page_toc_html}")
-  else
-    puts "Warning: Could not find <h1> tag to inject page TOC"
+  # Add ID to page TOC for scroll detection
+  unless page_toc_html.empty?
+    page_toc_with_id = page_toc_html.sub(/<nav class="page-toc">/, '<nav class="page-toc" id="page-toc-top">')
+
+    if html_content =~ /<h1[^>]*>[\s\S]*?<\/h1>/i
+      html_content = html_content.sub(/(<h1[^>]*>[\s\S]*?<\/h1>)/i, "\\1\n#{page_toc_with_id}")
+    elsif html_content =~ /(<body[^>]*>)/i
+      # If no h1, inject TOC right after body tag
+      html_content = html_content.sub(/(<body[^>]*>)/i, "\\1\n#{page_toc_with_id}")
+    else
+      puts "Warning: Could not find <h1> or <body> tag to inject page TOC"
+    end
+  end
+
+  # Add floating TOC HTML structure
+  floating_toc_html = <<~HTML
+    <div class="floating-toc" id="floating-toc">
+      <div class="floating-toc-container">
+        <div class="floating-toc-header">
+          <span>Table of Contents 🔻</span>
+        </div>
+        <div class="floating-toc-content" id="floating-toc-content">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+  HTML
+
+  # Inject floating TOC after body tag
+  if html_content =~ /(<body[^>]*>)/i
+    html_content = html_content.sub(/(<body[^>]*>)/i, "\\1\n#{floating_toc_html}")
+  end
+
+  # Add JavaScript for floating TOC
+  floating_toc_js = <<~JS
+    <script>
+      (function() {
+        // Clone the page TOC for floating TOC
+        function initFloatingTOC() {
+          var pageTOC = document.getElementById('page-toc-top');
+          var floatingTOCContent = document.getElementById('floating-toc-content');
+          var floatingTOC = document.getElementById('floating-toc');
+
+          if (!pageTOC || !floatingTOCContent || !floatingTOC) return;
+
+          // Clone the TOC structure
+          var tocClone = pageTOC.cloneNode(true);
+          tocClone.id = 'floating-toc-clone';
+          floatingTOCContent.appendChild(tocClone);
+
+          // Update all links to use smooth scrolling
+          var allTOCLinks = document.querySelectorAll('.page-toc a, .floating-toc-content a');
+          allTOCLinks.forEach(function(link) {
+            link.addEventListener('click', function(e) {
+              var href = this.getAttribute('href');
+              if (href && href.startsWith('#')) {
+                e.preventDefault();
+                var targetId = href.substring(1);
+                var targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                  var offset = 20; // Offset from top
+
+                  // Function to calculate absolute position from document top
+                  function getAbsoluteTop(element) {
+                    var top = 0;
+                    while (element) {
+                      top += element.offsetTop;
+                      element = element.offsetParent;
+                    }
+                    return top;
+                  }
+
+                  var absoluteTop = getAbsoluteTop(targetElement);
+                  var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                  var offsetPosition = absoluteTop - offset;
+
+                  // Only scroll if we're not already at the target position
+                  if (Math.abs(scrollTop - offsetPosition) > 10) {
+                    window.scrollTo({
+                      top: Math.max(0, offsetPosition),
+                      behavior: 'smooth'
+                    });
+                  }
+
+                  // Update URL hash without triggering scroll
+                  if (history.pushState) {
+                    history.pushState(null, null, href);
+                  }
+                }
+              }
+            });
+          });
+
+          // Handle scroll to show/hide floating TOC
+          var tocTop = pageTOC.getBoundingClientRect().top + window.pageYOffset;
+          var tocBottom = tocTop + pageTOC.offsetHeight;
+
+          function updateFloatingTOC() {
+            var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+            if (scrollY > tocBottom) {
+              floatingTOC.classList.add('visible');
+            } else {
+              floatingTOC.classList.remove('visible');
+            }
+          }
+
+          // Throttle scroll events
+          var ticking = false;
+          window.addEventListener('scroll', function() {
+            if (!ticking) {
+              window.requestAnimationFrame(function() {
+                updateFloatingTOC();
+                ticking = false;
+              });
+              ticking = true;
+            }
+          });
+
+          // Initial check
+          updateFloatingTOC();
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', initFloatingTOC);
+        } else {
+          initFloatingTOC();
+        }
+      })();
+    </script>
+  JS
+
+  # Load shared JavaScript
+  shared_js_file = File.join(SCRIPT_DIR, 'shared_scripts.js')
+  shared_js = File.exist?(shared_js_file) ? File.read(shared_js_file) : ''
+
+  # Combine shared JS and floating TOC JS
+  combined_js = "<script>\n#{shared_js}\n</script>\n#{floating_toc_js}"
+
+  # Inject JavaScript before closing body tag
+  if html_content =~ /(<\/body>)/i
+    html_content = html_content.sub(/(<\/body>)/i, "#{combined_js}\\1")
   end
 
   html_content
@@ -607,6 +707,9 @@ def generate_multi_page_docset
       puts "  Generated page TOC for #{basename} (#{headers.length} headers)"
     end
 
+    # Highlight code blocks before injecting TOC
+    html_content = highlight_code_blocks(html_content)
+
     # Inject both TOCs and footer into HTML
     html_content = inject_toc_into_html(html_content, main_toc_html, page_toc_html)
     html_content = inject_footer_into_html(html_content, footer_html)
@@ -695,26 +798,52 @@ def generate_multi_page_docset
 
   # Create SQLite index
   db_path = File.join(resources_path, 'docSet.dsidx')
-  db = SQLite3::Database.new(db_path)
+  # Open database with busy timeout and retry logic
+  db = nil
+  max_retries = 5
+  retry_count = 0
 
-  db.execute <<~SQL
-    CREATE TABLE searchIndex(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT,
-      type TEXT,
-      path TEXT
-    );
-    CREATE UNIQUE INDEX anchor ON searchIndex(name, type, path);
-  SQL
+  begin
+    db = SQLite3::Database.new(db_path)
+    db.busy_timeout = 5000  # Wait up to 5 seconds for database to be available
 
-  entries.each do |entry|
-    db.execute(
-      "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES(?, ?, ?)",
-      [entry[:name], entry[:type], entry[:path]]
-    )
+    db.execute <<~SQL
+      CREATE TABLE IF NOT EXISTS searchIndex(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        type TEXT,
+        path TEXT
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS anchor ON searchIndex(name, type, path);
+    SQL
+
+    # Clear existing entries if regenerating
+    db.execute("DELETE FROM searchIndex")
+
+    # Use a transaction for better performance and atomicity
+    db.transaction do
+      entries.each do |entry|
+        db.execute(
+          "INSERT OR IGNORE INTO searchIndex(name, type, path) VALUES(?, ?, ?)",
+          [entry[:name], entry[:type], entry[:path]]
+        )
+      end
+    end
+  rescue SQLite3::BusyException => e
+    retry_count += 1
+    if retry_count < max_retries
+      puts "Database busy, retrying (#{retry_count}/#{max_retries})..."
+      sleep(0.5 * retry_count)  # Exponential backoff
+      db.close if db
+      retry
+    else
+      puts "\nError: Database is locked after #{max_retries} retries."
+      puts "Please close Dash if it's open with this docset, then try again."
+      raise
+    end
+  ensure
+    db.close if db
   end
-
-  db.close
 
   puts "\nMulti-page docset generated successfully!"
   puts "Docset location: #{docset_path}"

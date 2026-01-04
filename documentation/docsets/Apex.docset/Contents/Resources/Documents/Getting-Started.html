@@ -38,125 +38,530 @@
         .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }
       </style>
   <style>
-  .main-toc {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: auto;
-    min-width: 150px;
-    max-width: 200px;
-    height: 100vh;
-    overflow-y: auto;
-    background: #f5f5f5;
-    border-right: 2px solid #ddd;
-    padding: 20px;
-    font-size: 0.9em;
-    z-index: 100;
-    margin-right: 1rem;
+/* Base styles */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 17px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+  color: #1e293b;
+  background-color: #fff;
+}
+
+/* Sidebar / Main TOC - wider on larger screens */
+.main-toc, .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: auto;
+  min-width: 180px;
+  max-width: 250px;
+  height: 100vh;
+  overflow-y: auto;
+  background: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
+  border-right: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 24px 20px 130px;
+  font-size: 14px;
+  z-index: 100;
+  margin-right: 1rem;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease;
+}
+
+.main-toc ul, .sidebar ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  padding-bottom: 80px;
+}
+
+.main-toc ul::after, .sidebar ul::after {
+  content: '';
+  display: block;
+  height: 80px;
+}
+
+.main-toc li, .sidebar li {
+  margin: 0.25em 0;
+}
+
+.main-toc a, .sidebar a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  display: block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main-toc a:hover, .sidebar a:hover {
+  background: #334155;
+  color: #fff;
+}
+
+.sidebar a.active {
+  color: #0ea5e9;
+  font-weight: 500;
+}
+
+/* Body margin for sidebar */
+body {
+  margin-left: 270px;
+}
+
+/* Hamburger menu button */
+.hamburger-menu {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  background: #1e293b;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 20px;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.hamburger-menu:hover {
+  background: #334155;
+  color: #fff;
+}
+
+.hamburger-menu.active {
+  background: #0ea5e9;
+}
+
+.hamburger-menu::before {
+  content: '☰';
+}
+
+.hamburger-menu.active::before {
+  content: '✕';
+}
+
+/* Mobile menu overlay */
+.mobile-menu-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 150;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.mobile-menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Page TOC */
+.page-toc {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+.page-toc ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.page-toc > ul {
+  padding-left: 0;
+}
+
+.page-toc li {
+  margin: 0.25em 0;
+}
+
+.page-toc a {
+  color: #0066cc;
+  text-decoration: none;
+  display: block;
+  padding: 0.25em 0.5em;
+  border-radius: 3px;
+}
+
+.page-toc a:hover {
+  background: #e0e0e0;
+  color: #004499;
+}
+
+.page-toc ul ul {
+  list-style: none;
+  padding-left: 1.5em;
+  margin-top: 0.25em;
+  margin-left: 0;
+}
+
+.page-toc ul ul ul {
+  padding-left: 1.5em;
+}
+
+.page-toc ul ul a {
+  font-size: 0.9em;
+  color: #555;
+}
+
+.page-toc ul ul ul a {
+  font-size: 0.85em;
+  color: #666;
+}
+
+/* Floating TOC */
+.floating-toc {
+  position: fixed;
+  top: 0;
+  left: 270px;
+  right: 0;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 2rem;
+}
+
+.floating-toc.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.floating-toc-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #ddd;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: fit-content;
+  max-width: 400px;
+  min-width: 200px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.floating-toc-header {
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.floating-toc-header:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.floating-toc-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.floating-toc-container:hover .floating-toc-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.floating-toc-content ul {
+  list-style: none;
+  padding: 8px 16px 16px;
+  margin: 0;
+}
+
+.floating-toc-content li {
+  margin: 0.1em 0;
+}
+
+.floating-toc-content a {
+  color: #0066cc;
+  text-decoration: none;
+  display: block;
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+
+.floating-toc-content a:hover {
+  background: #e0e0e0;
+  color: #004499;
+}
+
+.floating-toc-content ul ul {
+  padding-left: 1.2em;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.floating-toc-content ul ul ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.floating-toc-content ul ul a {
+  font-size: 12px;
+  color: #555;
+}
+
+.floating-toc-content ul ul ul a {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Code blocks */
+code {
+  background: #f0f0f0;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  margin: 0 0.1em;
+}
+
+pre {
+  background: #f5f5f5;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+  margin: 1em 0;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Nested lists in page content */
+ul ul, ol ol, ul ol, ol ul {
+  padding-left: 1.5em;
+  margin-top: 0.25em;
+}
+
+/* Page footer */
+.page-footer {
+  background: #f5f5f5;
+  border-top: 1px solid #ddd;
+  padding: 1.5rem;
+  margin-top: 3rem;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.page-footer p {
+  margin: 0.5em 0;
+}
+
+.page-footer a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .hamburger-menu {
+    display: flex;
   }
-  .main-toc ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
+
+  .main-toc, .sidebar {
+    transform: translateX(-100%);
+    z-index: 175;
   }
-  .main-toc li {
-    margin: 0.25em 0;
+
+  .main-toc.mobile-open, .sidebar.mobile-open {
+    transform: translateX(0);
   }
-  .main-toc a {
-    color: #333;
-    text-decoration: none;
-    display: block;
-    padding: 0.5em;
-    border-radius: 3px;
-  }
-  .main-toc a:hover {
-    background: #e0e0e0;
-  }
-  .page-toc {
-    background: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 1rem;
-    margin: 1.5rem 0;
-  }
-  .page-toc ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-  }
-  .page-toc > ul {
-    padding-left: 0;
-  }
-  .page-toc li {
-    margin: 0.25em 0;
-  }
-  .page-toc a {
-    color: #0066cc;
-    text-decoration: none;
-    display: block;
-    padding: 0.25em 0.5em;
-    border-radius: 3px;
-  }
-  .page-toc a:hover {
-    background: #e0e0e0;
-    color: #004499;
-  }
-  .page-toc ul ul {
-    list-style: none;
-    padding-left: 1.5em;
-    margin-top: 0.25em;
+
+  body {
     margin-left: 0;
   }
-  .page-toc ul ul ul {
-    padding-left: 1.5em;
+
+  .floating-toc {
+    left: 0;
   }
-  .page-toc ul ul a {
-    font-size: 0.9em;
-    color: #555;
-  }
-  .page-toc ul ul ul a {
-    font-size: 0.85em;
-    color: #666;
-  }
-  .page-footer {
-    background: #f5f5f5;
-    border-top: 1px solid #ddd;
-    padding: 1.5rem;
-    margin-top: 3rem;
-    color: #666;
-    font-size: 0.9em;
-  }
-  .page-footer p {
-    margin: 0.5em 0;
-  }
-  .page-footer a {
-    color: #0066cc;
-    text-decoration: none;
-  }
-  .page-footer a:hover {
-    text-decoration: underline;
-  }
-  body {
-    margin-left: 220px;
-  }
-  @media (max-width: 768px) {
-    .main-toc {
-      display: none;
-    }
-    body {
-      margin-left: 0;
-    }
-  }
+}
+
+</style><style>
+  .highlight .highlight table td { padding: 5px; }
+.highlight .highlight table pre { margin: 0; }
+.highlight .highlight, .highlight .w {
+  color: #24292f;
+  background-color: #f6f8fa;
+}
+.highlight .highlight .k, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kt, .highlight .kv {
+  color: #cf222e;
+}
+.highlight .highlight .gr {
+  color: #f6f8fa;
+}
+.highlight .highlight .gd {
+  color: #82071e;
+  background-color: #ffebe9;
+}
+.highlight .highlight .nb {
+  color: #953800;
+}
+.highlight .highlight .nc {
+  color: #953800;
+}
+.highlight .highlight .no {
+  color: #953800;
+}
+.highlight .highlight .nn {
+  color: #953800;
+}
+.highlight .highlight .sr {
+  color: #116329;
+}
+.highlight .highlight .na {
+  color: #116329;
+}
+.highlight .highlight .nt {
+  color: #116329;
+}
+.highlight .highlight .gi {
+  color: #116329;
+  background-color: #dafbe1;
+}
+.highlight .highlight .ges {
+  font-weight: bold;
+  font-style: italic;
+}
+.highlight .highlight .kc {
+  color: #0550ae;
+}
+.highlight .highlight .l, .highlight .ld, .highlight .m, .highlight .mb, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .il, .highlight .mo, .highlight .mx {
+  color: #0550ae;
+}
+.highlight .highlight .sb {
+  color: #0550ae;
+}
+.highlight .highlight .bp {
+  color: #0550ae;
+}
+.highlight .highlight .ne {
+  color: #0550ae;
+}
+.highlight .highlight .nl {
+  color: #0550ae;
+}
+.highlight .highlight .py {
+  color: #0550ae;
+}
+.highlight .highlight .nv, .highlight .vc, .highlight .vg, .highlight .vi, .highlight .vm {
+  color: #0550ae;
+}
+.highlight .highlight .o, .highlight .ow {
+  color: #0550ae;
+}
+.highlight .highlight .gh {
+  color: #0550ae;
+  font-weight: bold;
+}
+.highlight .highlight .gu {
+  color: #0550ae;
+  font-weight: bold;
+}
+.highlight .highlight .s, .highlight .sa, .highlight .sc, .highlight .dl, .highlight .sd, .highlight .s2, .highlight .se, .highlight .sh, .highlight .sx, .highlight .s1, .highlight .ss {
+  color: #0a3069;
+}
+.highlight .highlight .nd {
+  color: #8250df;
+}
+.highlight .highlight .nf, .highlight .fm {
+  color: #8250df;
+}
+.highlight .highlight .err {
+  color: #f6f8fa;
+  background-color: #82071e;
+}
+.highlight .highlight .c, .highlight .ch, .highlight .cd, .highlight .cm, .highlight .cp, .highlight .cpf, .highlight .c1, .highlight .cs {
+  color: #6e7781;
+}
+.highlight .highlight .gl {
+  color: #6e7781;
+}
+.highlight .highlight .gt {
+  color: #6e7781;
+}
+.highlight .highlight .ni {
+  color: #24292f;
+}
+.highlight .highlight .si {
+  color: #24292f;
+}
+.highlight .highlight .ge {
+  color: #24292f;
+  font-style: italic;
+}
+.highlight .highlight .gs {
+  color: #24292f;
+  font-weight: bold;
+}
 </style>
 </head>
 
   <body>
+<div class="floating-toc" id="floating-toc">
+  <div class="floating-toc-container">
+    <div class="floating-toc-header">
+      <span>Table of Contents 🔻</span>
+    </div>
+    <div class="floating-toc-content" id="floating-toc-content">
+      <!-- Content will be populated by JavaScript -->
+    </div>
+  </div>
+</div>
+
+<button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
+<div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
+
 <nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
     <h1 id="getting-started">
       Getting Started
     </h1>
-<nav class="page-toc"><ul><li><a href="#getting-started">Getting Started</a><ul><li><a href="#installation">Installation</a></li><li><a href="#your-first-conversion">Your First Conversion</a></li><li><a href="#understanding-modes">Understanding Modes</a></li><li><a href="#common-tasks">Common Tasks</a><ul><li><a href="#generate-a-standalone-html-document">Generate a Standalone HTML Document</a></li><li><a href="#pretty-print-html-output">Pretty-Print HTML Output</a></li><li><a href="#disable-automatic-header-ids">Disable Automatic Header IDs</a></li><li><a href="#use-relaxed-tables">Use Relaxed Tables</a></li></ul></li><li><a href="#next-steps">Next Steps</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#getting-started">Getting Started</a><ul><li><a href="#installation">Installation</a></li><li><a href="#your-first-conversion">Your First Conversion</a></li><li><a href="#understanding-modes">Understanding Modes</a></li><li><a href="#common-tasks">Common Tasks</a><ul><li><a href="#generate-a-standalone-html-document">Generate a Standalone HTML Document</a></li><li><a href="#pretty-print-html-output">Pretty-Print HTML Output</a></li><li><a href="#disable-automatic-header-ids">Disable Automatic Header IDs</a></li><li><a href="#use-relaxed-tables">Use Relaxed Tables</a></li></ul></li><li><a href="#next-steps">Next Steps</a></li></ul></li></ul></nav>
 
     <p>
       This guide will help you get up and running with Apex quickly.
@@ -283,6 +688,154 @@ apex --mode kramdown document.md
 
 </ul>
 
+<script>
+// Hamburger menu functionality
+(function() {
+  function initHamburgerMenu() {
+    var hamburger = document.getElementById('hamburger-menu');
+    var sidebar = document.querySelector('.main-toc, .sidebar');
+    var overlay = document.getElementById('mobile-menu-overlay');
+
+    if (!hamburger || !sidebar) return;
+
+    function toggleMenu() {
+      var isOpen = sidebar.classList.contains('mobile-open');
+      if (isOpen) {
+        sidebar.classList.remove('mobile-open');
+        hamburger.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+      } else {
+        sidebar.classList.add('mobile-open');
+        hamburger.classList.add('active');
+        if (overlay) overlay.classList.add('active');
+      }
+    }
+
+    hamburger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    if (overlay) {
+      overlay.addEventListener('click', function() {
+        toggleMenu();
+      });
+    }
+
+    // Close menu when clicking on a sidebar link (mobile only)
+    if (window.innerWidth <= 768) {
+      var sidebarLinks = sidebar.querySelectorAll('a');
+      sidebarLinks.forEach(function(link) {
+        link.addEventListener('click', function() {
+          setTimeout(function() {
+            sidebar.classList.remove('mobile-open');
+            hamburger.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+          }, 100);
+        });
+      });
+    }
+
+    // Close menu on window resize if going to desktop
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 768) {
+        sidebar.classList.remove('mobile-open');
+        hamburger.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+      }
+    });
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHamburgerMenu);
+  } else {
+    initHamburgerMenu();
+  }
+})();
+
+</script>
+<script>
+  (function() {
+    // Clone the page TOC for floating TOC
+    function initFloatingTOC() {
+      var pageTOC = document.getElementById('page-toc-top');
+      var floatingTOCContent = document.getElementById('floating-toc-content');
+      var floatingTOC = document.getElementById('floating-toc');
+
+      if (!pageTOC || !floatingTOCContent || !floatingTOC) return;
+
+      // Clone the TOC structure
+      var tocClone = pageTOC.cloneNode(true);
+      tocClone.id = 'floating-toc-clone';
+      floatingTOCContent.appendChild(tocClone);
+
+      // Update all links to use smooth scrolling
+      var allTOCLinks = document.querySelectorAll('.page-toc a, .floating-toc-content a');
+      allTOCLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          var href = this.getAttribute('href');
+          if (href && href.startsWith('#')) {
+            e.preventDefault();
+            var targetId = href.substring(1);
+            var targetElement = document.getElementById(targetId);
+            if (targetElement) {
+              var offset = 20; // Offset from top
+              var elementPosition = targetElement.getBoundingClientRect().top;
+              var offsetPosition = elementPosition + window.pageYOffset - offset;
+
+              window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+              });
+
+              // Update URL hash without triggering scroll
+              if (history.pushState) {
+                history.pushState(null, null, href);
+              }
+            }
+          }
+        });
+      });
+
+      // Handle scroll to show/hide floating TOC
+      var tocTop = pageTOC.getBoundingClientRect().top + window.pageYOffset;
+      var tocBottom = tocTop + pageTOC.offsetHeight;
+
+      function updateFloatingTOC() {
+        var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+        if (scrollY > tocBottom) {
+          floatingTOC.classList.add('visible');
+        } else {
+          floatingTOC.classList.remove('visible');
+        }
+      }
+
+      // Throttle scroll events
+      var ticking = false;
+      window.addEventListener('scroll', function() {
+        if (!ticking) {
+          window.requestAnimationFrame(function() {
+            updateFloatingTOC();
+            ticking = false;
+          });
+          ticking = true;
+        }
+      });
+
+      // Initial check
+      updateFloatingTOC();
+    }
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initFloatingTOC);
+    } else {
+      initFloatingTOC();
+    }
+  })();
+</script>
 <footer class="page-footer"><p>Copyright 2025 Brett Terpstra, All Rights Reserved | MIT License</p></footer></body>
 
 </html>

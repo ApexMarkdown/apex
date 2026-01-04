@@ -56,3 +56,9 @@ commit_message.txt
 .github/copilot-instructions.md
 output.html
 /build-debug
+
+# Documentation - app-specific transformations
+documentation/app-transformed/
+documentation/transform_for_app.md
+/documentation/html/apex-app-docs.html
+/documentation/app-settings-table.md

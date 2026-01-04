@@ -10,50 +10,396 @@
     padding: 0;
     box-sizing: border-box;
   }
+  /* Base styles */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-size: 17px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.65;
+  color: #1e293b;
+  background-color: #fff;
+}
+
+/* Sidebar / Main TOC - wider on larger screens */
+.main-toc, .sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: auto;
+  min-width: 180px;
+  max-width: 250px;
+  height: 100vh;
+  overflow-y: auto;
+  background: #1e293b;
+  color: rgba(255, 255, 255, 0.9);
+  border-right: 2px solid rgba(255, 255, 255, 0.1);
+  padding: 24px 20px 130px;
+  font-size: 14px;
+  z-index: 100;
+  margin-right: 1rem;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease;
+}
+
+.main-toc ul, .sidebar ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  padding-bottom: 80px;
+}
+
+.main-toc ul::after, .sidebar ul::after {
+  content: '';
+  display: block;
+  height: 80px;
+}
+
+.main-toc li, .sidebar li {
+  margin: 0.25em 0;
+}
+
+.main-toc a, .sidebar a {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  display: block;
+  padding: 6px 12px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.main-toc a:hover, .sidebar a:hover {
+  background: #334155;
+  color: #fff;
+}
+
+.sidebar a.active {
+  color: #0ea5e9;
+  font-weight: 500;
+}
+
+/* Body margin for sidebar */
+body {
+  margin-left: 270px;
+}
+
+/* Hamburger menu button */
+.hamburger-menu {
+  display: none;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 200;
+  background: #1e293b;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 10px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 20px;
+  line-height: 1;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  opacity: 0.2;
+}
+
+.hamburger-menu:hover {
+  background: #334155;
+  color: #fff;
+  opacity: 1;
+}
+
+/* Move hamburger to the right of the sidebar when menu is open */
+.hamburger-menu.active {
+  left: calc(250px + 12px); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
+}
+
+.hamburger-menu.active {
+  background: #0ea5e9;
+}
+
+.hamburger-menu::before {
+  content: '☰';
+}
+
+.hamburger-menu.active::before {
+  content: '✕';
+}
+
+/* Mobile menu overlay */
+.mobile-menu-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 150;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.mobile-menu-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Page TOC */
+.page-toc {
+  background: #f9f9f9;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1rem;
+  margin: 1.5rem 0;
+}
+
+.page-toc ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.page-toc > ul {
+  padding-left: 0;
+}
+
+.page-toc li {
+  margin: 0.25em 0;
+}
+
+.page-toc a {
+  color: #0066cc;
+  text-decoration: none;
+  display: block;
+  padding: 0.25em 0.5em;
+  border-radius: 3px;
+}
+
+.page-toc a:hover {
+  background: #e0e0e0;
+  color: #004499;
+}
+
+.page-toc ul ul {
+  list-style: none;
+  padding-left: 1.5em;
+  margin-top: 0.25em;
+  margin-left: 0;
+}
+
+.page-toc ul ul ul {
+  padding-left: 1.5em;
+}
+
+.page-toc ul ul a {
+  font-size: 0.9em;
+  color: #555;
+}
+
+.page-toc ul ul ul a {
+  font-size: 0.85em;
+  color: #666;
+}
+
+/* Floating TOC */
+.floating-toc {
+  position: fixed;
+  top: 0;
+  left: 270px;
+  right: 0;
+  z-index: 50;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 2rem;
+}
+
+.floating-toc.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.floating-toc-container {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #ddd;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: fit-content;
+  max-width: 400px;
+  min-width: 200px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.floating-toc-header {
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.floating-toc-header:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.floating-toc-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.floating-toc-container:hover .floating-toc-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.floating-toc-content ul {
+  list-style: none;
+  padding: 8px 16px 16px;
+  margin: 0;
+}
+
+.floating-toc-content li {
+  margin: 0.1em 0;
+}
+
+.floating-toc-content a {
+  color: #0066cc;
+  text-decoration: none;
+  display: block;
+  padding: 0.2em 0.5em;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: background 0.15s ease;
+}
+
+.floating-toc-content a:hover {
+  background: #e0e0e0;
+  color: #004499;
+}
+
+.floating-toc-content ul ul {
+  padding-left: 1.2em;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.floating-toc-content ul ul ul {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.floating-toc-content ul ul a {
+  font-size: 12px;
+  color: #555;
+}
+
+.floating-toc-content ul ul ul a {
+  font-size: 11px;
+  color: #666;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Code blocks */
+code {
+  background: #f0f0f0;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  margin: 0 0.1em;
+}
+
+pre {
+  background: #f5f5f5;
+  padding: 1rem;
+  overflow-x: auto;
+  border-radius: 4px;
+  margin: 1em 0;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Nested lists in page content */
+ul ul, ol ol, ul ol, ol ul {
+  padding-left: 1.5em;
+  margin-top: 0.25em;
+}
+
+/* Page footer */
+.page-footer {
+  background: #f5f5f5;
+  border-top: 1px solid #ddd;
+  padding: 1.5rem;
+  margin-top: 3rem;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.page-footer p {
+  margin: 0.5em 0;
+}
+
+.page-footer a {
+  color: #0066cc;
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .hamburger-menu {
+    display: flex;
+  }
+
+  .main-toc, .sidebar {
+    transform: translateX(-100%);
+    z-index: 175;
+  }
+
+  .main-toc.mobile-open, .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    margin-left: 220px;
+    margin-left: 0;
   }
-  .sidebar {
-    position: fixed;
+
+  .floating-toc {
     left: 0;
-    top: 0;
-    width: auto;
-    min-width: 150px;
-    max-width: 200px;
-    height: 100vh;
-    overflow-y: auto;
-    background: #f5f5f5;
-    border-right: 2px solid #ddd;
-    padding: 20px;
-    font-size: 0.9em;
-    z-index: 100;
   }
-  .sidebar ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-  }
-  .sidebar li {
-    margin: 0.25em 0;
-  }
-  .sidebar a {
-    color: #333;
-    text-decoration: none;
-    display: block;
-    padding: 0.5em;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  .sidebar a:hover {
-    background: #e0e0e0;
-  }
-  .sidebar a.active {
-    background: #ddd;
-    font-weight: bold;
-  }
+}
+
   .content {
     padding: 2rem;
     max-width: 900px;
@@ -63,69 +409,6 @@
   }
   .page.active {
     display: block;
-  }
-  .page-toc {
-    background: #f9f9f9;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 1rem;
-    margin: 1.5rem 0;
-  }
-  .page-toc ul {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-  }
-  .page-toc > ul {
-    padding-left: 0;
-  }
-  .page-toc li {
-    margin: 0.25em 0;
-  }
-  .page-toc a {
-    color: #0066cc;
-    text-decoration: none;
-    display: block;
-    padding: 0.25em 0.5em;
-    border-radius: 3px;
-  }
-  .page-toc a:hover {
-    background: #e0e0e0;
-    color: #004499;
-  }
-  .page-toc ul ul {
-    list-style: none;
-    padding-left: 1.5em;
-    margin-top: 0.25em;
-  }
-  .page-toc ul ul ul {
-    padding-left: 1.5em;
-  }
-  .page-toc ul ul a {
-    font-size: 0.9em;
-    color: #555;
-  }
-  .page-toc ul ul ul a {
-    font-size: 0.85em;
-    color: #666;
-  }
-  .page-footer {
-    background: #f5f5f5;
-    border-top: 1px solid #ddd;
-    padding: 1.5rem;
-    margin-top: 3rem;
-    color: #666;
-    font-size: 0.9em;
-  }
-  .page-footer p {
-    margin: 0.5em 0;
-  }
-  .page-footer a {
-    color: #0066cc;
-    text-decoration: none;
-  }
-  .page-footer a:hover {
-    text-decoration: underline;
   }
   h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
@@ -140,26 +423,6 @@
     font-size: 1.5em;
     border-bottom: 1px solid #eee;
     padding-bottom: 0.3em;
-  }
-  code {
-    background: #f0f0f0;
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.9em;
-    margin: 0 0.1em;
-  }
-  pre {
-    background: #f5f5f5;
-    padding: 1rem;
-    overflow-x: auto;
-    border-radius: 4px;
-    margin: 1em 0;
-  }
-  pre code {
-    background: none;
-    padding: 0;
-    margin: 0;
   }
   blockquote {
     border-left: 4px solid #ddd;
@@ -178,30 +441,138 @@
   th {
     background: #f5f5f5;
   }
-  /* Nested lists in page content */
-  ul ul, ol ol, ul ol, ol ul {
-    padding-left: 1.5em;
-    margin-top: 0.25em;
-  }
-  @media (max-width: 768px) {
-    .sidebar {
-      display: none;
-    }
-    body {
-      margin-left: 0;
-    }
-  }
+</style>
+
+  <style>
+  .highlight .highlight table td { padding: 5px; }
+.highlight .highlight table pre { margin: 0; }
+.highlight .highlight, .highlight .w {
+  color: #24292f;
+  background-color: #f6f8fa;
+}
+.highlight .highlight .k, .highlight .kd, .highlight .kn, .highlight .kp, .highlight .kr, .highlight .kt, .highlight .kv {
+  color: #cf222e;
+}
+.highlight .highlight .gr {
+  color: #f6f8fa;
+}
+.highlight .highlight .gd {
+  color: #82071e;
+  background-color: #ffebe9;
+}
+.highlight .highlight .nb {
+  color: #953800;
+}
+.highlight .highlight .nc {
+  color: #953800;
+}
+.highlight .highlight .no {
+  color: #953800;
+}
+.highlight .highlight .nn {
+  color: #953800;
+}
+.highlight .highlight .sr {
+  color: #116329;
+}
+.highlight .highlight .na {
+  color: #116329;
+}
+.highlight .highlight .nt {
+  color: #116329;
+}
+.highlight .highlight .gi {
+  color: #116329;
+  background-color: #dafbe1;
+}
+.highlight .highlight .ges {
+  font-weight: bold;
+  font-style: italic;
+}
+.highlight .highlight .kc {
+  color: #0550ae;
+}
+.highlight .highlight .l, .highlight .ld, .highlight .m, .highlight .mb, .highlight .mf, .highlight .mh, .highlight .mi, .highlight .il, .highlight .mo, .highlight .mx {
+  color: #0550ae;
+}
+.highlight .highlight .sb {
+  color: #0550ae;
+}
+.highlight .highlight .bp {
+  color: #0550ae;
+}
+.highlight .highlight .ne {
+  color: #0550ae;
+}
+.highlight .highlight .nl {
+  color: #0550ae;
+}
+.highlight .highlight .py {
+  color: #0550ae;
+}
+.highlight .highlight .nv, .highlight .vc, .highlight .vg, .highlight .vi, .highlight .vm {
+  color: #0550ae;
+}
+.highlight .highlight .o, .highlight .ow {
+  color: #0550ae;
+}
+.highlight .highlight .gh {
+  color: #0550ae;
+  font-weight: bold;
+}
+.highlight .highlight .gu {
+  color: #0550ae;
+  font-weight: bold;
+}
+.highlight .highlight .s, .highlight .sa, .highlight .sc, .highlight .dl, .highlight .sd, .highlight .s2, .highlight .se, .highlight .sh, .highlight .sx, .highlight .s1, .highlight .ss {
+  color: #0a3069;
+}
+.highlight .highlight .nd {
+  color: #8250df;
+}
+.highlight .highlight .nf, .highlight .fm {
+  color: #8250df;
+}
+.highlight .highlight .err {
+  color: #f6f8fa;
+  background-color: #82071e;
+}
+.highlight .highlight .c, .highlight .ch, .highlight .cd, .highlight .cm, .highlight .cp, .highlight .cpf, .highlight .c1, .highlight .cs {
+  color: #6e7781;
+}
+.highlight .highlight .gl {
+  color: #6e7781;
+}
+.highlight .highlight .gt {
+  color: #6e7781;
+}
+.highlight .highlight .ni {
+  color: #24292f;
+}
+.highlight .highlight .si {
+  color: #24292f;
+}
+.highlight .highlight .ge {
+  color: #24292f;
+  font-style: italic;
+}
+.highlight .highlight .gs {
+  color: #24292f;
+  font-weight: bold;
+}
 </style>
 
 </head>
 <body>
-  <nav class="sidebar"><ul><li><a href="#home" data-page="home">Home</a></li><li><a href="#getting-started" data-page="getting-started">Getting Started</a></li><li><a href="#installation" data-page="installation">Installation</a></li><li><a href="#usage" data-page="usage">Usage</a></li><li><a href="#syntax" data-page="syntax">Syntax</a></li><li><a href="#inline-attribute-lists" data-page="inline-attribute-lists">Inline Attribute Lists</a></li><li><a href="#modes" data-page="modes">Modes</a></li><li><a href="#command-line-options" data-page="command-line-options">Command Line Options</a></li><li><a href="#multi-file-documents" data-page="multi-file-documents">Multi-file Documents</a></li><li><a href="#citations" data-page="citations">Citations</a></li><li><a href="#metadata-transforms" data-page="metadata-transforms">Metadata Transforms</a></li><li><a href="#pandoc-integration" data-page="pandoc-integration">Integrating with Pandoc</a></li><li><a href="#header-ids" data-page="header-ids">Header IDs</a></li><li><a href="#c-api" data-page="c-api">C API</a></li><li><a href="#xcode-integration" data-page="xcode-integration">Xcode Integration</a></li><li><a href="#examples" data-page="examples">Examples</a></li><li><a href="#plugins" data-page="plugins">Plugins</a></li><li><a href="#troubleshooting" data-page="troubleshooting">Troubleshooting</a></li><li><a href="#credits" data-page="credits">Credits</a></li></ul></nav>
+  <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
+<div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
+<nav class="sidebar"><ul><li><a href="#home" data-page="home">Home</a></li><li><a href="#getting-started" data-page="getting-started">Getting Started</a></li><li><a href="#installation" data-page="installation">Installation</a></li><li><a href="#usage" data-page="usage">Usage</a></li><li><a href="#syntax" data-page="syntax">Syntax</a></li><li><a href="#inline-attribute-lists" data-page="inline-attribute-lists">Inline Attribute Lists</a></li><li><a href="#modes" data-page="modes">Modes</a></li><li><a href="#command-line-options" data-page="command-line-options">Command Line Options</a></li><li><a href="#multi-file-documents" data-page="multi-file-documents">Multi-file Documents</a></li><li><a href="#citations" data-page="citations">Citations</a></li><li><a href="#metadata-transforms" data-page="metadata-transforms">Metadata Transforms</a></li><li><a href="#pandoc-integration" data-page="pandoc-integration">Integrating with Pandoc</a></li><li><a href="#header-ids" data-page="header-ids">Header IDs</a></li><li><a href="#c-api" data-page="c-api">C API</a></li><li><a href="#xcode-integration" data-page="xcode-integration">Xcode Integration</a></li><li><a href="#examples" data-page="examples">Examples</a></li><li><a href="#plugins" data-page="plugins">Plugins</a></li><li><a href="#troubleshooting" data-page="troubleshooting">Troubleshooting</a></li><li><a href="#credits" data-page="credits">Credits</a></li></ul></nav>
   <div class="content"><div id="page-home" class="page">
 
     <h1 id="apex-wiki">
       Apex Wiki
     </h1>
-<nav class="page-toc"><ul><li><a href="#apex-wiki">Apex Wiki</a><ul><li><a href="#quick-links">Quick Links</a></li><li><a href="#what-is-apex">What is Apex?</a></li><li><a href="#key-features">Key Features</a></li><li><a href="#quick-example">Quick Example</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#apex-wiki">Apex Wiki</a><ul><li><a href="#quick-links">Quick Links</a></li><li><a href="#what-is-apex">What is Apex?</a></li><li><a href="#key-features">Key Features</a></li><li><a href="#quick-example">Quick Example</a></li></ul></li></ul></nav>
 
     <p>
 <a href="mailto:!%5B%5D(apex-header-2-rb@2x.webp)"><img src="apex-header-2-rb@2x.webp" alt="" /></a>    </p>
@@ -217,67 +588,67 @@
     <ul>
 
       <li>
-<strong><a href="Getting-Started">        Getting Started</a></strong> - Your first steps with Apex
+<strong><a href="#getting-started" onclick="showPage('getting-started'); return false;">        Getting Started</a></strong> - Your first steps with Apex
       </li>
 
       <li>
-<strong><a href="Installation">        Installation</a></strong> - How to build and install Apex
+<strong><a href="#installation" onclick="showPage('installation'); return false;">        Installation</a></strong> - How to build and install Apex
       </li>
 
       <li>
-<strong><a href="Usage">        Usage</a></strong> - Basic usage examples
+<strong><a href="#usage" onclick="showPage('usage'); return false;">        Usage</a></strong> - Basic usage examples
       </li>
 
       <li>
-<strong><a href="Syntax">        Syntax</a></strong> - Complete syntax reference for unified mode
+<strong><a href="#syntax" onclick="showPage('syntax'); return false;">        Syntax</a></strong> - Complete syntax reference for unified mode
       </li>
 
       <li>
-<strong><a href="Modes">        Modes</a></strong> - Understanding processor modes
+<strong><a href="#modes" onclick="showPage('modes'); return false;">        Modes</a></strong> - Understanding processor modes
       </li>
 
       <li>
-<strong><a href="Command-Line-Options">        Command Line Options</a></strong> - All CLI flags explained
+<strong><a href="#command-line-options" onclick="showPage('command-line-options'); return false;">        Command Line Options</a></strong> - All CLI flags explained
       </li>
 
       <li>
-<strong><a href="Multi-File-Documents">        Multi-file Documents</a></strong> - Combining multiple files with <code>--combine</code>, <code>--mmd-merge</code>, and includes
+<strong><a href="#multi-file-documents" onclick="showPage('multi-file-documents'); return false;">        Multi-file Documents</a></strong> - Combining multiple files with <code>--combine</code>, <code>--mmd-merge</code>, and includes
       </li>
 
       <li>
-<strong><a href="Metadata-Transforms">        Metadata Transforms</a></strong> - Transform metadata values with <code>[%key:transform]</code>
+<strong><a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">        Metadata Transforms</a></strong> - Transform metadata values with <code>[%key:transform]</code>
       </li>
 
       <li>
-<strong><a href="Pandoc-Integration">        Integrating with Pandoc</a></strong> - Use Apex with Pandoc for DOCX, PDF, and more
+<strong><a href="#pandoc-integration" onclick="showPage('pandoc-integration'); return false;">        Integrating with Pandoc</a></strong> - Use Apex with Pandoc for DOCX, PDF, and more
       </li>
 
       <li>
-<strong><a href="Header-IDs">        Header IDs</a></strong> - How header IDs are generated
+<strong><a href="#header-ids" onclick="showPage('header-ids'); return false;">        Header IDs</a></strong> - How header IDs are generated
       </li>
 
       <li>
-<strong><a href="C-API">        C API</a></strong> - Programmatic API documentation
+<strong><a href="#c-api" onclick="showPage('c-api'); return false;">        C API</a></strong> - Programmatic API documentation
       </li>
 
       <li>
-<strong><a href="Xcode-Integration">        Xcode Integration</a></strong> - Using Apex in Xcode projects
+<strong><a href="#xcode-integration" onclick="showPage('xcode-integration'); return false;">        Xcode Integration</a></strong> - Using Apex in Xcode projects
       </li>
 
       <li>
-<strong><a href="Examples">        Examples</a></strong> - Practical usage examples
+<strong><a href="#examples" onclick="showPage('examples'); return false;">        Examples</a></strong> - Practical usage examples
       </li>
 
       <li>
-<strong><a href="Troubleshooting">        Troubleshooting</a></strong> - Common issues and solutions
+<strong><a href="#troubleshooting" onclick="showPage('troubleshooting'); return false;">        Troubleshooting</a></strong> - Common issues and solutions
       </li>
 
       <li>
-<strong><a href="Credits">        Credits</a></strong> - Acknowledgments and links to related projects
+<strong><a href="#credits" onclick="showPage('credits'); return false;">        Credits</a></strong> - Acknowledgments and links to related projects
       </li>
 
       <li>
-<strong><a href="Plugins">        Plugins</a></strong> - Plugin system, examples, and recipes
+<strong><a href="#plugins" onclick="showPage('plugins'); return false;">        Plugins</a></strong> - Plugin system, examples, and recipes
       </li>
 
     </ul>
@@ -345,7 +716,7 @@
       </li>
 
       <li>
-        Metadata blocks and variables (see <a href="Metadata-Transforms">Metadata Transforms</a>)
+        Metadata blocks and variables (see <a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">Metadata Transforms</a>)
       </li>
 
       <li>
@@ -373,7 +744,7 @@ apex document.md --standalone --title &quot;My Document&quot;
 </code>  </pre>
 
   <p>
-    For more information, see the <a href="Getting-Started">Getting Started</a> guide.
+    For more information, see the <a href="#getting-started" onclick="showPage('getting-started'); return false;">Getting Started</a> guide.
   </p>
 
 
@@ -382,7 +753,7 @@ apex document.md --standalone --title &quot;My Document&quot;
     <h1 id="getting-started">
       Getting Started
     </h1>
-<nav class="page-toc"><ul><li><a href="#getting-started">Getting Started</a><ul><li><a href="#installation">Installation</a></li><li><a href="#your-first-conversion">Your First Conversion</a></li><li><a href="#understanding-modes">Understanding Modes</a></li><li><a href="#common-tasks">Common Tasks</a><ul><li><a href="#generate-a-standalone-html-document">Generate a Standalone HTML Document</a></li><li><a href="#pretty-print-html-output">Pretty-Print HTML Output</a></li><li><a href="#disable-automatic-header-ids">Disable Automatic Header IDs</a></li><li><a href="#use-relaxed-tables">Use Relaxed Tables</a></li></ul></li><li><a href="#next-steps">Next Steps</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#getting-started">Getting Started</a><ul><li><a href="#installation">Installation</a></li><li><a href="#your-first-conversion">Your First Conversion</a></li><li><a href="#understanding-modes">Understanding Modes</a></li><li><a href="#common-tasks">Common Tasks</a><ul><li><a href="#generate-a-standalone-html-document">Generate a Standalone HTML Document</a></li><li><a href="#pretty-print-html-output">Pretty-Print HTML Output</a></li><li><a href="#disable-automatic-header-ids">Disable Automatic Header IDs</a></li><li><a href="#use-relaxed-tables">Use Relaxed Tables</a></li></ul></li><li><a href="#next-steps">Next Steps</a></li></ul></li></ul></nav>
 
     <p>
       This guide will help you get up and running with Apex quickly.
@@ -393,7 +764,7 @@ apex document.md --standalone --title &quot;My Document&quot;
     </h2>
 
     <p>
-      First, you’ll need to build Apex from source. See the <a href="Installation">Installation</a> guide for detailed instructions.
+      First, you’ll need to build Apex from source. See the <a href="#installation" onclick="showPage('installation'); return false;">Installation</a> guide for detailed instructions.
     </p>
 
 <pre lang="bash"><code>git clone https://github.com/ApexMarkdown/apex.git
@@ -437,7 +808,7 @@ apex --mode kramdown document.md
 </code></pre>
 
 <p>
-  See the <a href="Modes">Modes</a> page for details on what’s enabled in each mode.
+  See the <a href="#modes" onclick="showPage('modes'); return false;">Modes</a> page for details on what’s enabled in each mode.
 </p>
 
 <h2 id="common-tasks">
@@ -492,19 +863,19 @@ apex --mode kramdown document.md
 <ul>
 
   <li>
-    Learn about all available <a href="Syntax">syntax features</a>
+    Learn about all available <a href="#syntax" onclick="showPage('syntax'); return false;">syntax features</a>
   </li>
 
   <li>
-    Understand <a href="Modes">processor modes</a>
+    Understand <a href="#modes" onclick="showPage('modes'); return false;">processor modes</a>
   </li>
 
   <li>
-    Explore <a href="Command-Line-Options">command line options</a>
+    Explore <a href="#command-line-options" onclick="showPage('command-line-options'); return false;">command line options</a>
   </li>
 
   <li>
-    Check out the <a href="C-API">C API</a> for programmatic use
+    Check out the <a href="#c-api" onclick="showPage('c-api'); return false;">C API</a> for programmatic use
   </li>
 
 </ul>
@@ -515,7 +886,7 @@ apex --mode kramdown document.md
     <h1 id="installation">
       Installation
     </h1>
-<nav class="page-toc"><ul><li><a href="#installation">Installation</a><ul><li><a href="#quick-install-with-homebrew">Quick Install with Homebrew</a></li><li><a href="#pre-built-binaries">Pre-built Binaries</a></li><li><a href="#building-from-source">Building from Source</a><ul><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#1-clone-the-repository">1. Clone the Repository</a></li><li><a href="#2-configure-with-cmake">2. Configure with CMake</a></li><li><a href="#3-build">3. Build</a></li><li><a href="#4-install-optional">4. Install (Optional)</a></li></ul></li><li><a href="#build-outputs">Build Outputs</a></li><li><a href="#building-for-xcode">Building for Xcode</a></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#cmake-not-found">CMake not found</a></li><li><a href="#compilation-errors">Compilation errors</a></li><li><a href="#linking-errors">Linking errors</a></li></ul></li><li><a href="#verification">Verification</a></li><li><a href="#next-steps">Next Steps</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#installation">Installation</a><ul><li><a href="#quick-install-with-homebrew">Quick Install with Homebrew</a></li><li><a href="#pre-built-binaries">Pre-built Binaries</a></li><li><a href="#building-from-source">Building from Source</a><ul><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#1-clone-the-repository">1. Clone the Repository</a></li><li><a href="#2-configure-with-cmake">2. Configure with CMake</a></li><li><a href="#3-build">3. Build</a></li><li><a href="#4-install-optional">4. Install (Optional)</a></li></ul></li><li><a href="#build-outputs">Build Outputs</a></li><li><a href="#building-for-xcode">Building for Xcode</a></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#cmake-not-found">CMake not found</a></li><li><a href="#compilation-errors">Compilation errors</a></li><li><a href="#linking-errors">Linking errors</a></li></ul></li><li><a href="#verification">Verification</a></li><li><a href="#next-steps">Next Steps</a></li></ul></li></ul></nav>
 
     <h2 id="quick-install-with-homebrew">
       Quick Install with Homebrew
@@ -794,15 +1165,15 @@ echo &quot;# Test&quot; | ./apex
 <ul>
 
   <li>
-    See <a href="Usage">Usage</a> for basic usage examples
+    See <a href="#usage" onclick="showPage('usage'); return false;">Usage</a> for basic usage examples
   </li>
 
   <li>
-    Check <a href="Xcode-Integration">Xcode Integration</a> for macOS development
+    Check <a href="#xcode-integration" onclick="showPage('xcode-integration'); return false;">Xcode Integration</a> for macOS development
   </li>
 
   <li>
-    Review <a href="C-API">C API</a> for programmatic use
+    Review <a href="#c-api" onclick="showPage('c-api'); return false;">C API</a> for programmatic use
   </li>
 
 </ul>
@@ -813,7 +1184,7 @@ echo &quot;# Test&quot; | ./apex
     <h1 id="usage">
       Usage
     </h1>
-<nav class="page-toc"><ul><li><a href="#usage">Usage</a><ul><li><a href="#command-line">Command Line</a><ul><li><a href="#basic-conversion">Basic Conversion</a></li><li><a href="#reading-from-stdin">Reading from stdin</a></li><li><a href="#writing-to-a-file">Writing to a File</a></li></ul></li><li><a href="#processor-modes">Processor Modes</a></li><li><a href="#output-options">Output Options</a><ul><li><a href="#standalone-html-document">Standalone HTML Document</a></li><li><a href="#with-custom-title">With Custom Title</a></li><li><a href="#with-stylesheet">With Stylesheet</a></li><li><a href="#pretty-printed-html">Pretty-Printed HTML</a></li></ul></li><li><a href="#header-ids">Header IDs</a><ul><li><a href="#default-behavior">Default Behavior</a></li><li><a href="#different-id-formats">Different ID Formats</a></li><li><a href="#disable-header-ids">Disable Header IDs</a></li><li><a href="#use-anchor-tags">Use Anchor Tags</a></li></ul></li><li><a href="#tables">Tables</a><ul><li><a href="#standard-tables">Standard Tables</a></li><li><a href="#relaxed-tables">Relaxed Tables</a></li></ul></li><li><a href="#critic-markup">Critic Markup</a><ul><li><a href="#review-mode-default">Review Mode (Default)</a></li><li><a href="#accept-all-changes">Accept All Changes</a></li><li><a href="#reject-all-changes">Reject All Changes</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#examples">Examples</a><ul><li><a href="#blog-post">Blog Post</a></li><li><a href="#documentation">Documentation</a></li><li><a href="#github-compatible">GitHub-Compatible</a></li></ul></li><li><a href="#programmatic-usage">Programmatic Usage</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#usage">Usage</a><ul><li><a href="#command-line">Command Line</a><ul><li><a href="#basic-conversion">Basic Conversion</a></li><li><a href="#reading-from-stdin">Reading from stdin</a></li><li><a href="#writing-to-a-file">Writing to a File</a></li></ul></li><li><a href="#processor-modes">Processor Modes</a></li><li><a href="#output-options">Output Options</a><ul><li><a href="#standalone-html-document">Standalone HTML Document</a></li><li><a href="#with-custom-title">With Custom Title</a></li><li><a href="#with-stylesheet">With Stylesheet</a></li><li><a href="#pretty-printed-html">Pretty-Printed HTML</a></li></ul></li><li><a href="#header-ids">Header IDs</a><ul><li><a href="#default-behavior">Default Behavior</a></li><li><a href="#different-id-formats">Different ID Formats</a></li><li><a href="#disable-header-ids">Disable Header IDs</a></li><li><a href="#use-anchor-tags">Use Anchor Tags</a></li></ul></li><li><a href="#tables">Tables</a><ul><li><a href="#standard-tables">Standard Tables</a></li><li><a href="#relaxed-tables">Relaxed Tables</a></li></ul></li><li><a href="#critic-markup">Critic Markup</a><ul><li><a href="#review-mode-default">Review Mode (Default)</a></li><li><a href="#accept-all-changes">Accept All Changes</a></li><li><a href="#reject-all-changes">Reject All Changes</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#examples">Examples</a><ul><li><a href="#blog-post">Blog Post</a></li><li><a href="#documentation">Documentation</a></li><li><a href="#github-compatible">GitHub-Compatible</a></li></ul></li><li><a href="#programmatic-usage">Programmatic Usage</a></li></ul></li></ul></nav>
 
     <p>
       This page covers basic usage patterns for Apex.
@@ -880,7 +1251,7 @@ apex --mode commonmark document.md
 </code></pre>
 
 <p>
-  See <a href="Modes">Modes</a> for details on what each mode supports.
+  See <a href="#modes" onclick="showPage('modes'); return false;">Modes</a> for details on what each mode supports.
 </p>
 
 <h2 id="output-options">
@@ -978,7 +1349,7 @@ apex document.md --id-format kramdown
 </code></pre>
 
 <p>
-  See <a href="Header-IDs">Header IDs</a> for complete details.
+  See <a href="#header-ids" onclick="showPage('header-ids'); return false;">Header IDs</a> for complete details.
 </p>
 
 <h2 id="tables">
@@ -1130,11 +1501,11 @@ apex document.md --no-math
 </h2>
 
 <p>
-  For using Apex in your own applications, see the <a href="C-API">C API</a> documentation.
+  For using Apex in your own applications, see the <a href="#c-api" onclick="showPage('c-api'); return false;">C API</a> documentation.
 </p>
 
 <p>
-  For Xcode integration, see <a href="Xcode-Integration">Xcode Integration</a>.
+  For Xcode integration, see <a href="#xcode-integration" onclick="showPage('xcode-integration'); return false;">Xcode Integration</a>.
 </p>
 
 
@@ -1143,10 +1514,10 @@ apex document.md --no-math
     <h1 id="syntax-reference">
       Syntax Reference
     </h1>
-<nav class="page-toc"><ul><li><a href="#syntax-reference">Syntax Reference</a><ul><li><a href="#basic-markdown">Basic Markdown</a><ul><li><a href="#headers">Headers</a></li><li><a href="#emphasis">Emphasis</a></li><li><a href="#superscript-and-subscript">Superscript and Subscript</a></li><li><a href="#lists">Lists</a></li><li><a href="#links-and-images">Links and Images</a></li><li><a href="#code">Code</a></li><li><a href="#blockquotes">Blockquotes</a></li><li><a href="#horizontal-rules">Horizontal Rules</a></li></ul></li><li><a href="#tables">Tables</a><ul><li><a href="#standard-tables">Standard Tables</a></li><li><a href="#relaxed-tables">Relaxed Tables</a></li><li><a href="#headerless-tables">Headerless Tables</a><ul><li><a href="#row-header-columns">Row header columns</a></li></ul></li><li><a href="#inline-tables-from-csvtsv">Inline Tables from CSV/TSV</a><ul><li><a href="#fenced-csvtsv-tables">Fenced CSV/TSV tables</a></li><li><a href="#alignment-rows-in-csvtsv-tables">Alignment rows in CSV/TSV tables</a></li><li><a href="#table-markers">&lt;!--TABLE--&gt; markers</a></li></ul></li></ul></li><li><a href="#footnotes">Footnotes</a><ul><li><a href="#reference-style">Reference Style</a></li><li><a href="#inline-style-kramdown">Inline Style (Kramdown)</a></li><li><a href="#inline-style-multimarkdown">Inline Style (MultiMarkdown)</a></li></ul></li><li><a href="#definition-lists">Definition Lists</a></li><li><a href="#citations">Citations</a><ul><li><a href="#pandoc-citation-syntax">Pandoc Citation Syntax</a></li><li><a href="#multimarkdown-citation-syntax">MultiMarkdown Citation Syntax</a></li><li><a href="#mmark-citation-syntax">mmark Citation Syntax</a></li><li><a href="#bibliography">Bibliography</a></li></ul></li><li><a href="#indices">Indices</a><ul><li><a href="#mmark-index-syntax">mmark Index Syntax</a></li><li><a href="#textindex-syntax">TextIndex Syntax</a></li><li><a href="#index-generation">Index Generation</a></li></ul></li><li><a href="#math">Math</a></li><li><a href="#wiki-links">Wiki Links</a></li><li><a href="#critic-markup">Critic Markup</a></li><li><a href="#callouts">Callouts</a></li><li><a href="#file-includes">File Includes</a><ul><li><a href="#apexoptions">apex_options</a></li></ul></li><li><a href="#core-functions">Core Functions</a><ul><li><a href="#apexoptionsdefault">apex_options_default</a></li><li><a href="#apexoptionsformode">apex_options_for_mode</a></li><li><a href="#apexmarkdowntohtml">apex_markdown_to_html</a></li><li><a href="#apexfreestring">apex_free_string</a></li><li><a href="#apexwraphtmldocument">apex_wrap_html_document</a></li><li><a href="#apexprettyprinthtml">apex_pretty_print_html</a></li></ul></li><li><a href="#version-functions">Version Functions</a><ul><li><a href="#apexversionstring">apex_version_string</a></li><li><a href="#apexversionmajor-apexversionminor-apexversionpatch">apex_version_major / apex_version_minor / apex_version_patch</a></li></ul></li><li><a href="#list-options">List Options</a><ul><li><a href="#mixed-list-markers">Mixed List Markers</a></li><li><a href="#alpha-lists">Alpha Lists</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a></li><li><a href="#metadata-options">Metadata Options</a></li><li><a href="#file-inclusion">File Inclusion</a></li><li><a href="#output-options">Output Options</a></li><li><a href="#line-break-options">Line Break Options</a></li><li><a href="#header-id-options">Header ID Options</a></li><li><a href="#table-options">Table Options</a></li><li><a href="#complete-example">Complete Example</a></li><li><a href="#compiling-and-linking">Compiling and Linking</a><ul><li><a href="#with-cmake">With CMake</a></li><li><a href="#manual-compilation">Manual Compilation</a></li><li><a href="#static-linking">Static Linking</a></li></ul></li><li><a href="#thread-safety">Thread Safety</a></li><li><a href="#memory-management">Memory Management</a></li><li><a href="#error-handling">Error Handling</a></li><li><a href="#performance-tips">Performance Tips</a></li><li><a href="#related">Related</a><ul><li><a href="#address-syntax-for-file-includes">Address Syntax for File Includes</a></li><li><a href="#address-syntax-for-file-includes">Address Syntax for File Includes</a></li></ul></li><li><a href="#metadata">Metadata</a><ul><li><a href="#yaml-front-matter">YAML Front Matter</a></li><li><a href="#multimarkdown-metadata">MultiMarkdown Metadata</a></li><li><a href="#pandoc-title-block">Pandoc Title Block</a></li><li><a href="#metadata-variables">Metadata Variables</a></li></ul></li><li><a href="#abbreviations">Abbreviations</a></li><li><a href="#inline-attribute-lists-ial">Inline Attribute Lists (IAL)</a></li><li><a href="#table-of-contents">Table of Contents</a></li><li><a href="#smart-typography">Smart Typography</a></li><li><a href="#github-emoji">GitHub Emoji</a></li><li><a href="#special-markers">Special Markers</a></li><li><a href="#html">HTML</a><ul><li><a href="#markdown-inside-html-blocks">Markdown Inside HTML Blocks</a></li><li><a href="#pandoc-fenced-divs">Pandoc Fenced Divs</a></li></ul></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#syntax-reference">Syntax Reference</a><ul><li><a href="#basic-markdown">Basic Markdown</a><ul><li><a href="#headers">Headers</a></li><li><a href="#emphasis">Emphasis</a></li><li><a href="#superscript-and-subscript">Superscript and Subscript</a></li><li><a href="#lists">Lists</a></li><li><a href="#links-and-images">Links and Images</a></li><li><a href="#code">Code</a></li><li><a href="#blockquotes">Blockquotes</a></li><li><a href="#horizontal-rules">Horizontal Rules</a></li></ul></li><li><a href="#tables">Tables</a><ul><li><a href="#standard-tables">Standard Tables</a></li><li><a href="#relaxed-tables">Relaxed Tables</a></li><li><a href="#headerless-tables">Headerless Tables</a><ul><li><a href="#row-header-columns">Row header columns</a></li></ul></li><li><a href="#inline-tables-from-csvtsv">Inline Tables from CSV/TSV</a><ul><li><a href="#fenced-csvtsv-tables">Fenced CSV/TSV tables</a></li><li><a href="#alignment-rows-in-csvtsv-tables">Alignment rows in CSV/TSV tables</a></li><li><a href="#table-markers">&lt;!--TABLE--&gt; markers</a></li></ul></li></ul></li><li><a href="#footnotes">Footnotes</a><ul><li><a href="#reference-style">Reference Style</a></li><li><a href="#inline-style-kramdown">Inline Style (Kramdown)</a></li><li><a href="#inline-style-multimarkdown">Inline Style (MultiMarkdown)</a></li></ul></li><li><a href="#definition-lists">Definition Lists</a></li><li><a href="#citations">Citations</a><ul><li><a href="#pandoc-citation-syntax">Pandoc Citation Syntax</a></li><li><a href="#multimarkdown-citation-syntax">MultiMarkdown Citation Syntax</a></li><li><a href="#mmark-citation-syntax">mmark Citation Syntax</a></li><li><a href="#bibliography">Bibliography</a></li></ul></li><li><a href="#indices">Indices</a><ul><li><a href="#mmark-index-syntax">mmark Index Syntax</a></li><li><a href="#textindex-syntax">TextIndex Syntax</a></li><li><a href="#index-generation">Index Generation</a></li></ul></li><li><a href="#math">Math</a></li><li><a href="#wiki-links">Wiki Links</a></li><li><a href="#critic-markup">Critic Markup</a></li><li><a href="#callouts">Callouts</a></li><li><a href="#file-includes">File Includes</a><ul><li><a href="#apexoptions">apex_options</a></li></ul></li><li><a href="#core-functions">Core Functions</a><ul><li><a href="#apexoptionsdefault">apex_options_default</a></li><li><a href="#apexoptionsformode">apex_options_for_mode</a></li><li><a href="#apexmarkdowntohtml">apex_markdown_to_html</a></li><li><a href="#apexfreestring">apex_free_string</a></li><li><a href="#apexwraphtmldocument">apex_wrap_html_document</a></li><li><a href="#apexprettyprinthtml">apex_pretty_print_html</a></li></ul></li><li><a href="#version-functions">Version Functions</a><ul><li><a href="#apexversionstring">apex_version_string</a></li><li><a href="#apexversionmajor-apexversionminor-apexversionpatch">apex_version_major / apex_version_minor / apex_version_patch</a></li></ul></li><li><a href="#list-options">List Options</a><ul><li><a href="#mixed-list-markers">Mixed List Markers</a></li><li><a href="#alpha-lists">Alpha Lists</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a></li><li><a href="#metadata-options">Metadata Options</a></li><li><a href="#file-inclusion">File Inclusion</a></li><li><a href="#output-options">Output Options</a></li><li><a href="#line-break-options">Line Break Options</a></li><li><a href="#header-id-options">Header ID Options</a></li><li><a href="#table-options">Table Options</a></li><li><a href="#complete-example">Complete Example</a></li><li><a href="#compiling-and-linking">Compiling and Linking</a><ul><li><a href="#with-cmake">With CMake</a></li><li><a href="#manual-compilation">Manual Compilation</a></li><li><a href="#static-linking">Static Linking</a></li></ul></li><li><a href="#thread-safety">Thread Safety</a></li><li><a href="#memory-management">Memory Management</a></li><li><a href="#error-handling">Error Handling</a></li><li><a href="#performance-tips">Performance Tips</a></li><li><a href="#related">Related</a><ul><li><a href="#address-syntax-for-file-includes">Address Syntax for File Includes</a></li><li><a href="#address-syntax-for-file-includes">Address Syntax for File Includes</a></li></ul></li><li><a href="#metadata">Metadata</a><ul><li><a href="#yaml-front-matter">YAML Front Matter</a></li><li><a href="#multimarkdown-metadata">MultiMarkdown Metadata</a></li><li><a href="#pandoc-title-block">Pandoc Title Block</a></li><li><a href="#metadata-variables">Metadata Variables</a></li></ul></li><li><a href="#abbreviations">Abbreviations</a></li><li><a href="#inline-attribute-lists-ial">Inline Attribute Lists (IAL)</a></li><li><a href="#table-of-contents">Table of Contents</a></li><li><a href="#smart-typography">Smart Typography</a></li><li><a href="#github-emoji">GitHub Emoji</a></li><li><a href="#special-markers">Special Markers</a></li><li><a href="#html">HTML</a><ul><li><a href="#markdown-inside-html-blocks">Markdown Inside HTML Blocks</a></li><li><a href="#pandoc-fenced-divs">Pandoc Fenced Divs</a></li></ul></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
-      This page documents all syntax features available in <strong>unified mode</strong>. For mode-specific syntax, see <a href="Modes">Modes</a>.
+      This page documents all syntax features available in <strong>unified mode</strong>. For mode-specific syntax, see <a href="#modes" onclick="showPage('modes'); return false;">Modes</a>.
     </p>
 
     <h2 id="basic-markdown">
@@ -1584,7 +1955,7 @@ ___
 </code></pre>
 
 <p>
-  This automatically becomes a table. See <a href="Modes">Modes</a> for details.
+  This automatically becomes a table. See <a href="#modes" onclick="showPage('modes'); return false;">Modes</a> for details.
 </p>
 
 <h3 id="headerless-tables">
@@ -1935,7 +2306,7 @@ a,b,c
 </p>
 
 <p>
-<strong>  Caption position:</strong> By default, captions appear <strong>below</strong> the table. Use the <code>--captions above</code> option to place captions above the table instead. The <code>--captions below</code> option (or default) places them below. See <a href="Command-Line-Options">Command Line Options</a> for details.
+<strong>  Caption position:</strong> By default, captions appear <strong>below</strong> the table. Use the <code>--captions above</code> option to place captions above the table instead. The <code>--captions below</code> option (or default) places them below. See <a href="#command-line-options" onclick="showPage('command-line-options'); return false;">Command Line Options</a> for details.
 </p>
 
 <h2 id="footnotes">
@@ -2163,7 +2534,7 @@ bibliography:
 </code></pre>
 
 <p>
-  For complete documentation of citations and bibliography, see <a href="Citations">Citations</a>.
+  For complete documentation of citations and bibliography, see <a href="#citations" onclick="showPage('citations'); return false;">Citations</a>.
 </p>
 
 <h2 id="indices">
@@ -2345,7 +2716,7 @@ $$
 </code></pre>
 
 <p>
-  See <a href="Command-Line-Options">Command Line Options</a> for <code>--accept</code> and <code>--reject</code> modes.
+  See <a href="#command-line-options" onclick="showPage('command-line-options'); return false;">Command Line Options</a> for <code>--accept</code> and <code>--reject</code> modes.
 </p>
 
 <h2 id="callouts">
@@ -3241,7 +3612,7 @@ for (int i = 0; i &lt; count; i++) {
   <li>
 
     <p>
-<a href="Xcode-Integration">      Xcode Integration</a> - Using Apex in Xcode projects
+<a href="#xcode-integration" onclick="showPage('xcode-integration'); return false;">      Xcode Integration</a> - Using Apex in Xcode projects
     </p>
 
   </li>
@@ -3249,7 +3620,7 @@ for (int i = 0; i &lt; count; i++) {
   <li>
 
     <p>
-<a href="Modes">      Modes</a> - Understanding processor modes
+<a href="#modes" onclick="showPage('modes'); return false;">      Modes</a> - Understanding processor modes
     </p>
 
   </li>
@@ -3257,21 +3628,21 @@ for (int i = 0; i &lt; count; i++) {
   <li>
 
     <p>
-<a href="Header-IDs">      Header IDs</a> - Header ID generation options
+<a href="#header-ids" onclick="showPage('header-ids'); return false;">      Header IDs</a> - Header ID generation options
     </p>
 
-<pre><code>   # Glob include (first matching .md file)
-</code>  </pre>
+<pre><code class="highlight ">   # Glob include (first matching .md file)
+&lt;/code&gt;  &lt;/pre&gt;
 
-</li>
+&lt;/li&gt;
 
-</ul>
+&lt;/ul&gt;
 
-<p>
+&lt;p&gt;
   {{c?de.py}}      # ? wildcard (e.g. resolves to code.py)
-</p>
+&lt;/p&gt;
 
-<pre><code>
+&lt;pre&gt;&lt;code&gt;
 `{{file.*}}` implements MultiMarkdown-style wildcard resolution, trying common extensions in a preferred order.
 Patterns containing `*`, `?`, `[]`, or `{}` are treated as glob patterns and resolved relative to the current transclude base (see metadata `transclude base`).
 
@@ -3494,7 +3865,7 @@ Version: [%version]
 </code></pre>
 
 <p>
-  You can also transform metadata values using the <code>[%key:transform]</code> syntax. See <a href="Metadata-Transforms">Metadata Transforms</a> for a complete guide to available transforms.
+  You can also transform metadata values using the <code>[%key:transform]</code> syntax. See <a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">Metadata Transforms</a> for a complete guide to available transforms.
 </p>
 
 <p>
@@ -3563,7 +3934,7 @@ quoteslanguage: french
 <strong>  Example metadata file (<code>lang-de.mmd</code>):</strong>
 </p>
 
-<pre><code>Language: de
+<pre><code class="highlight ">Language: de
 Quotes Language: german
 </code></pre>
 
@@ -3627,7 +3998,7 @@ standalone: true
 </code></pre>
 
 <p>
-  This enables batch processing where each file can have its own configuration. See <a href="Command-Line-Options">Command Line Options</a> for complete documentation of metadata options and which options can be controlled via metadata.
+  This enables batch processing where each file can have its own configuration. See <a href="#command-line-options" onclick="showPage('command-line-options'); return false;">Command Line Options</a> for complete documentation of metadata options and which options can be controlled via metadata.
 </p>
 
 <h2 id="abbreviations">
@@ -3769,7 +4140,7 @@ This has **bold text**{:.bold-style} and *italic text*{:.italic-style}.
 </ul>
 
 <p>
-  For complete documentation with examples, see <a href="Inline-Attribute-Lists">Inline Attribute Lists</a>.
+  For complete documentation with examples, see <a href="#inline-attribute-lists" onclick="showPage('inline-attribute-lists'); return false;">Inline Attribute Lists</a>.
 </p>
 
 <h2 id="table-of-contents">
@@ -4256,15 +4627,15 @@ This is the content of the details block
 <ul>
 
   <li>
-<a href="Modes">    Modes</a> - Which syntax is available in each mode
+<a href="#modes" onclick="showPage('modes'); return false;">    Modes</a> - Which syntax is available in each mode
   </li>
 
   <li>
-<a href="Header-IDs">    Header IDs</a> - Automatic header ID generation
+<a href="#header-ids" onclick="showPage('header-ids'); return false;">    Header IDs</a> - Automatic header ID generation
   </li>
 
   <li>
-<a href="Command-Line-Options">    Command Line Options</a> - Feature flags including <code>--[no-]autolink</code>, <code>--[no-]mixed-lists</code>, <code>--[no-]alpha-lists</code>, <code>--[no-]sup-sub</code>, and <code>--[no-]divs</code>
+<a href="#command-line-options" onclick="showPage('command-line-options'); return false;">    Command Line Options</a> - Feature flags including <code>--[no-]autolink</code>, <code>--[no-]mixed-lists</code>, <code>--[no-]alpha-lists</code>, <code>--[no-]sup-sub</code>, and <code>--[no-]divs</code>
   </li>
 
 </ul>
@@ -4275,7 +4646,7 @@ This is the content of the details block
     <h1 id="inline-attribute-lists-ials-and-attribute-list-definitions-alds">
       Inline Attribute Lists (IALs) and Attribute List Definitions (ALDs)
     </h1>
-<nav class="page-toc"><ul><li><a href="#inline-attribute-lists-ials-and-attribute-list-definitions-alds">Inline Attribute Lists (IALs) and Attribute List Definitions (ALDs)</a><ul><li><a href="#overview">Overview</a></li><li><a href="#block-level-ials">Block-Level IALs</a><ul><li><a href="#paragraphs">Paragraphs</a></li><li><a href="#headings">Headings</a></li><li><a href="#lists">Lists</a></li><li><a href="#blockquotes">Blockquotes</a></li><li><a href="#tables">Tables</a></li></ul></li><li><a href="#inline-ials">Inline IALs</a><ul><li><a href="#links">Links</a></li><li><a href="#images">Images</a></li><li><a href="#emphasis-and-strong">Emphasis and Strong</a></li><li><a href="#code-spans">Code Spans</a></li></ul></li><li><a href="#attribute-syntax">Attribute Syntax</a><ul><li><a href="#1-ids">1. IDs</a></li><li><a href="#2-classes">2. Classes</a></li><li><a href="#3-key-value-pairs">3. Key-Value Pairs</a></li><li><a href="#combining-attributes">Combining Attributes</a></li></ul></li><li><a href="#attribute-list-definitions-alds">Attribute List Definitions (ALDs)</a><ul><li><a href="#defining-alds">Defining ALDs</a></li><li><a href="#ald-syntax">ALD Syntax</a></li><li><a href="#referencing-alds">Referencing ALDs</a></li><li><a href="#mixed-usage">Mixed Usage</a></li></ul></li><li><a href="#important-notes">Important Notes</a><ul><li><a href="#block-level-ial-positioning">Block-Level IAL Positioning</a></li><li><a href="#inline-ial-positioning">Inline IAL Positioning</a></li><li><a href="#multiple-elements-with-same-attributes">Multiple Elements with Same Attributes</a></li><li><a href="#nested-elements">Nested Elements</a></li></ul></li><li><a href="#examples">Examples</a><ul><li><a href="#complete-example">Complete Example</a></li><li><a href="#using-alds-for-consistent-styling">Using ALDs for Consistent Styling</a></li></ul></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#inline-attribute-lists-ials-and-attribute-list-definitions-alds">Inline Attribute Lists (IALs) and Attribute List Definitions (ALDs)</a><ul><li><a href="#overview">Overview</a></li><li><a href="#block-level-ials">Block-Level IALs</a><ul><li><a href="#paragraphs">Paragraphs</a></li><li><a href="#headings">Headings</a></li><li><a href="#lists">Lists</a></li><li><a href="#blockquotes">Blockquotes</a></li><li><a href="#tables">Tables</a></li></ul></li><li><a href="#inline-ials">Inline IALs</a><ul><li><a href="#links">Links</a></li><li><a href="#images">Images</a></li><li><a href="#emphasis-and-strong">Emphasis and Strong</a></li><li><a href="#code-spans">Code Spans</a></li></ul></li><li><a href="#attribute-syntax">Attribute Syntax</a><ul><li><a href="#1-ids">1. IDs</a></li><li><a href="#2-classes">2. Classes</a></li><li><a href="#3-key-value-pairs">3. Key-Value Pairs</a></li><li><a href="#combining-attributes">Combining Attributes</a></li></ul></li><li><a href="#attribute-list-definitions-alds">Attribute List Definitions (ALDs)</a><ul><li><a href="#defining-alds">Defining ALDs</a></li><li><a href="#ald-syntax">ALD Syntax</a></li><li><a href="#referencing-alds">Referencing ALDs</a></li><li><a href="#mixed-usage">Mixed Usage</a></li></ul></li><li><a href="#important-notes">Important Notes</a><ul><li><a href="#block-level-ial-positioning">Block-Level IAL Positioning</a></li><li><a href="#inline-ial-positioning">Inline IAL Positioning</a></li><li><a href="#multiple-elements-with-same-attributes">Multiple Elements with Same Attributes</a></li><li><a href="#nested-elements">Nested Elements</a></li></ul></li><li><a href="#examples">Examples</a><ul><li><a href="#complete-example">Complete Example</a></li><li><a href="#using-alds-for-consistent-styling">Using ALDs for Consistent Styling</a></li></ul></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Inline Attribute Lists (IALs) allow you to add HTML attributes (IDs, classes, and custom key-value pairs) to Markdown elements. Attribute List Definitions (ALDs) let you define reusable attribute sets that can be referenced multiple times.
@@ -5019,7 +5390,7 @@ More content here.
   </li>
 
   <li>
-<a href="Modes">    Modes</a> - Understanding processor modes (IALs available in Kramdown and unified modes)
+<a href="#modes" onclick="showPage('modes'); return false;">    Modes</a> - Understanding processor modes (IALs available in Kramdown and unified modes)
   </li>
 
 </ul>
@@ -5030,7 +5401,7 @@ More content here.
     <h1 id="processor-modes">
       Processor Modes
     </h1>
-<nav class="page-toc"><ul><li><a href="#processor-modes">Processor Modes</a><ul><li><a href="#overview">Overview</a></li><li><a href="#unified-mode-default">Unified Mode (Default)</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#gfm-mode">GFM Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#multimarkdown-mode">MultiMarkdown Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#kramdown-mode">Kramdown Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#commonmark-mode">CommonMark Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#feature-comparison-table">Feature Comparison Table</a></li><li><a href="#choosing-a-mode">Choosing a Mode</a></li><li><a href="#overriding-mode-defaults">Overriding Mode Defaults</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#processor-modes">Processor Modes</a><ul><li><a href="#overview">Overview</a></li><li><a href="#unified-mode-default">Unified Mode (Default)</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#gfm-mode">GFM Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#multimarkdown-mode">MultiMarkdown Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#kramdown-mode">Kramdown Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#commonmark-mode">CommonMark Mode</a><ul><li><a href="#enabled-features">Enabled Features</a></li><li><a href="#disabled-features">Disabled Features</a></li><li><a href="#id-format">ID Format</a></li></ul></li><li><a href="#feature-comparison-table">Feature Comparison Table</a></li><li><a href="#choosing-a-mode">Choosing a Mode</a></li><li><a href="#overriding-mode-defaults">Overriding Mode Defaults</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Apex supports multiple processor modes, each optimized for compatibility with different Markdown flavors.
@@ -5214,7 +5585,7 @@ More content here.
       </li>
 
       <li>
-        ✅ Metadata variables (<code>[%key]</code>) - See <a href="Metadata-Transforms">Metadata Transforms</a> for transform syntax - See <a href="Metadata-Transforms">Metadata Transforms</a> for transform syntax
+        ✅ Metadata variables (<code>[%key]</code>) - See <a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">Metadata Transforms</a> for transform syntax - See <a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">Metadata Transforms</a> for transform syntax
       </li>
 
       <li>
@@ -5402,7 +5773,7 @@ More content here.
       </li>
 
       <li>
-        ✅ Metadata variables (<code>[%key]</code>) - See <a href="Metadata-Transforms">Metadata Transforms</a> for transform syntax
+        ✅ Metadata variables (<code>[%key]</code>) - See <a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">Metadata Transforms</a> for transform syntax
       </li>
 
       <li>
@@ -6121,7 +6492,7 @@ apex --mode unified --wikilinks document.md
   <ul>
 
     <li>
-<a href="Header-IDs">      Header IDs</a> - How ID formats differ by mode
+<a href="#header-ids" onclick="showPage('header-ids'); return false;">      Header IDs</a> - How ID formats differ by mode
     </li>
 
     <li>
@@ -6129,7 +6500,7 @@ apex --mode unified --wikilinks document.md
     </li>
 
     <li>
-<a href="Command-Line-Options">      Command Line Options</a> - Mode selection and feature flags
+<a href="#command-line-options" onclick="showPage('command-line-options'); return false;">      Command Line Options</a> - Mode selection and feature flags
     </li>
 
   </ul>
@@ -6140,7 +6511,7 @@ apex --mode unified --wikilinks document.md
     <h1 id="command-line-options">
       Command Line Options
     </h1>
-<nav class="page-toc"><ul><li><a href="#command-line-options">Command Line Options</a><ul><li><a href="#basic-options">Basic Options</a><ul><li><a href="#h-help">-h, --help</a></li><li><a href="#v-version">-v, --version</a></li><li><a href="#no-progress">--[no-]progress</a></li><li><a href="#combine">--combine</a></li><li><a href="#mmd-merge">--mmd-merge</a></li><li><a href="#m-mode-mode">-m, --mode MODE</a></li><li><a href="#o-output-file">-o, --output FILE</a></li></ul></li><li><a href="#output-options">Output Options</a><ul><li><a href="#s-standalone">-s, --standalone</a></li><li><a href="#style-file-css-file">--style FILE, --css FILE</a></li><li><a href="#embed-css">--embed-css</a></li><li><a href="#script-value">--script VALUE</a></li><li><a href="#title-title">--title TITLE</a></li><li><a href="#pretty">--pretty</a></li><li><a href="#aria">--aria</a></li></ul></li><li><a href="#plugin-management">Plugin Management</a><ul><li><a href="#plugins-no-plugins">--plugins, --no-plugins</a></li><li><a href="#list-plugins">--list-plugins</a></li><li><a href="#install-plugin-id-or-url">--install-plugin ID-or-URL</a></li><li><a href="#uninstall-plugin-id">--uninstall-plugin ID</a></li></ul></li><li><a href="#header-id-options">Header ID Options</a><ul><li><a href="#id-format-format">--id-format FORMAT</a></li><li><a href="#no-ids">--no-ids</a></li><li><a href="#header-anchors">--header-anchors</a></li></ul></li><li><a href="#table-options">Table Options</a><ul><li><a href="#relaxed-tables">--relaxed-tables</a></li><li><a href="#no-relaxed-tables">--no-relaxed-tables</a></li><li><a href="#captions-position">--captions POSITION</a></li><li><a href="#no-tables">--no-tables</a></li></ul></li><li><a href="#list-options">List Options</a><ul><li><a href="#no-alpha-lists">--[no-]alpha-lists</a></li><li><a href="#no-mixed-lists">--[no-]mixed-lists</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a><ul><li><a href="#no-footnotes">--no-footnotes</a></li><li><a href="#no-smart">--no-smart</a></li><li><a href="#no-math">--no-math</a></li><li><a href="#no-autolink">--[no-]autolink</a></li><li><a href="#obfuscate-emails">--obfuscate-emails</a></li><li><a href="#includes-no-includes">--includes, --no-includes</a></li></ul></li><li><a href="#image-embedding">Image Embedding</a><ul><li><a href="#embed-images">--embed-images</a></li></ul></li><li><a href="#path-resolution">Path Resolution</a><ul><li><a href="#base-dir-dir">--base-dir DIR</a></li><li><a href="#no-transforms">--[no-]transforms</a></li></ul></li><li><a href="#metadata-options">Metadata Options</a><ul><li><a href="#meta-file-file">--meta-file FILE</a></li><li><a href="#meta-keyvalue">--meta KEY=VALUE</a></li><li><a href="#controlling-options-via-metadata">Controlling Options via Metadata</a></li></ul></li><li><a href="#citations-and-bibliography">Citations and Bibliography</a><ul><li><a href="#bibliography-file">--bibliography FILE</a></li><li><a href="#csl-file">--csl FILE</a></li><li><a href="#no-bibliography">--no-bibliography</a></li><li><a href="#link-citations">--link-citations</a></li><li><a href="#show-tooltips">--show-tooltips</a></li></ul></li><li><a href="#indices">Indices</a><ul><li><a href="#indices">--indices</a></li><li><a href="#no-indices">--no-indices</a></li><li><a href="#no-index">--no-index</a></li><li><a href="#hardbreaks">--hardbreaks</a></li><li><a href="#no-sup-sub">--[no-]sup-sub</a></li><li><a href="#no-divs">--[no-]divs</a></li><li><a href="#no-spans">--[no-]spans</a></li><li><a href="#no-emoji-autocorrect">--[no-]emoji-autocorrect</a></li><li><a href="#no-unsafe">--[no-]unsafe</a></li><li><a href="#no-wikilinks">--[no-]wikilinks</a></li><li><a href="#wikilink-space-mode">--wikilink-space MODE</a></li><li><a href="#wikilink-extension-ext">--wikilink-extension EXT</a></li></ul></li><li><a href="#critic-markup-options">Critic Markup Options</a><ul><li><a href="#accept">--accept</a></li><li><a href="#reject">--reject</a></li></ul></li><li><a href="#inputoutput">Input/Output</a><ul><li><a href="#reading-from-stdin">Reading from stdin</a></li><li><a href="#writing-to-stdout">Writing to stdout</a></li></ul></li><li><a href="#combining-options">Combining Options</a></li><li><a href="#option-precedence">Option Precedence</a></li><li><a href="#examples">Examples</a><ul><li><a href="#blog-post">Blog Post</a></li><li><a href="#github-compatible-output">GitHub-Compatible Output</a></li><li><a href="#documentation-with-custom-ids">Documentation with Custom IDs</a></li><li><a href="#review-document-with-critic-markup">Review Document with Critic Markup</a></li><li><a href="#academic-document-with-citations">Academic Document with Citations</a></li></ul></li><li><a href="#related">Related</a></li><li><a href="#plugin-options">Plugin Options</a><ul><li><a href="#no-plugins">--[no-]plugins</a></li><li><a href="#list-plugins">--list-plugins</a></li><li><a href="#install-plugin-id">--install-plugin ID</a></li><li><a href="#uninstall-plugin-id">--uninstall-plugin ID</a></li></ul></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#command-line-options">Command Line Options</a><ul><li><a href="#basic-options">Basic Options</a><ul><li><a href="#h-help">-h, --help</a></li><li><a href="#v-version">-v, --version</a></li><li><a href="#no-progress">--[no-]progress</a></li><li><a href="#combine">--combine</a></li><li><a href="#mmd-merge">--mmd-merge</a></li><li><a href="#m-mode-mode">-m, --mode MODE</a></li><li><a href="#o-output-file">-o, --output FILE</a></li></ul></li><li><a href="#output-options">Output Options</a><ul><li><a href="#s-standalone">-s, --standalone</a></li><li><a href="#style-file-css-file">--style FILE, --css FILE</a></li><li><a href="#embed-css">--embed-css</a></li><li><a href="#script-value">--script VALUE</a></li><li><a href="#title-title">--title TITLE</a></li><li><a href="#pretty">--pretty</a></li><li><a href="#aria">--aria</a></li></ul></li><li><a href="#plugin-management">Plugin Management</a><ul><li><a href="#plugins-no-plugins">--plugins, --no-plugins</a></li><li><a href="#list-plugins">--list-plugins</a></li><li><a href="#install-plugin-id-or-url">--install-plugin ID-or-URL</a></li><li><a href="#uninstall-plugin-id">--uninstall-plugin ID</a></li></ul></li><li><a href="#header-id-options">Header ID Options</a><ul><li><a href="#id-format-format">--id-format FORMAT</a></li><li><a href="#no-ids">--no-ids</a></li><li><a href="#header-anchors">--header-anchors</a></li></ul></li><li><a href="#table-options">Table Options</a><ul><li><a href="#relaxed-tables">--relaxed-tables</a></li><li><a href="#no-relaxed-tables">--no-relaxed-tables</a></li><li><a href="#captions-position">--captions POSITION</a></li><li><a href="#no-tables">--no-tables</a></li></ul></li><li><a href="#list-options">List Options</a><ul><li><a href="#no-alpha-lists">--[no-]alpha-lists</a></li><li><a href="#no-mixed-lists">--[no-]mixed-lists</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a><ul><li><a href="#no-footnotes">--no-footnotes</a></li><li><a href="#no-smart">--no-smart</a></li><li><a href="#no-math">--no-math</a></li><li><a href="#no-autolink">--[no-]autolink</a></li><li><a href="#obfuscate-emails">--obfuscate-emails</a></li><li><a href="#includes-no-includes">--includes, --no-includes</a></li></ul></li><li><a href="#image-embedding">Image Embedding</a><ul><li><a href="#embed-images">--embed-images</a></li></ul></li><li><a href="#path-resolution">Path Resolution</a><ul><li><a href="#base-dir-dir">--base-dir DIR</a></li><li><a href="#no-transforms">--[no-]transforms</a></li></ul></li><li><a href="#metadata-options">Metadata Options</a><ul><li><a href="#meta-file-file">--meta-file FILE</a></li><li><a href="#meta-keyvalue">--meta KEY=VALUE</a></li><li><a href="#controlling-options-via-metadata">Controlling Options via Metadata</a></li></ul></li><li><a href="#citations-and-bibliography">Citations and Bibliography</a><ul><li><a href="#bibliography-file">--bibliography FILE</a></li><li><a href="#csl-file">--csl FILE</a></li><li><a href="#no-bibliography">--no-bibliography</a></li><li><a href="#link-citations">--link-citations</a></li><li><a href="#show-tooltips">--show-tooltips</a></li></ul></li><li><a href="#indices">Indices</a><ul><li><a href="#indices">--indices</a></li><li><a href="#no-indices">--no-indices</a></li><li><a href="#no-index">--no-index</a></li><li><a href="#hardbreaks">--hardbreaks</a></li><li><a href="#no-sup-sub">--[no-]sup-sub</a></li><li><a href="#no-divs">--[no-]divs</a></li><li><a href="#no-spans">--[no-]spans</a></li><li><a href="#no-emoji-autocorrect">--[no-]emoji-autocorrect</a></li><li><a href="#no-unsafe">--[no-]unsafe</a></li><li><a href="#no-wikilinks">--[no-]wikilinks</a></li><li><a href="#wikilink-space-mode">--wikilink-space MODE</a></li><li><a href="#wikilink-extension-ext">--wikilink-extension EXT</a></li></ul></li><li><a href="#critic-markup-options">Critic Markup Options</a><ul><li><a href="#accept">--accept</a></li><li><a href="#reject">--reject</a></li></ul></li><li><a href="#inputoutput">Input/Output</a><ul><li><a href="#reading-from-stdin">Reading from stdin</a></li><li><a href="#writing-to-stdout">Writing to stdout</a></li></ul></li><li><a href="#combining-options">Combining Options</a></li><li><a href="#option-precedence">Option Precedence</a></li><li><a href="#examples">Examples</a><ul><li><a href="#blog-post">Blog Post</a></li><li><a href="#github-compatible-output">GitHub-Compatible Output</a></li><li><a href="#documentation-with-custom-ids">Documentation with Custom IDs</a></li><li><a href="#review-document-with-critic-markup">Review Document with Critic Markup</a></li><li><a href="#academic-document-with-citations">Academic Document with Citations</a></li></ul></li><li><a href="#related">Related</a></li><li><a href="#plugin-options">Plugin Options</a><ul><li><a href="#no-plugins">--[no-]plugins</a></li><li><a href="#list-plugins">--list-plugins</a></li><li><a href="#install-plugin-id">--install-plugin ID</a></li><li><a href="#uninstall-plugin-id">--uninstall-plugin ID</a></li></ul></li></ul></li></ul></nav>
 
     <p>
       Complete reference for all Apex command-line flags.
@@ -6330,7 +6701,7 @@ export APEX_PROGRESS=0  # Disable
 <strong>  Example index file (<code>index.txt</code>):</strong>
 </p>
 
-<pre><code>chapter1.md
+<pre><code class="highlight ">chapter1.md
     section1.md
     section2.md
 chapter2.md
@@ -6644,7 +7015,7 @@ apex --install-plugin user/apex-plugin-example
 </h3>
 
 <p>
-  Set header ID generation format. See <a href="Header-IDs">Header IDs</a> for details.
+  Set header ID generation format. See <a href="#header-ids" onclick="showPage('header-ids'); return false;">Header IDs</a> for details.
 </p>
 
 <p>
@@ -7356,7 +7727,7 @@ title: hello world
 </code></pre>
 
 <p>
-  For complete documentation of available transforms, see <a href="Metadata-Transforms">Metadata Transforms</a>.
+  For complete documentation of available transforms, see <a href="#metadata-transforms" onclick="showPage('metadata-transforms'); return false;">Metadata Transforms</a>.
 </p>
 
 <h2 id="metadata-options">
@@ -7444,7 +7815,7 @@ quoteslanguage: french
 <strong>  Example metadata file (<code>lang-de.mmd</code>):</strong>
 </p>
 
-<pre><code>Language: de
+<pre><code class="highlight ">Language: de
 Quotes Language: german
 </code></pre>
 
@@ -7584,7 +7955,7 @@ apex document.md --meta title=&quot;My Document Title&quot;
   </li>
 
   <li>
-<code>plugins</code> (see <a href="Plugins">Plugins</a> for details on per-document plugin control)
+<code>plugins</code> (see <a href="#plugins" onclick="showPage('plugins'); return false;">Plugins</a> for details on per-document plugin control)
   </li>
 
 </ul>
@@ -7625,7 +7996,7 @@ quoteslanguage: english
 <strong>  Example MultiMarkdown metadata:</strong>
 </p>
 
-<pre><code>indices: false
+<pre><code class="highlight ">indices: false
 wikilinks: true
 bibliography: references.bib
 title: My Research Paper
@@ -7690,7 +8061,7 @@ apex *.md --meta-file defaults.yml
   </li>
 
   <li>
-    Bibliography can also be specified in document metadata (see <a href="Citations">Citations</a>)
+    Bibliography can also be specified in document metadata (see <a href="#citations" onclick="showPage('citations'); return false;">Citations</a>)
   </li>
 
   <li>
@@ -7839,7 +8210,7 @@ apex document.md --bibliography references.bib --base-dir /path/to/docs
 </p>
 
 <p>
-  For complete documentation of citation syntax and bibliography features, see <a href="Citations">Citations</a>.
+  For complete documentation of citation syntax and bibliography features, see <a href="#citations" onclick="showPage('citations'); return false;">Citations</a>.
 </p>
 
 <h2 id="indices">
@@ -8713,7 +9084,7 @@ apex paper.md --bibliography refs1.bib --bibliography refs2.bib
   </li>
 
   <li>
-<a href="Header-IDs">    Header IDs</a> - Header ID generation options
+<a href="#header-ids" onclick="showPage('header-ids'); return false;">    Header IDs</a> - Header ID generation options
   </li>
 
   <li>
@@ -8751,7 +9122,7 @@ apex paper.md --bibliography refs1.bib --bibliography refs2.bib
 </ul>
 
 <p>
-  Plugins can also be enabled per document using metadata (e.g. <code>plugins: true</code>). See <a href="Plugins">Plugins</a> for details.
+  Plugins can also be enabled per document using metadata (e.g. <code>plugins: true</code>). See <a href="#plugins" onclick="showPage('plugins'); return false;">Plugins</a> for details.
 </p>
 
 <pre lang="bash"><code>apex --plugins document.md
@@ -8841,9 +9212,10 @@ apex paper.md --bibliography refs1.bib --bibliography refs2.bib
 
 <p>Copyright 2025 Brett Terpstra, All Rights Reserved | MIT License</p></div><div id="page-multi-file-documents" class="page">
 
-    <h2 id="multi-file-documents-with-apex">
+    <h1 id="multi-file-documents-with-apex">
       Multi-file documents with Apex
-    </h2>
+    </h1>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#multi-file-documents-with-apex">Multi-file documents with Apex</a><ul><li><a href="#using-combine">Using --combine</a><ul><li><a href="#basic-usage-with-multiple-files">Basic usage with multiple files</a></li><li><a href="#using-a-gitbook-style-summarymd">Using a GitBook-style SUMMARY.md</a></li></ul></li><li><a href="#using-mmd-merge-multimarkdown-style">Using --mmd-merge (MultiMarkdown-style)</a><ul><li><a href="#example-mmdmerge-index-file">Example mmd_merge index file</a></li><li><a href="#running-mmd-merge-and-piping-back-to-apex">Running --mmd-merge and piping back to Apex</a></li></ul></li><li><a href="#combining-multiple-files-directly-on-the-command-line">Combining multiple files directly on the command line</a></li><li><a href="#building-multi-file-documents-with-include-syntax">Building multi-file documents with include syntax</a><ul><li><a href="#multimarkdown-include-example">MultiMarkdown include example</a></li><li><a href="#marked-style-include-example">Marked-style include example</a></li><li><a href="#ia-writer-style-include-example">iA Writer-style include example</a></li><li><a href="#combining-includes-with-combine">Combining includes with --combine</a></li></ul></li><li><a href="#choosing-between-combine-mmd-merge-and-includes">Choosing between --combine, --mmd-merge, and includes</a></li></ul></li></ul></nav>
 
     <p>
       Apex can assemble larger documents from many smaller Markdown files. There are two primary tools for this:
@@ -9341,7 +9713,7 @@ apex --combine part1.md part2.md part3.md \
     <h1 id="citations-and-bibliography">
       Citations and Bibliography
     </h1>
-<nav class="page-toc"><ul><li><a href="#citations-and-bibliography">Citations and Bibliography</a><ul><li><a href="#quick-start">Quick Start</a></li><li><a href="#citation-syntaxes">Citation Syntaxes</a><ul><li><a href="#pandoc-syntax">Pandoc Syntax</a></li><li><a href="#multimarkdown-syntax">MultiMarkdown Syntax</a></li><li><a href="#mmark-syntax">mmark Syntax</a></li></ul></li><li><a href="#bibliography-formats">Bibliography Formats</a><ul><li><a href="#bibtex-bib">BibTeX (.bib)</a></li><li><a href="#csl-json-json">CSL JSON (.json)</a></li><li><a href="#csl-yaml-yml-yaml">CSL YAML (.yml, .yaml)</a></li></ul></li><li><a href="#specifying-bibliography">Specifying Bibliography</a><ul><li><a href="#command-line">Command Line</a></li><li><a href="#document-metadata">Document Metadata</a></li></ul></li><li><a href="#bibliography-generation">Bibliography Generation</a></li><li><a href="#citation-options">Citation Options</a><ul><li><a href="#link-citations">Link Citations</a></li><li><a href="#suppress-bibliography">Suppress Bibliography</a></li><li><a href="#citation-style-csl">Citation Style (CSL)</a></li></ul></li><li><a href="#mode-support">Mode Support</a></li><li><a href="#performance">Performance</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#citations-and-bibliography">Citations and Bibliography</a><ul><li><a href="#quick-start">Quick Start</a></li><li><a href="#citation-syntaxes">Citation Syntaxes</a><ul><li><a href="#pandoc-syntax">Pandoc Syntax</a></li><li><a href="#multimarkdown-syntax">MultiMarkdown Syntax</a></li><li><a href="#mmark-syntax">mmark Syntax</a></li></ul></li><li><a href="#bibliography-formats">Bibliography Formats</a><ul><li><a href="#bibtex-bib">BibTeX (.bib)</a></li><li><a href="#csl-json-json">CSL JSON (.json)</a></li><li><a href="#csl-yaml-yml-yaml">CSL YAML (.yml, .yaml)</a></li></ul></li><li><a href="#specifying-bibliography">Specifying Bibliography</a><ul><li><a href="#command-line">Command Line</a></li><li><a href="#document-metadata">Document Metadata</a></li></ul></li><li><a href="#bibliography-generation">Bibliography Generation</a></li><li><a href="#citation-options">Citation Options</a><ul><li><a href="#link-citations">Link Citations</a></li><li><a href="#suppress-bibliography">Suppress Bibliography</a></li><li><a href="#citation-style-csl">Citation Style (CSL)</a></li></ul></li><li><a href="#mode-support">Mode Support</a></li><li><a href="#performance">Performance</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Apex supports citations and bibliographies with multiple syntax styles and bibliography formats. Citations are processed in <strong>MultiMarkdown</strong> and <strong>unified</strong> modes.
@@ -9891,7 +10263,7 @@ csl: apa.csl
     <h1 id="metadata-transforms">
       Metadata Transforms
     </h1>
-<nav class="page-toc"><ul><li><a href="#metadata-transforms">Metadata Transforms</a><ul><li><a href="#metadata-sources">Metadata Sources</a></li><li><a href="#basic-usage">Basic Usage</a></li><li><a href="#enabling-transforms">Enabling Transforms</a></li><li><a href="#case-transforms">Case Transforms</a><ul><li><a href="#upper">upper</a></li><li><a href="#lower">lower</a></li><li><a href="#title">title</a></li><li><a href="#capitalize">capitalize</a></li></ul></li><li><a href="#string-manipulation">String Manipulation</a><ul><li><a href="#trim">trim</a></li><li><a href="#slug-slugify">slug / slugify</a></li><li><a href="#replaceoldnew-replaceregexpatternreplacement">replace(OLD,NEW) / replace(regex:PATTERN,REPLACEMENT)</a></li><li><a href="#substringstartend-substrstartend">substring(START,END) / substr(START,END)</a></li><li><a href="#truncatelengthsuffix">truncate(LENGTH,SUFFIX)</a></li><li><a href="#reverse">reverse</a></li></ul></li><li><a href="#array-transforms">Array Transforms</a><ul><li><a href="#splitdelimiter">split(DELIMITER)</a></li><li><a href="#joindelimiter">join(DELIMITER)</a></li><li><a href="#first">first</a></li><li><a href="#last">last</a></li><li><a href="#slicestartlength">slice(START,LENGTH)</a></li></ul></li><li><a href="#utility-transforms">Utility Transforms</a><ul><li><a href="#defaultvalue">default(VALUE)</a></li><li><a href="#escape-htmlescape">escape / html_escape</a></li><li><a href="#basename">basename</a></li><li><a href="#urlencode">urlencode</a></li><li><a href="#urldecode">urldecode</a></li><li><a href="#prefixvalue">prefix(VALUE)</a></li><li><a href="#suffixvalue">suffix(VALUE)</a></li><li><a href="#removestring">remove(STRING)</a></li><li><a href="#repeatcount">repeat(COUNT)</a></li></ul></li><li><a href="#formatting-transforms">Formatting Transforms</a><ul><li><a href="#formatformatstring">format(FORMAT_STRING)</a></li><li><a href="#length">length</a></li><li><a href="#padwidthchar">pad(WIDTH,CHAR)</a></li><li><a href="#containsstring">contains(STRING)</a></li></ul></li><li><a href="#datetime-transforms">Date/Time Transforms</a><ul><li><a href="#strftimeformat">strftime(FORMAT)</a></li></ul></li><li><a href="#transform-chaining">Transform Chaining</a></li><li><a href="#notes">Notes</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#metadata-transforms">Metadata Transforms</a><ul><li><a href="#metadata-sources">Metadata Sources</a></li><li><a href="#basic-usage">Basic Usage</a></li><li><a href="#enabling-transforms">Enabling Transforms</a></li><li><a href="#case-transforms">Case Transforms</a><ul><li><a href="#upper">upper</a></li><li><a href="#lower">lower</a></li><li><a href="#title">title</a></li><li><a href="#capitalize">capitalize</a></li></ul></li><li><a href="#string-manipulation">String Manipulation</a><ul><li><a href="#trim">trim</a></li><li><a href="#slug-slugify">slug / slugify</a></li><li><a href="#replaceoldnew-replaceregexpatternreplacement">replace(OLD,NEW) / replace(regex:PATTERN,REPLACEMENT)</a></li><li><a href="#substringstartend-substrstartend">substring(START,END) / substr(START,END)</a></li><li><a href="#truncatelengthsuffix">truncate(LENGTH,SUFFIX)</a></li><li><a href="#reverse">reverse</a></li></ul></li><li><a href="#array-transforms">Array Transforms</a><ul><li><a href="#splitdelimiter">split(DELIMITER)</a></li><li><a href="#joindelimiter">join(DELIMITER)</a></li><li><a href="#first">first</a></li><li><a href="#last">last</a></li><li><a href="#slicestartlength">slice(START,LENGTH)</a></li></ul></li><li><a href="#utility-transforms">Utility Transforms</a><ul><li><a href="#defaultvalue">default(VALUE)</a></li><li><a href="#escape-htmlescape">escape / html_escape</a></li><li><a href="#basename">basename</a></li><li><a href="#urlencode">urlencode</a></li><li><a href="#urldecode">urldecode</a></li><li><a href="#prefixvalue">prefix(VALUE)</a></li><li><a href="#suffixvalue">suffix(VALUE)</a></li><li><a href="#removestring">remove(STRING)</a></li><li><a href="#repeatcount">repeat(COUNT)</a></li></ul></li><li><a href="#formatting-transforms">Formatting Transforms</a><ul><li><a href="#formatformatstring">format(FORMAT_STRING)</a></li><li><a href="#length">length</a></li><li><a href="#padwidthchar">pad(WIDTH,CHAR)</a></li><li><a href="#containsstring">contains(STRING)</a></li></ul></li><li><a href="#datetime-transforms">Date/Time Transforms</a><ul><li><a href="#strftimeformat">strftime(FORMAT)</a></li></ul></li><li><a href="#transform-chaining">Transform Chaining</a></li><li><a href="#notes">Notes</a></li></ul></li></ul></nav>
 
     <p>
       Metadata transforms allow you to modify metadata values using the <code>[%key:transform]</code> syntax. Transforms can be chained together, and many accept optional parameters.
@@ -10549,9 +10921,10 @@ date: 2024-03-15 14:30
 
 <p>Copyright 2025 Brett Terpstra, All Rights Reserved | MIT License</p></div><div id="page-pandoc-integration" class="page">
 
-    <h2 id="integrating-with-pandoc">
+    <h1 id="integrating-with-pandoc">
       Integrating with Pandoc
-    </h2>
+    </h1>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#integrating-with-pandoc">Integrating with Pandoc</a><ul><li><a href="#converting-to-docx">Converting to DOCX</a></li><li><a href="#converting-to-pdf">Converting to PDF</a></li><li><a href="#including-a-css-stylesheet">Including a CSS Stylesheet</a><ul><li><a href="#linking-an-external-stylesheet">Linking an external stylesheet</a></li><li><a href="#embedding-css-into-the-html">Embedding CSS into the HTML</a></li></ul></li><li><a href="#using-metadata-and-title">Using Metadata and Title</a><ul><li><a href="#yaml-front-matter">YAML front matter</a></li><li><a href="#external-metadata-file">External metadata file</a></li><li><a href="#inline-cli-metadata">Inline CLI metadata</a></li></ul></li><li><a href="#other-useful-formats">Other Useful Formats</a></li></ul></li></ul></nav>
 
     <p>
       Apex focuses on producing high‑quality HTML. For richer publishing targets like DOCX, PDF, RTF, OPML, ODT, and more, you can combine Apex with <a href="https://pandoc.org">Pandoc</a> by piping Apex’s HTML output into Pandoc.
@@ -10832,7 +11205,7 @@ author: Team Apex
     <h1 id="header-ids">
       Header IDs
     </h1>
-<nav class="page-toc"><ul><li><a href="#header-ids">Header IDs</a><ul><li><a href="#automatic-generation">Automatic Generation</a></li><li><a href="#id-formats">ID Formats</a><ul><li><a href="#gfm-format-default">GFM Format (Default)</a></li><li><a href="#multimarkdown-format">MultiMarkdown Format</a></li><li><a href="#kramdown-format">Kramdown Format</a></li></ul></li><li><a href="#setting-id-format">Setting ID Format</a><ul><li><a href="#by-mode">By Mode</a></li><li><a href="#override-in-unified-mode">Override in Unified Mode</a></li></ul></li><li><a href="#manual-header-ids">Manual Header IDs</a><ul><li><a href="#multimarkdown-syntax">MultiMarkdown Syntax</a></li><li><a href="#kramdown-syntax">Kramdown Syntax</a></li><li><a href="#inline-attribute-list-ial">Inline Attribute List (IAL)</a></li></ul></li><li><a href="#anchor-tags-vs-ids">Anchor Tags vs. IDs</a></li><li><a href="#examples">Examples</a><ul><li><a href="#gfm-format">GFM Format</a></li><li><a href="#multimarkdown-format">MultiMarkdown Format</a></li><li><a href="#kramdown-format">Kramdown Format</a></li></ul></li><li><a href="#linking-to-headers">Linking to Headers</a></li><li><a href="#table-of-contents">Table of Contents</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#header-ids">Header IDs</a><ul><li><a href="#automatic-generation">Automatic Generation</a></li><li><a href="#id-formats">ID Formats</a><ul><li><a href="#gfm-format-default">GFM Format (Default)</a></li><li><a href="#multimarkdown-format">MultiMarkdown Format</a></li><li><a href="#kramdown-format">Kramdown Format</a></li></ul></li><li><a href="#setting-id-format">Setting ID Format</a><ul><li><a href="#by-mode">By Mode</a></li><li><a href="#override-in-unified-mode">Override in Unified Mode</a></li></ul></li><li><a href="#manual-header-ids">Manual Header IDs</a><ul><li><a href="#multimarkdown-syntax">MultiMarkdown Syntax</a></li><li><a href="#kramdown-syntax">Kramdown Syntax</a></li><li><a href="#inline-attribute-list-ial">Inline Attribute List (IAL)</a></li></ul></li><li><a href="#anchor-tags-vs-ids">Anchor Tags vs. IDs</a></li><li><a href="#examples">Examples</a><ul><li><a href="#gfm-format">GFM Format</a></li><li><a href="#multimarkdown-format">MultiMarkdown Format</a></li><li><a href="#kramdown-format">Kramdown Format</a></li></ul></li><li><a href="#linking-to-headers">Linking to Headers</a></li><li><a href="#table-of-contents">Table of Contents</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Apex automatically generates unique IDs for all headers, making it easy to link to specific sections. Different processor modes use different ID generation rules.
@@ -11270,7 +11643,7 @@ apex document.md --mode unified --id-format kramdown
     <h1 id="c-api">
       C API
     </h1>
-<nav class="page-toc"><ul><li><a href="#c-api">C API</a><ul><li><a href="#overview">Overview</a></li><li><a href="#core-types">Core Types</a><ul><li><a href="#apexmodet">apex_mode_t</a></li><li><a href="#apexoptions">apex_options</a></li></ul></li><li><a href="#core-functions">Core Functions</a><ul><li><a href="#apexoptionsdefault">apex_options_default</a></li><li><a href="#apexoptionsformode">apex_options_for_mode</a></li><li><a href="#apexmarkdowntohtml">apex_markdown_to_html</a></li><li><a href="#apexfreestring">apex_free_string</a></li><li><a href="#apexwraphtmldocument">apex_wrap_html_document</a></li><li><a href="#apexprettyprinthtml">apex_pretty_print_html</a></li></ul></li><li><a href="#version-functions">Version Functions</a><ul><li><a href="#apexversionstring">apex_version_string</a></li><li><a href="#apexversionmajor-apexversionminor-apexversionpatch">apex_version_major / apex_version_minor / apex_version_patch</a></li></ul></li><li><a href="#list-options">List Options</a><ul><li><a href="#mixed-list-markers">Mixed List Markers</a></li><li><a href="#alpha-lists">Alpha Lists</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a></li><li><a href="#metadata-options">Metadata Options</a></li><li><a href="#file-inclusion">File Inclusion</a></li><li><a href="#output-options">Output Options</a></li><li><a href="#line-break-options">Line Break Options</a></li><li><a href="#header-id-options">Header ID Options</a></li><li><a href="#table-options">Table Options</a></li><li><a href="#complete-example">Complete Example</a></li><li><a href="#compiling-and-linking">Compiling and Linking</a><ul><li><a href="#with-cmake">With CMake</a></li><li><a href="#manual-compilation">Manual Compilation</a></li><li><a href="#static-linking">Static Linking</a></li></ul></li><li><a href="#thread-safety">Thread Safety</a></li><li><a href="#memory-management">Memory Management</a></li><li><a href="#error-handling">Error Handling</a></li><li><a href="#performance-tips">Performance Tips</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#c-api">C API</a><ul><li><a href="#overview">Overview</a></li><li><a href="#core-types">Core Types</a><ul><li><a href="#apexmodet">apex_mode_t</a></li><li><a href="#apexoptions">apex_options</a></li></ul></li><li><a href="#core-functions">Core Functions</a><ul><li><a href="#apexoptionsdefault">apex_options_default</a></li><li><a href="#apexoptionsformode">apex_options_for_mode</a></li><li><a href="#apexmarkdowntohtml">apex_markdown_to_html</a></li><li><a href="#apexfreestring">apex_free_string</a></li><li><a href="#apexwraphtmldocument">apex_wrap_html_document</a></li><li><a href="#apexprettyprinthtml">apex_pretty_print_html</a></li></ul></li><li><a href="#version-functions">Version Functions</a><ul><li><a href="#apexversionstring">apex_version_string</a></li><li><a href="#apexversionmajor-apexversionminor-apexversionpatch">apex_version_major / apex_version_minor / apex_version_patch</a></li></ul></li><li><a href="#list-options">List Options</a><ul><li><a href="#mixed-list-markers">Mixed List Markers</a></li><li><a href="#alpha-lists">Alpha Lists</a></li></ul></li><li><a href="#feature-flags">Feature Flags</a></li><li><a href="#metadata-options">Metadata Options</a></li><li><a href="#file-inclusion">File Inclusion</a></li><li><a href="#output-options">Output Options</a></li><li><a href="#line-break-options">Line Break Options</a></li><li><a href="#header-id-options">Header ID Options</a></li><li><a href="#table-options">Table Options</a></li><li><a href="#complete-example">Complete Example</a></li><li><a href="#compiling-and-linking">Compiling and Linking</a><ul><li><a href="#with-cmake">With CMake</a></li><li><a href="#manual-compilation">Manual Compilation</a></li><li><a href="#static-linking">Static Linking</a></li></ul></li><li><a href="#thread-safety">Thread Safety</a></li><li><a href="#memory-management">Memory Management</a></li><li><a href="#error-handling">Error Handling</a></li><li><a href="#performance-tips">Performance Tips</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Apex provides a simple C API for programmatic Markdown to HTML conversion.
@@ -12118,7 +12491,7 @@ for (int i = 0; i &lt; count; i++) {
 <ul>
 
   <li>
-<a href="Xcode-Integration">    Xcode Integration</a> - Using Apex in Xcode projects
+<a href="#xcode-integration" onclick="showPage('xcode-integration'); return false;">    Xcode Integration</a> - Using Apex in Xcode projects
   </li>
 
   <li>
@@ -12137,7 +12510,7 @@ for (int i = 0; i &lt; count; i++) {
     <h1 id="xcode-integration">
       Xcode Integration
     </h1>
-<nav class="page-toc"><ul><li><a href="#xcode-integration">Xcode Integration</a><ul><li><a href="#production-readiness">Production Readiness</a></li><li><a href="#swift-package-manager-spm-recommended">Swift Package Manager (SPM) - Recommended</a><ul><li><a href="#adding-apex-via-spm">Adding Apex via SPM</a></li><li><a href="#using-apex-in-your-code">Using Apex in Your Code</a></li><li><a href="#platform-support">Platform Support</a></li><li><a href="#spm-benefits">SPM Benefits</a></li></ul></li><li><a href="#framework-build-alternative">Framework Build (Alternative)</a></li><li><a href="#adding-to-xcode-project">Adding to Xcode Project</a><ul><li><a href="#method-1-swift-package-manager-recommended">Method 1: Swift Package Manager (Recommended)</a></li><li><a href="#method-2-framework-reference">Method 2: Framework Reference</a></li><li><a href="#method-3-cmake-integration">Method 3: CMake Integration</a></li></ul></li><li><a href="#objective-c-wrapper">Objective-C Wrapper</a><ul><li><a href="#basic-usage">Basic Usage</a></li><li><a href="#api">API</a></li><li><a href="#convenience-methods">Convenience Methods</a><ul><li><a href="#standalone-html-documents">Standalone HTML Documents</a></li><li><a href="#pretty-printed-html">Pretty-Printed HTML</a></li><li><a href="#dictionary-based-options">Dictionary-Based Options</a></li><li><a href="#swift-friendly-convenience-method">Swift-Friendly Convenience Method</a></li><li><a href="#instance-methods">Instance Methods</a></li></ul></li></ul></li><li><a href="#mode-constants">Mode Constants</a></li><li><a href="#direct-c-api-usage">Direct C API Usage</a></li><li><a href="#integration-example">Integration Example</a><ul><li><a href="#adding-to-marked">Adding to Marked</a></li></ul></li><li><a href="#build-settings">Build Settings</a><ul><li><a href="#header-search-paths">Header Search Paths</a></li><li><a href="#framework-search-paths">Framework Search Paths</a></li><li><a href="#other-linker-flags">Other Linker Flags</a></li><li><a href="#swift-api-support">Swift API Support</a></li></ul></li><li><a href="#swift-integration">Swift Integration</a><ul><li><a href="#idiomatic-swift-api-recommended">Idiomatic Swift API (Recommended)</a></li><li><a href="#apexmode-enum">ApexMode Enum</a></li><li><a href="#apexoptions-struct">ApexOptions Struct</a></li><li><a href="#objective-c-bridge-alternative">Objective-C Bridge (Alternative)</a></li></ul></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#swift-package-manager-issues">Swift Package Manager Issues</a></li><li><a href="#framework-not-found">Framework Not Found</a></li><li><a href="#linker-errors">Linker Errors</a></li><li><a href="#runtime-errors">Runtime Errors</a></li></ul></li><li><a href="#performance">Performance</a></li><li><a href="#module-map">Module Map</a></li><li><a href="#comparison-of-integration-methods">Comparison of Integration Methods</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#xcode-integration">Xcode Integration</a><ul><li><a href="#production-readiness">Production Readiness</a></li><li><a href="#swift-package-manager-spm-recommended">Swift Package Manager (SPM) - Recommended</a><ul><li><a href="#adding-apex-via-spm">Adding Apex via SPM</a></li><li><a href="#using-apex-in-your-code">Using Apex in Your Code</a></li><li><a href="#platform-support">Platform Support</a></li><li><a href="#spm-benefits">SPM Benefits</a></li></ul></li><li><a href="#framework-build-alternative">Framework Build (Alternative)</a></li><li><a href="#adding-to-xcode-project">Adding to Xcode Project</a><ul><li><a href="#method-1-swift-package-manager-recommended">Method 1: Swift Package Manager (Recommended)</a></li><li><a href="#method-2-framework-reference">Method 2: Framework Reference</a></li><li><a href="#method-3-cmake-integration">Method 3: CMake Integration</a></li></ul></li><li><a href="#objective-c-wrapper">Objective-C Wrapper</a><ul><li><a href="#basic-usage">Basic Usage</a></li><li><a href="#api">API</a></li><li><a href="#convenience-methods">Convenience Methods</a><ul><li><a href="#standalone-html-documents">Standalone HTML Documents</a></li><li><a href="#pretty-printed-html">Pretty-Printed HTML</a></li><li><a href="#dictionary-based-options">Dictionary-Based Options</a></li><li><a href="#swift-friendly-convenience-method">Swift-Friendly Convenience Method</a></li><li><a href="#instance-methods">Instance Methods</a></li></ul></li></ul></li><li><a href="#mode-constants">Mode Constants</a></li><li><a href="#direct-c-api-usage">Direct C API Usage</a></li><li><a href="#integration-example">Integration Example</a><ul><li><a href="#adding-to-marked">Adding to Marked</a></li></ul></li><li><a href="#build-settings">Build Settings</a><ul><li><a href="#header-search-paths">Header Search Paths</a></li><li><a href="#framework-search-paths">Framework Search Paths</a></li><li><a href="#other-linker-flags">Other Linker Flags</a></li><li><a href="#swift-api-support">Swift API Support</a></li></ul></li><li><a href="#swift-integration">Swift Integration</a><ul><li><a href="#idiomatic-swift-api-recommended">Idiomatic Swift API (Recommended)</a></li><li><a href="#apexmode-enum">ApexMode Enum</a></li><li><a href="#apexoptions-struct">ApexOptions Struct</a></li><li><a href="#objective-c-bridge-alternative">Objective-C Bridge (Alternative)</a></li></ul></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#swift-package-manager-issues">Swift Package Manager Issues</a></li><li><a href="#framework-not-found">Framework Not Found</a></li><li><a href="#linker-errors">Linker Errors</a></li><li><a href="#runtime-errors">Runtime Errors</a></li></ul></li><li><a href="#performance">Performance</a></li><li><a href="#module-map">Module Map</a></li><li><a href="#comparison-of-integration-methods">Comparison of Integration Methods</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       This guide covers integrating Apex into Xcode projects for macOS and iOS applications.
@@ -12787,7 +13160,7 @@ NSArray *processors = @[
   Add to “Header Search Paths”:
 </p>
 
-<pre><code>$(SRCROOT)/apex/include
+<pre><code class="highlight ">$(SRCROOT)/apex/include
 </code></pre>
 
 <h3 id="framework-search-paths">
@@ -12798,7 +13171,7 @@ NSArray *processors = @[
   Add to “Framework Search Paths”:
 </p>
 
-<pre><code>$(SRCROOT)/apex/build
+<pre><code class="highlight ">$(SRCROOT)/apex/build
 </code></pre>
 
 <h3 id="other-linker-flags">
@@ -12809,7 +13182,7 @@ NSArray *processors = @[
   If using static library:
 </p>
 
-<pre><code>-L$(SRCROOT)/apex/build -lapex
+<pre><code class="highlight ">-L$(SRCROOT)/apex/build -lapex
 </code></pre>
 
 <h3 id="swift-api-support">
@@ -13333,7 +13706,7 @@ let html = apex_markdown_to_html(markdown, markdown.count, &amp;opts)
     <h1 id="examples">
       Examples
     </h1>
-<nav class="page-toc"><ul><li><a href="#examples">Examples</a><ul><li><a href="#basic-conversion">Basic Conversion</a><ul><li><a href="#simple-markdown-to-html">Simple Markdown to HTML</a></li><li><a href="#from-stdin">From stdin</a></li></ul></li><li><a href="#blog-post-generation">Blog Post Generation</a></li><li><a href="#documentation-site">Documentation Site</a></li><li><a href="#github-compatible-readme">GitHub-Compatible README</a></li><li><a href="#review-document-with-critic-markup">Review Document with Critic Markup</a></li><li><a href="#wiki-style-documentation">Wiki-Style Documentation</a></li><li><a href="#math-document">Math Document</a></li><li><a href="#multimarkdown-document">MultiMarkdown Document</a></li><li><a href="#kramdown-document">Kramdown Document</a></li><li><a href="#c-program-example">C Program Example</a></li><li><a href="#objective-c-example">Objective-C Example</a></li><li><a href="#batch-processing">Batch Processing</a></li><li><a href="#pipeline-example">Pipeline Example</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#examples">Examples</a><ul><li><a href="#basic-conversion">Basic Conversion</a><ul><li><a href="#simple-markdown-to-html">Simple Markdown to HTML</a></li><li><a href="#from-stdin">From stdin</a></li></ul></li><li><a href="#blog-post-generation">Blog Post Generation</a></li><li><a href="#documentation-site">Documentation Site</a></li><li><a href="#github-compatible-readme">GitHub-Compatible README</a></li><li><a href="#review-document-with-critic-markup">Review Document with Critic Markup</a></li><li><a href="#wiki-style-documentation">Wiki-Style Documentation</a></li><li><a href="#math-document">Math Document</a></li><li><a href="#multimarkdown-document">MultiMarkdown Document</a></li><li><a href="#kramdown-document">Kramdown Document</a></li><li><a href="#c-program-example">C Program Example</a></li><li><a href="#objective-c-example">Objective-C Example</a></li><li><a href="#batch-processing">Batch Processing</a></li><li><a href="#pipeline-example">Pipeline Example</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Practical examples of using Apex for common tasks.
@@ -13628,9 +14001,10 @@ apex input.md | sed 's/&lt;h1&gt;/&lt;h1 class=&quot;title&quot;&gt;/g' &gt; out
 
 <p>Copyright 2025 Brett Terpstra, All Rights Reserved | MIT License</p></div><div id="page-plugins" class="page">
 
-    <h2 id="plugins">
+    <h1 id="plugins">
       Plugins
-    </h2>
+    </h1>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#plugins">Plugins</a><ul><li><a href="#enabling-and-disabling-plugins">Enabling and disabling plugins</a></li><li><a href="#where-plugins-live">Where plugins live</a></li><li><a href="#processing-phases">Processing phases</a></li><li><a href="#plugin-manifest-pluginyml">Plugin manifest: plugin.yml</a><ul><li><a href="#metadata-fields-for-directories-and-installers">Metadata fields for directories and installers</a></li><li><a href="#post-install-hooks-postinstall">Post-install hooks (post_install)</a></li></ul></li><li><a href="#plugin-bundles-bundle-key">Plugin bundles (bundle key)</a><ul><li><a href="#bundle-structure">Bundle structure</a></li><li><a href="#inheritance-and-overrides">Inheritance and overrides</a></li><li><a href="#behavior-and-limitations">Behavior and limitations</a></li></ul></li><li><a href="#external-handler-plugins-scriptscommands">External handler plugins (scripts/commands)</a><ul><li><a href="#manifest-fields">Manifest fields</a></li><li><a href="#json-protocol">JSON protocol</a></li></ul></li><li><a href="#declarative-regex-plugins-no-scripting">Declarative regex plugins (no scripting)</a><ul><li><a href="#manifest-fields">Manifest fields</a></li></ul></li><li><a href="#support-directory-and-environment-variables">Support directory and environment variables</a><ul><li><a href="#support-directory-apexsupportdir">Support directory (APEX_SUPPORT_DIR)</a></li><li><a href="#environment-variables-for-external-plugins">Environment variables for external plugins</a></li></ul></li><li><a href="#installing-plugins-from-the-directory">Installing plugins from the directory</a><ul><li><a href="#listing-available-plugins">Listing available plugins</a></li><li><a href="#installing-a-plugin">Installing a plugin</a><ul><li><a href="#security-confirmation-for-direct-installs">Security confirmation for direct installs</a></li><li><a href="#installation-process">Installation process</a></li></ul></li><li><a href="#uninstalling-a-plugin">Uninstalling a plugin</a></li></ul></li><li><a href="#share-your-plugin">Share Your Plugin</a></li><li><a href="#example-kbd-liquid-tag-plugin">Example: kbd liquid tag plugin</a><ul><li><a href="#directory-layout">Directory layout</a></li><li><a href="#pluginyml">plugin.yml</a></li><li><a href="#kbdpluginrb-simplified-shape">kbd_plugin.rb (simplified shape)</a></li></ul></li><li><a href="#example-memo-span-plugin-declarative">Example: 📝 span plugin (declarative)</a><ul><li><a href="#directory-layout">Directory layout</a></li><li><a href="#pluginyml">plugin.yml</a></li></ul></li><li><a href="#putting-it-all-together">Putting it all together</a></li></ul></li></ul></nav>
 
     <p>
       Apex supports a lightweight plugin system that lets you add new syntax and post‑processing behavior <strong>without patching the core</strong>. Plugins can be small scripts (Ruby, Python, etc.) or simple declarative regex rules defined in YAML.
@@ -15621,7 +15995,7 @@ timeout_ms: 0
     <h1 id="troubleshooting">
       Troubleshooting
     </h1>
-<nav class="page-toc"><ul><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#build-issues">Build Issues</a><ul><li><a href="#cmake-not-found">CMake Not Found</a></li><li><a href="#compilation-errors">Compilation Errors</a></li><li><a href="#linking-errors">Linking Errors</a></li></ul></li><li><a href="#runtime-issues">Runtime Issues</a><ul><li><a href="#table-not-rendering">Table Not Rendering</a></li><li><a href="#header-ids-not-generated">Header IDs Not Generated</a></li><li><a href="#math-not-rendering">Math Not Rendering</a></li><li><a href="#wiki-links-not-working">Wiki Links Not Working</a></li><li><a href="#file-includes-not-working">File Includes Not Working</a></li></ul></li><li><a href="#output-issues">Output Issues</a><ul><li><a href="#no-output">No Output</a></li><li><a href="#html-not-formatted">HTML Not Formatted</a></li><li><a href="#missing-styles">Missing Styles</a></li></ul></li><li><a href="#mode-specific-issues">Mode-Specific Issues</a><ul><li><a href="#feature-not-available">Feature Not Available</a></li><li><a href="#id-format-wrong">ID Format Wrong</a></li></ul></li><li><a href="#api-issues">API Issues</a><ul><li><a href="#memory-leaks">Memory Leaks</a></li><li><a href="#thread-safety">Thread Safety</a></li><li><a href="#framework-not-found-xcode">Framework Not Found (Xcode)</a></li></ul></li><li><a href="#performance-issues">Performance Issues</a><ul><li><a href="#slow-conversion">Slow Conversion</a></li><li><a href="#high-memory-usage">High Memory Usage</a></li></ul></li><li><a href="#getting-help">Getting Help</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#build-issues">Build Issues</a><ul><li><a href="#cmake-not-found">CMake Not Found</a></li><li><a href="#compilation-errors">Compilation Errors</a></li><li><a href="#linking-errors">Linking Errors</a></li></ul></li><li><a href="#runtime-issues">Runtime Issues</a><ul><li><a href="#table-not-rendering">Table Not Rendering</a></li><li><a href="#header-ids-not-generated">Header IDs Not Generated</a></li><li><a href="#math-not-rendering">Math Not Rendering</a></li><li><a href="#wiki-links-not-working">Wiki Links Not Working</a></li><li><a href="#file-includes-not-working">File Includes Not Working</a></li></ul></li><li><a href="#output-issues">Output Issues</a><ul><li><a href="#no-output">No Output</a></li><li><a href="#html-not-formatted">HTML Not Formatted</a></li><li><a href="#missing-styles">Missing Styles</a></li></ul></li><li><a href="#mode-specific-issues">Mode-Specific Issues</a><ul><li><a href="#feature-not-available">Feature Not Available</a></li><li><a href="#id-format-wrong">ID Format Wrong</a></li></ul></li><li><a href="#api-issues">API Issues</a><ul><li><a href="#memory-leaks">Memory Leaks</a></li><li><a href="#thread-safety">Thread Safety</a></li><li><a href="#framework-not-found-xcode">Framework Not Found (Xcode)</a></li></ul></li><li><a href="#performance-issues">Performance Issues</a><ul><li><a href="#slow-conversion">Slow Conversion</a></li><li><a href="#high-memory-usage">High Memory Usage</a></li></ul></li><li><a href="#getting-help">Getting Help</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Common issues and solutions when using Apex.
@@ -16205,7 +16579,7 @@ timeout_ms: 0
     <h1 id="credits">
       Credits
     </h1>
-<nav class="page-toc"><ul><li><a href="#credits">Credits</a></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#credits">Credits</a></li></ul></nav>
 
     <p>
       Apex builds upon the work of several excellent Markdown projects:
@@ -16242,6 +16616,71 @@ timeout_ms: 0
   
 <p>Copyright 2025 Brett Terpstra, All Rights Reserved | MIT License</p></div></div>
   <script>
+  // Hamburger menu functionality
+(function() {
+  function initHamburgerMenu() {
+    var hamburger = document.getElementById('hamburger-menu');
+    var sidebar = document.querySelector('.main-toc, .sidebar');
+    var overlay = document.getElementById('mobile-menu-overlay');
+
+    if (!hamburger || !sidebar) return;
+
+    function toggleMenu() {
+      var isOpen = sidebar.classList.contains('mobile-open');
+      if (isOpen) {
+        sidebar.classList.remove('mobile-open');
+        hamburger.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+      } else {
+        sidebar.classList.add('mobile-open');
+        hamburger.classList.add('active');
+        if (overlay) overlay.classList.add('active');
+      }
+    }
+
+    hamburger.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleMenu();
+    });
+
+    if (overlay) {
+      overlay.addEventListener('click', function() {
+        toggleMenu();
+      });
+    }
+
+    // Close menu when clicking on a sidebar link (mobile only)
+    if (window.innerWidth <= 768) {
+      var sidebarLinks = sidebar.querySelectorAll('a');
+      sidebarLinks.forEach(function(link) {
+        link.addEventListener('click', function() {
+          setTimeout(function() {
+            sidebar.classList.remove('mobile-open');
+            hamburger.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+          }, 100);
+        });
+      });
+    }
+
+    // Close menu on window resize if going to desktop
+    window.addEventListener('resize', function() {
+      if (window.innerWidth > 768) {
+        sidebar.classList.remove('mobile-open');
+        hamburger.classList.remove('active');
+        if (overlay) overlay.classList.remove('active');
+      }
+    });
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHamburgerMenu);
+  } else {
+    initHamburgerMenu();
+  }
+})();
+
   function showPage(pageId) {
     // Hide all pages
     var pages = document.querySelectorAll('.page');
@@ -16274,6 +16713,136 @@ timeout_ms: 0
     } else {
       window.location.hash = pageId;
     }
+
+  }
+
+  // Initialize floating TOC for a page
+  function initFloatingTOC(pageElement) {
+    if (!pageElement) return;
+
+    var pageTOC = pageElement.querySelector('.page-toc');
+    if (!pageTOC) return;
+
+    // Add ID to page TOC if it doesn't have one
+    if (!pageTOC.id) {
+      pageTOC.id = 'page-toc-top-' + pageElement.id;
+    }
+
+    // Find or create floating TOC for this page
+    var floatingTOC = pageElement.querySelector('.floating-toc');
+    if (!floatingTOC) {
+      floatingTOC = document.createElement('div');
+      floatingTOC.className = 'floating-toc';
+      floatingTOC.id = 'floating-toc-' + pageElement.id;
+      floatingTOC.innerHTML = '<div class="floating-toc-container"><div class="floating-toc-header"><span>Table of Contents 🔻</span></div><div class="floating-toc-content" id="floating-toc-content-' + pageElement.id + '"></div></div>';
+      pageElement.insertBefore(floatingTOC, pageElement.firstChild);
+    }
+
+    var floatingTOCContent = floatingTOC.querySelector('.floating-toc-content');
+    if (!floatingTOCContent) return;
+
+    // Clone the TOC structure
+    var tocClone = pageTOC.cloneNode(true);
+    tocClone.id = 'floating-toc-clone-' + pageElement.id;
+    floatingTOCContent.innerHTML = '';
+    floatingTOCContent.appendChild(tocClone);
+
+    // Update all links to use smooth scrolling
+    var allTOCLinks = pageElement.querySelectorAll('.page-toc a, .floating-toc-content a');
+    allTOCLinks.forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        var href = this.getAttribute('href');
+        if (href && href.startsWith('#')) {
+          e.preventDefault();
+          var targetId = href.substring(1);
+          var targetElement = document.getElementById(targetId);
+          if (targetElement) {
+            var offset = 20; // Offset from top
+
+            // Function to calculate absolute position from document top
+            function getAbsoluteTop(element) {
+              var top = 0;
+              while (element) {
+                top += element.offsetTop;
+                element = element.offsetParent;
+              }
+              return top;
+            }
+
+            // Ensure the target element's page is visible
+            var targetPage = targetElement.closest('.page');
+            if (targetPage && !targetPage.classList.contains('active')) {
+              // If target is in a different page, switch to that page first
+              var pageId = targetPage.id.replace('page-', '');
+              if (typeof showPage === 'function') {
+                showPage(pageId);
+                // Wait for page to be visible, then scroll
+                setTimeout(function() {
+                  var absoluteTop = getAbsoluteTop(targetElement);
+                  window.scrollTo({
+                    top: Math.max(0, absoluteTop - offset),
+                    behavior: 'smooth'
+                  });
+                }, 150);
+              }
+            } else {
+              // Target is in current page, calculate and scroll
+              var absoluteTop = getAbsoluteTop(targetElement);
+              var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+              var offsetPosition = absoluteTop - offset;
+
+              if (Math.abs(scrollTop - offsetPosition) > 10) {
+                window.scrollTo({
+                  top: Math.max(0, offsetPosition),
+                  behavior: 'smooth'
+                });
+              }
+            }
+
+            // Update URL hash without triggering scroll
+            if (history.pushState) {
+              history.pushState(null, null, href);
+            }
+          }
+        }
+      });
+    });
+
+    // Handle scroll to show/hide floating TOC
+    var tocTop = pageTOC.getBoundingClientRect().top + window.pageYOffset;
+    var tocBottom = tocTop + pageTOC.offsetHeight;
+
+    function updateFloatingTOC() {
+      if (!pageElement.classList.contains('active')) {
+        floatingTOC.classList.remove('visible');
+        return;
+      }
+
+      var scrollY = window.pageYOffset || document.documentElement.scrollTop;
+
+      if (scrollY > tocBottom) {
+        floatingTOC.classList.add('visible');
+      } else {
+        floatingTOC.classList.remove('visible');
+      }
+    }
+
+    // Throttle scroll events
+    var ticking = false;
+    function handleScroll() {
+      if (!ticking) {
+        window.requestAnimationFrame(function() {
+          updateFloatingTOC();
+          ticking = false;
+        });
+        ticking = true;
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll);
+
+    // Initial check
+    updateFloatingTOC();
   }
 
   // Initialize on load
@@ -16286,22 +16855,103 @@ timeout_ms: 0
         var pageId = this.getAttribute('data-page');
         if (pageId) {
           showPage(pageId);
+          // Initialize floating TOC for the new page
+          setTimeout(function() {
+            var pageElement = document.getElementById('page-' + pageId);
+            if (pageElement) {
+              initFloatingTOC(pageElement);
+            }
+          }, 100);
         }
       });
     });
 
-    // Check for hash on load
-    var hash = window.location.hash.substring(1);
-    if (hash) {
-      showPage(hash);
-    } else {
-      // Show first page by default
+    // Function to handle hash navigation
+    function handleHashNavigation() {
+      var hash = window.location.hash.substring(1);
+      if (!hash) {
+        // No hash, show first page by default
+        var firstLink = document.querySelector('.sidebar a[data-page]');
+        if (firstLink) {
+          var firstPageId = firstLink.getAttribute('data-page');
+          showPage(firstPageId);
+          setTimeout(function() {
+            var firstPageElement = document.getElementById('page-' + firstPageId);
+            if (firstPageElement) {
+              initFloatingTOC(firstPageElement);
+            }
+          }, 100);
+        }
+        return;
+      }
+
+      // Check if hash is a page ID
+      var pageElement = document.getElementById('page-' + hash);
+      if (pageElement) {
+        // Hash is a page ID, show that page
+        showPage(hash);
+        setTimeout(function() {
+          initFloatingTOC(pageElement);
+        }, 100);
+        return;
+      }
+
+      // Hash might be a section ID, find which page contains it
+      var targetElement = document.getElementById(hash);
+      if (targetElement) {
+        // Find the page that contains this element
+        var containingPage = targetElement.closest('.page');
+        if (containingPage) {
+          var pageId = containingPage.id.replace('page-', '');
+          showPage(pageId);
+          setTimeout(function() {
+            initFloatingTOC(containingPage);
+            // Scroll to the target element
+            function getAbsoluteTop(element) {
+              var top = 0;
+              while (element) {
+                top += element.offsetTop;
+                element = element.offsetParent;
+              }
+              return top;
+            }
+            var absoluteTop = getAbsoluteTop(targetElement);
+            window.scrollTo({
+              top: Math.max(0, absoluteTop - 20),
+              behavior: 'smooth'
+            });
+          }, 200);
+          return;
+        }
+      }
+
+      // Hash doesn't match anything, show first page
       var firstLink = document.querySelector('.sidebar a[data-page]');
       if (firstLink) {
         var firstPageId = firstLink.getAttribute('data-page');
         showPage(firstPageId);
+        setTimeout(function() {
+          var firstPageElement = document.getElementById('page-' + firstPageId);
+          if (firstPageElement) {
+            initFloatingTOC(firstPageElement);
+          }
+        }, 100);
       }
     }
+
+    // Handle hash on load
+    handleHashNavigation();
+
+    // Also handle hash changes
+    window.addEventListener('hashchange', function() {
+      handleHashNavigation();
+    });
+
+    // Initialize floating TOC for all pages
+    var allPages = document.querySelectorAll('.page');
+    allPages.forEach(function(page) {
+      initFloatingTOC(page);
+    });
   });
 </script>
 

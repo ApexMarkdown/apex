@@ -1,8 +1,9 @@
 #!/usr/bin/env ruby
-# Generate single HTML file with all wiki pages
-# Uses JavaScript to show/hide pages based on sidebar selection
+# Generate single HTML file with app-focused documentation
+# Uses pre-transformed Markdown files from documentation/app-transformed/
 
 require 'fileutils'
+require 'set'
 
 begin
   require 'rouge'
@@ -16,14 +17,27 @@ end
 SCRIPT_DIR = File.expand_path(__dir__)
 DOCS_DIR = File.join(SCRIPT_DIR, '..')
 HTML_DIR = File.join(DOCS_DIR, 'documentation', 'html')
-WIKI_DIR = File.join(DOCS_DIR, 'documentation', 'apex.wiki')
+TRANSFORMED_DIR = File.join(DOCS_DIR, 'documentation', 'app-transformed')
+SETTINGS_TABLE_FILE = File.join(DOCS_DIR, 'documentation', 'app-settings-table.md')
+
+# App-focused pages (exclude CLI-focused pages)
+APP_PAGES = [
+  'Syntax',
+  'Inline-Attribute-Lists',
+  'Modes',
+  'Multi-File-Documents',
+  'Citations',
+  'Metadata-Transforms',
+  'Header-IDs',
+  'Plugins',
+  'Credits'
+].freeze
 
 # Find Apex binary
 def find_apex_binary
   system_apex = `which apex 2>/dev/null`.strip
   return system_apex if system_apex != '' && File.exist?(system_apex)
 
-  # Try build-release (relative to repo root, not script dir)
   build_apex = File.expand_path('../build-release/apex', __dir__)
   return build_apex if File.exist?(build_apex)
 
@@ -37,27 +51,11 @@ end
 
 APEX_BIN = find_apex_binary
 
-def parse_sidebar
-  sidebar_file = File.join(WIKI_DIR, '_Sidebar.md')
-  pages = []
-
-  # Always add Home first
-  pages << { name: 'Home', title: 'Home', file: 'Home.md' }
-
-  if File.exist?(sidebar_file)
-    sidebar_content = File.read(sidebar_file)
-    sidebar_content.scan(/\[([^\]]+)\]\(([^)]+)\)/) do |text, link|
-      page_name = link.gsub(/\.md$/, '')
-      next if page_name.downcase == 'home'
-      pages << { name: page_name, title: text, file: "#{page_name}.md" }
-    end
-  end
-
-  pages
-end
-
 def parse_footer
-  footer_file = File.join(WIKI_DIR, '_Footer.md')
+  # Try to find footer in wiki directory (if it exists) or use a default
+  footer_file = File.join(DOCS_DIR, '..', 'apex.wiki', '_Footer.md')
+  footer_file = File.join(TRANSFORMED_DIR, '_Footer.md') unless File.exist?(footer_file)
+
   return '' unless File.exist?(footer_file)
 
   footer_content = `#{APEX_BIN} "#{footer_file}" 2>/dev/null`
@@ -69,50 +67,12 @@ def parse_footer
   end
 end
 
-def rouge_css
-  return '' unless ROUGE_AVAILABLE
-
-  begin
-    theme = Rouge::Themes::Github.new
-    css_content = theme.render
-    # Scope all CSS rules to .highlight
-    scoped_css = css_content.lines.map do |line|
-      # Skip empty lines and comments
-      if line.strip.empty? || line.strip.start_with?('/*') || line.strip.start_with?('*/')
-        line
-      # Scope CSS rules that start with . or # (but not @ rules)
-      elsif line =~ /^\s*([.#][a-z0-9_-]+)/i && !line.strip.start_with?('@')
-        line.gsub(/^(\s*)([.#][a-z0-9_-]+)/i, '\1.highlight \2')
-      else
-        line
-      end
-    end.join
-
-    <<~CSS
-      <style>
-        #{scoped_css}
-      </style>
-    CSS
-  rescue => e
-    puts "Warning: Failed to generate Rouge CSS: #{e.message}"
-    # Fallback to basic styles
-    <<~CSS
-      <style>
-        .highlight { background: #f5f5f5; }
-        .highlight .k { color: #d73a49; }
-        .highlight .s { color: #032f62; }
-        .highlight .n { color: #005cc5; }
-      </style>
-    CSS
-  end
-end
-
 def generate_css
   # Load shared CSS
   shared_css_file = File.join(SCRIPT_DIR, 'shared_styles.css')
   shared_css = File.exist?(shared_css_file) ? File.read(shared_css_file) : ''
 
-  # Additional styles specific to single-page HTML
+  # Additional styles specific to app docs HTML
   additional_css = <<~CSS
     <style>
       * {
@@ -175,19 +135,16 @@ def generate_javascript
     <script>
       #{shared_js}
       function showPage(pageId) {
-        // Hide all pages
         var pages = document.querySelectorAll('.page');
         pages.forEach(function(page) {
           page.classList.remove('active');
         });
 
-        // Show selected page
         var selectedPage = document.getElementById('page-' + pageId);
         if (selectedPage) {
           selectedPage.classList.add('active');
         }
 
-        // Update active link
         var links = document.querySelectorAll('.sidebar a');
         links.forEach(function(link) {
           link.classList.remove('active');
@@ -197,10 +154,8 @@ def generate_javascript
           activeLink.classList.add('active');
         }
 
-        // Scroll to top
         window.scrollTo(0, 0);
 
-        // Update URL hash without triggering scroll
         if (history.pushState) {
           history.pushState(null, null, '#' + pageId);
         } else {
@@ -338,9 +293,7 @@ def generate_javascript
         updateFloatingTOC();
       }
 
-      // Initialize on load
       document.addEventListener('DOMContentLoaded', function() {
-        // Set up sidebar links
         var links = document.querySelectorAll('.sidebar a');
         links.forEach(function(link) {
           link.addEventListener('click', function(e) {
@@ -481,6 +434,44 @@ def highlight_code_blocks(html_content)
   end
 end
 
+def rouge_css
+  return '' unless ROUGE_AVAILABLE
+
+  begin
+    theme = Rouge::Themes::Github.new
+    css_content = theme.render
+    # Scope all CSS rules to .highlight
+    scoped_css = css_content.lines.map do |line|
+      # Skip empty lines and comments
+      if line.strip.empty? || line.strip.start_with?('/*') || line.strip.start_with?('*/')
+        line
+      # Scope CSS rules that start with . or # (but not @ rules)
+      elsif line =~ /^\s*([.#][a-z0-9_-]+)/i && !line.strip.start_with?('@')
+        line.gsub(/^(\s*)([.#][a-z0-9_-]+)/i, '\1.highlight \2')
+      else
+        line
+      end
+    end.join
+
+    <<~CSS
+      <style>
+        #{scoped_css}
+      </style>
+    CSS
+  rescue => e
+    puts "Warning: Failed to generate Rouge CSS: #{e.message}"
+    # Fallback to basic styles
+    <<~CSS
+      <style>
+        .highlight { background: #f5f5f5; }
+        .highlight .k { color: #d73a49; }
+        .highlight .s { color: #032f62; }
+        .highlight .n { color: #005cc5; }
+      </style>
+    CSS
+  end
+end
+
 def extract_headers(html_content)
   headers = []
   html_content.scan(/<h([1-6])[^>]*id=["']([^"']+)["'][^>]*>([\s\S]*?)<\/h[1-6]>/i) do |level, id, text|
@@ -523,146 +514,192 @@ def generate_page_toc(headers)
   toc_html
 end
 
+# No longer needed - files are pre-transformed
+
 def fix_links_in_html(html_content, page_map)
-  # Fix internal links to use JavaScript navigation
   html_content.gsub(/<a\s+([^>]*\s+)?href=["']([^"']+)["']([^>]*)>/i) do |match|
     attrs_before = $1 || ''
     href = $2
     attrs_after = $3 || ''
 
-    # Skip external links, anchors (starting with #), or files with extensions
     if href =~ /^(https?:\/\/|mailto:|#|.*\.(html|md|pdf|png|jpg|jpeg|gif|svg|webp))/i
       match
     elsif page_map[href]
-      # Convert to JavaScript navigation
       page_id = page_map[href]
       "<a #{attrs_before}href=\"##{page_id}\" onclick=\"showPage('#{page_id}'); return false;\"#{attrs_after}>"
     elsif page_map[href.gsub(/\s+/, '-')]
       page_id = page_map[href.gsub(/\s+/, '-')]
       "<a #{attrs_before}href=\"##{page_id}\" onclick=\"showPage('#{page_id}'); return false;\"#{attrs_after}>"
     else
-      # Try to find a matching page by case-insensitive comparison
-      matching_page = page_map.find { |name, id| name.downcase == href.downcase || name.downcase.gsub(/\s+/, '-') == href.downcase }
-      if matching_page
-        page_id = matching_page[1]
-        "<a #{attrs_before}href=\"##{page_id}\" onclick=\"showPage('#{page_id}'); return false;\"#{attrs_after}>"
-      else
-        match
-      end
+      match
     end
   end
 end
 
-def clone_wiki
-  wiki_url = 'https://github.com/ApexMarkdown/apex.wiki.git'
-  puts "Cloning wiki from GitHub..."
+def generate_settings_table
+  # Extract settings from transformed files by scanning for "Settings->" references
+  settings_referenced = Set.new
 
-  if File.exist?(WIKI_DIR)
-    puts "Wiki directory already exists, removing..."
-    FileUtils.rm_rf(WIKI_DIR)
+  APP_PAGES.each do |page_name|
+    file_name = "#{page_name}.md"
+    md_file = File.join(TRANSFORMED_DIR, file_name)
+    next unless File.exist?(md_file)
+
+    content = File.read(md_file)
+    # Find all Settings-> references
+    content.scan(/Settings->[^\s\)\]]+/i) do |match|
+      settings_referenced.add(match)
+    end
   end
 
-  success = system("git clone #{wiki_url} \"#{WIKI_DIR}\" 2>&1")
-  unless success
-    puts "Error: Failed to clone wiki from #{wiki_url}"
-    exit 1
+  settings_paths = settings_referenced.to_a.sort
+
+  # Organize by category
+  categories = {
+    'General' => [],
+    'Processor' => [],
+    'Output' => [],
+    'Developer' => [],
+    'About/Help' => [],
+    'Other' => []
+  }
+
+  settings_paths.each do |setting|
+    if setting =~ /^Settings->General/
+      categories['General'] << setting.gsub('Settings->General->', '')
+    elsif setting =~ /^Settings->Processor/
+      categories['Processor'] << setting.gsub('Settings->Processor->', '')
+    elsif setting =~ /^Settings->Output/
+      categories['Output'] << setting.gsub('Settings->Output->', '')
+    elsif setting =~ /^Settings->Developer/
+      categories['Developer'] << setting.gsub('Settings->Developer->', '')
+    elsif setting =~ /^(About Apex|Help->)/
+      categories['About/Help'] << setting
+    else
+      categories['Other'] << setting
+    end
   end
 
-  puts "Wiki cloned successfully"
+  # Also add menu items
+  menu_items = ['Plugins menu', 'Help menu', 'About window']
+
+  markdown = <<~MD
+# Apex App Settings Reference
+
+This document lists all Settings referenced in the app-focused documentation that would need to be implemented in the Apex app.
+
+## Settings Structure
+
+### General
+
+| Setting | Type | Description |
+|---------|------|-------------|
+#{categories['General'].map { |s| "| #{s} | Checkbox/Toggle | Enable or disable #{s.downcase} |" }.join("\n")}
+
+### Processor
+
+| Setting | Type | Description |
+|---------|------|-------------|
+#{categories['Processor'].map { |s| "| #{s} | Varies | Configure #{s.downcase} |" }.join("\n")}
+
+### Output
+
+| Setting | Type | Description |
+|---------|------|-------------|
+#{categories['Output'].map { |s| "| #{s} | Varies | Configure #{s.downcase} |" }.join("\n")}
+
+#{categories['Developer'].any? ? "### Developer\n\n| Setting | Type | Description |\n|---------|------|-------------|\n#{categories['Developer'].map { |s| "| #{s} | Varies | Configure #{s.downcase} |" }.join("\n")}\n" : ""}
+#{categories['About/Help'].any? ? "### About/Help\n\n| Setting | Type | Description |\n|---------|------|-------------|\n#{categories['About/Help'].map { |s| "| #{s} | Menu | Access #{s.downcase} |" }.join("\n")}\n" : ""}
+#{categories['Other'].any? ? "### Other\n\n| Setting | Type | Description |\n|---------|------|-------------|\n#{categories['Other'].map { |s| "| #{s} | Varies | Configure #{s.downcase} |" }.join("\n")}\n" : ""}
+## Menu Items
+
+| Menu Item | Location | Description |
+|-----------|---------|-------------|
+#{menu_items.map { |m| "| #{m} | Main menu | Access #{m.downcase} |" }.join("\n")}
+
+## Notes
+
+- Settings should be organized in a Settings window with the structure: **Settings->Category->Setting Name**
+- Boolean settings (checkboxes/toggles) should have clear on/off states
+- File selection settings should provide a file picker dialog
+- Text input settings should have appropriate validation
+- Settings should be saved per-document or globally (user preference)
+
+MD
+
+  markdown
 end
 
-def cleanup_wiki
-  if File.exist?(WIKI_DIR)
-    puts "\nCleaning up wiki clone..."
-    FileUtils.rm_rf(WIKI_DIR)
-    puts "Wiki clone removed"
-  end
-end
-
-puts "Generating single HTML file with all wiki pages..."
+puts "Generating app-focused documentation..."
 
 # Ensure output directory exists
 FileUtils.mkdir_p(HTML_DIR)
 
-# Clone wiki
-clone_wiki
-
-unless File.exist?(WIKI_DIR)
-  puts "Error: Wiki directory not found at #{WIKI_DIR}"
+unless File.exist?(TRANSFORMED_DIR)
+  puts "Error: Transformed directory not found at #{TRANSFORMED_DIR}"
+  puts "Please ensure the transformed Markdown files exist in documentation/app-transformed/"
   exit 1
 end
 
 unless File.exist?(APEX_BIN)
   puts "Error: Apex binary not found at #{APEX_BIN}"
   puts "Please build Apex first or ensure it's in PATH"
-  cleanup_wiki
   exit 1
 end
-
-# Parse sidebar to get page order
-pages = parse_sidebar
-puts "Found #{pages.length} pages to process..."
 
 # Parse footer
 footer_html = parse_footer
 
-# Build complete page_map first (before processing any pages)
-# This ensures all page names are available when fixing links
-page_map = {}
-pages.each do |page_info|
-  page_id = page_info[:name].downcase.gsub(/\s+/, '-')
-  # Map both the original name and common variations
-  page_map[page_info[:name]] = page_id
-  page_map[page_info[:name].gsub(/\s+/, '-')] = page_id
-  page_map[page_info[:name].gsub(/\s+/, '_')] = page_id
-  # Also map the file name without extension
-  file_basename = File.basename(page_info[:file], '.md')
-  page_map[file_basename] = page_id
-  page_map[file_basename.gsub(/\s+/, '-')] = page_id
+# Process app-focused pages
+pages = []
+APP_PAGES.each do |page_name|
+  file_name = "#{page_name}.md"
+  md_file = File.join(TRANSFORMED_DIR, file_name)
+  if File.exist?(md_file)
+    # Get title from filename
+    title = page_name.gsub('-', ' ')
+    pages << { name: page_name, title: title, file: file_name }
+  end
 end
 
+puts "Found #{pages.length} app-focused pages to process..."
+
 # Process each page
+page_map = {}
 page_htmls = []
 
 pages.each do |page_info|
-  md_file = File.join(WIKI_DIR, page_info[:file])
+  md_file = File.join(TRANSFORMED_DIR, page_info[:file])
   next unless File.exist?(md_file)
 
   puts "Processing #{page_info[:name]}..."
 
-  # Convert to HTML
+  # Convert markdown directly to HTML (files are already transformed)
   html_content = `#{APEX_BIN} "#{md_file}" --standalone --pretty 2>/dev/null`
 
   if $?.success? && !html_content.empty?
-    # Extract body content (remove html/head/body tags)
     body_match = html_content.match(/<body[^>]*>([\s\S]*)<\/body>/i)
     if body_match
       body_content = body_match[1]
 
-      # Extract title
       title_match = body_content.match(/<h1[^>]*>(.*?)<\/h1>/i)
       title = title_match ? title_match[1].gsub(/<[^>]+>/, '').strip : page_info[:title]
 
-      # Fix links (page_map is now complete with all pages)
-      body_content = fix_links_in_html(body_content, page_map)
-
-      # Extract headers for TOC (after fixing links)
       headers = extract_headers(body_content)
       page_toc = generate_page_toc(headers)
 
-      # Fix any remaining links in the TOC itself
-      page_toc = fix_links_in_html(page_toc, page_map)
+      page_map[page_info[:name]] = page_info[:name].downcase.gsub(/\s+/, '-')
+      body_content = fix_links_in_html(body_content, page_map)
 
       # Highlight code blocks
       body_content = highlight_code_blocks(body_content)
 
-      # Inject page TOC after h1 (add ID for scroll detection)
+      # Add ID to page TOC for scroll detection
       page_toc_with_id = page_toc.sub(/<nav class="page-toc">/, '<nav class="page-toc" id="page-toc-top">')
       if body_content =~ /<h1[^>]*>[\s\S]*?<\/h1>/i
         body_content = body_content.sub(/(<h1[^>]*>[\s\S]*?<\/h1>)/i, "\\1\n#{page_toc_with_id}")
       end
 
-      # Add footer
       body_content += "\n#{footer_html}" if footer_html.length > 0
 
       page_htmls << {
@@ -702,7 +739,7 @@ html_output = <<~HTML
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apex Documentation</title>
+  <title>Apex App Documentation</title>
   #{generate_css}
   #{rouge_css}
 </head>
@@ -715,12 +752,14 @@ html_output = <<~HTML
 HTML
 
 # Write output
-output_file = File.join(HTML_DIR, 'apex-docs.html')
+output_file = File.join(HTML_DIR, 'apex-app-docs.html')
 File.write(output_file, html_output)
 
-puts "\nSingle HTML file generated successfully!"
+puts "\nApp-focused HTML file generated successfully!"
 puts "Output: #{output_file}"
 puts "File size: #{(File.size(output_file) / 1024.0 / 1024.0).round(2)} MB"
 
-# Clean up wiki clone
-cleanup_wiki
+# Generate settings table
+settings_table = generate_settings_table
+File.write(SETTINGS_TABLE_FILE, settings_table)
+puts "\nSettings table generated: #{SETTINGS_TABLE_FILE}"
