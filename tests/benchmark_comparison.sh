@@ -14,7 +14,7 @@ TEST_FILES=(
 )
 
 # Add larger test files if they exist
-[ -f "$PROJECT_ROOT/tests/large_doc.md" ] && TEST_FILES+=("$PROJECT_ROOT/tests/large_doc.md")
+[ -f "$PROJECT_ROOT/tests/fixtures/large_doc.md" ] && TEST_FILES+=("$PROJECT_ROOT/tests/fixtures/large_doc.md")
 
 echo "# Markdown Processor Comparison Benchmark"
 echo ""
