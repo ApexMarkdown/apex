@@ -107,7 +107,34 @@ void test_advanced_tables(void) {
     assert_contains(html, "</table>\n<p>Text after.</p>", "Table properly closed before paragraph");
     apex_free_string(html);
 
-    /* Test Pandoc-style table caption with : Caption syntax */
+    /* Test : Caption syntax BEFORE table */
+    const char *colon_caption_before = ": My Table\n\n| Col1 | Col2 |\n|------|------|\n| A    | B    |";
+    html = apex_markdown_to_html(colon_caption_before, strlen(colon_caption_before), &opts);
+    assert_contains(html, "<figcaption>", ": Caption before table has figcaption tag");
+    assert_contains(html, "My Table", ": Caption before table text is present");
+    assert_contains(html, "<table", "Table with : Caption before renders");
+    assert_not_contains(html, "<p>: My Table</p>", ": Caption before table paragraph removed");
+    apex_free_string(html);
+
+    /* Test : Caption syntax BEFORE table with IAL */
+    const char *colon_caption_before_ial = ": My Table {#table-id .highlight}\n\n| Col1 | Col2 |\n|------|------|\n| A    | B    |";
+    html = apex_markdown_to_html(colon_caption_before_ial, strlen(colon_caption_before_ial), &opts);
+    assert_contains(html, "<figcaption>", ": Caption before table with IAL has figcaption tag");
+    assert_contains(html, "My Table", ": Caption before table with IAL text is present");
+    assert_contains(html, "id=\"table-id\"", ": Caption before table IAL ID applied");
+    assert_contains(html, "class=\"highlight\"", ": Caption before table IAL class applied");
+    assert_not_contains(html, "<p>: My Table", ": Caption before table with IAL paragraph removed");
+    apex_free_string(html);
+
+    /* Test : Caption syntax BEFORE table without blank line */
+    const char *colon_caption_before_no_blank = ": Caption No Blank\n| Col1 | Col2 |\n|------|------|\n| A    | B    |";
+    html = apex_markdown_to_html(colon_caption_before_no_blank, strlen(colon_caption_before_no_blank), &opts);
+    assert_contains(html, "<figcaption>", ": Caption before table no blank has figcaption tag");
+    assert_contains(html, "Caption No Blank", ": Caption before table no blank text is present");
+    assert_contains(html, "<table", "Table with : Caption before no blank renders");
+    apex_free_string(html);
+
+    /* Test Pandoc-style table caption with : Caption syntax AFTER table */
     const char *pandoc_caption = "| Key | Value |\n| --- | :---: |\n| one |   1   |\n| two |   2   |\n\n: Key value table";
     html = apex_markdown_to_html(pandoc_caption, strlen(pandoc_caption), &opts);
     assert_contains(html, "<figcaption>", "Pandoc caption has figcaption tag");

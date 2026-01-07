@@ -1559,14 +1559,24 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
             const char *para_start = read + 3;
             const char *para_end = strstr(para_start, "</p>");
             if (para_end) {
-                /* Check if paragraph starts with [ (caption format) */
+                /* Check if paragraph starts with [ (caption format) or : (colon caption format) */
                 const char *text_start = para_start;
                 /* Skip any leading whitespace */
                 while (*text_start && text_start < para_end && isspace((unsigned char)*text_start)) text_start++;
 
+                bool is_caption_para = false;
                 if (*text_start == '[' ||
                     (text_start < para_end - 4 && strncmp(text_start, "&lt;", 4) == 0)) {
-                    /* This looks like a caption paragraph */
+                    /* This looks like a bracket caption paragraph */
+                    is_caption_para = true;
+                } else if (*text_start == ':' && (text_start + 1) < para_end &&
+                           (text_start[1] == ' ' || text_start[1] == '\t')) {
+                    /* This looks like a : Caption format paragraph */
+                    is_caption_para = true;
+                }
+
+                if (is_caption_para) {
+                    /* This is a caption paragraph */
 
                     /* First check: if we have a fingerprint match from AST */
                     if (para_remove && para_remove->text_fingerprint) {
@@ -1584,21 +1594,61 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                     /* Second check: if we're near a table/figure that has a caption, remove this paragraph */
                     /* This is a fallback for cases where fingerprint matching fails */
                     /* Check if any table has a caption, and if this paragraph's caption text matches */
-                    /* Extract caption text from paragraph (just the text between brackets) */
-                    const char *bracket_start = text_start;
-                    if (*bracket_start == '[') bracket_start++;
-                    else if (text_start < para_end - 4 && strncmp(bracket_start, "&lt;", 4) == 0) bracket_start += 4;
-                    const char *bracket_end = strchr(bracket_start, ']');
-                    if (!bracket_end || bracket_end >= para_end) {
-                        /* Try HTML entity version */
-                        const char *gt_entity = strstr(bracket_start, "&gt;");
-                        if (gt_entity && gt_entity < para_end) bracket_end = gt_entity;
+                    const char *caption_start = NULL;
+                    const char *caption_end = NULL;
+
+                    if (*text_start == '[') {
+                        /* Bracket format: [Caption] */
+                        caption_start = text_start + 1;
+                        caption_end = strchr(caption_start, ']');
+                        if (!caption_end || caption_end >= para_end) {
+                            /* Try HTML entity version */
+                            const char *gt_entity = strstr(caption_start, "&gt;");
+                            if (gt_entity && gt_entity < para_end) caption_end = gt_entity;
+                        }
+                    } else if (text_start < para_end - 4 && strncmp(text_start, "&lt;", 4) == 0) {
+                        /* HTML entity bracket format: &lt;Caption&gt; */
+                        caption_start = text_start + 4;
+                        caption_end = strstr(caption_start, "&gt;");
+                    } else if (*text_start == ':' && (text_start + 1) < para_end &&
+                               (text_start[1] == ' ' || text_start[1] == '\t')) {
+                        /* Colon format: : Caption */
+                        caption_start = text_start + 2; /* Skip : and space */
+                        /* Find IAL at the end (if any) - look for { */
+                        caption_end = para_end;
+                        const char *ial_search = para_end - 1;
+                        while (ial_search >= caption_start) {
+                            if (*ial_search == '}') {
+                                /* Found closing brace, look backwards for opening brace */
+                                const char *open = ial_search;
+                                while (open >= caption_start && *open != '{') {
+                                    open--;
+                                }
+                                if (open >= caption_start && *open == '{') {
+                                    /* Check if it's a valid IAL pattern */
+                                    if ((open[1] == ':' || open[1] == '#' || open[1] == '.') &&
+                                        ial_search > open) {
+                                        caption_end = open; /* Caption ends before IAL */
+                                        break;
+                                    }
+                                }
+                            }
+                            ial_search--;
+                        }
+                        /* Trim whitespace from caption */
+                        while (caption_start < caption_end && isspace((unsigned char)*caption_start)) {
+                            caption_start++;
+                        }
+                        while (caption_end > caption_start && isspace((unsigned char)*(caption_end - 1))) {
+                            caption_end--;
+                        }
                     }
-                    if (bracket_end && bracket_end < para_end) {
-                        size_t caption_len = bracket_end - bracket_start;
+
+                    if (caption_start && caption_end && caption_end > caption_start && caption_end < para_end) {
+                        size_t caption_len = caption_end - caption_start;
                         if (caption_len > 0 && caption_len < 512) {
                             char para_caption[512];
-                            memcpy(para_caption, bracket_start, caption_len);
+                            memcpy(para_caption, caption_start, caption_len);
                             para_caption[caption_len] = '\0';
                             /* Compare with all table captions - if any match, remove this paragraph */
                             for (table_caption *cap = captions; cap; cap = cap->next) {

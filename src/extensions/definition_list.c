@@ -684,6 +684,44 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             /* Double-check: make sure : is at the start of the line content (after whitespace/blockquote) */
             /* p already points after whitespace and blockquote, so if *p == ':', it's a definition line */
             is_def_line = true;
+
+            /* Check if this : Caption line is followed by a table */
+            /* If so, skip processing it as a definition list - let table caption detection handle it */
+            const char *next_line_start = line_end;
+            if (*next_line_start == '\n') {
+                next_line_start++; /* Skip the newline */
+            }
+
+            /* Skip blank lines to find the next non-blank line */
+            while (*next_line_start != '\0') {
+                const char *check_line = next_line_start;
+                const char *check_line_end = strchr(check_line, '\n');
+                if (!check_line_end) {
+                    check_line_end = check_line;
+                    while (*check_line_end != '\0') check_line_end++;
+                }
+
+                /* Skip whitespace on this line */
+                while (check_line < check_line_end && (*check_line == ' ' || *check_line == '\t')) {
+                    check_line++;
+                }
+
+                /* If line is empty (just whitespace), continue to next line */
+                if (check_line >= check_line_end || *check_line == '\r') {
+                    next_line_start = check_line_end;
+                    if (*next_line_start == '\n') next_line_start++;
+                    continue;
+                }
+
+                /* Check if this line starts with | (table row) */
+                if (*check_line == '|') {
+                    /* This : Caption is followed by a table - skip definition list processing */
+                    is_def_line = false;
+                }
+
+                /* Found a non-blank line, stop looking */
+                break;
+            }
         } else if (in_code_block && p < line_end && *p == ':') {
             /* Found ':' in code block, skip definition list processing */
         }

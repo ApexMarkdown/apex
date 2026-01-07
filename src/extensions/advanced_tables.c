@@ -487,16 +487,72 @@ static void process_table_spans(cmark_node *table) {
 static bool is_adjacent_to_table(cmark_node *para) {
     if (!para) return false;
 
-    /* Check previous sibling */
+    /* Check previous sibling, skipping blank paragraphs */
     cmark_node *prev = cmark_node_previous(para);
-    if (prev && cmark_node_get_type(prev) == CMARK_NODE_TABLE) {
-        return true;
+    while (prev) {
+        cmark_node_type prev_type = cmark_node_get_type(prev);
+        if (prev_type == CMARK_NODE_TABLE) {
+            return true;
+        } else if (prev_type == CMARK_NODE_PARAGRAPH) {
+            /* Check if paragraph is blank */
+            cmark_node *child = cmark_node_first_child(prev);
+            bool is_blank = true;
+            if (child && cmark_node_get_type(child) == CMARK_NODE_TEXT) {
+                const char *text = cmark_node_get_literal(child);
+                if (text) {
+                    const char *p = text;
+                    while (*p) {
+                        if (!isspace((unsigned char)*p)) {
+                            is_blank = false;
+                            break;
+                        }
+                        p++;
+                    }
+                }
+            } else if (child) {
+                is_blank = false; /* Has non-text content */
+            }
+            if (!is_blank) {
+                break; /* Found non-blank paragraph, stop looking */
+            }
+            prev = cmark_node_previous(prev); /* Skip blank paragraph */
+        } else {
+            break; /* Not a table or paragraph, stop looking */
+        }
     }
 
-    /* Check next sibling */
+    /* Check next sibling, skipping blank paragraphs */
     cmark_node *next = cmark_node_next(para);
-    if (next && cmark_node_get_type(next) == CMARK_NODE_TABLE) {
-        return true;
+    while (next) {
+        cmark_node_type next_type = cmark_node_get_type(next);
+        if (next_type == CMARK_NODE_TABLE) {
+            return true;
+        } else if (next_type == CMARK_NODE_PARAGRAPH) {
+            /* Check if paragraph is blank */
+            cmark_node *child = cmark_node_first_child(next);
+            bool is_blank = true;
+            if (child && cmark_node_get_type(child) == CMARK_NODE_TEXT) {
+                const char *text = cmark_node_get_literal(child);
+                if (text) {
+                    const char *p = text;
+                    while (*p) {
+                        if (!isspace((unsigned char)*p)) {
+                            is_blank = false;
+                            break;
+                        }
+                        p++;
+                    }
+                }
+            } else if (child) {
+                is_blank = false; /* Has non-text content */
+            }
+            if (!is_blank) {
+                break; /* Found non-blank paragraph, stop looking */
+            }
+            next = cmark_node_next(next); /* Skip blank paragraph */
+        } else {
+            break; /* Not a table or paragraph, stop looking */
+        }
     }
 
     return false;
@@ -977,24 +1033,60 @@ cmark_node *apex_process_advanced_tables(cmark_node *root) {
             /* Process table */
             if (type == CMARK_NODE_TABLE) {
                 /* Check for caption before table */
+                /* Skip blank paragraphs to find the actual caption */
                 cmark_node *prev = cmark_node_previous(cur);
-                if (prev) {
-                    char *prev_data = (char *)cmark_node_get_user_data(prev);
-                    /* Skip paragraphs that have already been used as captions */
-                    if (!prev_data || !strstr(prev_data, "data-remove")) {
-                        char *caption = NULL;
-                        const char *original_text = NULL;
-                        if (is_table_caption(prev, &caption, &original_text)) {
-                            add_table_caption(cur, caption, original_text);
-                            /* Free the allocated full_text that was stored in user_data */
-                            char *stored_text = (char *)cmark_node_get_user_data(prev);
-                            if (stored_text && stored_text == original_text) {
-                                free(stored_text);
+                while (prev) {
+                    cmark_node_type prev_type = cmark_node_get_type(prev);
+                    /* Skip blank paragraphs and other non-paragraph nodes */
+                    if (prev_type == CMARK_NODE_PARAGRAPH) {
+                        /* Check if paragraph is blank (empty or only whitespace) */
+                        cmark_node *child = cmark_node_first_child(prev);
+                        bool is_blank = true;
+                        if (child) {
+                            if (cmark_node_get_type(child) == CMARK_NODE_TEXT) {
+                                const char *text = cmark_node_get_literal(child);
+                                if (text) {
+                                    const char *p = text;
+                                    while (*p) {
+                                        if (!isspace((unsigned char)*p)) {
+                                            is_blank = false;
+                                            break;
+                                        }
+                                        p++;
+                                    }
+                                }
+                            } else {
+                                is_blank = false; /* Has non-text content */
                             }
-                            /* Mark caption paragraph for removal so it is not reused */
-                            cmark_node_set_user_data(prev, strdup(" data-remove=\"true\""));
-                            free(caption);
                         }
+
+                        if (!is_blank) {
+                            /* Found a non-blank paragraph - check if it's a caption */
+                            char *prev_data = (char *)cmark_node_get_user_data(prev);
+                            /* Skip paragraphs that have already been used as captions */
+                            if (!prev_data || !strstr(prev_data, "data-remove")) {
+                                char *caption = NULL;
+                                const char *original_text = NULL;
+                                if (is_table_caption(prev, &caption, &original_text)) {
+                                    add_table_caption(cur, caption, original_text);
+                                    /* Free the allocated full_text that was stored in user_data */
+                                    char *stored_text = (char *)cmark_node_get_user_data(prev);
+                                    if (stored_text && stored_text == original_text) {
+                                        free(stored_text);
+                                    }
+                                    /* Mark caption paragraph for removal so it is not reused */
+                                    cmark_node_set_user_data(prev, strdup(" data-remove=\"true\""));
+                                    free(caption);
+                                    break; /* Found caption, stop looking */
+                                }
+                            }
+                            break; /* Found non-blank paragraph that's not a caption, stop looking */
+                        }
+                        /* This paragraph is blank, continue to previous sibling */
+                        prev = cmark_node_previous(prev);
+                    } else {
+                        /* Not a paragraph, stop looking */
+                        break;
                     }
                 }
 
