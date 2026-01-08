@@ -2561,22 +2561,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     size_t actual_len = strlen(markdown);
     if (len > actual_len) len = actual_len;
 
-    /* Normalize input: ensure it ends with a line ending character (\n or \r) if it doesn't already.
-     * This is important because cmark-gfm and preprocessing steps expect input to end with a line ending
-     * for proper parsing, especially for tables. Without this, the last line of a table may not be
-     * parsed correctly. Note: cmark recognizes both \n (LF) and \r (CR) as line endings. */
-    bool needs_newline = (len == 0 || (markdown[len - 1] != '\n' && markdown[len - 1] != '\r'));
-    size_t buffer_size = len + (needs_newline ? 2 : 1);  /* +1 for null term, +1 for newline if needed */
-    char *working_text = malloc(buffer_size);
+    /* Create working copy of input text */
+    char *working_text = malloc(len + 1);
     if (!working_text) return NULL;
     memcpy(working_text, markdown, len);
-    if (needs_newline) {
-        working_text[len] = '\n';
-        working_text[len + 1] = '\0';
-        len++;  /* Update len to include the newline */
-    } else {
-        working_text[len] = '\0';
-    }
+    working_text[len] = '\0';
 
     /* Discover plugins once per conversion. This currently supports
      * text-level pre-parse plugins described by simple YAML manifests
@@ -3012,32 +3001,41 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Register extensions based on mode and options */
     apex_register_extensions(parser, options);
 
-    /* Ensure text ends with a line ending before parsing (safety check in case preprocessing removed it).
-     * Note: We already normalize at the start, but some preprocessing steps might modify the text. */
-    size_t text_len = strlen(text_ptr);
-    char *normalized_text = text_ptr;
-    bool free_normalized = false;
-    if (text_len == 0 || (text_ptr[text_len - 1] != '\n' && text_ptr[text_len - 1] != '\r')) {
-        /* Need to add a trailing line ending - use \n (LF) for consistency */
-        normalized_text = malloc(text_len + 2);  /* +1 for newline, +1 for null term */
-        if (normalized_text) {
-            memcpy(normalized_text, text_ptr, text_len);
-            normalized_text[text_len] = '\n';
-            normalized_text[text_len + 1] = '\0';
-            free_normalized = true;
-            text_len++;  /* Include the newline in length */
-        } else {
-            /* If malloc fails, use original text (better than crashing) */
-            normalized_text = text_ptr;
-        }
+    /* Normalize input: ensure it ends with a line ending character (\n or \r) before parsing.
+     * This is important because cmark-gfm expects input to end with a line ending
+     * for proper parsing, especially for tables. Without this, the last line of a table may not be
+     * parsed correctly. Note: cmark recognizes both \n (LF) and \r (CR) as line endings. */
+    if (!text_ptr) {
+        /* text_ptr should never be NULL, but be defensive */
+        cmark_parser_free(parser);
+        free(working_text);
+        apex_free_metadata(metadata);
+        return NULL;
     }
-
-    /* Parse the markdown (without metadata) */
-    cmark_parser_feed(parser, normalized_text, text_len);
-
-    /* Free normalized text if we allocated it */
-    if (free_normalized && normalized_text != text_ptr) {
-        free(normalized_text);
+    size_t text_len = strlen(text_ptr);
+    if (text_len == 0) {
+        /* Empty text after preprocessing - still parse it (will create empty document) */
+        cmark_parser_feed(parser, "", 0);
+    } else {
+        /* Check if we need to add trailing newline */
+        bool needs_newline = (text_ptr[text_len - 1] != '\n' && text_ptr[text_len - 1] != '\r');
+        if (needs_newline) {
+            /* Need to add a trailing line ending - use \n (LF) for consistency */
+            char *normalized_text = malloc(text_len + 2);  /* +1 for newline, +1 for null term */
+            if (normalized_text) {
+                memcpy(normalized_text, text_ptr, text_len);
+                normalized_text[text_len] = '\n';
+                normalized_text[text_len + 1] = '\0';
+                cmark_parser_feed(parser, normalized_text, text_len + 1);
+                free(normalized_text);
+            } else {
+                /* If malloc fails, use original text (better than crashing) */
+                cmark_parser_feed(parser, text_ptr, text_len);
+            }
+        } else {
+            /* Text already ends with newline - use as-is */
+            cmark_parser_feed(parser, text_ptr, text_len);
+        }
     }
     cmark_node *document = cmark_parser_finish(parser);
     PROFILE_END(parsing);
