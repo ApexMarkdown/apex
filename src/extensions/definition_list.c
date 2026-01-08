@@ -590,7 +590,6 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     int term_blockquote_depth = 0;  /* Track blockquote depth of buffered term */
     bool found_any_def_list = false;  /* Track if we actually created any definition lists */
     bool in_code_block = false;  /* Track if we're inside a fenced code block */
-    bool prev_line_was_blank = false;  /* Track if the previous line was blank */
 
     const char *prev_read_pos = NULL;
     int iteration_count = 0;
@@ -625,11 +624,6 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         }
 
         size_t line_length = line_end - line_start;
-
-        /* Check if this line is blank (for tracking prev_line_was_blank) */
-        bool current_line_is_blank = (line_length == 0 ||
-                                      (line_length == 1 && (*line_start == '\r' || *line_start == '\n')) ||
-                                      (line_length > 0 && line_start[0] == '\r' && line_length == 1));
 
         /* Check for fenced code blocks (```) */
         const char *code_check = line_start;
@@ -761,13 +755,6 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             /* p already points after whitespace and blockquote, so if *p == ':', it's a definition line */
             is_def_line = true;
 
-            /* If there's NO blank line before this : definition line, it's definitely a definition list,
-             * not a table caption. Only check for table caption if there's a blank line. */
-            if (!prev_line_was_blank) {
-                /* Process as definition list - don't check for table caption */
-            } else {
-                /* There's a blank line - could be a table caption, check if followed by table */
-
             /* Check if this : Caption line is followed by a table */
             /* If so, skip processing it as a definition list - let table caption detection handle it */
             /* Calculate end of text buffer safely - use original text parameter */
@@ -823,37 +810,16 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
                 /* Check if this line starts with | (table row) - ensure we're within bounds */
                 if (check_line < text_end && *check_line == '|') {
-                    /* This : Caption is followed by a table - check if it has an IAL to determine if it's a caption */
-                    /* Only treat it as a table caption (and add 4 spaces) if it has an IAL like {#id .class} */
-                    /* Otherwise, let it be processed as a definition list */
-                    bool has_ial = false;
-                    const char *line_check = p; /* p points after spaces and blockquote, at the : */
-                    if (line_check < line_end) {
-                        /* Look for IAL pattern {# or {. or {: */
-                        const char *search = line_check;
-                        while (search < line_end) {
-                            if (*search == '{') {
-                                if (search + 1 < line_end &&
-                                    (search[1] == '#' || search[1] == '.' || search[1] == ':')) {
-                                    /* Found IAL pattern */
-                                    has_ial = true;
-                                    break;
-                                }
-                            }
-                            search++;
-                        }
-                    }
-
-                    if (has_ial) {
-                        /* Has IAL - this is a table caption, add 4 spaces to prevent definition list processing */
-                        is_def_line = false;
-                        found_table = true;
-                        /* Output line with 4 spaces added at the very beginning to prevent definition list matching */
-                        /* Calculate how many spaces we already have at the start */
-                        int existing_spaces = spaces;
-                        /* We need 4 total spaces at the start, so add (4 - existing_spaces) more */
-                        int spaces_to_add = 4 - existing_spaces;
-                        if (spaces_to_add < 0) spaces_to_add = 0;
+                    /* This : Caption is followed by a table - treat it as a table caption */
+                    /* Add 4 spaces to prevent definition list processing */
+                    is_def_line = false;
+                    found_table = true;
+                    /* Output line with 4 spaces added at the very beginning to prevent definition list matching */
+                    /* Calculate how many spaces we already have at the start */
+                    int existing_spaces = spaces;
+                    /* We need 4 total spaces at the start, so add (4 - existing_spaces) more */
+                    int spaces_to_add = 4 - existing_spaces;
+                    if (spaces_to_add < 0) spaces_to_add = 0;
 
                     ENSURE_SPACE(spaces_to_add + line_length + 1);
                     /* Add extra spaces at the very beginning */
@@ -871,23 +837,18 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     if (*read == '\n') {
                         read++;
                     }
-                        break; /* Break out of look-ahead loop */
-                    } else {
-                        /* No IAL - this might be a definition list, don't add spaces */
-                        /* Continue processing as definition list - don't break, just stop looking ahead */
-                        break;
-                    }
+                    /* Break out of look-ahead loop since we found the table */
+                    break;
                 }
 
                 /* Found a non-blank line, stop looking */
                 break;
             }
 
-            /* If we found a table with IAL, skip the rest of the line processing */
+            /* If we found a table, skip the rest of the line processing */
             if (found_table) {
                 continue; /* Skip to next iteration of main while loop */
             }
-            } /* End of "else" block for blank line check */
         } else if (in_code_block && p < line_end && *p == ':') {
             /* Found ':' in code block, skip definition list processing */
         }
@@ -1530,9 +1491,6 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 }
             }
         }
-
-        /* Update prev_line_was_blank for next iteration */
-        prev_line_was_blank = current_line_is_blank;
 
         /* Move to next line - ensure we always advance */
         const char *old_read = read;

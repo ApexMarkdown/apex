@@ -1134,6 +1134,14 @@ static void add_table_caption(cmark_node *table, const char *caption, const char
     /* Store caption in user_data */
     char *existing_user_data = (char *)cmark_node_get_user_data(table);
 
+    /* Check if caption is already in existing data */
+    if (existing_user_data && strstr(existing_user_data, "data-caption=")) {
+        if (ial_attrs) {
+            apex_free_attributes(ial_attrs);
+        }
+        return; /* Caption already present */
+    }
+
     char *attrs = malloc(strlen(caption) + 50);
     if (attrs) {
         snprintf(attrs, strlen(caption) + 50, " data-caption=\"%s\"", caption);
@@ -1155,24 +1163,13 @@ static void add_table_caption(cmark_node *table, const char *caption, const char
             apex_free_attributes(ial_attrs);
         }
 
-        /* Free existing user_data if present */
-        if (existing_user_data) {
-            free(existing_user_data);
-        }
-
         /* Append to existing user_data if present */
-        char *existing = (char *)cmark_node_get_user_data(table);
-        if (existing) {
-            /* Check if caption is already in existing data */
-            if (strstr(existing, "data-caption=")) {
-                free(attrs);
-                return; /* Caption already present */
-            }
-            char *combined = malloc(strlen(existing) + strlen(attrs) + 1);
+        if (existing_user_data) {
+            char *combined = malloc(strlen(existing_user_data) + strlen(attrs) + 1);
             if (combined) {
-                strcpy(combined, existing);
+                strcpy(combined, existing_user_data);
                 strcat(combined, attrs);
-                free(existing); /* Free old user_data before replacing */
+                free(existing_user_data); /* Free old user_data before replacing */
                 cmark_node_set_user_data(table, combined);
                 free(attrs);
             } else {
