@@ -67,6 +67,36 @@ All notable changes to Apex will be documented in this file.
 - Definition lists are no longer incorrectly processed inside fenced code blocks. The definition list preprocessor now detects code block boundaries and distinguishes between closing fences (```) and opening fences (```markdown). When inside a code block, only closing fences exit the block, while opening fences with language identifiers are treated as content, preventing definition list syntax from being rendered as HTML in code examples.
 - Fixed double-free memory error in definition list preprocessor by setting ref_definitions to NULL after freeing and adding NULL checks in error paths to prevent attempting to free already-freed memory.
 
+## 0.1.51
+
+### New
+
+- Support for : Caption syntax before tables, with or without IAL attributes
+- Caption format now works before tables (previously only worked after tables)
+- Added tests for : Caption before tables (basic, with IAL, without blank line)
+- Add regression test to ensure table parsing works correctly when files don't end with a newline, preventing future regressions
+- Add regression test to ensure table parsing works correctly when files use CR line endings, preventing future regressions with Table: Caption syntax
+
+### Improved
+
+- Definition list processor now skips : Caption lines that are followed by tables to avoid conflicts
+- Table caption detection now handles blank lines between captions and tables
+- Paragraph removal logic now recognizes and removes : Caption format paragraphs from output
+- Refactored test suite to use centralized test_result() and test_resultf() helper functions instead of scattered printf statements with manual errors_only_output checks
+
+### Fixed
+
+- Buffer overflow in stdin reading that caused segfaults when piping from pbpaste
+- Prevent memory leak in is_table_caption by only storing full_text in user_data when caption is confirmed, not before validation
+- Fix potential crash when processing multiple tables by ensuring full_text is properly freed when caption validation fails
+- Fix double-free in add_table_caption by checking for existing caption before freeing user_data, preventing use-after-free errors
+- Fix : Caption lines before tables being incorrectly parsed as definition lists by always treating them as captions when followed by a table, regardless of IAL presence or blank lines
+- Fix table parsing issue where last row of first table is not parsed when file doesn't end with a newline by normalizing input to always end with a line ending character before preprocessing and parsing
+- Normalization breaking file includes
+- Fix table parsing issue where last row of first table is not parsed when file doesn't end with a newline by normalizing input to always end with a line ending character before table preprocessing and final parsing
+- Fix Table: Caption syntax not being processed when file uses CR line endings by updating table caption preprocessing to handle CR, LF, and CRLF line endings correctly
+- --errors-only flag now correctly suppresses all passing test output, including negative tests that pass
+
 ## [0.1.48] - 2026-01-03
 
 ### Fixed
@@ -2032,6 +2062,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.51]: https://github.com/ttscoff/apex/releases/tag/v0.1.51
 [0.1.50]: https://github.com/ttscoff/apex/releases/tag/v0.1.50
 [0.1.49]: https://github.com/ttscoff/apex/releases/tag/v0.1.49
 [0.1.48]: https://github.com/ttscoff/apex/releases/tag/v0.1.48
