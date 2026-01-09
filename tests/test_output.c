@@ -40,13 +40,9 @@ void test_toc(void) {
     /* H1 should be excluded (below min 2) */
     /* H4 should be excluded (beyond max 3) */
     if (strstr(html, "href=\"#h1\"") == NULL && strstr(html, "href=\"#h4\"") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Depth range excludes H1 and H4\n");
+        test_result(true, "Depth range excludes H1 and H4");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Depth range didn't exclude properly\n");
+        test_result(false, "Depth range didn't exclude properly");
     }
     apex_free_string(html);
 
@@ -104,13 +100,9 @@ void test_toc(void) {
         const char *contents_pos = strstr(html, "Contents");
         bool in_nav = nav_start && nav_end && contents_pos >= nav_start && contents_pos <= nav_end;
         if (!in_nav) {
-            tests_passed++;
-            tests_run++;
-            printf(COLOR_GREEN "✓" COLOR_RESET " Kramdown .no_toc excludes heading from TOC\n");
+            test_result(true, "Kramdown .no_toc excludes heading from TOC");
         } else {
-            tests_failed++;
-            tests_run++;
-            printf(COLOR_RED "✗" COLOR_RESET " Kramdown .no_toc heading appeared in TOC\n");
+            test_result(false, "Kramdown .no_toc heading appeared in TOC");
         }
     } else {
         tests_failed++;
@@ -135,13 +127,9 @@ void test_toc(void) {
     /* Level 3 is beyond max2 and should not be linked in TOC */
     if (strstr(html, "Level 3") == NULL ||
         (strstr(html, "Level 3") && !strstr(html, "href=\"#level-3\""))) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Kramdown {:toc max2} respects max depth\n");
+        test_result(true, "Kramdown {:toc max2} respects max depth");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Kramdown {:toc max2} did not apply max depth\n");
+        test_result(false, "Kramdown {:toc max2} did not apply max depth");
     }
     apex_free_string(html);
 }
@@ -176,13 +164,9 @@ void test_standalone_output(void) {
     assert_contains(html, "<link rel=\"stylesheet\" href=\"styles.css\">", "CSS link tag");
     /* Should not have inline styles when stylesheet is provided */
     if (strstr(html, "<style>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " No inline styles with external CSS\n");
+        test_result(true, "No inline styles with external CSS");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Inline styles present with external CSS\n");
+        test_result(false, "Inline styles present with external CSS");
     }
     apex_free_string(html);
 
@@ -205,13 +189,9 @@ void test_standalone_output(void) {
     frag_opts.standalone = false;
     html = apex_markdown_to_html("# Header", 8, &frag_opts);
     if (strstr(html, "<!DOCTYPE") == NULL && strstr(html, "<body>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Fragment mode doesn't include document structure\n");
+        test_result(true, "Fragment mode doesn't include document structure");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Fragment mode has document structure\n");
+        test_result(false, "Fragment mode has document structure");
     }
     apex_free_string(html);
 }
@@ -263,13 +243,9 @@ void test_pretty_html(void) {
     html = apex_markdown_to_html("# H\n\nP", 7, &compact_opts);
     /* Should not have extra indentation */
     if (strstr(html, "  H") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Compact mode has no indentation\n");
+        test_result(true, "Compact mode has no indentation");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Compact mode has indentation\n");
+        test_result(false, "Compact mode has indentation");
     }
     apex_free_string(html);
 }
@@ -352,13 +328,9 @@ void test_header_ids(void) {
     opts.generate_header_ids = false;
     html = apex_markdown_to_html("# Emoji Support", 16, &opts);
     if (strstr(html, "id=") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " --no-ids disables ID generation\n");
+        test_result(true, "--no-ids disables ID generation");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " --no-ids still generates IDs\n");
+        test_result(false, "--no-ids still generates IDs");
     }
     apex_free_string(html);
 
@@ -517,13 +489,9 @@ void test_header_ids(void) {
     html = apex_markdown_to_html("# Test Header", 13, &opts);
     assert_contains(html, "<h1 id=\"test-header\"", "Default mode uses header ID attribute");
     if (strstr(html, "<a href=") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Default mode does not use anchor tags\n");
+        test_result(true, "Default mode does not use anchor tags");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Default mode incorrectly uses anchor tags\n");
+        test_result(false, "Default mode incorrectly uses anchor tags");
     }
     apex_free_string(html);
 }
@@ -676,13 +644,9 @@ void test_indices(void) {
         /* Look for "Protocol" in the index section - it shouldn't be there if mmark wasn't processed */
         const char *protocol_entry = strstr(protocol_in_index, ">Protocol<");
         if (protocol_entry == NULL) {
-            tests_run++;
-            tests_passed++;
-            printf(COLOR_GREEN "✓" COLOR_RESET " mmark syntax not processed when disabled\n");
+            test_result(true, "mmark syntax not processed when disabled");
         } else {
-            tests_run++;
-            tests_failed++;
-            printf(COLOR_RED "✗" COLOR_RESET " mmark syntax not processed when disabled\n");
+            test_result(false, "mmark syntax not processed when disabled");
         }
     }
     apex_free_string(html);
@@ -786,9 +750,10 @@ void test_citations(void) {
     } else {
         /* If bibliography didn't load, at least verify citation was processed */
         assert_contains(html, "citation", "Citation was processed");
-        tests_run += 5;
-        tests_passed += 5;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Bibliography tests skipped (file may not load in test context)\n");
+        /* Skip 5 tests - bibliography file may not load in test context */
+        for (int i = 0; i < 5; i++) {
+            test_result(true, "Bibliography tests skipped (file may not load in test context)");
+        }
     }
     apex_free_string(html);
 
@@ -1032,12 +997,9 @@ void test_combine_gitbook_like(void) {
 
     /* Combined Markdown should contain both Chapter 1 and Section 1.1 headings */
     if (strstr(chapter_final, "# Chapter 1") && strstr(chapter_final, "# Section 1.1")) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Includes expanded for chapter1/section1_1\n");
+        test_result(true, "Includes expanded for chapter1/section1_1");
     } else {
-        tests_failed++;
-        tests_run++;
+        test_result(false, "Includes not expanded for chapter1/section1_1");
         printf(COLOR_RED "✗" COLOR_RESET " Includes not expanded correctly for chapter1/section1_1\n");
     }
 

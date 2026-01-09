@@ -27,13 +27,9 @@ void test_math(void) {
     /* Test that regular dollars don't trigger */
     html = apex_markdown_to_html("I have $5 and $10", 17, &opts);
     if (strstr(html, "class=\"math") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Dollar signs don't false trigger\n");
+        test_result(true, "Dollar signs don't false trigger");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Dollar signs false triggered\n");
+        test_result(false, "Dollar signs false triggered");
     }
     apex_free_string(html);
 
@@ -80,13 +76,9 @@ void test_critic_markup(void) {
     assert_contains(html, "new", "Accept mode includes new text from substitution");
     /* Should NOT contain markup tags or deleted text */
     if (strstr(html, "<ins") == NULL && strstr(html, "<del") == NULL && strstr(html, "deleted") == NULL && strstr(html, "old") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Accept mode removes markup and deletions\n");
+        test_result(true, "Accept mode removes markup and deletions");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Accept mode has markup or deleted text\n");
+        test_result(false, "Accept mode has markup or deleted text");
     }
     apex_free_string(html);
 
@@ -99,7 +91,9 @@ void test_critic_markup(void) {
     if (strstr(html, "<ins") == NULL && strstr(html, "<del") == NULL && strstr(html, "added") == NULL && strstr(html, "new") == NULL) {
         tests_passed++;
         tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Reject mode removes markup and additions\n");
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " Reject mode removes markup and additions\n");
+        }
     } else {
         tests_failed++;
         tests_run++;
@@ -113,13 +107,9 @@ void test_critic_markup(void) {
     assert_contains(html, "highlight", "Accept mode keeps highlights");
     /* Comments should be removed */
     if (strstr(html, "comment") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Accept mode removes comments\n");
+        test_result(true, "Accept mode removes comments");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Accept mode kept comment\n");
+        test_result(false, "Accept mode kept comment");
     }
     apex_free_string(html);
 
@@ -129,13 +119,9 @@ void test_critic_markup(void) {
     /* Highlights should show text, comments should be removed, no markup tags */
     assert_contains(html, "highlight", "Reject mode shows highlight text");
     if (strstr(html, "comment") == NULL && strstr(html, "<mark") == NULL && strstr(html, "<span") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Reject mode removes comments and markup tags\n");
+        test_result(true, "Reject mode removes comments and markup tags");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Reject mode has comments or markup tags\n");
+        test_result(false, "Reject mode has comments or markup tags");
     }
     apex_free_string(html);
 }
@@ -250,11 +236,13 @@ void test_file_includes(void) {
         strstr(html, "Nested Content") != NULL) {
         tests_passed++;
         tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Glob wildcard *.md resolves to a Markdown file\n");
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " Glob wildcard *.md resolves to a Markdown file\n");
+        }
     } else {
         tests_failed++;
         tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Glob wildcard *.md did not resolve correctly\n");
+        test_result(false, "Glob wildcard *.md did not resolve correctly");
     }
     apex_free_string(html);
 
@@ -348,11 +336,13 @@ void test_file_includes(void) {
     if (strstr(html, "Included Content") == NULL && strstr(html, "List item") == NULL) {
         tests_passed++;
         tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Regex with no match returns empty\n");
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " Regex with no match returns empty\n");
+        }
     } else {
         tests_failed++;
         tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Regex with no match should return empty\n");
+        test_result(false, "Regex with no match should return empty");
     }
     apex_free_string(html);
 }
@@ -494,13 +484,9 @@ void test_callouts(void) {
     /* Test regular blockquote (not a callout) */
     html = apex_markdown_to_html("> Just a quote\n> Regular text", 29, &opts);
     if (strstr(html, "class=\"callout") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Regular blockquote not treated as callout\n");
+        test_result(true, "Regular blockquote not treated as callout");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Regular blockquote incorrectly treated as callout\n");
+        test_result(false, "Regular blockquote incorrectly treated as callout");
     }
     apex_free_string(html);
 }
@@ -698,7 +684,9 @@ void test_fenced_divs(void) {
     if (open_count >= 2 && close_count >= 2) {
         tests_run++;
         tests_passed++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Nested divs properly structured\n");
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " Nested divs properly structured\n");
+        }
     } else {
         tests_run++;
         tests_failed++;
@@ -1180,13 +1168,9 @@ void test_special_markers(void) {
     const char *first_ul = strstr(html, "<ul>");
     const char *second_ul = first_ul ? strstr(first_ul + 1, "<ul>") : NULL;
     if (second_ul != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Empty HTML comment separates lists\n");
+        test_result(true, "Empty HTML comment separates lists");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Empty HTML comment does not separate lists\n");
+        test_result(false, "Empty HTML comment does not separate lists");
     }
     assert_contains(html, "<li>foo</li>", "First list contains foo");
     assert_contains(html, "<li>bar</li>", "First list contains bar");
@@ -1275,13 +1259,9 @@ void test_sup_sub(void) {
     assert_contains(html, "<sub>2</sub>", "H~2~O creates subscript 2");
     assert_contains(html, "H<sub>2</sub>O", "Subscript within word");
     if (strstr(html, "<u>2</u>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " H~2~O is subscript, not underline\n");
+        test_result(true, "H~2~O is subscript, not underline");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " H~2~O incorrectly treated as underline\n");
+        test_result(false, "H~2~O incorrectly treated as underline");
     }
     apex_free_string(html);
 
@@ -1365,13 +1345,9 @@ void test_sup_sub(void) {
     assert_contains(html, "<u>underline</u>", "Tildes at word boundaries create underline");
     assert_contains(html, "text <u>underline</u> text", "Underline in context");
     if (strstr(html, "<sub>underline</sub>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " ~underline~ is underline, not subscript\n");
+        test_result(true, "~underline~ is underline, not subscript");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " ~underline~ incorrectly treated as subscript\n");
+        test_result(false, "~underline~ incorrectly treated as subscript");
     }
     apex_free_string(html);
 
@@ -1379,13 +1355,9 @@ void test_sup_sub(void) {
     html = apex_markdown_to_html("~h2o~", 6, &opts);
     assert_contains(html, "<u>h2o</u>", "~h2o~ creates underline");
     if (strstr(html, "<sub>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " ~h2o~ is underline, not subscript\n");
+        test_result(true, "~h2o~ is underline, not subscript");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " ~h2o~ incorrectly treated as subscript\n");
+        test_result(false, "~h2o~ incorrectly treated as subscript");
     }
     apex_free_string(html);
 
@@ -1434,13 +1406,9 @@ void test_sup_sub(void) {
     assert_contains(html, "<mark>highlight</mark>", "Highlight after Setext h1");
     /* Verify the == after header is not treated as highlight */
     if (strstr(html, "<mark></mark>") == NULL || strstr(html, "<mark>\n</mark>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " == after Setext h1 doesn't break header\n");
+        test_result(true, "== after Setext h1 doesn't break header");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " == after Setext h1 breaks header\n");
+        test_result(false, "== after Setext h1 breaks header");
     }
     apex_free_string(html);
 
@@ -1467,13 +1435,9 @@ void test_sup_sub(void) {
     no_sup_sub.enable_sup_sub = false;
     html = apex_markdown_to_html("H^2 O", 5, &no_sup_sub);
     if (strstr(html, "<sup>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Sup/sub disabled when option is off\n");
+        test_result(true, "Sup/sub disabled when option is off");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Sup/sub not disabled when option is off\n");
+        test_result(false, "Sup/sub not disabled when option is off");
     }
     apex_free_string(html);
 
@@ -1481,13 +1445,9 @@ void test_sup_sub(void) {
     apex_options cm_opts = apex_options_for_mode(APEX_MODE_COMMONMARK);
     html = apex_markdown_to_html("H^2 O", 5, &cm_opts);
     if (strstr(html, "<sup>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Sup/sub disabled in CommonMark mode\n");
+        test_result(true, "Sup/sub disabled in CommonMark mode");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Sup/sub not disabled in CommonMark mode\n");
+        test_result(false, "Sup/sub not disabled in CommonMark mode");
     }
     apex_free_string(html);
 
@@ -1508,26 +1468,18 @@ void test_sup_sub(void) {
     html = apex_markdown_to_html("Equation: $E=mc^2$", 18, &opts);
     assert_contains(html, "E=mc^2", "Superscript preserved in math span");
     if (strstr(html, "<sup>2</sup>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Superscript not processed inside math span\n");
+        test_result(true, "Superscript not processed inside math span");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Superscript incorrectly processed inside math span\n");
+        test_result(false, "Superscript incorrectly processed inside math span");
     }
     apex_free_string(html);
 
     /* Test that ^ is preserved in footnote references */
     html = apex_markdown_to_html("Text[^ref]", 10, &opts);
     if (strstr(html, "<sup>ref</sup>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Superscript not processed in footnote reference\n");
+        test_result(true, "Superscript not processed in footnote reference");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Superscript incorrectly processed in footnote reference\n");
+        test_result(false, "Superscript incorrectly processed in footnote reference");
     }
     apex_free_string(html);
 
@@ -1535,13 +1487,9 @@ void test_sup_sub(void) {
     opts.enable_critic_markup = true;
     html = apex_markdown_to_html("{~~old~>new~~}", 13, &opts);
     if (strstr(html, "<sub>old</sub>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Subscript not processed in critic markup\n");
+        test_result(true, "Subscript not processed in critic markup");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Subscript incorrectly processed in critic markup\n");
+        test_result(false, "Subscript incorrectly processed in critic markup");
     }
     apex_free_string(html);
 }
@@ -1567,13 +1515,9 @@ void test_mixed_lists(void) {
     const char *first_ol = strstr(html, "<ol>");
     const char *second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
     if (second_ol == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Mixed markers create single list in unified mode\n");
+        test_result(true, "Mixed markers create single list in unified mode");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Mixed markers create multiple lists in unified mode\n");
+        test_result(false, "Mixed markers create multiple lists in unified mode");
     }
     apex_free_string(html);
 
@@ -1587,13 +1531,9 @@ void test_mixed_lists(void) {
     second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
     const char *first_ul = strstr(html, "<ul>");
     if (second_ol == NULL && first_ul != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Mixed markers create separate lists in CommonMark mode\n");
+        test_result(true, "Mixed markers create separate lists in CommonMark mode");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Mixed markers not handled correctly in CommonMark mode\n");
+        test_result(false, "Mixed markers not handled correctly in CommonMark mode");
     }
     apex_free_string(html);
 
@@ -1612,13 +1552,9 @@ void test_mixed_lists(void) {
     second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
     first_ul = strstr(html, "<ul>");
     if (second_ol == NULL && first_ul != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " --no-mixed-lists disables mixed list merging\n");
+        test_result(true, "--no-mixed-lists disables mixed list merging");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " --no-mixed-lists does not disable mixed list merging\n");
+        test_result(false, "--no-mixed-lists does not disable mixed list merging");
     }
     apex_free_string(html);
 }
@@ -1638,13 +1574,9 @@ void test_unsafe_mode(void) {
     html = apex_markdown_to_html(raw_html, strlen(raw_html), &unified_opts);
     assert_contains(html, "<div>Raw HTML content</div>", "Raw HTML allowed in unified mode");
     if (strstr(html, "raw HTML omitted") == NULL && strstr(html, "omitted") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML preserved in unified mode (unsafe default)\n");
+        test_result(true, "Raw HTML preserved in unified mode (unsafe default)");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Raw HTML not preserved in unified mode\n");
+        test_result(false, "Raw HTML not preserved in unified mode");
     }
     apex_free_string(html);
 
@@ -1654,11 +1586,15 @@ void test_unsafe_mode(void) {
     if (strstr(html, "raw HTML omitted") != NULL || strstr(html, "omitted") != NULL) {
         tests_passed++;
         tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML blocked in CommonMark mode (safe default)\n");
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML blocked in CommonMark mode (safe default)\n");
+        }
     } else if (strstr(html, "<div>Raw HTML content</div>") == NULL) {
         tests_passed++;
         tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML blocked in CommonMark mode (safe default)\n");
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " Raw HTML blocked in CommonMark mode (safe default)\n");
+        }
     } else {
         tests_failed++;
         tests_run++;
@@ -1670,17 +1606,11 @@ void test_unsafe_mode(void) {
     unified_opts.unsafe = false;
     html = apex_markdown_to_html(raw_html, strlen(raw_html), &unified_opts);
     if (strstr(html, "raw HTML omitted") != NULL || strstr(html, "omitted") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " --no-unsafe blocks raw HTML\n");
+        test_result(true, "--no-unsafe blocks raw HTML");
     } else if (strstr(html, "<div>Raw HTML content</div>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " --no-unsafe blocks raw HTML\n");
+        test_result(true, "--no-unsafe blocks raw HTML");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " --no-unsafe does not block raw HTML\n");
+        test_result(false, "--no-unsafe does not block raw HTML");
     }
     apex_free_string(html);
 
@@ -1701,13 +1631,9 @@ void test_unsafe_mode(void) {
     unified_opts.unsafe = false;
     html = apex_markdown_to_html(html_comment, strlen(html_comment), &unified_opts);
     if (strstr(html, "raw HTML omitted") != NULL || strstr(html, "omitted") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " HTML comments blocked in safe mode\n");
+        test_result(true, "HTML comments blocked in safe mode");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " HTML comments not blocked in safe mode\n");
+        test_result(false, "HTML comments not blocked in safe mode");
     }
     apex_free_string(html);
 
@@ -1718,13 +1644,9 @@ void test_unsafe_mode(void) {
     /* In unsafe mode, script tags might be preserved or escaped depending on cmark-gfm */
     /* Just verify it's handled somehow */
     if (strstr(html, "script") != NULL || strstr(html, "omitted") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Script tags handled in unsafe mode\n");
+        test_result(true, "Script tags handled in unsafe mode");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Script tags not handled in unsafe mode\n");
+        test_result(false, "Script tags not handled in unsafe mode");
     }
     apex_free_string(html);
 }

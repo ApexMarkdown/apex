@@ -66,9 +66,7 @@ void test_advanced_tables(void) {
     bool has_align = strstr(html, "<th align=\"center\">h2</th") != NULL;
     bool has_style = strstr(html, "<th style=\"text-align: center\">h2</th") != NULL;
     if (has_align || has_style) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Center-aligned header from colon pattern\n");
+        test_result(true, "Center-aligned header from colon pattern");
     } else {
         tests_failed++;
         tests_run++;
@@ -202,9 +200,7 @@ void test_relaxed_tables(void) {
     assert_contains(html, "<td>2</td>", "Second cell 2");
     /* Should NOT have a header row */
     if (strstr(html, "<thead>") == NULL && strstr(html, "<th>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Relaxed table has no header row\n");
+        test_result(true, "Relaxed table has no header row");
     } else {
         tests_failed++;
         tests_run++;
@@ -239,13 +235,9 @@ void test_relaxed_tables(void) {
     gfm_opts.enable_tables = true;
     html = apex_markdown_to_html(relaxed_table, strlen(relaxed_table), &gfm_opts);
     if (strstr(html, "<table>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Relaxed tables disabled in GFM mode by default\n");
+        test_result(true, "Relaxed tables disabled in GFM mode by default");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Relaxed tables incorrectly enabled in GFM mode\n");
+        test_result(false, "Relaxed tables incorrectly enabled in GFM mode");
     }
     apex_free_string(html);
 
@@ -254,13 +246,9 @@ void test_relaxed_tables(void) {
     kramdown_opts.enable_tables = true;
     html = apex_markdown_to_html(relaxed_table, strlen(relaxed_table), &kramdown_opts);
     if (strstr(html, "<table>") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Relaxed tables enabled in Kramdown mode by default\n");
+        test_result(true, "Relaxed tables enabled in Kramdown mode by default");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Relaxed tables incorrectly disabled in Kramdown mode\n");
+        test_result(false, "Relaxed tables incorrectly disabled in Kramdown mode");
     }
     apex_free_string(html);
 
@@ -269,13 +257,9 @@ void test_relaxed_tables(void) {
     unified_opts.enable_tables = true;
     html = apex_markdown_to_html(relaxed_table, strlen(relaxed_table), &unified_opts);
     if (strstr(html, "<table>") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Relaxed tables enabled in Unified mode by default\n");
+        test_result(true, "Relaxed tables enabled in Unified mode by default");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Relaxed tables incorrectly disabled in Unified mode\n");
+        test_result(false, "Relaxed tables incorrectly disabled in Unified mode");
     }
     apex_free_string(html);
 
@@ -285,13 +269,9 @@ void test_relaxed_tables(void) {
     no_relaxed.relaxed_tables = false;
     html = apex_markdown_to_html(relaxed_table, strlen(relaxed_table), &no_relaxed);
     if (strstr(html, "<table>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " --no-relaxed-tables disables relaxed tables\n");
+        test_result(true, "--no-relaxed-tables disables relaxed tables");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " --no-relaxed-tables did not disable relaxed tables\n");
+        test_result(false, "--no-relaxed-tables did not disable relaxed tables");
     }
     apex_free_string(html);
 
@@ -299,13 +279,9 @@ void test_relaxed_tables(void) {
     const char *single_row = "A | B";
     html = apex_markdown_to_html(single_row, strlen(single_row), &opts);
     if (strstr(html, "<table>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Single row is not treated as table\n");
+        test_result(true, "Single row is not treated as table");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Single row incorrectly treated as table\n");
+        test_result(false, "Single row incorrectly treated as table");
     }
     apex_free_string(html);
 
@@ -313,13 +289,9 @@ void test_relaxed_tables(void) {
     const char *mismatched = "A | B\n1 | 2 | 3";
     html = apex_markdown_to_html(mismatched, strlen(mismatched), &opts);
     if (strstr(html, "<table>") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Mismatched column counts are not treated as table\n");
+        test_result(true, "Mismatched column counts are not treated as table");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Mismatched column counts incorrectly treated as table\n");
+        test_result(false, "Mismatched column counts incorrectly treated as table");
     }
     apex_free_string(html);
 }
@@ -497,13 +469,9 @@ void test_table_no_trailing_newline(void) {
         td_pos += 4;
     }
     if (td_count >= 4) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Both tables have all data rows parsed (found %d cells)\n", td_count);
+        test_resultf(true, "Both tables have all data rows parsed (found %d cells)", td_count);
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Both tables should have all data rows (found %d cells, expected at least 4)\n", td_count);
+        test_resultf(false, "Both tables should have all data rows (found %d cells, expected at least 4)", td_count);
     }
 
     apex_free_string(html);
@@ -598,13 +566,9 @@ void test_table_cr_line_endings(void) {
         table_pos += 6;
     }
     if (table_count >= 2) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " CR line endings: Both tables rendered correctly (found %d tables)\n", table_count);
+        test_resultf(true, "CR line endings: Both tables rendered correctly (found %d tables)", table_count);
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " CR line endings: Both tables should be rendered (found %d tables, expected at least 2)\n", table_count);
+        test_resultf(false, "CR line endings: Both tables should be rendered (found %d tables, expected at least 2)", table_count);
     }
 
     apex_free_string(html);

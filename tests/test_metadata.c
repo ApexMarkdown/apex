@@ -234,15 +234,9 @@ void test_metadata_transforms(void) {
     html = apex_markdown_to_html(truncate_doc, strlen(truncate_doc), &opts);
     /* Check for either ... or … (smart typography ellipsis) */
     if (strstr(html, "This is a very...") || strstr(html, "This is a very…") || strstr(html, "This is a ve")) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " truncate transform\n");
+        test_result(true, "truncate transform");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " truncate transform\n");
-        printf("  Looking for: This is a very... or …\n");
-        printf("  In:          %s\n", html);
+        test_result(false, "truncate transform failed");
     }
     apex_free_string(html);
 
@@ -392,13 +386,9 @@ void test_metadata_transforms(void) {
     html = apex_markdown_to_html(disabled_doc, strlen(disabled_doc), &no_transforms);
     /* Should keep the transform syntax verbatim or use simple replacement */
     if (strstr(html, "[%title:upper]") != NULL || strstr(html, "Hello") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Transforms disabled when flag is off\n");
+        test_result(true, "Transforms disabled when flag is off");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Transforms not disabled when flag is off\n");
+        test_result(false, "Transforms not disabled when flag is off");
     }
     apex_free_string(html);
 
@@ -406,13 +396,9 @@ void test_metadata_transforms(void) {
     apex_options mmd_opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
     html = apex_markdown_to_html(disabled_doc, strlen(disabled_doc), &mmd_opts);
     if (strstr(html, "[%title:upper]") != NULL || strstr(html, "Hello") != NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Transforms disabled in MMD mode by default\n");
+        test_result(true, "Transforms disabled in MMD mode by default");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Transforms incorrectly enabled in MMD mode\n");
+        test_result(false, "Transforms incorrectly enabled in MMD mode");
     }
     apex_free_string(html);
 

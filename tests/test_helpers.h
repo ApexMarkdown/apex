@@ -42,5 +42,22 @@ bool assert_option_bool(bool actual, bool expected, const char *test_name);
  */
 bool assert_option_string(const char *actual, const char *expected, const char *test_name);
 
+/**
+ * Report a test result (for manual test cases)
+ * Updates test statistics and prints output based on errors_only_output flag
+ * @param passed true if test passed, false if failed
+ * @param test_name the name/description of the test
+ */
+void test_result(bool passed, const char *test_name);
+
+/**
+ * Report a test result with formatted message (for manual test cases)
+ * Updates test statistics and prints output based on errors_only_output flag
+ * @param passed true if test passed, false if failed
+ * @param format printf-style format string
+ * @param ... arguments for format string
+ */
+void test_resultf(bool passed, const char *format, ...);
+
 #endif /* TEST_HELPERS_H */
 

@@ -239,13 +239,9 @@ void test_bracketed_spans(void) {
     /* When spans are disabled, [text]{.class} should remain as-is or be treated differently */
     /* For now, we'll just check that it doesn't create a span when disabled */
     if (strstr(html, "<span") == NULL) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Bracketed spans disabled when flag is off\n");
+        test_result(true, "Bracketed spans disabled when flag is off");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Bracketed spans incorrectly enabled when flag is off\n");
+        test_result(false, "Bracketed spans incorrectly enabled when flag is off");
     }
     apex_free_string(html);
 }

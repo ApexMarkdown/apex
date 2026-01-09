@@ -170,13 +170,9 @@ void test_image_embedding(void) {
     const char *first = strstr(html, "data:image/png;base64,");
     const char *second = first ? strstr(first + 1, "data:image/png;base64,") : NULL;
     if (first && !second) {
-        tests_passed++;
-        tests_run++;
-        printf(COLOR_GREEN "✓" COLOR_RESET " Data URL not processed again\n");
+        test_result(true, "Data URL not processed again");
     } else {
-        tests_failed++;
-        tests_run++;
-        printf(COLOR_RED "✗" COLOR_RESET " Data URL was processed again\n");
+        test_result(false, "Data URL was processed again");
     }
     apex_free_string(html);
 

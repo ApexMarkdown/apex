@@ -4,6 +4,7 @@
 
 #include "test_helpers.h"
 #include <string.h>
+#include <stdarg.h>
 
 /* Test statistics (shared across all test files) */
 int tests_run = 0;
@@ -93,3 +94,46 @@ bool assert_option_string(const char *actual, const char *expected, const char *
     }
 }
 
+/**
+ * Report a test result (for manual test cases)
+ * Updates test statistics and prints output based on errors_only_output flag
+ */
+void test_result(bool passed, const char *test_name) {
+    tests_run++;
+    if (passed) {
+        tests_passed++;
+        if (!errors_only_output) {
+            printf(COLOR_GREEN "✓" COLOR_RESET " %s\n", test_name);
+        }
+    } else {
+        tests_failed++;
+        printf(COLOR_RED "✗" COLOR_RESET " %s\n", test_name);
+    }
+}
+
+/**
+ * Report a test result with formatted message (for manual test cases)
+ * Updates test statistics and prints output based on errors_only_output flag
+ */
+void test_resultf(bool passed, const char *format, ...) {
+    tests_run++;
+    if (passed) {
+        tests_passed++;
+        if (!errors_only_output) {
+            va_list args;
+            va_start(args, format);
+            printf(COLOR_GREEN "✓" COLOR_RESET " ");
+            vprintf(format, args);
+            printf("\n");
+            va_end(args);
+        }
+    } else {
+        tests_failed++;
+        va_list args;
+        va_start(args, format);
+        printf(COLOR_RED "✗" COLOR_RESET " ");
+        vprintf(format, args);
+        printf("\n");
+        va_end(args);
+    }
+}
