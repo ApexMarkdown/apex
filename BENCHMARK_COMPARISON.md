@@ -17,13 +17,13 @@ Found 7 tools:
 
 | Processor | Time (ms) | Relative |
 |-----------|-----------|----------|
-| apex | 14.60 | 1.00x |
-| cmark-gfm | 2.89 | .19x |
-| cmark | 2.99 | .20x |
-| pandoc | 93.12 | 6.37x |
-| multimarkdown | 2.95 | .20x |
-| kramdown | 343.38 | 23.52x |
-| marked | 87.67 | 6.00x |
+| apex | 14.57 | 1.00x |
+| cmark-gfm | 3.13 | .21x |
+| cmark | 2.39 | .16x |
+| pandoc | 91.13 | 6.25x |
+| multimarkdown | 2.31 | .15x |
+| kramdown | 317.27 | 21.77x |
+| marked | 86.59 | 5.94x |
 
 ## Processor Comparison
 
@@ -31,13 +31,13 @@ Found 7 tools:
 
 | Processor | Time (ms) | Relative |
 |-----------|-----------|----------|
-| apex | 8.76 | 1.00x |
-| cmark-gfm | 2.75 | .31x |
-| cmark | 2.53 | .28x |
-| pandoc | 111.09 | 12.67x |
-| multimarkdown | 2.02 | .23x |
-| kramdown | 359.40 | 41.02x |
-| marked | 82.27 | 9.38x |
+| apex | 9.93 | 1.00x |
+| cmark-gfm | 2.32 | .23x |
+| cmark | 2.94 | .29x |
+| pandoc | 114.57 | 11.53x |
+| multimarkdown | 2.78 | .27x |
+| kramdown | 319.61 | 32.18x |
+| marked | 85.88 | 8.64x |
 
 ## Apex Mode Comparison
 
@@ -45,22 +45,22 @@ Found 7 tools:
 
 | Mode | Time (ms) | Relative |
 |------|-----------|----------|
-| commonmark | 3.56 | 1.00x |
-| gfm | 12.47 | 3.50x |
-| mmd | 13.26 | 3.72x |
-| kramdown | 12.04 | 3.38x |
-| unified | 12.90 | 3.62x |
-| default (unified) | 13.34 | 3.74x |
+| commonmark | 2.98 | 1.00x |
+| gfm | 14.01 | 4.69x |
+| mmd | 13.83 | 4.63x |
+| kramdown | 12.09 | 4.05x |
+| unified | 14.00 | 4.69x |
+| default (unified) | 15.67 | 5.25x |
 
 ## Apex Feature Overhead
 
 | Features | Time (ms) |
 |----------|-----------|
-| CommonMark (minimal) | 3.12 |
-| + GFM tables/strikethrough | 12.44 |
-| + All Apex features | 13.79 |
-| + Pretty printing | 14.26 |
-| + Standalone document | 13.16 |
+| CommonMark (minimal) | 3.07 |
+| + GFM tables/strikethrough | 13.78 |
+| + All Apex features | 15.34 |
+| + Pretty printing | 15.93 |
+| + Standalone document | 16.08 |
 
 ---
 
