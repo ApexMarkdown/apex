@@ -1158,11 +1158,30 @@ static char *apex_preprocess_table_captions(const char *text) {
 
     while (*read) {
         const char *line_start = read;
-        const char *line_end = strchr(read, '\n');
-        bool has_newline = (line_end != NULL);
-        if (!line_end) {
+        /* Find line ending - handle CRLF, CR, and LF */
+        const char *line_end = NULL;
+        const char *cr_pos = strchr(read, '\r');
+        const char *lf_pos = strchr(read, '\n');
+
+        /* Determine which line ending we have (prefer CRLF, then CR, then LF) */
+        if (cr_pos && lf_pos && cr_pos < lf_pos && (lf_pos - cr_pos) == 1) {
+            /* CRLF sequence - line ends at CR, LF follows */
+            line_end = cr_pos;
+        } else if (cr_pos && (!lf_pos || cr_pos < lf_pos)) {
+            /* CR without following LF, or CR comes before LF */
+            line_end = cr_pos;
+        } else if (lf_pos) {
+            /* LF only */
+            line_end = lf_pos;
+        } else {
+            /* No line ending found - end of string */
             line_end = read + strlen(read);
         }
+
+        /* has_newline indicates whether we found any line ending character */
+        bool has_newline = (line_end != NULL && line_end < read + strlen(read));
+        /* Determine the type of line ending for proper handling */
+        bool has_crlf = (has_newline && line_end[0] == '\r' && line_end[1] == '\n');
 
         /* Determine line properties */
         const char *p = line_start;
@@ -1204,8 +1223,9 @@ static char *apex_preprocess_table_captions(const char *text) {
                 is_bracket_caption_line = true;
             } else if ((size_t)(line_end - p) >= 6 &&
                        (strncmp(p, "Table:", 6) == 0 || strncmp(p, "table:", 6) == 0)) {
+                /* Table: at start of line (after whitespace) - always treat as caption */
                 is_pandoc_caption_line = true;
-            } else if (prev_line_was_table_row || in_table_section) {
+            } else if (prev_line_was_table_row || prev_line_was_blank || in_table_section) {
                 /* Also check for Table: later in the line (when it appears immediately after a table row) */
                 const char *table_check = p;
                 while (table_check < line_end - 5) {
@@ -1242,6 +1262,7 @@ static char *apex_preprocess_table_captions(const char *text) {
             *write++ = '\n';
             memcpy(write, line_start, line_len);
             write += line_len;
+            /* Write line ending - always use LF for output consistency */
             if (has_newline) {
                 *write++ = '\n';
             }
@@ -1443,8 +1464,16 @@ static char *apex_preprocess_table_captions(const char *text) {
             buffered_blank_line = true;
             /* Keep in_table_section true */
             in_table_section = true;
-            /* Advance to next line */
-            read = has_newline ? line_end + 1 : line_end;
+            /* Advance to next line, handling CRLF, CR, or LF */
+            if (has_newline) {
+                read = line_end + 1;
+                /* Skip LF if we had CRLF */
+                if (has_crlf) {
+                    read++;
+                }
+            } else {
+                read = line_end;
+            }
             /* Don't write this blank line yet - continue to check next line */
             continue; /* Skip writing this line for now */
         } else {
@@ -1460,13 +1489,23 @@ static char *apex_preprocess_table_captions(const char *text) {
             }
             memcpy(write, line_start, line_len);
             write += line_len;
+            /* Write line ending - always use LF for output consistency */
             if (has_newline) {
                 *write++ = '\n';
             }
             buffered_blank_line = false; /* Clear buffer since we wrote the line */
         }
 
-        read = has_newline ? line_end + 1 : line_end;
+        /* Advance to next line, handling CRLF, CR, or LF */
+        if (has_newline) {
+            read = line_end + 1;
+            /* Skip LF if we had CRLF */
+            if (has_crlf) {
+                read++;
+            }
+        } else {
+            read = line_end;
+        }
         if (!in_code_block) {
             if (is_table_row_line) {
                 /* Remember that the last non-blank, table-looking line was a row */
