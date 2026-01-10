@@ -148,8 +148,24 @@ first item).
 
 **--relaxed-tables**, **--no-relaxed-tables**
 : Enable relaxed table parsing (no separator rows required).
+
+**--per-cell-alignment**, **--no-per-cell-alignment**
+: Enable per-cell alignment markers in tables. When enabled, cells
+starting with a colon (`:`) are left-aligned, ending with a colon
+(`:`) are right-aligned, or both (`:content:`) are center-aligned.
+The colons are stripped from the output and replaced with
+`style="text-align: ..."` attributes. Enabled by default in unified
+mode, disabled in other modes.
 Default: enabled in unified/kramdown modes, disabled in
 commonmark/gfm/multimarkdown modes.
+
+**--per-cell-alignment**, **--no-per-cell-alignment**
+: Enable per-cell alignment markers in tables. When enabled, cells
+starting with a colon (`:`) are left-aligned, ending with a colon
+(`:`) are right-aligned, or both (`:content:`) are center-aligned.
+The colons are stripped from the output and replaced with
+`style="text-align: ..."` attributes. Enabled by default in unified
+mode, disabled in other modes.
 
 **--captions** *POSITION*
 : Table caption position: **above** or **below** (default:
@@ -406,7 +422,7 @@ command-line invocations.
 directly.
 
 **Supported boolean options:**
-`indices`, `wikilinks`, `includes`, `relaxed-tables`, `alpha-lists`, `mixed-lists`, `sup-sub`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`
+`indices`, `wikilinks`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`
 
 **Supported string options:**
 `bibliography`, `csl`, `title`, `style` (or `css`),
@@ -480,6 +496,12 @@ Apex supports a wide range of Markdown extensions:
   multiple format options
 
 - **Relaxed Tables**: Support for tables without separator
+rows (Kramdown-style). Enabled by default in unified and
+Kramdown modes.
+
+- **Per-Cell Alignment**: Support for alignment markers using
+colons at the start and/or end of table cells. Enabled by default
+in unified mode only.
 
   rows (Kramdown-style)
 

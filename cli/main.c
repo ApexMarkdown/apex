@@ -212,6 +212,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
     fprintf(stderr, "  --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)\n");
+    fprintf(stderr, "  --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)\n");
     fprintf(stderr, "  --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).\n");
     fprintf(stderr, "                          VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.\n");
     fprintf(stderr, "  --show-tooltips         Show tooltips on citations\n");
@@ -1074,6 +1075,10 @@ int main(int argc, char *argv[]) {
             options.relaxed_tables = true;
         } else if (strcmp(argv[i], "--no-relaxed-tables") == 0) {
             options.relaxed_tables = false;
+        } else if (strcmp(argv[i], "--per-cell-alignment") == 0) {
+            options.per_cell_alignment = true;
+        } else if (strcmp(argv[i], "--no-per-cell-alignment") == 0) {
+            options.per_cell_alignment = false;
         } else if (strcmp(argv[i], "--captions") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --captions requires an argument (above or below)\n");

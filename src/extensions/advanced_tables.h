@@ -16,6 +16,7 @@
 
 #include "cmark-gfm.h"
 #include "cmark-gfm-extension_api.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,8 +30,9 @@ cmark_node *apex_process_advanced_tables(cmark_node *root);
 
 /**
  * Create advanced tables extension
+ * @param per_cell_alignment Enable per-cell alignment markers (colons)
  */
-cmark_syntax_extension *create_advanced_tables_extension(void);
+cmark_syntax_extension *create_advanced_tables_extension(bool per_cell_alignment);
 
 #ifdef __cplusplus
 }

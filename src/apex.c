@@ -2436,6 +2436,7 @@ apex_options apex_options_default(void) {
     /* Table options */
     opts.relaxed_tables = true;  /* Default: enabled in unified mode (can be disabled with --no-relaxed-tables) */
     opts.caption_position = 1;  /* Default: below (1=below, 0=above) */
+    opts.per_cell_alignment = true;  /* Default: enabled in unified mode (can be disabled with --no-per-cell-alignment) */
 
     /* List options */
     /* Since default mode is unified, enable these by default */
@@ -2524,6 +2525,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.hardbreaks = false;
             opts.id_format = 0;  /* GFM format (default) */
             opts.relaxed_tables = false;  /* CommonMark has no tables */
+            opts.per_cell_alignment = false;  /* CommonMark: no per-cell alignment */
             opts.allow_mixed_list_markers = false;  /* CommonMark: current behavior (separate lists) */
             opts.allow_alpha_lists = false;  /* CommonMark: no alpha lists */
             opts.enable_sup_sub = false;  /* CommonMark: no sup/sub */
@@ -2554,6 +2556,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.hardbreaks = true;  /* GFM treats newlines as hard breaks */
             opts.id_format = 0;  /* GFM format */
             opts.relaxed_tables = false;  /* GFM uses standard table syntax */
+            opts.per_cell_alignment = false;  /* GFM: no per-cell alignment */
             opts.allow_mixed_list_markers = false;  /* GFM: current behavior (separate lists) */
             opts.allow_alpha_lists = false;  /* GFM: no alpha lists */
             opts.enable_sup_sub = false;  /* GFM: no sup/sub */
@@ -2567,6 +2570,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_tables = true;
             opts.enable_footnotes = true;
             opts.relaxed_tables = false;  /* MMD uses standard table syntax */
+            opts.per_cell_alignment = false;  /* MMD: no per-cell alignment */
             opts.enable_definition_lists = true;
             opts.enable_smart_typography = true;
             opts.enable_math = true;
@@ -2618,6 +2622,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.hardbreaks = false;
             opts.id_format = 2;  /* Kramdown format */
             opts.relaxed_tables = true;  /* Kramdown supports relaxed tables */
+            opts.per_cell_alignment = false;  /* Kramdown: no per-cell alignment */
             opts.allow_mixed_list_markers = false;  /* Kramdown: current behavior (separate lists) */
             opts.allow_alpha_lists = false;  /* Kramdown: no alpha lists */
             opts.enable_sup_sub = false;  /* Kramdown: no sup/sub */
@@ -2633,6 +2638,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_math = true;
             opts.id_format = 0;  /* GFM format (default, can be overridden with --id-format) */
             opts.relaxed_tables = true;  /* Unified mode supports relaxed tables */
+            opts.per_cell_alignment = true;  /* Unified mode: per-cell alignment enabled by default */
             opts.allow_mixed_list_markers = true;  /* Unified: inherit type from first item */
             opts.allow_alpha_lists = true;  /* Unified: support alpha lists */
             opts.enable_sup_sub = true;  /* Unified: support sup/sub (default: true) */
@@ -2773,7 +2779,7 @@ static void apex_register_extensions(cmark_parser *parser, const apex_options *o
 
     /* Advanced tables (colspan, rowspan, captions) */
     if (options->enable_tables) {
-        cmark_syntax_extension *adv_tables_ext = create_advanced_tables_extension();
+        cmark_syntax_extension *adv_tables_ext = create_advanced_tables_extension(options->per_cell_alignment);
         if (adv_tables_ext) {
             cmark_parser_attach_syntax_extension(parser, adv_tables_ext);
         }

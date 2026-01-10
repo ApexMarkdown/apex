@@ -21,6 +21,9 @@
 #include <ctype.h>
 #include <stdio.h>
 
+/* Global flag for per-cell alignment (set when extension is created) */
+static bool g_per_cell_alignment = false;
+
 /**
  * Extract and check text content from a node recursively
  * Returns true if the content is just "<< " (possibly with whitespace)
@@ -450,10 +453,11 @@ static void process_table_spans(cmark_node *table) {
                 if (cmark_node_get_type(cell) == CMARK_NODE_TABLE_CELL) {
                     /* Process per-cell alignment markers (:) BEFORE colspan/rowspan processing
                      * so that alignment is preserved when cells are merged. */
-                    char *cell_attrs_check = (char *)cmark_node_get_user_data(cell);
-                    if (!cell_attrs_check || !strstr(cell_attrs_check, "data-remove")) {
-                        char *align = process_cell_alignment(cell);
-                        if (align) {
+                    if (g_per_cell_alignment) {
+                        char *cell_attrs_check = (char *)cmark_node_get_user_data(cell);
+                        if (!cell_attrs_check || !strstr(cell_attrs_check, "data-remove")) {
+                            char *align = process_cell_alignment(cell);
+                            if (align) {
                             /* Add style attribute for alignment */
                             char *existing_attrs = (char *)cmark_node_get_user_data(cell);
                             char new_attrs[256];
@@ -466,6 +470,7 @@ static void process_table_spans(cmark_node *table) {
                             
                             if (existing_attrs) free(existing_attrs);
                             cmark_node_set_user_data(cell, strdup(new_attrs));
+                            }
                         }
                     }
 
@@ -1751,9 +1756,12 @@ static cmark_node *postprocess(cmark_syntax_extension *ext,
 /**
  * Create advanced tables extension
  */
-cmark_syntax_extension *create_advanced_tables_extension(void) {
+cmark_syntax_extension *create_advanced_tables_extension(bool per_cell_alignment) {
     cmark_syntax_extension *ext = cmark_syntax_extension_new("advanced_tables");
     if (!ext) return NULL;
+
+    /* Store per_cell_alignment flag in static variable */
+    g_per_cell_alignment = per_cell_alignment;
 
     /* Set postprocess callback to add span/caption attributes to AST */
     cmark_syntax_extension_set_postprocess_func(ext, postprocess);

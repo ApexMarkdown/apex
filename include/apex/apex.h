@@ -90,6 +90,7 @@ typedef struct {
     /* Table options */
     bool relaxed_tables;  /* Support tables without separator rows (kramdown/unified only) */
     int caption_position;  /* 0=above, 1=below (default: 1=below) */
+    bool per_cell_alignment;  /* Enable per-cell alignment markers (colons at start/end of cells) */
 
     /* List options */
     bool allow_mixed_list_markers;  /* Allow mixed list markers at same level (inherit type from first item) */

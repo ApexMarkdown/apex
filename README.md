@@ -48,6 +48,10 @@ one tool.
 
   rows (Kramdown-style)
 
+- **Per-cell alignment**: Control alignment of individual table
+
+  cells using colons (`:Left`, `Right:`, `:Center:`). Enabled by default in unified mode, can be controlled with `--per-cell-alignment` or `--no-per-cell-alignment` flags.
+
 - **Headerless tables**: Support for tables that start with
 
   alignment rows (separator rows) without header rows;
