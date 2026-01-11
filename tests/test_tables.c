@@ -102,9 +102,12 @@ void test_advanced_tables(void) {
         "| Row 2 | A2 | B2 |";
     html = apex_markdown_to_html(row_header_table, strlen(row_header_table), &opts);
     assert_contains(html, "<table>", "Row-header table renders");
-    /* Check for th with scope="row" - may be in header or body depending on implementation */
-    bool has_row_scope_1 = strstr(html, "<th scope=\"row\">Row 1</th>") != NULL || strstr(html, "scope=\"row\">Row 1") != NULL;
-    bool has_row_scope_2 = strstr(html, "<th scope=\"row\">Row 2</th>") != NULL || strstr(html, "scope=\"row\">Row 2") != NULL;
+    /* Check for th with scope="row" - the first column cells in tbody should be converted to row headers */
+    /* Check for the pattern: <th scope="row"> followed by Row 1 or Row 2 */
+    bool has_row_scope_1 = (strstr(html, "<th scope=\"row\">Row 1</th>") != NULL) ||
+                           (strstr(html, "scope=\"row\">Row 1") != NULL);
+    bool has_row_scope_2 = (strstr(html, "<th scope=\"row\">Row 2</th>") != NULL) ||
+                           (strstr(html, "scope=\"row\">Row 2") != NULL);
     if (has_row_scope_1 && has_row_scope_2) {
         test_result(true, "Row-header table: first row header cell");
         test_result(true, "Row-header table: second row header cell");

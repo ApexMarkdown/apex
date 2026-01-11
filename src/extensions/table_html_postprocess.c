@@ -591,8 +591,10 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
         }
         /* Also check for rowspan markers (^^) - these need processing even without other attributes */
         bool has_rowspan_markers = (strstr(html, "^^") != NULL);
-        if (!has_alignment_colons && !has_rowspan_markers) {
-            /* No alignment colons or rowspan markers found, return early */
+        /* Also check for empty first header cell - this indicates row-header detection is needed */
+        bool needs_row_header_detection = (strstr(html, "<thead>") != NULL);
+        if (!has_alignment_colons && !has_rowspan_markers && !needs_row_header_detection) {
+            /* No alignment colons, rowspan markers, or row-header detection needed - return early */
             return (char *)html;
         }
     } else {
