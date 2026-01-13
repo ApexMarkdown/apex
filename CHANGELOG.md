@@ -2,36 +2,70 @@
 
 All notable changes to Apex will be documented in this file.
 
-## 0.1.49
+## [0.1.52] - 2026-01-11
+
+### Changed
+
+- Per-cell alignment is now enabled by default only in unified mode, disabled in all other modes (CommonMark, GFM, MultiMarkdown, Kramdown)
 
 ### New
 
-- Added standalone HTML document generation method with stylesheet and title support
-- Added pretty-printing option method for formatted HTML output
-- Added dictionary-based options method for flexible configuration
-- Added Swift-friendly convenience method combining common options (generateHeaderIDs, hardBreaks, pretty)
-- Added instance methods (apexHTML and apexHTMLWithMode) for fluent NSString usage
-- Added Swift API wrapper (Apex.swift) with type-safe ApexMode enum and ApexOptions struct
-- Added String extensions providing idiomatic Swift API for Markdown conversion
-- Added static Apex converter struct for functional-style Swift usage
-- Swift Package Manager (SPM) support - Apex can now be added as a package dependency in Xcode projects via SPM
-- IOS support - Apex now supports iOS 11+ in addition to macOS 10.13+ through bundled libyaml dependency
-- Module map for Swift C API imports - Added module.modulemap to enable direct C API access from Swift
-- Add Package.swift for Swift Package Manager integration
-- Add module.modulemap for Swift/Objective-C interop
-- Add SPM test script and test project
+- Table preprocessing converts consecutive pipes without whitespace (|||) to << markers for colspan detection, distinguishing between whitespace-separated empty cells (|  |  |) which remain separate and consecutive pipes (|||) which create colspans.
+- Table cells can now specify alignment by adding colons at the start and/or end of cell content: leading colon (:) for left-align, trailing colon (:) for right-align, or both (:content:) for center-align. The colons are stripped from the output and replaced with style="text-align: ..." attributes.
+- Added --per-cell-alignment and --no-per-cell-alignment CLI flags to enable or disable per-cell alignment markers in tables
+- Added tests to verify colspan behavior with consecutive pipes vs empty cells with whitespace
 
 ### Improved
 
-- Framework build now includes module map for proper Swift module support
-- Add default initializer to ApexOptions struct for better Swift ergonomics
+- Colspan attribute injection in HTML post-processing now includes fallback matching that checks nearby rows when position-based matching fails, ensuring colspan attributes are applied correctly even when row indices shift due to removed cells.
+- HTML post-processing now removes cells containing &lt;&lt; markers (entity-encoded <<) that were missed by AST-level removal.
+- Cell text extraction for attribute matching now recursively checks nested text nodes (paragraphs, etc.) to properly match cells with complex content structures.
+- Colspan merge logic now preserves cell alignment styles when cells are merged together, ensuring alignment attributes are maintained correctly when cells span multiple columns.
+- Per-cell alignment processing is now conditional and only runs when the feature is enabled, improving performance when disabled
+- Row-header detection in tables now correctly identifies empty first header cells
 
 ### Fixed
 
-- Swift/Objective-C bridging issues in Apex.swift to work correctly with SPM module structure
-- Fix node type declarations to use enum values instead of extern variables for better module compatibility
+- Colspan detection now only triggers on cells with << markers (from consecutive pipes), not plain empty cells, so whitespace-separated pipes create separate empty cells as intended.
+- Cells with << markers now always merge with previous cell to create colspan, even when followed by additional content in subsequent cells.
+- Colspan now only merges consecutive empty cells (|||), not empty cells with whitespace between pipes (|    |)
+- Email autolinking no longer converts @ symbols in URLs to email addresses (e.g., Mastodon profile links like https://hachyderm.io/@ttscoff)
+- Email autolinking now requires that the @ symbol is preceded by an alphanumeric character (not space or punctuation)
+- Email autolinking now requires a TLD (top-level domain) to match, so only [user]@[domain].[tld] format is autolinked
+- Email autolinking is now skipped inside markdown link URLs [text](url) to prevent incorrect conversions
+- Row-header tables (tables with empty first header cell) now correctly convert first-column body cells to `<th scope="row">` even when `relaxed_tables` is disabled
 
-## 0.1.50
+## [0.1.51] - 2026-01-09
+
+### New
+
+- Support for : Caption syntax before tables, with or without IAL attributes
+- Caption format now works before tables (previously only worked after tables)
+- Added tests for : Caption before tables (basic, with IAL, without blank line)
+- Add regression test to ensure table parsing works correctly when files don't end with a newline, preventing future regressions
+- Add regression test to ensure table parsing works correctly when files use CR line endings, preventing future regressions with Table: Caption syntax
+
+### Improved
+
+- Definition list processor now skips : Caption lines that are followed by tables to avoid conflicts
+- Table caption detection now handles blank lines between captions and tables
+- Paragraph removal logic now recognizes and removes : Caption format paragraphs from output
+- Refactored test suite to use centralized test_result() and test_resultf() helper functions instead of scattered printf statements with manual errors_only_output checks
+
+### Fixed
+
+- Buffer overflow in stdin reading that caused segfaults when piping from pbpaste
+- Prevent memory leak in is_table_caption by only storing full_text in user_data when caption is confirmed, not before validation
+- Fix potential crash when processing multiple tables by ensuring full_text is properly freed when caption validation fails
+- Fix double-free in add_table_caption by checking for existing caption before freeing user_data, preventing use-after-free errors
+- Fix : Caption lines before tables being incorrectly parsed as definition lists by always treating them as captions when followed by a table, regardless of IAL presence or blank lines
+- Fix table parsing issue where last row of first table is not parsed when file doesn't end with a newline by normalizing input to always end with a line ending character before preprocessing and parsing
+- Normalization breaking file includes
+- Fix table parsing issue where last row of first table is not parsed when file doesn't end with a newline by normalizing input to always end with a line ending character before table preprocessing and final parsing
+- Fix Table: Caption syntax not being processed when file uses CR line endings by updating table caption preprocessing to handle CR, LF, and CRLF line endings correctly
+- --errors-only flag now correctly suppresses all passing test output, including negative tests that pass
+
+## [0.1.50] - 2026-01-04
 
 ### Changed
 
@@ -67,68 +101,34 @@ All notable changes to Apex will be documented in this file.
 - Definition lists are no longer incorrectly processed inside fenced code blocks. The definition list preprocessor now detects code block boundaries and distinguishes between closing fences (```) and opening fences (```markdown). When inside a code block, only closing fences exit the block, while opening fences with language identifiers are treated as content, preventing definition list syntax from being rendered as HTML in code examples.
 - Fixed double-free memory error in definition list preprocessor by setting ref_definitions to NULL after freeing and adding NULL checks in error paths to prevent attempting to free already-freed memory.
 
-## 0.1.51
+## [0.1.49] - 2026-01-03
 
 ### New
 
-- Support for : Caption syntax before tables, with or without IAL attributes
-- Caption format now works before tables (previously only worked after tables)
-- Added tests for : Caption before tables (basic, with IAL, without blank line)
-- Add regression test to ensure table parsing works correctly when files don't end with a newline, preventing future regressions
-- Add regression test to ensure table parsing works correctly when files use CR line endings, preventing future regressions with Table: Caption syntax
+- Added standalone HTML document generation method with stylesheet and title support
+- Added pretty-printing option method for formatted HTML output
+- Added dictionary-based options method for flexible configuration
+- Added Swift-friendly convenience method combining common options (generateHeaderIDs, hardBreaks, pretty)
+- Added instance methods (apexHTML and apexHTMLWithMode) for fluent NSString usage
+- Added Swift API wrapper (Apex.swift) with type-safe ApexMode enum and ApexOptions struct
+- Added String extensions providing idiomatic Swift API for Markdown conversion
+- Added static Apex converter struct for functional-style Swift usage
+- Swift Package Manager (SPM) support - Apex can now be added as a package dependency in Xcode projects via SPM
+- IOS support - Apex now supports iOS 11+ in addition to macOS 10.13+ through bundled libyaml dependency
+- Module map for Swift C API imports - Added module.modulemap to enable direct C API access from Swift
+- Add Package.swift for Swift Package Manager integration
+- Add module.modulemap for Swift/Objective-C interop
+- Add SPM test script and test project
 
 ### Improved
 
-- Definition list processor now skips : Caption lines that are followed by tables to avoid conflicts
-- Table caption detection now handles blank lines between captions and tables
-- Paragraph removal logic now recognizes and removes : Caption format paragraphs from output
-- Refactored test suite to use centralized test_result() and test_resultf() helper functions instead of scattered printf statements with manual errors_only_output checks
+- Framework build now includes module map for proper Swift module support
+- Add default initializer to ApexOptions struct for better Swift ergonomics
 
 ### Fixed
 
-- Buffer overflow in stdin reading that caused segfaults when piping from pbpaste
-- Prevent memory leak in is_table_caption by only storing full_text in user_data when caption is confirmed, not before validation
-- Fix potential crash when processing multiple tables by ensuring full_text is properly freed when caption validation fails
-- Fix double-free in add_table_caption by checking for existing caption before freeing user_data, preventing use-after-free errors
-- Fix : Caption lines before tables being incorrectly parsed as definition lists by always treating them as captions when followed by a table, regardless of IAL presence or blank lines
-- Fix table parsing issue where last row of first table is not parsed when file doesn't end with a newline by normalizing input to always end with a line ending character before preprocessing and parsing
-- Normalization breaking file includes
-- Fix table parsing issue where last row of first table is not parsed when file doesn't end with a newline by normalizing input to always end with a line ending character before table preprocessing and final parsing
-- Fix Table: Caption syntax not being processed when file uses CR line endings by updating table caption preprocessing to handle CR, LF, and CRLF line endings correctly
-- --errors-only flag now correctly suppresses all passing test output, including negative tests that pass
-
-## 0.1.52
-
-### Changed
-
-- Per-cell alignment is now enabled by default only in unified mode, disabled in all other modes (CommonMark, GFM, MultiMarkdown, Kramdown)
-
-### New
-
-- Table preprocessing converts consecutive pipes without whitespace (|||) to << markers for colspan detection, distinguishing between whitespace-separated empty cells (|  |  |) which remain separate and consecutive pipes (|||) which create colspans.
-- Table cells can now specify alignment by adding colons at the start and/or end of cell content: leading colon (:) for left-align, trailing colon (:) for right-align, or both (:content:) for center-align. The colons are stripped from the output and replaced with style="text-align: ..." attributes.
-- Added --per-cell-alignment and --no-per-cell-alignment CLI flags to enable or disable per-cell alignment markers in tables
-- Added tests to verify colspan behavior with consecutive pipes vs empty cells with whitespace
-
-### Improved
-
-- Colspan attribute injection in HTML post-processing now includes fallback matching that checks nearby rows when position-based matching fails, ensuring colspan attributes are applied correctly even when row indices shift due to removed cells.
-- HTML post-processing now removes cells containing &lt;&lt; markers (entity-encoded <<) that were missed by AST-level removal.
-- Cell text extraction for attribute matching now recursively checks nested text nodes (paragraphs, etc.) to properly match cells with complex content structures.
-- Colspan merge logic now preserves cell alignment styles when cells are merged together, ensuring alignment attributes are maintained correctly when cells span multiple columns.
-- Per-cell alignment processing is now conditional and only runs when the feature is enabled, improving performance when disabled
-- Row-header detection in tables now correctly identifies empty first header cells
-
-### Fixed
-
-- Colspan detection now only triggers on cells with << markers (from consecutive pipes), not plain empty cells, so whitespace-separated pipes create separate empty cells as intended.
-- Cells with << markers now always merge with previous cell to create colspan, even when followed by additional content in subsequent cells.
-- Colspan now only merges consecutive empty cells (|||), not empty cells with whitespace between pipes (|    |)
-- Email autolinking no longer converts @ symbols in URLs to email addresses (e.g., Mastodon profile links like https://hachyderm.io/@ttscoff)
-- Email autolinking now requires that the @ symbol is preceded by an alphanumeric character (not space or punctuation)
-- Email autolinking now requires a TLD (top-level domain) to match, so only [user]@[domain].[tld] format is autolinked
-- Email autolinking is now skipped inside markdown link URLs [text](url) to prevent incorrect conversions
-- Row-header tables (tables with empty first header cell) now correctly convert first-column body cells to `<th scope="row">` even when `relaxed_tables` is disabled
+- Swift/Objective-C bridging issues in Apex.swift to work correctly with SPM module structure
+- Fix node type declarations to use enum values instead of extern variables for better module compatibility
 
 ## [0.1.48] - 2026-01-03
 
@@ -2171,3 +2171,4 @@ https://github.com/ttscoff/apex/releases/tag/v0.1.10
 [0.1.1]: https://github.com/ttscoff/apex/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ttscoff/apex/releases/tag/v0.1.0
 
+z
