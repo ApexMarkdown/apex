@@ -164,11 +164,14 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)\n");
     fprintf(stderr, "  --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times\n");
     fprintf(stderr, "  --captions POSITION    Table caption position: above or below (default: below)\n");
+    fprintf(stderr, "  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, or abbreviations p, s)\n");
+    fprintf(stderr, "  --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)\n");
     fprintf(stderr, "  --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream\n");
     fprintf(stderr, "                         When a SUMMARY.md file is provided, treat it as a GitBook index and combine\n");
     fprintf(stderr, "                         the linked files in order. Output is raw Markdown suitable for piping back into Apex.\n");
     fprintf(stderr, "  --csl FILE              Citation style file (CSL format)\n");
-    fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file in document head (requires --standalone, overrides CSS metadata)\n");
+    fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file(s) in document head (requires --standalone, overrides CSS metadata)\n");
+    fprintf(stderr, "                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)\n");
     fprintf(stderr, "  --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)\n");
     fprintf(stderr, "  --embed-images         Embed local images as base64 data URLs in HTML output\n");
     fprintf(stderr, "  --hardbreaks           Treat newlines as hard breaks\n");
@@ -957,6 +960,11 @@ int main(int argc, char *argv[]) {
     size_t bibliography_count = 0;
     size_t bibliography_capacity = 4;
 
+    /* Stylesheet files (NULL-terminated array) */
+    char **stylesheet_files = NULL;
+    size_t stylesheet_count = 0;
+    size_t stylesheet_capacity = 4;
+
     /* Script tags (NULL-terminated array of raw <script> HTML snippets) */
     char **script_tags = NULL;
     size_t script_tag_count = 0;
@@ -1038,8 +1046,69 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: %s requires an argument\n", argv[i-1]);
                 return 1;
             }
-            options.stylesheet_path = argv[i];
             options.standalone = true;  /* Imply standalone if CSS is specified */
+            
+            /* Parse comma-separated stylesheet paths */
+            const char *arg = argv[i];
+            const char *start = arg;
+            while (*arg) {
+                /* Find comma or end of string */
+                while (*arg && *arg != ',') {
+                    arg++;
+                }
+                
+                /* Extract this stylesheet path */
+                size_t len = arg - start;
+                if (len > 0) {
+                    /* Skip leading whitespace */
+                    while (len > 0 && (*start == ' ' || *start == '\t')) {
+                        start++;
+                        len--;
+                    }
+                    /* Skip trailing whitespace */
+                    while (len > 0 && (start[len - 1] == ' ' || start[len - 1] == '\t')) {
+                        len--;
+                    }
+                    
+                    if (len > 0) {
+                        /* Allocate or reallocate stylesheet files array */
+                        if (!stylesheet_files) {
+                            stylesheet_files = malloc(stylesheet_capacity * sizeof(char*));
+                            if (!stylesheet_files) {
+                                fprintf(stderr, "Error: Memory allocation failed\n");
+                                return 1;
+                            }
+                        } else if (stylesheet_count >= stylesheet_capacity) {
+                            stylesheet_capacity *= 2;
+                            char **new_files = realloc(stylesheet_files, stylesheet_capacity * sizeof(char*));
+                            if (!new_files) {
+                                fprintf(stderr, "Error: Memory allocation failed\n");
+                                return 1;
+                            }
+                            stylesheet_files = new_files;
+                        }
+                        
+                        /* Allocate and copy the stylesheet path */
+                        stylesheet_files[stylesheet_count] = malloc(len + 1);
+                        if (!stylesheet_files[stylesheet_count]) {
+                            fprintf(stderr, "Error: Memory allocation failed\n");
+                            return 1;
+                        }
+                        memcpy(stylesheet_files[stylesheet_count], start, len);
+                        stylesheet_files[stylesheet_count][len] = '\0';
+                        stylesheet_count++;
+                    }
+                }
+                
+                /* Skip comma and any following whitespace */
+                if (*arg == ',') {
+                    arg++;
+                    while (*arg == ' ' || *arg == '\t') {
+                        arg++;
+                    }
+                    start = arg;
+                }
+            }
         } else if (strcmp(argv[i], "--embed-css") == 0) {
             options.embed_stylesheet = true;
         } else if (strcmp(argv[i], "--script") == 0) {
@@ -1201,6 +1270,22 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --captions must be 'above' or 'below'\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "--code-highlight") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --code-highlight requires a tool name (pygments, skylighting, or abbreviations p, s)\n");
+                return 1;
+            }
+            /* Accept full names and abbreviations */
+            if (strcmp(argv[i], "pygments") == 0 || strcmp(argv[i], "p") == 0 || strcmp(argv[i], "pyg") == 0) {
+                options.code_highlighter = "pygments";
+            } else if (strcmp(argv[i], "skylighting") == 0 || strcmp(argv[i], "s") == 0 || strcmp(argv[i], "sky") == 0) {
+                options.code_highlighter = "skylighting";
+            } else {
+                fprintf(stderr, "Error: --code-highlight tool must be 'pygments' (p) or 'skylighting' (s)\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--code-line-numbers") == 0) {
+            options.code_line_numbers = true;
         } else if (strcmp(argv[i], "--alpha-lists") == 0) {
             options.allow_alpha_lists = true;
         } else if (strcmp(argv[i], "--no-alpha-lists") == 0) {
@@ -2141,6 +2226,19 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Set stylesheet files in options (NULL-terminated array) */
+    char **saved_stylesheet_files = NULL;
+    if (stylesheet_count > 0) {
+        stylesheet_files = realloc(stylesheet_files, (stylesheet_count + 1) * sizeof(char*));
+        if (stylesheet_files) {
+            stylesheet_files[stylesheet_count] = NULL;  /* NULL terminator */
+            options.stylesheet_paths = (const char **)stylesheet_files;
+            options.stylesheet_count = stylesheet_count;
+            /* Save reference in case metadata mode resets options */
+            saved_stylesheet_files = stylesheet_files;
+        }
+    }
+
     /* Apply metadata to options - allows per-document control of command-line options */
     /* Note: Bibliography file loading from metadata will be handled in citations extension */
     if (merged_metadata) {
@@ -2148,6 +2246,11 @@ int main(int argc, char *argv[]) {
         /* Restore bibliography files if they were lost (e.g., if mode was set in metadata) */
         if (saved_bibliography_files && !options.bibliography_files) {
             options.bibliography_files = saved_bibliography_files;
+        }
+        /* Restore stylesheet files if they were lost (e.g., if mode was set in metadata) */
+        if (saved_stylesheet_files && !options.stylesheet_paths) {
+            options.stylesheet_paths = (const char **)saved_stylesheet_files;
+            options.stylesheet_count = stylesheet_count;
         }
     }
 

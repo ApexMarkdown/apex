@@ -2650,7 +2650,14 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
         } else if (strcasecmp(key, "title") == 0) {
             options->document_title = value;
         } else if (strcasecmp(key, "style") == 0 || strcasecmp(key, "css") == 0) {
-            options->stylesheet_path = value;
+            /* Metadata only supports single CSS file, so create array with one element */
+            const char **css_array = malloc(2 * sizeof(const char*));
+            if (css_array) {
+                css_array[0] = value;
+                css_array[1] = NULL;
+                options->stylesheet_paths = css_array;
+                options->stylesheet_count = 1;
+            }
             options->standalone = true;  /* Imply standalone if CSS is specified */
         } else if (strcasecmp(key, "id-format") == 0 || strcasecmp(key, "id_format") == 0) {
             /* Convert string to enum: gfm=0, mmd=1, kramdown=2 */

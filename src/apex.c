@@ -39,6 +39,7 @@
 #include "extensions/citations.h"
 #include "extensions/index.h"
 #include "extensions/fenced_divs.h"
+#include "extensions/syntax_highlight.h"
 #include "plugins.h"
 
 /* Custom renderer */
@@ -2477,7 +2478,8 @@ apex_options apex_options_default(void) {
     opts.github_pre_lang = true;
     opts.standalone = false;
     opts.pretty = false;
-    opts.stylesheet_path = NULL;
+    opts.stylesheet_paths = NULL;
+    opts.stylesheet_count = 0;
     opts.document_title = NULL;
 
     /* Line breaks */
@@ -2540,6 +2542,10 @@ apex_options apex_options_default(void) {
 
     /* Emoji options */
     opts.enable_emoji_autocorrect = true;  /* Enabled by default in unified mode */
+
+    /* Syntax highlighting options */
+    opts.code_highlighter = NULL;   /* Default: no external syntax highlighting */
+    opts.code_line_numbers = false; /* Default: no line numbers */
 
     /* Source file information (used by plugins via APEX_FILE_PATH) */
     opts.input_file_path = NULL;
@@ -3767,6 +3773,17 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Apply external syntax highlighting if requested */
+    if (options->code_highlighter && html) {
+        PROFILE_START(syntax_highlight);
+        char *highlighted = apex_apply_syntax_highlighting(html, options->code_highlighter, options->code_line_numbers);
+        PROFILE_END(syntax_highlight);
+        if (highlighted && highlighted != html) {
+            free(html);
+            html = highlighted;
+        }
+    }
+
     /* Replace abbreviations if any were found */
     if (abbreviations && html) {
         PROFILE_START(abbreviations);
@@ -4005,10 +4022,22 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Wrap in complete HTML document if requested */
     if (local_opts.standalone && html) {
         /* CSS precedence: CLI flag (--css/--style) overrides metadata */
-        const char *css_path = local_opts.stylesheet_path;
-        if (!css_path) {
-            css_path = css_metadata;  /* Use extracted metadata value */
+        const char **css_paths = local_opts.stylesheet_paths;
+        size_t css_count = local_opts.stylesheet_count;
+        
+        /* If no CLI stylesheets, check metadata for single CSS path */
+        if (!css_paths || css_count == 0) {
+            if (css_metadata) {
+                /* Allocate array for single metadata stylesheet */
+                css_paths = malloc(2 * sizeof(const char*));
+                if (css_paths) {
+                    css_paths[0] = css_metadata;
+                    css_paths[1] = NULL;
+                    css_count = 1;
+                }
+            }
         }
+        
         /* Combine any existing HTML footer metadata with scripts (footer first, then scripts) */
         char *footer_with_scripts = NULL;
         if (html_footer_metadata || scripts_html) {
@@ -4037,10 +4066,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         const char *footer_to_use = footer_with_scripts ? footer_with_scripts : html_footer_metadata;
 
         PROFILE_START(standalone_wrap);
-        char *document = apex_wrap_html_document(html, local_opts.document_title, css_path,
-                                                 html_header_metadata, footer_to_use,
+        char *document = apex_wrap_html_document(html, local_opts.document_title, css_paths, css_count,
+                                                 local_opts.code_highlighter, html_header_metadata, footer_to_use,
                                                  language_metadata);
         PROFILE_END(standalone_wrap);
+        
+        /* Free temporary metadata stylesheet array if we allocated it */
+        if (css_paths && css_paths[0] == css_metadata) {
+            free((void*)css_paths);
+        }
         if (document) {
             free(html);
             html = document;
@@ -4050,92 +4084,94 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             free(footer_with_scripts);
         }
 
-        /* If requested, replace stylesheet link with embedded CSS contents */
-        if (html && css_path && local_opts.embed_stylesheet) {
-            /* Attempt to read CSS file from css_path, falling back to base_directory/css_path */
-            char *css_content = NULL;
-            size_t css_len = 0;
+        /* If requested, replace stylesheet links with embedded CSS contents */
+        if (html && css_paths && css_count > 0 && local_opts.embed_stylesheet) {
+            /* Process each stylesheet in reverse order to maintain correct positions */
+            for (int i = (int)css_count - 1; i >= 0; i--) {
+                if (!css_paths[i]) continue;
+                
+                const char *css_path = css_paths[i];
+                char *css_content = NULL;
+                size_t css_len = 0;
 
-            /* Helper lambda-like block to read file into memory */
-            {
-                FILE *css_fp = fopen(css_path, "rb");
-                if (!css_fp && local_opts.base_directory && local_opts.base_directory[0] != '\0') {
-                    /* Try base_directory + "/" + css_path */
-                    size_t base_len = strlen(local_opts.base_directory);
-                    size_t path_len = strlen(css_path);
-                    size_t full_len = base_len + 1 + path_len + 1;
-                    char *full_path = malloc(full_len);
-                    if (full_path) {
-                        snprintf(full_path, full_len, "%s/%s", local_opts.base_directory, css_path);
-                        css_fp = fopen(full_path, "rb");
-                        free(full_path);
+                /* Helper lambda-like block to read file into memory */
+                {
+                    FILE *css_fp = fopen(css_path, "rb");
+                    if (!css_fp && local_opts.base_directory && local_opts.base_directory[0] != '\0') {
+                        /* Try base_directory + "/" + css_path */
+                        size_t base_len = strlen(local_opts.base_directory);
+                        size_t path_len = strlen(css_path);
+                        size_t full_len = base_len + 1 + path_len + 1;
+                        char *full_path = malloc(full_len);
+                        if (full_path) {
+                            snprintf(full_path, full_len, "%s/%s", local_opts.base_directory, css_path);
+                            css_fp = fopen(full_path, "rb");
+                            free(full_path);
+                        }
+                    }
+
+                    if (css_fp) {
+                        if (fseek(css_fp, 0, SEEK_END) == 0) {
+                            long fsize = ftell(css_fp);
+                            if (fsize >= 0 && fsize < 10 * 1024 * 1024) { /* 10MB safety limit */
+                                rewind(css_fp);
+                                css_content = malloc((size_t)fsize + 1);
+                                if (css_content) {
+                                    css_len = fread(css_content, 1, (size_t)fsize, css_fp);
+                                    css_content[css_len] = '\0';
+                                }
+                            }
+                        }
+                        fclose(css_fp);
                     }
                 }
 
-                if (css_fp) {
-                    if (fseek(css_fp, 0, SEEK_END) == 0) {
-                        long fsize = ftell(css_fp);
-                        if (fsize >= 0 && fsize < 10 * 1024 * 1024) { /* 10MB safety limit */
-                            rewind(css_fp);
-                            css_content = malloc((size_t)fsize + 1);
-                            if (css_content) {
-                                css_len = fread(css_content, 1, (size_t)fsize, css_fp);
-                                css_content[css_len] = '\0';
+                if (css_content && css_len > 0) {
+                    /* Build the exact link line we expect from apex_wrap_html_document */
+                    char link_line[2048];
+                    int link_n = snprintf(link_line, sizeof(link_line),
+                                          "  <link rel=\"stylesheet\" href=\"%s\">\n",
+                                          css_path);
+                    if (link_n > 0 && (size_t)link_n < sizeof(link_line)) {
+                        char *pos = strstr(html, link_line);
+                        if (pos) {
+                            size_t html_len = strlen(html);
+                            size_t link_len = (size_t)link_n;
+                            const char *style_prefix = "  <style>\n";
+                            const char *style_suffix = "\n  </style>\n";
+                            size_t prefix_len = strlen(style_prefix);
+                            size_t suffix_len = strlen(style_suffix);
+
+                            size_t new_len = html_len - link_len + prefix_len + css_len + suffix_len;
+                            char *embedded = malloc(new_len + 1);
+                            if (embedded) {
+                                size_t before_len = (size_t)(pos - html);
+                                memcpy(embedded, html, before_len);
+                                size_t offset = before_len;
+
+                                memcpy(embedded + offset, style_prefix, prefix_len);
+                                offset += prefix_len;
+
+                                memcpy(embedded + offset, css_content, css_len);
+                                offset += css_len;
+
+                                memcpy(embedded + offset, style_suffix, suffix_len);
+                                offset += suffix_len;
+
+                                size_t after_len = html_len - before_len - link_len;
+                                if (after_len > 0) {
+                                    memcpy(embedded + offset, pos + link_len, after_len);
+                                    offset += after_len;
+                                }
+
+                                embedded[offset] = '\0';
+                                free(html);
+                                html = embedded;
                             }
                         }
                     }
-                    fclose(css_fp);
+                    free(css_content);
                 }
-            }
-
-            if (css_content && css_len > 0) {
-                /* Build the exact link line we expect from apex_wrap_html_document */
-                char link_line[2048];
-                int link_n = snprintf(link_line, sizeof(link_line),
-                                      "  <link rel=\"stylesheet\" href=\"%s\">\n",
-                                      css_path);
-                if (link_n > 0 && (size_t)link_n < sizeof(link_line)) {
-                    char *pos = strstr(html, link_line);
-                    if (pos) {
-                        size_t html_len = strlen(html);
-                        size_t link_len = (size_t)link_n;
-                        const char *style_prefix = "  <style>\n";
-                        const char *style_suffix = "\n  </style>\n";
-                        size_t prefix_len = strlen(style_prefix);
-                        size_t suffix_len = strlen(style_suffix);
-
-                        size_t new_len = html_len - link_len + prefix_len + css_len + suffix_len;
-                        char *embedded = malloc(new_len + 1);
-                        if (embedded) {
-                            size_t before_len = (size_t)(pos - html);
-                            memcpy(embedded, html, before_len);
-                            size_t offset = before_len;
-
-                            memcpy(embedded + offset, style_prefix, prefix_len);
-                            offset += prefix_len;
-
-                            memcpy(embedded + offset, css_content, css_len);
-                            offset += css_len;
-
-                            memcpy(embedded + offset, style_suffix, suffix_len);
-                            offset += suffix_len;
-
-                            size_t after_len = html_len - before_len - link_len;
-                            if (after_len > 0) {
-                                memcpy(embedded + offset, pos + link_len, after_len);
-                                offset += after_len;
-                            }
-
-                            embedded[offset] = '\0';
-                            free(html);
-                            html = embedded;
-                        }
-                    }
-                }
-            }
-
-            if (css_content) {
-                free(css_content);
             }
         }
     } else if (html && scripts_html) {
@@ -4223,7 +4259,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 /**
  * Wrap HTML content in complete HTML5 document structure
  */
-char *apex_wrap_html_document(const char *content, const char *title, const char *stylesheet_path, const char *html_header, const char *html_footer, const char *language) {
+char *apex_wrap_html_document(const char *content, const char *title, const char **stylesheet_paths, size_t stylesheet_count, const char *code_highlighter, const char *html_header, const char *html_footer, const char *language) {
     if (!content) return NULL;
 
     const char *doc_title = title ? title : "Document";
@@ -4279,12 +4315,23 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
         }
     }
     size_t title_len = strlen(doc_title);
-    size_t style_len = stylesheet_path ? strlen(stylesheet_path) : 0;
+    /* Calculate total length for all stylesheet links */
+    size_t style_len = 0;
+    if (stylesheet_paths && stylesheet_count > 0) {
+        for (size_t i = 0; i < stylesheet_count && stylesheet_paths[i]; i++) {
+            style_len += strlen(stylesheet_paths[i]) + 50; /* +50 for link tag overhead */
+        }
+    }
+    /* Add space for syntax highlighting CSS if needed */
+    size_t syntax_css_len = 0;
+    if (code_highlighter) {
+        syntax_css_len = 8000; /* Approximate size for syntax CSS */
+    }
     size_t header_len = html_header ? strlen(html_header) : 0;
     size_t footer_len = html_footer ? strlen(html_footer) : 0;
     size_t lang_len = strlen(lang);
-    /* Need generous space for styles (1.5KB) + structure + header + footer */
-    size_t capacity = content_len + title_len + style_len + header_len + footer_len + lang_len + 4096;
+    /* Need generous space for styles (1.5KB) + structure + header + footer + syntax CSS */
+    size_t capacity = content_len + title_len + style_len + syntax_css_len + header_len + footer_len + lang_len + 4096;
 
     char *output = malloc(capacity + 1);  /* +1 for null terminator */
     if (!output) return strdup(content);
@@ -4297,6 +4344,8 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
     if (!version_str) version_str = "unknown";
 
     /* HTML5 doctype and opening */
+    /* Add body class if code highlighting is enabled */
+    const char *body_class = code_highlighter ? " class=\"code-highlighted\"" : "";
     int n = snprintf(write, remaining, "<!DOCTYPE html>\n<html lang=\"%s\">\n<head>\n", lang);
     if (n < 0 || (size_t)n >= remaining) {
         free(output);
@@ -4339,15 +4388,238 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
     write += n;
     remaining -= n;
 
-    /* Stylesheet link if provided */
-    if (stylesheet_path) {
-        n = snprintf(write, remaining, "  <link rel=\"stylesheet\" href=\"%s\">\n", stylesheet_path);
+    /* Syntax highlighting CSS if code highlighter is enabled */
+    if (code_highlighter) {
+        /* Write CSS directly to buffer to avoid string literal length warning */
+        n = snprintf(write, remaining, "  <style>\n"
+            "    /* GitHub-style syntax highlighting for Pygments and Skylighting */\n"
+            "    /* Don't apply background to wrapper when code highlighting is enabled - let default styles handle it */\n"
+            "    .code-highlighted .highlight, .code-highlighted .sourceCode { background: inherit; border-radius: 6px; padding: 16px; overflow-x: auto; }\n"
+            "    .highlight pre, .sourceCode pre { margin: 0; padding: 0; background: transparent; }\n"
+            "    .highlight code, .sourceCode code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.45; }\n");
+        if (n < 0 || (size_t)n >= remaining) {
+            /* Need to expand buffer */
+            size_t written = write - output;
+            size_t new_cap = (written + 6000) * 2;
+            char *new_output = realloc(output, new_cap);
+            if (!new_output) {
+                free(output);
+                return strdup(content);
+            }
+            output = new_output;
+            write = output + written;
+            remaining = new_cap - written;
+            capacity = new_cap;
+            /* Retry */
+            n = snprintf(write, remaining, "  <style>\n"
+                "    /* GitHub-style syntax highlighting for Pygments and Skylighting */\n"
+                "    /* Don't apply background to wrapper when code highlighting is enabled - let default styles handle it */\n"
+                "    .code-highlighted .highlight, .code-highlighted .sourceCode { background: inherit; border-radius: 6px; padding: 16px; overflow-x: auto; }\n"
+                "    .highlight pre, .sourceCode pre { margin: 0; padding: 0; background: transparent; }\n"
+                "    .highlight code, .sourceCode code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.45; }\n");
+            if (n < 0 || (size_t)n >= remaining) {
+                free(output);
+                return strdup(content);
+            }
+        }
+        write += n;
+        remaining -= n;
+        
+        /* Write Pygments classes comment */
+        n = snprintf(write, remaining, "    /* Pygments classes */\n");
         if (n < 0 || (size_t)n >= remaining) {
             free(output);
             return strdup(content);
         }
         write += n;
         remaining -= n;
+        
+        /* Write Pygments classes in chunks */
+        const char *pygments_css = 
+            "    .highlight .k { color: #d73a49; font-weight: 600; } /* Keyword */\n"
+            "    .highlight .kt { color: #d73a49; } /* Keyword.Type */\n"
+            "    .highlight .kd { color: #d73a49; font-weight: 600; } /* Keyword.Declaration */\n"
+            "    .highlight .kn { color: #d73a49; } /* Keyword.Namespace */\n"
+            "    .highlight .kp { color: #d73a49; } /* Keyword.Pseudo */\n"
+            "    .highlight .kr { color: #d73a49; font-weight: 600; } /* Keyword.Reserved */\n"
+            "    .highlight .n { color: #6f42c1; } /* Name */\n"
+            "    .highlight .na { color: #6f42c1; } /* Name.Attribute */\n"
+            "    .highlight .nc { color: #6f42c1; font-weight: 600; } /* Name.Class */\n"
+            "    .highlight .no { color: #005cc5; } /* Name.Constant */\n"
+            "    .highlight .nd { color: #6f42c1; font-weight: 600; } /* Name.Decorator */\n"
+            "    .highlight .ni { color: #800080; } /* Name.Entity */\n"
+            "    .highlight .ne { color: #990000; font-weight: 600; } /* Name.Exception */\n"
+            "    .highlight .nf { color: #6f42c1; font-weight: 600; } /* Name.Function */\n"
+            "    .highlight .nl { color: #6f42c1; } /* Name.Label */\n"
+            "    .highlight .nn { color: #555; } /* Name.Namespace */\n"
+            "    .highlight .nt { color: #22863a; } /* Name.Tag */\n"
+            "    .highlight .nv { color: #e36209; } /* Name.Variable */\n"
+            "    .highlight .s { color: #032f62; } /* String */\n"
+            "    .highlight .sb { color: #032f62; } /* String.Backtick */\n"
+            "    .highlight .sc { color: #032f62; } /* String.Char */\n"
+            "    .highlight .sd { color: #032f62; } /* String.Doc */\n"
+            "    .highlight .s2 { color: #032f62; } /* String.Double */\n"
+            "    .highlight .se { color: #032f62; } /* String.Escape */\n"
+            "    .highlight .sh { color: #032f62; } /* String.Heredoc */\n"
+            "    .highlight .si { color: #032f62; } /* String.Interpol */\n"
+            "    .highlight .sx { color: #032f62; } /* String.Other */\n"
+            "    .highlight .sr { color: #032f62; } /* String.Regex */\n"
+            "    .highlight .s1 { color: #032f62; } /* String.Single */\n"
+            "    .highlight .ss { color: #032f62; } /* String.Symbol */\n"
+            "    .highlight .c { color: #6a737d; font-style: italic; } /* Comment */\n"
+            "    .highlight .c1 { color: #6a737d; font-style: italic; } /* Comment.Single */\n"
+            "    .highlight .cm { color: #6a737d; font-style: italic; } /* Comment.Multiline */\n"
+            "    .highlight .cp { color: #6a737d; font-weight: 600; } /* Comment.Preproc */\n"
+            "    .highlight .cs { color: #6a737d; font-weight: 600; font-style: italic; } /* Comment.Special */\n"
+            "    .highlight .m { color: #005cc5; } /* Literal.Number */\n"
+            "    .highlight .mb { color: #005cc5; } /* Literal.Number.Bin */\n"
+            "    .highlight .mf { color: #005cc5; } /* Literal.Number.Float */\n"
+            "    .highlight .mh { color: #005cc5; } /* Literal.Number.Hex */\n"
+            "    .highlight .mi { color: #005cc5; } /* Literal.Number.Integer */\n"
+            "    .highlight .il { color: #005cc5; } /* Literal.Number.Integer.Long */\n"
+            "    .highlight .mo { color: #005cc5; } /* Literal.Number.Oct */\n"
+            "    .highlight .o { color: #d73a49; } /* Operator */\n"
+            "    .highlight .ow { color: #d73a49; } /* Operator.Word */\n"
+            "    .highlight .p { color: #24292e; } /* Punctuation */\n"
+            "    .highlight .w { color: #e1e4e8; } /* Text.Whitespace */\n";
+        size_t pygments_len = strlen(pygments_css);
+        if (pygments_len >= remaining) {
+            size_t written = write - output;
+            size_t new_cap = (written + pygments_len + 1) * 2;
+            char *new_output = realloc(output, new_cap);
+            if (!new_output) {
+                free(output);
+                return strdup(content);
+            }
+            output = new_output;
+            write = output + written;
+            remaining = new_cap - written;
+            capacity = new_cap;
+        }
+        memcpy(write, pygments_css, pygments_len);
+        write += pygments_len;
+        remaining -= pygments_len;
+        
+        /* Write Skylighting classes */
+        n = snprintf(write, remaining, "    /* Skylighting classes */\n");
+        if (n < 0 || (size_t)n >= remaining) {
+            free(output);
+            return strdup(content);
+        }
+        write += n;
+        remaining -= n;
+        
+        const char *skylighting_css =
+            "    .sourceCode .kw { color: #d73a49; font-weight: 600; } /* Keyword */\n"
+            "    .sourceCode .dt { color: #6f42c1; } /* DataType */\n"
+            "    .sourceCode .dv { color: #005cc5; } /* DecVal */\n"
+            "    .sourceCode .bn { color: #005cc5; } /* BaseN */\n"
+            "    .sourceCode .fl { color: #005cc5; } /* Float */\n"
+            "    .sourceCode .ch { color: #032f62; } /* Char */\n"
+            "    .sourceCode .st { color: #032f62; } /* String */\n"
+            "    .sourceCode .co { color: #6a737d; font-style: italic; } /* Comment */\n"
+            "    .sourceCode .ot { color: #22863a; } /* Other */\n"
+            "    .sourceCode .al { color: #e36209; font-weight: 600; } /* Alert */\n"
+            "    .sourceCode .fu { color: #6f42c1; font-weight: 600; } /* Function */\n"
+            "    .sourceCode .re { color: #032f62; } /* RegionMarker */\n"
+            "    .sourceCode .er { color: #d73a49; font-weight: 600; } /* Error */\n"
+            "    .sourceCode .cf { color: #d73a49; font-weight: 600; } /* ControlFlow */\n"
+            "    .sourceCode .op { color: #d73a49; } /* Operator */\n"
+            "    .sourceCode .pp { color: #6a737d; } /* Preprocessor */\n"
+            "    .sourceCode .at { color: #005cc5; } /* Attribute */\n"
+            "    .sourceCode .do { color: #6a737d; font-style: italic; } /* Documentation */\n"
+            "    .sourceCode .an { color: #6a737d; font-weight: 600; } /* Annotation */\n"
+            "    .sourceCode .cv { color: #6a737d; font-weight: 600; font-style: italic; } /* CommentVar */\n"
+            "    .sourceCode .in { color: #6a737d; } /* Information */\n"
+            "    .sourceCode .wa { color: #e36209; font-weight: 600; } /* Warning */\n"
+            "    .sourceCode .im { color: #d73a49; } /* Import */\n"
+            "    .sourceCode .bu { color: #005cc5; } /* BuiltIn */\n"
+            "    .sourceCode .ex { color: #6f42c1; } /* Extension */\n"
+            "    .sourceCode .va { color: #e36209; } /* Variable */\n"
+            "    .sourceCode .ss { color: #032f62; } /* SpecialString */\n"
+            "    .sourceCode .sc { color: #032f62; } /* SpecialChar */\n"
+            "    .sourceCode .vs { color: #032f62; } /* VerbatimString */\n"
+            "    .sourceCode .il { color: #005cc5; } /* Special */\n";
+        size_t skylighting_len = strlen(skylighting_css);
+        if (skylighting_len >= remaining) {
+            size_t written = write - output;
+            size_t new_cap = (written + skylighting_len + 1) * 2;
+            char *new_output = realloc(output, new_cap);
+            if (!new_output) {
+                free(output);
+                return strdup(content);
+            }
+            output = new_output;
+            write = output + written;
+            remaining = new_cap - written;
+            capacity = new_cap;
+        }
+        memcpy(write, skylighting_css, skylighting_len);
+        write += skylighting_len;
+        remaining -= skylighting_len;
+        
+        /* Write line numbers CSS and close style tag */
+        n = snprintf(write, remaining,
+            "    /* Line numbers (Skylighting) */\n"
+            "    .sourceCode.numberSource .sourceCode { counter-reset: line; }\n"
+            "    .sourceCode.numberSource .sourceCode > span { position: relative; left: -4em; counter-increment: line; }\n"
+            "    .sourceCode.numberSource .sourceCode > span > a:first-child::before { content: counter(line); position: relative; left: -1em; text-align: right; vertical-align: baseline; border: none; display: inline-block; min-width: 1em; padding-right: 0.5em; color: #aaa; }\n"
+            "  </style>\n");
+        if (n < 0 || (size_t)n >= remaining) {
+            size_t written = write - output;
+            size_t new_cap = (written + 500) * 2;
+            char *new_output = realloc(output, new_cap);
+            if (!new_output) {
+                free(output);
+                return strdup(content);
+            }
+            output = new_output;
+            write = output + written;
+            remaining = new_cap - written;
+            capacity = new_cap;
+            /* Retry */
+            n = snprintf(write, remaining,
+                "    /* Line numbers (Skylighting) */\n"
+                "    .sourceCode.numberSource .sourceCode { counter-reset: line; }\n"
+                "    .sourceCode.numberSource .sourceCode > span { position: relative; left: -4em; counter-increment: line; }\n"
+                "    .sourceCode.numberSource .sourceCode > span > a:first-child::before { content: counter(line); position: relative; left: -1em; text-align: right; vertical-align: baseline; border: none; display: inline-block; min-width: 1em; padding-right: 0.5em; color: #aaa; }\n"
+                "  </style>\n");
+            if (n < 0 || (size_t)n >= remaining) {
+                free(output);
+                return strdup(content);
+            }
+        }
+        write += n;
+        remaining -= n;
+    }
+
+    /* Stylesheet links if provided */
+    if (stylesheet_paths && stylesheet_count > 0) {
+        for (size_t i = 0; i < stylesheet_count && stylesheet_paths[i]; i++) {
+            n = snprintf(write, remaining, "  <link rel=\"stylesheet\" href=\"%s\">\n", stylesheet_paths[i]);
+            if (n < 0 || (size_t)n >= remaining) {
+                /* Need to expand buffer */
+                size_t written = write - output;
+                size_t new_cap = (written + strlen(stylesheet_paths[i]) + 100) * 2;
+                char *new_output = realloc(output, new_cap);
+                if (!new_output) {
+                    free(output);
+                    return strdup(content);
+                }
+                output = new_output;
+                write = output + written;
+                remaining = new_cap - written;
+                capacity = new_cap;
+                /* Retry */
+                n = snprintf(write, remaining, "  <link rel=\"stylesheet\" href=\"%s\">\n", stylesheet_paths[i]);
+                if (n < 0 || (size_t)n >= remaining) {
+                    free(output);
+                    return strdup(content);
+                }
+            }
+            write += n;
+            remaining -= n;
+        }
     } else {
         /* Include minimal default styles */
         const char *styles = "  <style>\n"
@@ -4402,7 +4674,7 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
     }
 
     /* Close head, open body */
-    n = snprintf(write, remaining, "</head>\n<body>\n\n");
+    n = snprintf(write, remaining, "</head>\n<body%s>\n\n", body_class);
     if (n < 0 || (size_t)n >= remaining) {
         free(output);
         return strdup(content);

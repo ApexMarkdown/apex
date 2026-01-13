@@ -75,7 +75,8 @@ typedef struct {
     bool github_pre_lang;  /* Use GitHub code block language format */
     bool standalone;  /* Generate complete HTML document */
     bool pretty;      /* Pretty-print HTML with indentation */
-    const char *stylesheet_path;  /* Path to CSS file to link in head */
+    const char **stylesheet_paths;  /* NULL-terminated array of CSS file paths to link in head */
+    size_t stylesheet_count;        /* Number of stylesheets */
     const char *document_title;   /* Title for HTML document */
 
     /* Line break handling */
@@ -149,6 +150,10 @@ typedef struct {
     /* Emoji options */
     bool enable_emoji_autocorrect;  /* Enable emoji name autocorrect (enabled by default in unified mode) */
 
+    /* Syntax highlighting options */
+    const char *code_highlighter;   /* External tool: "pygments", "skylighting", or NULL for no highlighting */
+    bool code_line_numbers;         /* Enable line numbers in syntax-highlighted code blocks */
+
     /* Source file information for plugins */
     /* When Apex is invoked on a file, this is the full path to that file. */
     /* When reading from stdin, this is either the base directory (if set) or empty. */
@@ -192,7 +197,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
  * @param language Language code for <html lang> attribute (NULL for "en")
  * @return Newly allocated HTML document string (must be freed with apex_free_string)
  */
-char *apex_wrap_html_document(const char *content, const char *title, const char *stylesheet_path, const char *html_header, const char *html_footer, const char *language);
+char *apex_wrap_html_document(const char *content, const char *title, const char **stylesheet_paths, size_t stylesheet_count, const char *code_highlighter, const char *html_header, const char *html_footer, const char *language);
 
 /**
  * Pretty-print HTML with proper indentation

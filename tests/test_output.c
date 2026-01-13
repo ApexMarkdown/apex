@@ -159,7 +159,9 @@ void test_standalone_output(void) {
     apex_free_string(html);
 
     /* Test with custom stylesheet */
-    opts.stylesheet_path = "styles.css";
+    const char *css_paths[] = { "styles.css", NULL };
+    opts.stylesheet_paths = css_paths;
+    opts.stylesheet_count = 1;
     html = apex_markdown_to_html("**Bold**", 8, &opts);
     assert_contains(html, "<link rel=\"stylesheet\" href=\"styles.css\">", "CSS link tag");
     /* Should not have inline styles when stylesheet is provided */
@@ -172,13 +174,15 @@ void test_standalone_output(void) {
 
     /* Test default title */
     opts.document_title = NULL;
-    opts.stylesheet_path = NULL;
+    opts.stylesheet_paths = NULL;
+    opts.stylesheet_count = 0;
     html = apex_markdown_to_html("Content", 7, &opts);
     assert_contains(html, "<title>Document</title>", "Default title");
     apex_free_string(html);
 
     /* Test inline styles when no stylesheet */
-    opts.stylesheet_path = NULL;
+    opts.stylesheet_paths = NULL;
+    opts.stylesheet_count = 0;
     html = apex_markdown_to_html("Content", 7, &opts);
     assert_contains(html, "<style>", "Default inline styles");
     assert_contains(html, "font-family:", "Style rules present");

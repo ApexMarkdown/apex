@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash -o pipefail
 
-.PHONY: bump bump-patch bump-minor bump-major help man build install release release-macos release-linux clean-release
+.PHONY: bump bump-patch bump-minor bump-major help man build install release release-macos release-linux clean-release version
 
 # Default bump type is patch
 TYPE ?= patch
@@ -57,12 +57,19 @@ build:
 	@cmake --build build
 	@echo "Build complete! Binary is in build/ directory."
 
+# Print current version
+version:
+	@echo $(CURRENT_VERSION)
+
 help:
 	@echo "Apex Makefile"
 	@echo ""
 	@echo "Building:"
 	@echo "  make build                  - Build from source (runs cmake configure and build)"
 	@echo "  make install                - Install built binaries and libraries"
+	@echo ""
+	@echo "Version info:"
+	@echo "  make version                - Print current version"
 	@echo ""
 	@echo "Version bumping:"
 	@echo "  make bump [TYPE=patch]     - Bump version (patch/minor/major, defaults to patch)"
