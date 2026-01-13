@@ -1,5 +1,5 @@
 
-[![Version: 0.1.51](https://img.shields.io/badge/Version-0.1.51-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version: 0.1.52](https://img.shields.io/badge/Version-0.1.52-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 981/981](https://img.shields.io/badge/Tests-981/981-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -35,241 +35,109 @@ one tool.
 
 ### Markdown Extensions
 
-**Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, captions before/after tables including Pandoc-style `Table: Caption` and `: Caption` syntax, and individual cell alignment using colons `:Left`, `Right:`, `:Center:`)
-
-- **Table caption positioning**: Control caption placement
-
-  with `--captions above` or `--captions below` (default:
-  below)
-
-**Table caption IAL**: IAL attributes in table captions (e.g., `: Caption {#id .class}`) are extracted and applied to the table element
-
-- **Relaxed tables**: Support for tables without separator
-
-  rows (Kramdown-style)
-
-- **Headerless tables**: Support for tables that start with
-
-  alignment rows (separator rows) without header rows;
-  column alignment is automatically applied
-
-- **Footnotes**: Three syntaxes supported (reference-style,
-
-  Kramdown inline, MultiMarkdown inline)
-
-- **Definition lists**: Kramdown-style definition lists with
-
-  Markdown content support
-
-- **Task lists**: GitHub-style checkboxes (`- [ ]` and `-
-
-  [x]`)
-
+- **Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, captions before/after tables including Pandoc-style `Table: Caption` and `: Caption` syntax, and individual cell alignment using colons `:Left`, `Right:`, `:Center:`)
+- **Table caption positioning**: Control caption placement with `--captions above` or `--captions below` (default: below)
+- **Table caption IAL**: IAL attributes in table captions (e.g., `: Caption {#id .class}`) are extracted and applied to the table element
+- **Relaxed tables**: Support for tables without separator rows (Kramdown-style)
+- **Headerless tables**: Support for tables that start with alignment rows (separator rows) without header rows; column alignment is automatically applied
+- **Footnotes**: Three syntaxes supported (reference-style, Kramdown inline, MultiMarkdown inline)
+- **Definition lists**: Kramdown-style definition lists with Markdown content support
+- **Task lists**: GitHub-style checkboxes (`- [ ]` and `- [x]`)
 - **Strikethrough**: `~~text~~` syntax from GFM
-- **Smart typography**: Automatic conversion of quotes,
+- **Smart typography**: Automatic conversion of quotes, dashes, ellipses, and more
+- **Math support**: LaTeX math expressions with `$...$` (inline) and `$$...$$` (display)
 
-  dashes, ellipses, and more
+- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments or Skylighting with `--code-highlight` flag.
 
-- **Math support**: LaTeX math expressions with `$...$`
+  Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
 
-  (inline) and `$$...$$` (display)
-
-**Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
-
-- **Abbreviations**: Three syntaxes (classic MMD, MMD 6
-
-  reference, MMD 6 inline)
-
-- **Callouts**: Bear/Obsidian-style callouts with
-
-  collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
-
-- **GitHub emoji**: 350+ emoji support (`:rocket:`,
-
-  `:heart:`, etc.)
+- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
+- **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
+- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
+- **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
 
 ### Document Features
 
 
 
-- **Metadata blocks**: YAML front matter, MultiMarkdown
+- **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks
+- **Metadata variables**: Insert metadata values with `[%key]` syntax
+- **Metadata transforms**: Transform metadata values with `[%key:transform]` syntax
 
-  metadata, and Pandoc title blocks
+  Supports case conversion, string manipulation, regex replacement, date formatting, and more.
 
-- **Metadata variables**: Insert metadata values with
+  See [Metadata Transforms](https://github.com/ApexMarkdown/apex/wiki/Metadata-Transforms) for complete documentation
+- **Metadata control of options**: Control command-line options via metadata
+  - set boolean flags (`indices: false`, `wikilinks: true`) and string options (`bibliography: refs.bib`, `title: My Document`, `wikilink-space: dash`, `wikilink-extension: html`) directly in document metadata for per-document configuration
+- **Table of Contents**: Automatic TOC generation with depth control using HTML (`<!--TOC-->`), MMD (`{{TOC}}` / `{{TOC:2-4}}`), and Kramdown `{:toc}` markers. Headings marked with `{:.no_toc}` are excluded from the generated TOC.
+- **File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`), with support for address ranges and wildcard/glob patterns such as `{{file.*}}`, `{{*.md}}`, and `{{c?de.py}}`.
+- **Markdown combiner (`--combine`)**: Concatenate one or more Markdown files into a single Markdown stream, expanding all include syntaxes.
 
-  `[%key]` syntax
+  When a `SUMMARY.md` file is provided, Apex treats it as a GitBook-style index and combines the linked files in order, perfect for building books, multi-file indices, and shared tables of contents that can then be piped back into Apex for final rendering.
+- **MultiMarkdown merge (`--mmd-merge`)**: Read one or more mmd_merge-style index files and stitch their referenced documents into a single Markdown stream.
 
-**Metadata transforms**: Transform metadata values with `[%key:transform]` syntax - supports case conversion, string manipulation, regex replacement, date formatting, and more. See [Metadata Transforms](https://github.com/ApexMarkdown/apex/wiki/Metadata-Transforms) for complete documentation
+  Each non-empty, non-comment line specifies a file to include; indentation with tabs or four-space groups shifts all headings in that file down by one level per indent, mirroring the original `mmd_merge.pl` behavior.
 
-**Metadata control of options**: Control command-line options via metadata - set boolean flags (`indices: false`, `wikilinks: true`) and string options (`bibliography: refs.bib`, `title: My Document`, `wikilink-space: dash`, `wikilink-extension: html`) directly in document metadata for per-document configuration
+  Output is raw Markdown that can be piped into Apex (e.g., `apex --mmd-merge index.txt | apex --mode mmd`).
 
-**Table of Contents**: Automatic TOC generation with depth control using HTML (`<!--TOC-->`), MMD (`{{TOC}}` / `{{TOC:2-4}}`), and Kramdown `{:toc}` markers. Headings marked with `{:.no_toc}` are excluded from the generated TOC.
+- **CSV/TSV support**: Automatic table conversion from CSV and TSV files
+- **Inline Attribute Lists (IAL)**: Kramdown-style attributes `{: #id .class}` and Pandoc-style attributes `{#id .class}`
 
-**File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`), with support for address ranges and wildcard/glob patterns such as `{{file.*}}`, `{{*.md}}`, and `{{c?de.py}}`.
+  Both formats work in all contexts (block-level, inline, paragraphs, headings, table captions)
+- **Bracketed spans**: Convert `[text]{IAL}` syntax to HTML span elements with attributes, enabled by default in unified mode
+- **Fenced divs**: Pandoc-style fenced divs `::::: {#id .class} ... :::::` for creating custom block containers, enabled by default in unified mode.
 
-**Markdown combiner (`--combine`)**: Concatenate one or more Markdown files into a single Markdown stream, expanding all include syntaxes. When a `SUMMARY.md` file is provided, Apex treats it as a GitBook-style index and combines the linked files in order???perfect for building books, multi-file indices, and shared tables of contents that can then be piped back into Apex for final rendering.
-
-**MultiMarkdown merge (`--mmd-merge`)**: Read one or more mmd_merge-style index files and stitch their referenced documents into a single Markdown stream. Each non-empty, non-comment line specifies a file to include; indentation with tabs or four-space groups shifts all headings in that file down by one level per indent, mirroring the original `mmd_merge.pl` behavior. Output is raw Markdown that can be piped into Apex (e.g., `apex --mmd-merge index.txt | apex --mode mmd`).
-
-- **CSV/TSV support**: Automatic table conversion from CSV
-
-  and TSV files
-
-**Inline Attribute Lists (IAL)**: Kramdown-style attributes `{: #id .class}` and Pandoc-style attributes `{#id .class}` - both formats work in all contexts (block-level, inline, paragraphs, headings, table captions)
-
-- **Bracketed spans**: Convert `[text]{IAL}` syntax to HTML
-
-  span elements with attributes, enabled by default in
-  unified mode
-
-**Fenced divs**: Pandoc-style fenced divs `::::: {#id .class} ... :::::` for creating custom block containers, enabled by default in unified mode. Supports block type syntax `>blocktype` to create different HTML elements (e.g., `::: >aside {.sidebar}` creates `<aside>` instead of `<div>`). Common block types include `aside`, `article`, `section`, `details`, `summary`, `header`, `footer`, `nav`, and custom elements
-
-- **Image IAL support**: Inline and reference-style images
-
-  support IAL syntax with automatic width/height conversion
-  (percentages and non-integer/non-px values convert to
-  style attributes, Xpx values convert to integer
-  width/height attributes, bare integers remain as
-  width/height attributes)
-
-**Special markers**: Page breaks (`<!--BREAK-->`), autoscroll pauses (`<!--PAUSE:N-->`), end-of-block markers
+  Supports block type syntax `>blocktype` to create different HTML elements (e.g., `::: >aside {.sidebar}` creates `<aside>` instead of `<div>`). Common block types include `aside`, `article`, `section`, `details`, `summary`, `header`, `footer`, `nav`, and custom elements
+- **Image IAL support**: Inline and reference-style images support IAL syntax with automatic width/height conversion (percentages and non-integer/non-px values convert to style attributes, Xpx values convert to integer width/height attributes, bare integers remain as width/height attributes)
+- **Special markers**: Page breaks (`<!--BREAK-->`), autoscroll pauses (`<!--PAUSE:N-->`), end-of-block markers
 
 
 ### Citations and Bibliography
 
-- **Multiple citation syntaxes**: Pandoc (`[@key]`),
-
-  MultiMarkdown (`[#key]`), and mmark (`[@RFC1234]`) styles
-
-- **Bibliography formats**: Support for BibTeX (`.bib`), CSL
-
-  JSON (`.json`), and CSL YAML (`.yml`, `.yaml`) formats
-
-- **Automatic bibliography generation**: Bibliography
-
-  automatically generated from cited entries
-
-- **Citation linking**: Option to link citations to
-
-  bibliography entries
-
-- **Metadata support**: Bibliography can be specified in
-
-  document metadata or via command-line flags
-
-- **Multiple bibliography files**: Support for loading and
-
-  merging multiple bibliography files
-
-- **CSL style support**: Citation Style Language (CSL) files
-
-  for custom citation formatting
-
-- **Mode support**: Citations enabled in MultiMarkdown and
-
-  unified modes
+- **Multiple citation syntaxes**: Pandoc (`[@key]`), MultiMarkdown (`[#key]`), and mmark (`[@RFC1234]`) styles
+- **Bibliography formats**: Support for BibTeX (`.bib`), CSL JSON (`.json`), and CSL YAML (`.yml`, `.yaml`) formats
+- **Automatic bibliography generation**: Bibliography automatically generated from cited entries
+- **Citation linking**: Option to link citations to bibliography entries
+- **Metadata support**: Bibliography can be specified in document metadata or via command-line flags
+- **Multiple bibliography files**: Support for loading and merging multiple bibliography files
+- **CSL style support**: Citation Style Language (CSL) files for custom citation formatting
+- **Mode support**: Citations enabled in MultiMarkdown and unified modes
 
 ### Indices
 
-- **mmark syntax**: `(!item)`, `(!item, subitem)`, `(!!item,
-
-  subitem)` for primary entries
-
-- **TextIndex syntax**: `{^}`, `[term]{^}`, `{^params}` for
-
-  flexible indexing
-
-- **Automatic index generation**: Index automatically
-
-  generated at end of document or at `<!--INDEX-->` marker
-
-- **Alphabetical sorting**: Entries sorted alphabetically
-
-  with optional grouping by first letter
-
-**Hierarchical sub-items**: Support for nested index entries
-
-- **Mode support**: Indices enabled by default in
-
-  MultiMarkdown and unified modes
+- **mmark syntax**: `(!item)`, `(!item, subitem)`, `(!!item, subitem)` for primary entries
+- **TextIndex syntax**: `{^}`, `[term]{^}`, `{^params}` for flexible indexing
+- **Automatic index generation**: Index automatically generated at end of document or at `<!--INDEX-->` marker
+- **Alphabetical sorting**: Entries sorted alphabetically with optional grouping by first letter
+- **Hierarchical sub-items**: Support for nested index entries
+- **Mode support**: Indices enabled by default in MultiMarkdown and unified modes
 
 ### Critic Markup
 
-- **Change tracking**: Additions (`{++text++}`), deletions
-
-  (`{--text--}`), substitutions (`{~~old~>new~~}`)
-
-- **Annotations**: Highlights (`{==text==}`) and comments
-
-  (`{>>text<<}`)
-
-- **Accept mode**: `--accept` flag to apply all changes for
-
-  final output
-
-- **Reject mode**: `--reject` flag to revert all changes to
-
-  original
+- **Change tracking**: Additions (`{++text++}`), deletions (`{--text--}`), substitutions (`{~~old~>new~~}`)
+- **Annotations**: Highlights (`{==text==}`) and comments (`{>>text<<}`)
+- **Accept mode**: `--accept` flag to apply all changes for final output
+- **Reject mode**: `--reject` flag to revert all changes to original
 
 ### Output Options
 
-- **Flexible output**: Compact HTML fragments,
-
-  pretty-printed HTML, or complete standalone documents
-
-- **Standalone documents**: Generate complete HTML5
-
-  documents with `<html>`, `<head>`, `<body>` tags
-
-- **Custom styling**: Link external CSS files in standalone
-
-  mode
-
-- **Pretty-print**: Formatted HTML with proper indentation
-
-  for readability
-
-- **Header ID generation**: Automatic or manual header IDs
-
-  with multiple format options (GFM, MMD, Kramdown)
-
-- **Emoji-to-name conversion**: In GFM mode, emojis in
-
-  headers are converted to their textual names in IDs (e.g.,
-  `# ???? Support` ??? `id="smile-support"`), matching Pandoc's
-  GFM behavior
-
-- **Header anchors**: Option to generate `<a>` anchor tags
-
-  instead of header IDs
-
-- **ARIA accessibility**: Add ARIA labels and accessibility
-
-  attributes (`--aria`) for better screen reader support,
-  including aria-label on TOC navigation, role attributes on
-  figures and tables, and aria-describedby linking tables to
-  their captions
+- **Flexible output**: Compact HTML fragments, pretty-printed HTML, or complete standalone documents
+- **Standalone documents**: Generate complete HTML5 documents with `<html>`, `<head>`, `<body>` tags
+- **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
+- **Syntax highlighting**: External syntax highlighting via Pygments or Skylighting with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
+- **Pretty-print**: Formatted HTML with proper indentation for readability
+- **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
+- **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# ???? Support` ??? `id="smile-support"`), matching Pandoc's GFM behavior
+- **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
+- **ARIA accessibility**: Add ARIA labels and accessibility attributes (`--aria`) for better screen reader support, including aria-label on TOC navigation, role attributes on figures and tables, and aria-describedby linking tables to their captions
 
 ### Advanced Features
 
-- **Hard breaks**: Option to treat newlines as hard line
-
-  breaks
-
-- **Feature toggles**: Granular control to enable/disable
-
-  specific features (tables, footnotes, math, smart
-  typography, etc.)
-
-- **Unsafe HTML**: Option to allow or block raw HTML in
-
-  documents
-
+- **Hard breaks**: Option to treat newlines as hard line breaks
+- **Feature toggles**: Granular control to enable/disable specific features (tables, footnotes, math, smart typography, etc.)
+- **Unsafe HTML**: Option to allow or block raw HTML in documents
 - **Autolinks**: Automatic URL detection and linking
-- **Superscript/Subscript**: Support for `^superscript^` and
-
-  `~subscript~` syntax
+- **Superscript/Subscript**: Support for `^superscript^` and `~subscript~` syntax
 
 ### Extensibility and Plugins
 
@@ -376,7 +244,9 @@ apex input.md --mode kramdown
 
 `--standalone` - Generate complete HTML document with `<html>`, `<head>`, `<body>`
 
-`--style FILE` - Link to CSS file in document head (requires `--standalone`)
+`--style FILE` / `--css FILE` - Link to CSS file(s) in document head (requires `--standalone`). Can be used multiple times or with comma-separated list (e.g., `--css style.css --css syntax.css` or `--css style.css,syntax.css`)
+
+`--embed-css` - Embed CSS file contents as inline `<style>` tags instead of `<link>` tags (works with multiple stylesheets)
 
 - `--title TITLE` - Document title (requires `--standalone`)
 - `--relaxed-tables` - Enable relaxed table parsing (default
@@ -427,10 +297,14 @@ apex input.md --mode kramdown
 
 `--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
 
+`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg` or `skylighting`/`s`/`sky`). Automatically includes GitHub-style CSS in standalone mode
+
+`--code-line-numbers` - Include line numbers in syntax-highlighted code blocks (requires `--code-highlight`)
+
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.51
+Apex Markdown Processor v0.1.52
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -446,11 +320,14 @@ Options:
   --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)
   --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times
   --captions POSITION    Table caption position: above or below (default: below)
+  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, or abbreviations p, s)
+  --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)
   --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream
                          When a SUMMARY.md file is provided, treat it as a GitBook index and combine
                          the linked files in order. Output is raw Markdown suitable for piping back into Apex.
   --csl FILE              Citation style file (CSL format)
-  --css FILE, --style FILE  Link to CSS file in document head (requires --standalone, overrides CSS metadata)
+  --css FILE, --style FILE  Link to CSS file(s) in document head (requires --standalone, overrides CSS metadata)
+                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)
   --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)
   --embed-images         Embed local images as base64 data URLs in HTML output
   --hardbreaks           Treat newlines as hard breaks
@@ -554,14 +431,12 @@ Key documentation pages:
 Contributions are welcome! Please feel free to submit a Pull
 Request.
 
-1. Fork the repository
+Please note the [tests requirement for new features](https://github.com/ApexMarkdown/apex/wiki/Writing-Tests).
 
-Create your feature branch (`git checkout -b feature/amazing-feature`)
-
-Commit your changes (`git commit -m 'Add some amazing feature'`)
-
-Push to the branch (`git push origin feature/amazing-feature`)
-
+1. Fork the [repository](https://github.com/ApexMarkdown/apex)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License

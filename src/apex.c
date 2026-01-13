@@ -883,7 +883,7 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                         const char *after_at = at_pos + 1;
                         bool has_tld = false;
                         while (after_at < token_end) {
-                            if (*after_at == '.' && (after_at + 1) < token_end && 
+                            if (*after_at == '.' && (after_at + 1) < token_end &&
                                 isalnum((unsigned char)after_at[1])) {
                                 has_tld = true;
                                 break;
@@ -893,7 +893,7 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                             }
                             after_at++;
                         }
-                        
+
                         if (has_tld) {
                             /* Basic validation passed: has chars before @, @, and TLD after @ */
                             is_email_start = true;
@@ -4024,7 +4024,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         /* CSS precedence: CLI flag (--css/--style) overrides metadata */
         const char **css_paths = local_opts.stylesheet_paths;
         size_t css_count = local_opts.stylesheet_count;
-        
+
         /* If no CLI stylesheets, check metadata for single CSS path */
         if (!css_paths || css_count == 0) {
             if (css_metadata) {
@@ -4037,7 +4037,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                 }
             }
         }
-        
+
         /* Combine any existing HTML footer metadata with scripts (footer first, then scripts) */
         char *footer_with_scripts = NULL;
         if (html_footer_metadata || scripts_html) {
@@ -4070,7 +4070,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                                                  local_opts.code_highlighter, html_header_metadata, footer_to_use,
                                                  language_metadata);
         PROFILE_END(standalone_wrap);
-        
+
         /* Free temporary metadata stylesheet array if we allocated it */
         if (css_paths && css_paths[0] == css_metadata) {
             free((void*)css_paths);
@@ -4089,7 +4089,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             /* Process each stylesheet in reverse order to maintain correct positions */
             for (int i = (int)css_count - 1; i >= 0; i--) {
                 if (!css_paths[i]) continue;
-                
+
                 const char *css_path = css_paths[i];
                 char *css_content = NULL;
                 size_t css_len = 0;
@@ -4424,7 +4424,7 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
         }
         write += n;
         remaining -= n;
-        
+
         /* Write Pygments classes comment */
         n = snprintf(write, remaining, "    /* Pygments classes */\n");
         if (n < 0 || (size_t)n >= remaining) {
@@ -4433,9 +4433,9 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
         }
         write += n;
         remaining -= n;
-        
+
         /* Write Pygments classes in chunks */
-        const char *pygments_css = 
+        const char *pygments_css =
             "    .highlight .k { color: #d73a49; font-weight: 600; } /* Keyword */\n"
             "    .highlight .kt { color: #d73a49; } /* Keyword.Type */\n"
             "    .highlight .kd { color: #d73a49; font-weight: 600; } /* Keyword.Declaration */\n"
@@ -4499,7 +4499,7 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
         memcpy(write, pygments_css, pygments_len);
         write += pygments_len;
         remaining -= pygments_len;
-        
+
         /* Write Skylighting classes */
         n = snprintf(write, remaining, "    /* Skylighting classes */\n");
         if (n < 0 || (size_t)n >= remaining) {
@@ -4508,7 +4508,7 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
         }
         write += n;
         remaining -= n;
-        
+
         const char *skylighting_css =
             "    .sourceCode .kw { color: #d73a49; font-weight: 600; } /* Keyword */\n"
             "    .sourceCode .dt { color: #6f42c1; } /* DataType */\n"
@@ -4557,7 +4557,7 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
         memcpy(write, skylighting_css, skylighting_len);
         write += skylighting_len;
         remaining -= skylighting_len;
-        
+
         /* Write line numbers CSS and close style tag */
         n = snprintf(write, remaining,
             "    /* Line numbers (Skylighting) */\n"

@@ -136,24 +136,40 @@ int main(int argc, char *argv[]) {
     /* Install signal handler for better error reporting */
     signal(SIGABRT, sigabrt_handler);
 
-    printf("Apex Test Suite v%s\n", apex_version_string());
-    printf("==========================================\n");
-
     /* Parse command-line arguments */
     int errors_only = 0;
+    int badge_flag = 0;
     const char *requested_suite = NULL;
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--errors-only") == 0 || strcmp(argv[i], "-e") == 0) {
             errors_only = 1;
+        } else if (strcmp(argv[i], "--badge") == 0 || strcmp(argv[i], "-b") == 0) {
+            badge_flag = 1;
         } else if (!requested_suite) {
             requested_suite = argv[i];
         }
     }
 
+    /* Set global badge_mode flag in test helpers */
+    if (badge_flag) {
+        badge_mode = 1;
+    }
+
+    /* Skip header in badge mode */
+    if (!badge_flag) {
+        printf("Apex Test Suite v%s\n", apex_version_string());
+        printf("==========================================\n");
+    }
+
     /* Propagate errors-only mode to test helpers */
     if (errors_only) {
         errors_only_output = 1;
+    }
+
+    /* In badge mode, suppress all output except the final count */
+    if (badge_flag) {
+        errors_only_output = 1; /* Suppress test output */
     }
 
     if (requested_suite) {
@@ -176,7 +192,9 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        printf("Unknown test suite: %s\n", requested_suite);
+        if (!badge_mode) {
+            printf("Unknown test suite: %s\n", requested_suite);
+        }
         return 2;
     } else {
         // Run all test suites
@@ -188,6 +206,12 @@ int main(int argc, char *argv[]) {
     }
 
 done_single_suite:
+
+    /* In badge mode, output only the count */
+    if (badge_flag) {
+        printf("%d/%d\n", tests_passed, tests_run);
+        return (tests_failed == 0) ? 0 : 1;
+    }
 
     /* Print results */
     printf("\n==========================================\n");

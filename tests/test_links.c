@@ -7,7 +7,8 @@
 #include <string.h>
 
 void test_wiki_links(void) {
-    printf("\n=== Wiki Links Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Wiki Links Tests", false, true);
 
     apex_options opts = apex_options_default();
     opts.enable_wiki_links = true;
@@ -122,6 +123,9 @@ void test_wiki_links(void) {
     /* Reset options */
     opts.wikilink_extension = NULL;
     opts.wikilink_space = 0;  /* dash (default) */
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Wiki Links Tests", had_failures, false);
 }
 
 /**
@@ -129,7 +133,8 @@ void test_wiki_links(void) {
  */
 
 void test_image_embedding(void) {
-    printf("\n=== Image Embedding Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Image Embedding Tests", false, true);
 
     apex_options opts = apex_options_default();
     char *html;
@@ -199,6 +204,9 @@ void test_image_embedding(void) {
     html = apex_markdown_to_html(abs_path, strlen(abs_path), &opts);
     assert_contains(html, "data:image/png;base64,", "Absolute path image embedded regardless of base_directory");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Image Embedding Tests", had_failures, false);
 }
 
 /**
@@ -206,7 +214,8 @@ void test_image_embedding(void) {
  */
 
 void test_image_width_height_conversion(void) {
-    printf("\n=== Image Width/Height Conversion Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Image Width/Height Conversion Tests", false, true);
 
     apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
     char *html;
@@ -290,6 +299,9 @@ void test_image_width_height_conversion(void) {
     html = apex_markdown_to_html("![](img.jpg){ width=0px }", strlen("![](img.jpg){ width=0px }"), &opts);
     assert_contains(html, "width=\"0\"", "Zero pixel converted to integer");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Image Width/Height Conversion Tests", had_failures, false);
 }
 
 /**

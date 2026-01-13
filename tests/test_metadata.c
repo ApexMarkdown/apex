@@ -9,7 +9,8 @@
 #include <stdlib.h>
 
 void test_metadata(void) {
-    printf("\n=== Metadata Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Metadata Tests", false, true);
 
     apex_options opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
     char *html;
@@ -47,6 +48,9 @@ void test_metadata(void) {
     assert_contains(html, "<li>Another item</li>", "List with colon: second item rendered");
     assert_contains(html, "<li>Third item</li>", "List with colon: third item rendered");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Metadata Tests", had_failures, false);
 }
 
 /**
@@ -54,7 +58,8 @@ void test_metadata(void) {
  */
 
 void test_mmd_metadata_keys(void) {
-    printf("\n=== MultiMarkdown Metadata Keys Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("MultiMarkdown Metadata Keys Tests", false, true);
 
     apex_options opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
     char *html;
@@ -151,6 +156,9 @@ void test_mmd_metadata_keys(void) {
     assert_contains(html, "<h3", "Case-insensitive: BASE HEADER LEVEL works");
     assert_contains(html, "&bdquo;", "Case-insensitive: QUOTES LANGUAGE works");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("MultiMarkdown Metadata Keys Tests", had_failures, false);
 }
 
 /**
@@ -158,7 +166,8 @@ void test_mmd_metadata_keys(void) {
  */
 
 void test_metadata_transforms(void) {
-    printf("\n=== Metadata Transforms Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Metadata Transforms Tests", false, true);
 
     apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
     char *html;
@@ -407,6 +416,9 @@ void test_metadata_transforms(void) {
     html = apex_markdown_to_html(simple_doc, strlen(simple_doc), &opts);
     assert_contains(html, "Hello", "Simple metadata replacement still works");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Metadata Transforms Tests", had_failures, false);
 }
 
 /**
@@ -414,7 +426,8 @@ void test_metadata_transforms(void) {
  */
 
 void test_metadata_control_options(void) {
-    printf("\n=== Metadata Control of Options Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Metadata Control of Options Tests", false, true);
 
     /* Test boolean options via metadata */
     apex_options opts = apex_options_default();
@@ -597,6 +610,9 @@ void test_metadata_control_options(void) {
         printf(COLOR_RED "✗" COLOR_RESET " metadata file: Failed to load metadata_options.yml\n");
     }
 #endif
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Metadata Control of Options Tests", had_failures, false);
 }
 
 /**

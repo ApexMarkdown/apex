@@ -7,7 +7,8 @@
 #include <string.h>
 
 void test_basic_markdown(void) {
-    printf("\n=== Basic Markdown Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("Basic Markdown Tests", false, true);
 
     apex_options opts = apex_options_default();
     char *html;
@@ -30,6 +31,9 @@ void test_basic_markdown(void) {
     assert_contains(html, "<ul>", "Unordered list");
     assert_contains(html, "<li>Item 1</li>", "List item");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Basic Markdown Tests", had_failures, false);
 }
 
 /**
@@ -37,7 +41,8 @@ void test_basic_markdown(void) {
  */
 
 void test_gfm_features(void) {
-    printf("\n=== GFM Features Tests ===\n");
+    int suite_failures = suite_start();
+    print_suite_title("GFM Features Tests", false, true);
 
     apex_options opts = apex_options_for_mode(APEX_MODE_GFM);
     char *html;
@@ -59,6 +64,9 @@ void test_gfm_features(void) {
     assert_contains(html, "<th>H1</th>", "Table header");
     assert_contains(html, "<td>C1</td>", "Table cell");
     apex_free_string(html);
+    
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("GFM Features Tests", had_failures, false);
 }
 
 /**

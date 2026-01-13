@@ -14,6 +14,9 @@ int tests_failed = 0;
 /* When non-zero, only failing tests (and their context) are printed */
 int errors_only_output = 0;
 
+/* When non-zero, suppress all output except final count */
+int badge_mode = 0;
+
 /**
  * Assert that string contains substring
  */
@@ -136,4 +139,45 @@ void test_resultf(bool passed, const char *format, ...) {
         printf("\n");
         va_end(args);
     }
+}
+
+/**
+ * Start tracking a test suite
+ * Returns the current failure count to track if this suite has failures
+ */
+int suite_start(void) {
+    return tests_failed;
+}
+
+/**
+ * End tracking a test suite and check if it had failures
+ */
+bool suite_end(int suite_start_failures) {
+    return tests_failed > suite_start_failures;
+}
+
+/**
+ * Print suite title conditionally based on mode
+ * @param title the suite title to print
+ * @param suite_had_failures true if the suite had any failures (only used in errors-only mode)
+ * @param at_start true if called at start of suite, false if at end
+ */
+void print_suite_title(const char *title, bool suite_had_failures, bool at_start) {
+    /* Never print in badge mode */
+    if (badge_mode) {
+        return;
+    }
+    
+    /* In errors-only mode: only print at end if suite had failures */
+    if (errors_only_output) {
+        if (at_start) {
+            return; /* Don't print at start in errors-only mode */
+        }
+        if (!suite_had_failures) {
+            return; /* Don't print at end if no failures */
+        }
+    }
+    
+    /* Print in normal mode (at start), or in errors-only mode (at end if failures) */
+    printf("\n=== %s ===\n", title);
 }

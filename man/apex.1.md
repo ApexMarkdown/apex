@@ -44,11 +44,30 @@ compatibility.
 and `<body>` tags.
 
 **--style** *FILE*, **--css** *FILE*
-: Link to CSS file in document head (requires
-**--standalone**). Overrides CSS metadata if specified.
+: Link to CSS file(s) in document head (requires
+**--standalone**). Can be used multiple times or accept
+comma-separated list (e.g., `--css style.css --css syntax.css`
+or `--css style.css,syntax.css`). Overrides CSS metadata if
+specified.
 
 **--embed-css**
-:   When used with **--css FILE**, read the CSS file and embed its contents into a `<style>` tag in the document head instead of emitting a `<link rel="stylesheet">` tag.
+:   When used with **--css FILE**, read the CSS file(s) and embed
+their contents into `<style>` tags in the document head instead
+of emitting `<link rel="stylesheet">` tags. All specified
+stylesheets are embedded.
+
+**--code-highlight** *TOOL*
+: Use external tool for syntax highlighting of code blocks.
+*TOOL* must be **pygments** (or **p**, **pyg**) or **skylighting**
+(or **s**, **sky**). Code blocks are sent to the external tool
+with their language specifier (if present) or with
+auto-detection enabled. The highlighted HTML output replaces the
+original code block in the document.
+
+**--code-line-numbers**
+: Include line numbers in syntax-highlighted code blocks.
+Requires **--code-highlight**. When used with Pygments, adds
+`linenos=1` option. When used with Skylighting, adds `-n` flag.
 
 **--script** *VALUE*
 :   Inject `<script>` tags either before `</body>` in standalone mode or at the end of the HTML fragment in snippet mode. *VALUE* can be a path, a URL, or one of the following shorthands: `mermaid`, `mathjax`, `katex`, `highlightjs`, `highlight.js`, `prism`, `prismjs`, `htmx`, `alpine`, `alpinejs`. Can be used multiple times or with a comma-separated list (e.g., `--script mermaid,mathjax`).
@@ -86,6 +105,19 @@ output more accessible. Default: disabled.
 
 **--reject**
 :   Reject all Critic Markup changes (revert edits).
+
+**--code-highlight** *TOOL*
+: Use external tool for syntax highlighting of code blocks.
+*TOOL* must be **pygments** (or abbreviations **p**, **pyg**) or
+**skylighting** (or abbreviations **s**, **sky**). Code blocks
+are sent to the external tool with their language specifier (if
+present) or with auto-detection enabled. The highlighted HTML
+output replaces the original code block in the document.
+
+**--code-line-numbers**
+: Include line numbers in syntax-highlighted code blocks.
+Requires **--code-highlight**. When used with Pygments, adds
+`linenos=1` option. When used with Skylighting, adds `-n` flag.
 
 **--includes**, **--no-includes**
 : Enable or disable file inclusion. Enabled by default in

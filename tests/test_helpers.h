@@ -17,6 +17,9 @@ extern int tests_failed;
 /* When non-zero, only failing tests (and their context) are printed */
 extern int errors_only_output;
 
+/* When non-zero, suppress all output except final count */
+extern int badge_mode;
+
 /* Color codes for terminal output */
 #define COLOR_GREEN "\033[0;32m"
 #define COLOR_RED "\033[0;31m"
@@ -58,6 +61,31 @@ void test_result(bool passed, const char *test_name);
  * @param ... arguments for format string
  */
 void test_resultf(bool passed, const char *format, ...);
+
+/**
+ * Start tracking a test suite
+ * Saves current test counts to track suite-level pass/fail
+ * @return suite ID (current tests_failed count)
+ */
+int suite_start(void);
+
+/**
+ * End tracking a test suite and check if it had failures
+ * @param suite_start_failures the tests_failed count when suite started
+ * @return true if suite had any failures, false if all passed
+ */
+bool suite_end(int suite_start_failures);
+
+/**
+ * Print suite title conditionally based on mode
+ * - Always prints in normal mode (at start)
+ * - Never prints in badge mode
+ * - In errors-only mode: only prints at end if suite had failures
+ * @param title the suite title to print
+ * @param suite_had_failures true if the suite had any failures (only used in errors-only mode at end)
+ * @param at_start true if called at start of suite, false if at end
+ */
+void print_suite_title(const char *title, bool suite_had_failures, bool at_start);
 
 #endif /* TEST_HELPERS_H */
 
