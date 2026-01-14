@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.56] - 2026-01-14
+
+### New
+
+- Add test_marked_integration.c test file for Marked integration features
+
+[0.1.56]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.56
+
+## [0.1.55] - 2026-01-14
+
+### New
+
+- Add test_marked_integration.c test file for Marked integration features
+
+[0.1.55]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.55
+
 ## [0.1.54] - 2026-01-14
 
 ### New
