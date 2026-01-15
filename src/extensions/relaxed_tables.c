@@ -317,6 +317,90 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         size_t line_len = line_end - line_start;
         bool has_newline = (*line_end == '\n');
 
+        /* Skip grid tables (lines starting with +) */
+        const char *line_check = line_start;
+        while (line_check < line_end && (*line_check == ' ' || *line_check == '\t')) {
+            line_check++;
+        }
+        if (line_check < line_end && *line_check == '+') {
+            /* This is a grid table separator - skip relaxed table processing for this section */
+            /* Write any accumulated rows as-is and reset */
+            if (rows_count > 0) {
+                for (size_t i = 0; i < rows_count; i++) {
+                    if (rows[i].len < remaining) {
+                        memcpy(write, rows[i].start, rows[i].len);
+                        write += rows[i].len;
+                        remaining -= rows[i].len;
+                        output_len += rows[i].len;
+                        if (has_newline && remaining > 0) {
+                            *write++ = '\n';
+                            remaining--;
+                            output_len++;
+                        }
+                    } else {
+                        /* Need to grow buffer */
+                        size_t new_capacity = output_capacity * 2;
+                        char *new_output = realloc(output, new_capacity);
+                        if (!new_output) {
+                            free(output);
+                            free(rows);
+                            return NULL;
+                        }
+                        write = new_output + output_len;
+                        output = new_output;
+                        remaining = new_capacity - output_len;
+                        output_capacity = new_capacity;
+                        memcpy(write, rows[i].start, rows[i].len);
+                        write += rows[i].len;
+                        remaining -= rows[i].len;
+                        output_len += rows[i].len;
+                        if (has_newline && remaining > 0) {
+                            *write++ = '\n';
+                            remaining--;
+                            output_len++;
+                        }
+                    }
+                }
+                rows_count = 0;
+            }
+            /* Write the grid table line as-is */
+            if (line_len < remaining) {
+                memcpy(write, line_start, line_len);
+                write += line_len;
+                remaining -= line_len;
+                output_len += line_len;
+                if (has_newline && remaining > 0) {
+                    *write++ = '\n';
+                    remaining--;
+                    output_len++;
+                }
+            } else {
+                /* Need to grow buffer */
+                size_t new_capacity = output_capacity * 2;
+                char *new_output = realloc(output, new_capacity);
+                if (!new_output) {
+                    free(output);
+                    free(rows);
+                    return NULL;
+                }
+                write = new_output + output_len;
+                output = new_output;
+                remaining = new_capacity - output_len;
+                output_capacity = new_capacity;
+                memcpy(write, line_start, line_len);
+                write += line_len;
+                remaining -= line_len;
+                output_len += line_len;
+                if (has_newline && remaining > 0) {
+                    *write++ = '\n';
+                    remaining--;
+                    output_len++;
+                }
+            }
+            read = has_newline ? line_end + 1 : line_end;
+            continue;
+        }
+
         /* Check if this is a blank line */
         if (is_blank_line(line_start, line_len)) {
             /* Blank line: if we have accumulated table rows, process them */

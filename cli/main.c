@@ -206,6 +206,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)\n");
     fprintf(stderr, "  --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
+    fprintf(stderr, "  --grid-tables          Enable Pandoc grid table syntax\n");
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
     fprintf(stderr, "  --no-unsafe            Disable raw HTML in output\n");
     fprintf(stderr, "  --no-wikilinks         Disable wiki link syntax\n");
@@ -1035,6 +1036,8 @@ int main(int argc, char *argv[]) {
             uninstall_plugin_id = argv[i];
         } else if (strcmp(argv[i], "--no-tables") == 0) {
             options.enable_tables = false;
+        } else if (strcmp(argv[i], "--grid-tables") == 0 || strcmp(argv[i], "--enable-grid-tables") == 0) {
+            options.enable_grid_tables = true;
         } else if (strcmp(argv[i], "--no-footnotes") == 0) {
             options.enable_footnotes = false;
         } else if (strcmp(argv[i], "--no-smart") == 0) {

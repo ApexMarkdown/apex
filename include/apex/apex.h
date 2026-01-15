@@ -55,6 +55,7 @@ typedef struct {
     bool enable_marked_extensions;
     bool enable_divs;  /* Enable Pandoc fenced divs (Unified mode only) */
     bool enable_spans;  /* Enable bracketed spans [text]{IAL} (Pandoc-style) */
+    bool enable_grid_tables;  /* Enable Pandoc grid table syntax */
 
     /* Critic markup mode */
     int critic_mode;  /* 0=markup (default), 1=accept, 2=reject */

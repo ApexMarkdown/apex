@@ -103,6 +103,7 @@ let package = Package(
                 "src/extensions/relaxed_tables.c",
                 "src/extensions/citations.c",
                 "src/extensions/index.c",
+                "src/extensions/grid_tables.c",
                 "src/pretty_html.c",
                 "src/buffer.c",
                 "src/parser.c",

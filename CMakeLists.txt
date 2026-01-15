@@ -138,6 +138,7 @@ set(APEX_LIB_SOURCES
     src/extensions/citations.c
     src/extensions/index.c
     src/extensions/syntax_highlight.c
+    src/extensions/grid_tables.c
     src/pretty_html.c
 )
 

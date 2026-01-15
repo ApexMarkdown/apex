@@ -62,6 +62,7 @@ void test_mmd6_features(void);
 void test_emoji(void);
 void test_special_markers(void);
 void test_inline_tables(void);
+void test_grid_tables(void);
 void test_advanced_footnotes(void);
 void test_standalone_output(void);
 void test_pretty_html(void);
@@ -122,6 +123,7 @@ static test_suite suites[] = {
     { "emoji",                         test_emoji },
     { "special_markers",               test_special_markers },
     { "inline_tables",                 test_inline_tables },
+    { "grid_tables",                   test_grid_tables },
     { "advanced_footnotes",            test_advanced_footnotes },
     { "standalone_output",             test_standalone_output },
     { "pretty_html",                   test_pretty_html },

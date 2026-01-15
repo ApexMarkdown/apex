@@ -40,6 +40,7 @@
 #include "extensions/index.h"
 #include "extensions/fenced_divs.h"
 #include "extensions/syntax_highlight.h"
+#include "extensions/grid_tables.h"
 #include "plugins.h"
 
 /* Custom renderer */
@@ -2458,6 +2459,7 @@ apex_options apex_options_default(void) {
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
+    opts.enable_grid_tables = false;  /* Disabled by default - enable with --grid-tables */
 
     /* Critic markup mode (0=accept, 1=reject, 2=markup) */
     opts.critic_mode = 2;  /* Default: show markup */
@@ -4371,6 +4373,44 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
         if (table_colspans_processed) {
             text_ptr = table_colspans_processed;
+        }
+    }
+
+    /* Preprocess grid tables before caption processing
+     * Grid tables need to be converted to pipe table format first, then captions can be detected
+     */
+    char *grid_tables_processed = NULL;
+    char *normalized_for_grid_tables = NULL;
+    if (options->enable_grid_tables && options->enable_tables) {
+        /* Normalize text_ptr for grid table preprocessing if it doesn't end with newline */
+        size_t pre_grid_len = strlen(text_ptr);
+        bool needs_newline_for_grid = (pre_grid_len > 0 &&
+                                       text_ptr[pre_grid_len - 1] != '\n' &&
+                                       text_ptr[pre_grid_len - 1] != '\r');
+        if (needs_newline_for_grid) {
+            normalized_for_grid_tables = malloc(pre_grid_len + 2);
+            if (normalized_for_grid_tables) {
+                memcpy(normalized_for_grid_tables, text_ptr, pre_grid_len);
+                normalized_for_grid_tables[pre_grid_len] = '\n';
+                normalized_for_grid_tables[pre_grid_len + 1] = '\0';
+            }
+        }
+
+        PROFILE_START(grid_tables_preprocess);
+        grid_tables_processed = apex_preprocess_grid_tables(normalized_for_grid_tables ? normalized_for_grid_tables : text_ptr);
+        PROFILE_END(grid_tables_preprocess);
+
+        /* Handle cleanup */
+        if (normalized_for_grid_tables) {
+            if (grid_tables_processed) {
+                free(normalized_for_grid_tables);
+            } else {
+                free(normalized_for_grid_tables);
+            }
+        }
+
+        if (grid_tables_processed) {
+            text_ptr = grid_tables_processed;
         }
     }
 
