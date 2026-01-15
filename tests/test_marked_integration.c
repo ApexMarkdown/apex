@@ -83,15 +83,15 @@ void test_marked_integration_features(void) {
         /* Find where the ID value starts (after "id=\"fn-" or "id=\"fnref-") */
         const char *fn_value_start = fn_id + 7;  /* After "id=\"fn-" */
         const char *fnref_value_start = fnref_id + 10;  /* After "id=\"fnref-" */
-        
+
         /* Find the closing quote to get the full ID value */
         const char *fn_quote = strchr(fn_value_start, '"');
         const char *fnref_quote = strchr(fnref_value_start, '"');
-        
+
         if (fn_quote && fnref_quote) {
             size_t fn_id_len = fn_quote - fn_value_start;
             size_t fnref_id_len = fnref_quote - fnref_value_start;
-            
+
             /* IDs should be longer than "1" (should be "XXXXXXXX-1" format) */
             /* Check that there's at least 9 characters (8-char hash + dash + number) */
             if (fn_id_len > 9 && fnref_id_len > 9) {
@@ -112,7 +112,7 @@ void test_marked_integration_features(void) {
                         break;
                     }
                 }
-                
+
                 if (fn_has_hex && fnref_has_hex) {
                     test_result(true, "Random footnote IDs include hash prefix");
                 } else {
