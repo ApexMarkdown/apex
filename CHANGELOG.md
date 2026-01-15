@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.58] - 2026-01-15
+
+### Fixed
+
+- Missing test files
+
+[0.1.58]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.58
+
 ## [0.1.57] - 2026-01-15
 
 ### New
