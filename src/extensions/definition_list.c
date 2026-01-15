@@ -590,6 +590,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     int term_blockquote_depth = 0;  /* Track blockquote depth of buffered term */
     bool found_any_def_list = false;  /* Track if we actually created any definition lists */
     bool in_code_block = false;  /* Track if we're inside a fenced code block */
+    bool skipped_blank_after_term = false;  /* Track if we skipped a blank line after a buffered term */
 
     const char *prev_read_pos = NULL;
     int iteration_count = 0;
@@ -669,6 +670,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     term_len = 0;
                     term_has_blockquote = false;
                     term_blockquote_depth = 0;
+                    skipped_blank_after_term = false;
                 }
                 /* If we're exiting a code block, clear any pending definition list state */
                 if (!in_code_block && was_in_code_block) {
@@ -676,6 +678,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     term_len = 0;
                     term_has_blockquote = false;
                     term_blockquote_depth = 0;
+                    skipped_blank_after_term = false;
                 }
             }
             ENSURE_SPACE(line_length + 1);
@@ -864,6 +867,9 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 if (has_blockquote_prefix && current_blockquote_depth > blockquote_depth) {
                     blockquote_depth = current_blockquote_depth;
                 }
+
+                /* Clear the skipped blank flag - we're using the term now, blank line is ignored */
+                skipped_blank_after_term = false;
 
                 /* Start new definition list */
                 const char *dl_start = "<dl>\n";
@@ -1070,6 +1076,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
                     term_len = 0;
                     term_has_blockquote = false;
+                    skipped_blank_after_term = false;  /* Clear flag - we used the term */
                 }
 
                 in_def_list = true;
@@ -1248,46 +1255,23 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         } else if (line_length == 0 || (line_length == 1 && *line_start == '\r')) {
             /* Blank line */
             if (in_def_list) {
-                /* End definition list */
-                const char *dl_end = "</dl>\n\n";
-                size_t dl_end_len = strlen(dl_end);
-                if (in_blockquote_context && dl_end_len < remaining) {
-                    /* Add > prefix(es) at start of line for blockquote context */
-                    size_t prefix_needed = blockquote_depth * 2;
-                    ENSURE_SPACE(prefix_needed + 1);
-                    for (int i = 0; i < blockquote_depth && remaining > 2; i++) {
-                        *write++ = '>';
-                        *write++ = ' ';
-                        remaining -= 2;
-                    }
-                }
-                if (dl_end_len < remaining) {
-                    memcpy(write, dl_end, dl_end_len);
-                    write += dl_end_len;
-                    remaining -= dl_end_len;
-                }
-                in_def_list = false;
-                in_blockquote_context = false;
-                blockquote_depth = 0;
-                term_len = 0;
-                term_has_blockquote = false;
-                term_blockquote_depth = 0;
+                /* Allow blank lines within definition lists - skip them to keep HTML block continuous */
+                /* Don't close the list - it will continue if next line is a definition */
+                /* Blank lines in HTML are mostly ignored anyway, so skipping is safe */
             } else {
-                /* Flush any buffered term before writing blank line */
+                /* Not in a definition list - check if we have a buffered term */
                 if (term_len > 0) {
-                    /* Need term_len bytes + 1 for newline + 1 for null terminator */
-                    ENSURE_SPACE((size_t)term_len + 2);
-                    memcpy(write, term_buffer, term_len);
-                    write += term_len;
-                    remaining -= (size_t)term_len;
+                    /* Keep the term buffered - don't flush it yet */
+                    /* Don't output the blank line yet - wait to see if next line is a definition */
+                    /* If next line is a definition, we'll start the list and the blank line is effectively ignored */
+                    /* If next line is not a definition, we'll output the term and blank line then */
+                    skipped_blank_after_term = true;
+                } else {
+                    /* No buffered term - regular blank line */
+                    ENSURE_SPACE(1);
                     *write++ = '\n';
                     remaining--;
-                    term_len = 0;
                 }
-                /* Regular blank line */
-                ENSURE_SPACE(1);
-                *write++ = '\n';
-                remaining--;
             }
         } else {
             /* Regular line */
@@ -1341,6 +1325,13 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 remaining -= (size_t)term_len;
                 *write++ = '\n';
                 remaining--;
+                /* If we skipped a blank line after the term, output it now */
+                if (skipped_blank_after_term) {
+                    ENSURE_SPACE(1);
+                    *write++ = '\n';
+                    remaining--;
+                    skipped_blank_after_term = false;
+                }
                 term_len = 0;
             }
 
@@ -1385,6 +1376,13 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     remaining -= (size_t)term_len;
                     *write++ = '\n';
                     remaining--;
+                    /* If we skipped a blank line after the term, output it now */
+                    if (skipped_blank_after_term) {
+                        ENSURE_SPACE(1);
+                        *write++ = '\n';
+                        remaining--;
+                        skipped_blank_after_term = false;
+                    }
                     term_len = 0;
                 }
                 size_t needed = line_length + (*line_end == '\n' ? 1 : 0);
@@ -1549,6 +1547,13 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         remaining -= (size_t)term_len;
         *write++ = '\n';
         remaining--;
+        /* If we skipped a blank line after the term, output it now */
+        if (skipped_blank_after_term) {
+            ENSURE_SPACE(1);
+            *write++ = '\n';
+            remaining--;
+            skipped_blank_after_term = false;
+        }
     }
 
     /* Free reference definitions if we extracted them */

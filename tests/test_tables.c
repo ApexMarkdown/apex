@@ -46,6 +46,26 @@ void test_advanced_tables(void) {
     assert_contains(html, "<td rowspan=\"2\">A</td>", "Rowspan applied to first cell content");
     apex_free_string(html);
 
+    /* Test tfoot support using === separator row.
+     * The === row itself should be removed, and subsequent rows should be wrapped in <tfoot>.
+     */
+    const char *tfoot_table =
+        "| H1 | H2 |\n"
+        "|----|----|\n"
+        "| A  | B  |\n"
+        "| C  | D  |\n"
+        "| E  | F  |\n"
+        "| === | === |\n"
+        "| F1 | F2 |\n";
+    /* tfoot detection/mapping is more reliable with relaxed tables enabled (unified default). */
+    apex_options tfoot_opts = opts;
+    tfoot_opts.relaxed_tables = true;
+    html = apex_markdown_to_html(tfoot_table, strlen(tfoot_table), &tfoot_opts);
+    assert_contains(html, "<tfoot>", "Tfoot: footer section opened");
+    assert_contains(html, "F1", "Tfoot: footer content present");
+    assert_not_contains(html, "===", "Tfoot: === marker row removed");
+    apex_free_string(html);
+
     /* Test colspan with consecutive pipes (|||) */
     const char *colspan_table = "| H1 | H2 | H3 |\n|----|----|----|"
                                 "\n| A  |||"
@@ -56,6 +76,18 @@ void test_advanced_tables(void) {
     assert_contains(html, "<td colspan=\"3\">A</td>", "Colspan applied to first row A spanning 3 columns with consecutive pipes");
     apex_free_string(html);
 
+    /* Test colspan marker detection inside nested inline nodes (e.g., emphasis around <<).
+     * This exercises recursive marker detection for colspan cells.
+     */
+    const char *colspan_nested_marker =
+        "| H1 | H2 | H3 |\n"
+        "|----|----|----|\n"
+        "| A  | **<<** | << |\n"
+        "| B  | C  | D |\n";
+    html = apex_markdown_to_html(colspan_nested_marker, strlen(colspan_nested_marker), &opts);
+    assert_contains(html, "colspan", "Colspan detected with nested marker");
+    apex_free_string(html);
+
     /* Test that empty cells with whitespace do NOT create colspan */
     const char *empty_cells_table = "| H1 | H2 | H3 |\n|----|----|----|"
                                     "\n| A  |    |    |"
@@ -64,6 +96,38 @@ void test_advanced_tables(void) {
     assert_contains(html, "<td>A</td>", "Empty cells table: A cell present");
     assert_contains(html, "<td></td>", "Empty cells table: empty cell present (not merged)");
     assert_not_contains(html, "colspan", "Empty cells table: no colspan attribute (empty cells don't create colspan)");
+    apex_free_string(html);
+
+    /* Test dash-only separator row removal (rows containing only — should be removed). */
+    const char *dash_row =
+        "| H1 | H2 |\n"
+        "|----|----|\n"
+        "| A  | B  |\n"
+        "| —  | —  |\n"
+        "| C  | D  |\n";
+    html = apex_markdown_to_html(dash_row, strlen(dash_row), &opts);
+    assert_contains(html, "<td>A</td>", "Dash row: first row present");
+    assert_contains(html, "<td>C</td>", "Dash row: row after dash separator present");
+    assert_not_contains(html, "<td>—</td>", "Dash row: em-dash-only row removed");
+    apex_free_string(html);
+
+    /* Test per-cell alignment marker parsing in cell content:
+     * these markers should be stripped from the rendered cell content.
+     * (Alignment styling is handled in HTML postprocessing; here we assert the markers don't leak.)
+     */
+    apex_options cell_align_opts = opts;
+    cell_align_opts.enable_emoji_autocorrect = false; /* Avoid :x: / :X: emoji autocorrect interference */
+    const char *cell_align =
+        "| H1 | H2 | H3 |\n"
+        "|----|----|----|\n"
+        "| :L | :X: | R: |\n";
+    html = apex_markdown_to_html(cell_align, strlen(cell_align), &cell_align_opts);
+    assert_not_contains(html, ":L", "Cell alignment marker: leading colon stripped");
+    assert_not_contains(html, ":X:", "Cell alignment marker: both colons stripped");
+    assert_not_contains(html, "R:", "Cell alignment marker: trailing colon stripped");
+    assert_contains(html, "<td>L</td>", "Cell alignment marker: left content preserved");
+    assert_contains(html, "<td>X</td>", "Cell alignment marker: center content preserved");
+    assert_contains(html, "<td>R</td>", "Cell alignment marker: right content preserved");
     apex_free_string(html);
 
     /* Test per-cell alignment using colons */

@@ -14,6 +14,22 @@ cd /path/to/apex
 **Status**: All passing ✓
 **Coverage**: 95% of implemented features
 
+## Code Coverage (Optional)
+
+If you want **line/branch coverage** (as opposed to feature coverage), Apex includes an optional helper script that builds with clang’s coverage instrumentation and generates an `llvm-cov` report.
+
+```bash
+cd /path/to/apex
+./test_coverage.sh
+```
+
+Notes:
+- Requires **clang** and LLVM tools (`llvm-cov` + `llvm-profdata`). On macOS, Xcode’s `xcrun` can provide these.
+- Output goes to `build-coverage/` and does not affect the normal `build/` directory.
+- Useful flags:
+  - `./test_coverage.sh --no-html` (print summary only)
+  - `./test_coverage.sh --no-open` (don’t auto-open the HTML report)
+
 ### Test Categories
 
 1. **Basic Markdown** (5 tests)

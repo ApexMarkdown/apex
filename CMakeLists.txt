@@ -340,6 +340,8 @@ add_executable(apex_test_runner
     tests/test_extensions.c
     tests/test_output.c
     tests/test_marked_integration.c
+    tests/test_syntax_highlight.c
+    tests/test_plugins.c
 )
 target_link_libraries(apex_test_runner apex_static)
 target_compile_definitions(apex_test_runner PRIVATE TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/includes")

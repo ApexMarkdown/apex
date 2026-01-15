@@ -836,6 +836,52 @@ void test_citations(void) {
     assert_contains(html, "<a href=\"#ref-doe99\"", "Citations linked when link_citations enabled");
     assert_contains(html, "class=\"citation\"", "Linked citations have citation class");
     apex_free_string(html);
+
+    /* Test author-in-text locator parsing: @key [p. 2] */
+    {
+        apex_options loc = opts;
+        loc.mode = APEX_MODE_UNIFIED;
+        loc.link_citations = true;
+        const char *author_locator = "According to @smith04 [p. 2], ok.";
+        html = apex_markdown_to_html(author_locator, strlen(author_locator), &loc);
+        assert_contains(html, "data-cites=\"smith04\"", "Author-in-text locator citation processed");
+        assert_not_contains(html, "p. 2", "Author-in-text locator consumed (not left in output)");
+        apex_free_string(html);
+    }
+
+    /* Test brace-wrapped citation key path: allow keys starting with non-alnum (e.g. '/').
+     * Even if the key doesn't resolve to a bibliography entry, it should still parse.
+     */
+    {
+        apex_options brace = opts;
+        brace.mode = APEX_MODE_UNIFIED;
+        const char *brace_key = "See [@{/foo}].";
+        html = apex_markdown_to_html(brace_key, strlen(brace_key), &brace);
+        assert_contains(html, "class=\"citation\"", "Brace-wrapped key produces citation span");
+        assert_contains(html, "data-cites=\"/foo\"", "Brace-wrapped key preserved in data-cites");
+        assert_contains(html, "(/foo)", "Unresolved brace-wrapped key rendered as literal key");
+        apex_free_string(html);
+    }
+
+    /* Test citations enabled but bibliography file missing/unreadable:
+     * should still parse citation syntax, but render unresolved key.
+     */
+    {
+        apex_options missing = apex_options_default();
+        missing.mode = APEX_MODE_UNIFIED;
+        missing.enable_citations = true;
+        missing.base_directory = "tests";
+        const char *missing_bib = "missing.bib";
+        const char *missing_bibs[] = { missing_bib, NULL };
+        missing.bibliography_files = (char **)missing_bibs;
+
+        const char *cite_missing = "See [@doe99].";
+        html = apex_markdown_to_html(cite_missing, strlen(cite_missing), &missing);
+        assert_contains(html, "class=\"citation\"", "Missing bibliography: citation still processed");
+        assert_contains(html, "data-cites=\"doe99\"", "Missing bibliography: key preserved");
+        assert_contains(html, "(doe99)", "Missing bibliography: unresolved key rendered");
+        apex_free_string(html);
+    }
     
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Citation and Bibliography Tests", had_failures, false);

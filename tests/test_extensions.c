@@ -4,6 +4,7 @@
 
 #include "test_helpers.h"
 #include "apex/apex.h"
+#include "../src/extensions/advanced_footnotes.h"
 #include <string.h>
 
 void test_math(void) {
@@ -442,6 +443,33 @@ void test_definition_lists(void) {
     html = apex_markdown_to_html(def_ref, strlen(def_ref), &opts);
     assert_contains(html, "<dd>", "Definition with reference link");
     assert_contains(html, "<a href=\"https://example.com\"", "Reference link in definition has href");
+    apex_free_string(html);
+
+    /* Test definition list with blank line between term and first definition */
+    const char *blank_before = "Term\n\n: definition 1\n: definition 2";
+    html = apex_markdown_to_html(blank_before, strlen(blank_before), &opts);
+    assert_contains(html, "<dl>", "Definition list with blank before first definition");
+    assert_contains(html, "<dt>Term</dt>", "Term preserved across blank line");
+    assert_contains(html, "<dd>definition 1</dd>", "First definition after blank line");
+    assert_contains(html, "<dd>definition 2</dd>", "Second definition");
+    apex_free_string(html);
+
+    /* Test definition list with blank line between definitions */
+    const char *blank_between = "Term\n: definition 1\n\n: definition 2";
+    html = apex_markdown_to_html(blank_between, strlen(blank_between), &opts);
+    assert_contains(html, "<dl>", "Definition list with blank between definitions");
+    assert_contains(html, "<dt>Term</dt>", "Term in list with blank between definitions");
+    assert_contains(html, "<dd>definition 1</dd>", "First definition");
+    assert_contains(html, "<dd>definition 2</dd>", "Second definition after blank line");
+    apex_free_string(html);
+
+    /* Test definition list with blank lines everywhere (user's exact case) */
+    const char *blank_everywhere = "Term\n\n: definition 1\n\n: definition 2";
+    html = apex_markdown_to_html(blank_everywhere, strlen(blank_everywhere), &opts);
+    assert_contains(html, "<dl>", "Definition list with blank lines everywhere");
+    assert_contains(html, "<dt>Term</dt>", "Term preserved with multiple blank lines");
+    assert_contains(html, "<dd>definition 1</dd>", "First definition");
+    assert_contains(html, "<dd>definition 2</dd>", "Second definition");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -1251,6 +1279,9 @@ void test_advanced_footnotes(void) {
     apex_options opts = apex_options_for_mode(APEX_MODE_KRAMDOWN);
     char *html;
 
+    /* Direct call: cover NULL-root early return */
+    test_result(apex_process_advanced_footnotes(NULL, NULL) == NULL, "advanced footnotes: NULL root returns NULL");
+
     /* Test basic footnote */
     const char *basic = "Text[^1]\n\n[^1]: Footnote text";
     html = apex_markdown_to_html(basic, strlen(basic), &opts);
@@ -1291,6 +1322,71 @@ void test_advanced_footnotes(void) {
     html = apex_markdown_to_html(formatted, strlen(formatted), &opts);
     assert_contains(html, "footnote", "Formatted inline footnote");
     /* Note: Markdown in inline footnotes handled by cmark-gfm */
+    apex_free_string(html);
+
+    /* Test advanced footnote with multiple paragraphs, list, and fenced code (```).
+     * This should exercise the reparse path for block-level content inside footnotes.
+     */
+    const char *blocky =
+        "Text[^a]\n"
+        "\n"
+        "[^a]: First para\n"
+        "\n"
+        "    Second para\n"
+        "\n"
+        "    - item1\n"
+        "    - item2\n"
+        "\n"
+        "    ```\n"
+        "    code\n"
+        "    ```\n";
+    html = apex_markdown_to_html(blocky, strlen(blocky), &opts);
+    assert_contains(html, "<p>First para</p>", "Advanced footnote: first paragraph");
+    assert_contains(html, "<p>Second para</p>", "Advanced footnote: second paragraph");
+    assert_contains(html, "<ul>", "Advanced footnote: list parsed");
+    assert_contains(html, "<li>item1</li>", "Advanced footnote: list item 1");
+    assert_contains(html, "<pre><code>code", "Advanced footnote: fenced code block parsed");
+    apex_free_string(html);
+
+    /* Test advanced footnote with indented code block (4+ spaces after newline). */
+    const char *indented_code =
+        "Text[^b]\n"
+        "\n"
+        "[^b]: Intro\n"
+        "\n"
+        "        indented\n"
+        "        code\n";
+    html = apex_markdown_to_html(indented_code, strlen(indented_code), &opts);
+    assert_contains(html, "<p>Intro</p>", "Indented code footnote: intro paragraph");
+    assert_contains(html, "<pre><code>indented", "Indented code footnote: code block parsed");
+    apex_free_string(html);
+
+    /* Test advanced footnote with fenced code using ~~~ (alternate fence detection). */
+    const char *tilde_fence =
+        "Text[^c]\n"
+        "\n"
+        "[^c]: Para\n"
+        "\n"
+        "    ~~~\n"
+        "    tilde\n"
+        "    ~~~\n";
+    html = apex_markdown_to_html(tilde_fence, strlen(tilde_fence), &opts);
+    assert_contains(html, "<pre><code>tilde", "Tilde fence footnote: code block parsed");
+    apex_free_string(html);
+
+    /* Test ordered list inside footnote. */
+    const char *ordered_list =
+        "Text[^d]\n"
+        "\n"
+        "[^d]: Steps\n"
+        "\n"
+        "    1. one\n"
+        "    2. two\n";
+    html = apex_markdown_to_html(ordered_list, strlen(ordered_list), &opts);
+    assert_contains(html, "<p>Steps</p>", "Ordered list footnote: intro paragraph");
+    assert_contains(html, "<ol>", "Ordered list footnote: ordered list parsed");
+    assert_contains(html, "<li>one</li>", "Ordered list footnote: first item");
+    assert_contains(html, "<li>two</li>", "Ordered list footnote: second item");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -1549,6 +1645,9 @@ void test_sup_sub(void) {
         test_result(false, "Subscript incorrectly processed in critic markup");
     }
     apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Superscript, Subscript, Underline, Delete, and Highlight Tests", had_failures, false);
 }
 
 /**

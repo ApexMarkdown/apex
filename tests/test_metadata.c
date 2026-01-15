@@ -23,6 +23,49 @@ void test_metadata(void) {
     assert_contains(html, "By John", "YAML metadata variable in text");
     apex_free_string(html);
 
+    /* Test YAML arrays + nested mappings (libyaml flattening) and end marker '...'. */
+    const char *yaml_nested =
+        "---\n"
+        "tags:\n"
+        "  - one\n"
+        "  - two\n"
+        "nested:\n"
+        "  a: 1\n"
+        "  b:\n"
+        "    - x\n"
+        "    - y\n"
+        "...\n"
+        "\n"
+        "Tags: [%tags]\n"
+        "Nested a: [%nested.a]\n"
+        "Nested b: [%nested.b]\n"
+        "Nested b0: [%nested.b.0]\n";
+    html = apex_markdown_to_html(yaml_nested, strlen(yaml_nested), &opts);
+    assert_contains(html, "Tags: one, two", "YAML array flattened to joined string");
+    assert_contains(html, "Nested a: 1", "YAML nested mapping flattened (nested.a)");
+    assert_contains(html, "Nested b: x, y", "YAML nested sequence flattened (nested.b)");
+    /* Note: scalar-only sequences are normalized to a joined string; index keys are not generated. */
+    assert_contains(html, "Nested b0: [%nested.b.0]", "YAML scalar sequence does not generate index keys");
+    apex_free_string(html);
+
+    /* Test YAML sequence containing a nested mapping: scalar items join, mapping items flatten with index keys. */
+    const char *yaml_seq_map =
+        "---\n"
+        "arr:\n"
+        "  - one\n"
+        "  - k: v\n"
+        "---\n"
+        "\n"
+        "Arr: [%arr]\n"
+        "Arr0: [%arr.0]\n"
+        "Arr1.k: [%arr.1.k]\n";
+    html = apex_markdown_to_html(yaml_seq_map, strlen(yaml_seq_map), &opts);
+    /* Note: mixed scalar+mapping sequences fall back to indexed keys (no joined base key). */
+    assert_contains(html, "Arr: [%arr]", "YAML mixed sequence: base key not generated");
+    assert_contains(html, "Arr0: one", "YAML sequence scalar index flattened (arr.0)");
+    assert_contains(html, "Arr1.k: v", "YAML sequence mapping flattened with index key (arr.1.k)");
+    apex_free_string(html);
+
     /* Test MMD metadata */
     const char *mmd_doc = "Title: My Title\n\n# [%Title]";
     html = apex_markdown_to_html(mmd_doc, strlen(mmd_doc), &opts);

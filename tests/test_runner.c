@@ -32,6 +32,7 @@ void test_mmd_metadata_keys(void);
 void test_metadata_transforms(void);
 void test_metadata_control_options(void);
 void test_syntax_highlight_options(void);
+void test_syntax_highlight_integration(void);
 void test_wiki_links(void);
 void test_image_embedding(void);
 void test_image_width_height_conversion(void);
@@ -69,6 +70,7 @@ void test_indices(void);
 void test_citations(void);
 void test_aria_labels(void);
 void test_marked_integration_features(void);
+void test_plugins_integration(void);
 
 /**
  * Test suite registry
@@ -92,6 +94,7 @@ static test_suite suites[] = {
     { "mmd_metadata_keys",             test_mmd_metadata_keys },
     { "metadata_control_options",      test_metadata_control_options },
     { "syntax_highlight_options",      test_syntax_highlight_options },
+    { "syntax_highlight_integration",  test_syntax_highlight_integration },
     { "wiki_links",                    test_wiki_links },
     { "math",                          test_math },
     { "critic_markup",                 test_critic_markup },
@@ -130,6 +133,7 @@ static test_suite suites[] = {
     { "aria_labels",                   test_aria_labels },
     { "marked_integration",            test_marked_integration_features },
     { "marked",                        test_marked_integration_features },
+    { "plugins_integration",           test_plugins_integration },
 };
 
 static const size_t suite_count = sizeof(suites) / sizeof(suites[0]);

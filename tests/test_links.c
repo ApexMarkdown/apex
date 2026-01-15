@@ -4,6 +4,9 @@
 
 #include "test_helpers.h"
 #include "apex/apex.h"
+#include "../src/extensions/wiki_links.h"
+#include "cmark-gfm.h"
+#include "cmark-gfm-extension_api.h"
 #include <string.h>
 
 void test_wiki_links(void) {
@@ -19,6 +22,16 @@ void test_wiki_links(void) {
     assert_contains(html, "<a href=\"Page\">Page</a>", "Basic wiki link");
     apex_free_string(html);
 
+    /* Test wiki links are NOT processed when feature is disabled */
+    {
+        apex_options disabled = apex_options_default();
+        disabled.enable_wiki_links = false;
+        html = apex_markdown_to_html("[[Page]]", 8, &disabled);
+        assert_contains(html, "[[Page]]", "Wiki link literal preserved when disabled");
+        assert_not_contains(html, "<a href=", "No link generated when wiki links disabled");
+        apex_free_string(html);
+    }
+
     /* Test wiki link with display text */
     html = apex_markdown_to_html("[[Page|Display]]", 16, &opts);
     assert_contains(html, "<a href=\"Page\">Display</a>", "Wiki link with display");
@@ -27,6 +40,37 @@ void test_wiki_links(void) {
     /* Test wiki link with section */
     html = apex_markdown_to_html("[[Page#Section]]", 16, &opts);
     assert_contains(html, "#Section", "Wiki link with section");
+    apex_free_string(html);
+
+    /* Test wiki link with section AND display text: [[Page#Sec|Display]] */
+    html = apex_markdown_to_html("[[Page#Sec|Display]]", 20, &opts);
+    assert_contains(html, "<a href=\"Page#Sec\">Display</a>", "Wiki link with section and display text");
+    apex_free_string(html);
+
+    /* Test multiple wiki links in one text node (prefix + between + tail handling) */
+    html = apex_markdown_to_html("A [[One]] and [[Two|2]] end", strlen("A [[One]] and [[Two|2]] end"), &opts);
+    assert_contains(html, "A ", "Multiple links: prefix preserved");
+    assert_contains(html, "<a href=\"One\">One</a>", "Multiple links: first converted");
+    assert_contains(html, "<a href=\"Two\">2</a>", "Multiple links: second converted");
+    assert_contains(html, " end", "Multiple links: trailing text preserved");
+    apex_free_string(html);
+
+    /* Test adjacent wiki links */
+    html = apex_markdown_to_html("[[A]][[B]]", strlen("[[A]][[B]]"), &opts);
+    assert_contains(html, "<a href=\"A\">A</a>", "Adjacent links: first");
+    assert_contains(html, "<a href=\"B\">B</a>", "Adjacent links: second");
+    apex_free_string(html);
+
+    /* Test malformed wiki link with no closing marker (should remain literal) */
+    html = apex_markdown_to_html("Start [[Broken", strlen("Start [[Broken"), &opts);
+    assert_contains(html, "[[Broken", "Malformed wiki link (no close) preserved as text");
+    assert_not_contains(html, "<a href=", "Malformed wiki link (no close) does not create link");
+    apex_free_string(html);
+
+    /* Test empty wiki link content: [[]] should remain literal */
+    html = apex_markdown_to_html("[[]]", strlen("[[]]"), &opts);
+    assert_contains(html, "[[]]", "Empty wiki link preserved as text");
+    assert_not_contains(html, "<a href=", "Empty wiki link does not create link");
     apex_free_string(html);
 
     /* Test space mode: dash (default) */
@@ -123,6 +167,22 @@ void test_wiki_links(void) {
     /* Reset options */
     opts.wikilink_extension = NULL;
     opts.wikilink_space = 0;  /* dash (default) */
+
+    /* Direct calls for coverage: create_wiki_links_extension returns NULL (postprocess-only) */
+    test_result(create_wiki_links_extension() == NULL, "create_wiki_links_extension returns NULL (postprocess-only)");
+
+    /* Direct calls for coverage: wiki_links_set_config (no-op unless ext+config provided) */
+    {
+        wiki_link_config cfg;
+        cfg.base_path = "/wiki/";
+        cfg.extension = ".html";
+        cfg.space_mode = WIKILINK_SPACE_DASH;
+
+        cmark_syntax_extension *ext = cmark_syntax_extension_new("dummy_wiki");
+        wiki_links_set_config(ext, &cfg);
+        cmark_syntax_extension_free(cmark_get_default_mem_allocator(), ext);
+        test_result(true, "wiki_links_set_config called with extension and config");
+    }
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Wiki Links Tests", had_failures, false);
