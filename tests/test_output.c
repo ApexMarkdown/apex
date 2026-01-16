@@ -133,7 +133,7 @@ void test_toc(void) {
         test_result(false, "Kramdown {:toc max2} did not apply max depth");
     }
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("TOC Generation Tests", had_failures, false);
 }
@@ -203,7 +203,7 @@ void test_standalone_output(void) {
         test_result(false, "Fragment mode has document structure");
     }
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Standalone Document Output Tests", had_failures, false);
 }
@@ -261,7 +261,7 @@ void test_pretty_html(void) {
         test_result(false, "Compact mode has indentation");
     }
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Pretty HTML Output Tests", had_failures, false);
 }
@@ -511,7 +511,7 @@ void test_header_ids(void) {
         test_result(false, "Default mode incorrectly uses anchor tags");
     }
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Header ID Generation Tests", had_failures, false);
 }
@@ -701,7 +701,7 @@ void test_indices(void) {
     assert_contains(html, "index-return", "Index entries have return links");
     assert_contains(html, "href=\"#idxref:", "Index entries link to anchors");
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Index Tests", had_failures, false);
 }
@@ -882,7 +882,7 @@ void test_citations(void) {
         assert_contains(html, "(doe99)", "Missing bibliography: unresolved key rendered");
         apex_free_string(html);
     }
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Citation and Bibliography Tests", had_failures, false);
 }
@@ -991,7 +991,7 @@ void test_aria_labels(void) {
     assert_contains(html, "<nav class=\"toc\"", "MMD TOC nav present");
     assert_contains(html, "aria-label=\"Table of contents\"", "MMD TOC nav has aria-label");
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("ARIA Labels Tests", had_failures, false);
 }
@@ -1089,7 +1089,7 @@ void test_combine_gitbook_like(void) {
     apex_free_string(chapter_html);
     if (chapter_md) free(chapter_md);
     free(chapter_src);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Combine / GitBook SUMMARY-like Tests", had_failures, false);
 }
