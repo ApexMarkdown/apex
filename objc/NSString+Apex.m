@@ -106,6 +106,7 @@ NSString *const ApexModeUnified = @"unified";
     paths[0] = [stylesheetPath UTF8String];
     paths[1] = NULL;
     options.stylesheet_paths = paths;
+    options.stylesheet_count = 1;
   }
   if (title && [title length] > 0) {
     options.document_title = [title UTF8String];
@@ -206,6 +207,7 @@ NSString *const ApexModeUnified = @"unified";
         paths[0] = [stylesheet UTF8String];
         paths[1] = NULL;
         options.stylesheet_paths = paths;
+        options.stylesheet_count = 1;
       }
     }
 
