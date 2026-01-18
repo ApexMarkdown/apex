@@ -21,7 +21,8 @@ static const char WIKI_OPEN_CHAR = '[';
 static wiki_link_config default_config = {
     .base_path = "",
     .extension = "",
-    .space_mode = WIKILINK_SPACE_DASH  /* Default: convert spaces to dashes */
+    .space_mode = WIKILINK_SPACE_DASH,  /* Default: convert spaces to dashes */
+    .sanitize = false
 };
 
 /**
@@ -86,7 +87,39 @@ static void parse_wiki_link(const char *content, int len,
 }
 
 /**
+ * Map Latin-1 supplement accented characters (U+00C0 - U+00FF) to ASCII base.
+ * Returns the ASCII base letter for accented chars, or 0 if not applicable.
+ * The index is the low byte (0x80-0xFF) of the 2-byte UTF-8 sequence 0xC3 0xXX.
+ */
+static char latin1_to_ascii(unsigned char low_byte) {
+    /* Latin-1 supplement: UTF-8 0xC3 0x80-0xBF maps to U+00C0-U+00FF */
+    /* This covers: À-Ö (0x80-0x96), Ø-ö (0x98-0xB6), ø-ÿ (0xB8-0xBF) */
+    static const char map[64] = {
+        /*  À    Á    Â    Ã    Ä    Å    Æ    Ç    È    É    Ê    Ë    Ì    Í    Î    Ï  */
+           'a', 'a', 'a', 'a', 'a', 'a',  0 , 'c', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i',
+        /*  Ð    Ñ    Ò    Ó    Ô    Õ    Ö    ×    Ø    Ù    Ú    Û    Ü    Ý    Þ    ß  */
+           'd', 'n', 'o', 'o', 'o', 'o', 'o',  0 , 'o', 'u', 'u', 'u', 'u', 'y',  0 ,  0 ,
+        /*  à    á    â    ã    ä    å    æ    ç    è    é    ê    ë    ì    í    î    ï  */
+           'a', 'a', 'a', 'a', 'a', 'a',  0 , 'c', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i',
+        /*  ð    ñ    ò    ó    ô    õ    ö    ÷    ø    ù    ú    û    ü    ý    þ    ÿ  */
+           'd', 'n', 'o', 'o', 'o', 'o', 'o',  0 , 'o', 'u', 'u', 'u', 'u', 'y',  0 , 'y',
+    };
+    if (low_byte >= 0x80 && low_byte <= 0xBF) {
+        return map[low_byte - 0x80];
+    }
+    return 0;
+}
+
+/**
  * Convert page name to URL
+ *
+ * When sanitize is enabled:
+ * - Removes apostrophes
+ * - Converts A-Z to a-z
+ * - Removes accents from Latin-1 characters (both NFC and NFD forms)
+ * - Replaces non-alphanumeric characters with the space_mode character
+ * - Removes duplicate space_mode characters
+ * - Removes leading and trailing space_mode characters
  */
 static char *page_to_url(const char *page, const char *section, wiki_link_config *config) {
     if (!page) return NULL;
@@ -109,25 +142,149 @@ static char *page_to_url(const char *page, const char *section, wiki_link_config
     strcpy(p, config->base_path);
     p += strlen(config->base_path);
 
-    /* Add page name (converting spaces based on mode) */
-    for (const char *s = page; *s; s++) {
-        if (*s == ' ') {
-            switch (config->space_mode) {
-                case WIKILINK_SPACE_DASH:
-                    *p++ = '-';
-                    break;
-                case WIKILINK_SPACE_NONE:
-                    /* Skip space - don't add anything */
-                    break;
-                case WIKILINK_SPACE_UNDERSCORE:
-                    *p++ = '_';
-                    break;
-                case WIKILINK_SPACE_SPACE:
-                    *p++ = ' ';
-                    break;
+    char *page_start = p;  /* Remember where page name starts for trailing trim */
+
+    if (config->sanitize) {
+        /* Sanitize in one pass */
+        char space_char;
+        switch (config->space_mode) {
+            case WIKILINK_SPACE_DASH:       space_char = '-'; break;
+            case WIKILINK_SPACE_NONE:       space_char = '\0'; break;
+            case WIKILINK_SPACE_UNDERSCORE: space_char = '_'; break;
+            case WIKILINK_SPACE_SPACE:      space_char = ' '; break;
+            default:                        space_char = '-'; break;
+        }
+        bool last_was_space_char = true;  /* Start true to skip leading space chars */
+
+        for (const char *s = page; *s; s++) {
+            unsigned char c = (unsigned char)*s;
+
+            /* Remove apostrophes, quotes, and similar punctuation (ASCII and Unicode) */
+            if (c == '\'' || c == '"' || c == '`') {
+                continue;
             }
-        } else {
-            *p++ = *s;
+            /* Skip acute accent: ´ (U+00B4) = 0xC2 0xB4 */
+            if (c == 0xC2 && s[1] && (unsigned char)s[1] == 0xB4) {
+                s += 1;  /* Skip the 2-byte sequence (loop will advance 1 more) */
+                continue;
+            }
+            /* Skip curly apostrophes and quotes (3-byte UTF-8 sequences starting with 0xE2 0x80):
+             * ' (U+2018) = 0xE2 0x80 0x98, ' (U+2019) = 0xE2 0x80 0x99
+             * " (U+201C) = 0xE2 0x80 0x9C, " (U+201D) = 0xE2 0x80 0x9D */
+            if (c == 0xE2 && s[1] && s[2] &&
+                (unsigned char)s[1] == 0x80 &&
+                ((unsigned char)s[2] == 0x98 || (unsigned char)s[2] == 0x99 ||
+                 (unsigned char)s[2] == 0x9C || (unsigned char)s[2] == 0x9D)) {
+                s += 2;  /* Skip the 3-byte sequence (loop will advance 1 more) */
+                continue;
+            }
+
+            /* Handle NFD: Skip combining diacritical marks (U+0300-U+036F).
+             * In UTF-8: 0xCC 0x80-0xBF (U+0300-U+033F) and 0xCD 0x80-0xAF (U+0340-U+036F) */
+            if (c == 0xCC && s[1] && (unsigned char)s[1] >= 0x80 && (unsigned char)s[1] <= 0xBF) {
+                s += 1;  /* Skip combining mark */
+                continue;
+            }
+            if (c == 0xCD && s[1] && (unsigned char)s[1] >= 0x80 && (unsigned char)s[1] <= 0xAF) {
+                s += 1;  /* Skip combining mark */
+                continue;
+            }
+
+            /* Handle NFC: Convert Latin-1 supplement accented chars to ASCII base.
+             * UTF-8 sequence 0xC3 0x80-0xBF maps to U+00C0-U+00FF */
+            if (c == 0xC3 && s[1]) {
+                unsigned char next = (unsigned char)s[1];
+
+                /* Handle ligatures that expand to multiple characters:
+                 * Æ (U+00C6) = 0xC3 0x86 → "ae"
+                 * æ (U+00E6) = 0xC3 0xA6 → "ae"
+                 * ß (U+00DF) = 0xC3 0x9F → "ss"
+                 * note that the utf-8 encoded latin=-1 ligatures and the two
+                 * ASCII characters always take up the same number of bytes
+                 * so there's no risk of buffer overflow */
+                if (next == 0x86 || next == 0xA6) {
+                    s += 1;  /* Skip the 2-byte sequence */
+                    *p++ = 'a';
+                    *p++ = 'e';
+                    last_was_space_char = false;
+                    continue;
+                }
+                if (next == 0x9F) {
+                    s += 1;  /* Skip the 2-byte sequence */
+                    *p++ = 's';
+                    *p++ = 's';
+                    last_was_space_char = false;
+                    continue;
+                }
+
+                char base = latin1_to_ascii(next);
+                if (base) {
+                    s += 1;  /* Skip the 2-byte sequence (loop advances 1 more) */
+                    c = (unsigned char)base;
+                    /* Fall through to normal processing */
+                } else {
+                    /* Unknown Latin-1 char, skip both bytes and treat as space */
+                    s += 1;
+                    if (space_char != '\0' && !last_was_space_char) {
+                        *p++ = space_char;
+                        last_was_space_char = true;
+                    }
+                    continue;
+                }
+            }
+
+            /* Lowercase A-Z */
+            if (c >= 'A' && c <= 'Z') {
+                c = (unsigned char)(c + ('a' - 'A'));
+            }
+
+            /* Replace non-alphanumeric with space_mode char (except / and .) */
+            if (!isalnum(c) && c != '/' && c != '.') {
+                if (space_char == '\0') {
+                    /* WIKILINK_SPACE_NONE: skip non-alphanumeric entirely */
+                    continue;
+                }
+                c = space_char;
+            }
+
+            /* Remove duplicate space_mode characters */
+            if (space_char != '\0' && c == space_char) {
+                if (last_was_space_char) {
+                    continue;  /* Skip duplicate */
+                }
+                last_was_space_char = true;
+            } else {
+                last_was_space_char = false;
+            }
+
+            *p++ = c;
+        }
+
+        /* Remove trailing space_mode character */
+        if (space_char != '\0' && p > page_start && *(p - 1) == space_char) {
+            p--;
+        }
+    } else {
+        /* basic behavior: only handle spaces */
+        for (const char *s = page; *s; s++) {
+            if (*s == ' ') {
+                switch (config->space_mode) {
+                    case WIKILINK_SPACE_DASH:
+                        *p++ = '-';
+                        break;
+                    case WIKILINK_SPACE_NONE:
+                        /* Skip space - don't add anything */
+                        break;
+                    case WIKILINK_SPACE_UNDERSCORE:
+                        *p++ = '_';
+                        break;
+                    case WIKILINK_SPACE_SPACE:
+                        *p++ = ' ';
+                        break;
+                }
+            } else {
+                *p++ = *s;
+            }
         }
     }
 

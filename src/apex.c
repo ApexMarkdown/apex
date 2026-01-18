@@ -2530,6 +2530,7 @@ apex_options apex_options_default(void) {
     /* Wiki link options */
     opts.wikilink_space = 0;  /* Default: dash (0=dash, 1=none, 2=underscore, 3=space) */
     opts.wikilink_extension = NULL;  /* Default: no extension */
+    opts.wikilink_sanitize = false;  /* Default: no sanitization */
 
     /* Script injection options */
     opts.script_tags = NULL;
@@ -4921,6 +4922,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             wiki_config.base_path = "";
             wiki_config.extension = options->wikilink_extension ? options->wikilink_extension : "";
             wiki_config.space_mode = (wikilink_space_mode_t)options->wikilink_space;
+            wiki_config.sanitize = options->wikilink_sanitize;
             apex_process_wiki_links_in_tree(document, &wiki_config);
         }
     }

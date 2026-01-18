@@ -284,6 +284,26 @@ the generated URL. **MODE** must be one of:
 **--wikilink-extension** *EXT*
 ::   Add a file extension to wiki link URLs. The extension is automatically prefixed with a dot if not provided. For example, `--wikilink-extension html` creates `href="Page.html"` and `--wikilink-extension .html` also creates `href="Page.html"`.
 
+**--wikilink-sanitize**, **--no-wikilink-sanitize**
+:   Sanitize wiki link URLs for cleaner, more compatible links. When enabled:
+
+- Removes apostrophes and quotation marks (i.e. removes `"'\`´‘’“”`)
+- Converts select latin-1 characters to ASCII (e.g. e-acute -> e)
+- Converts uppercase to lowercase
+- Replaces non-ascii and any non-alphanumeric ascii characters with the space-mode character (except `/` and `.`)
+- Removes duplicate space-mode characters
+- Removes leading and trailing space-mode characters
+
+For example, with `--wikilink-sanitize --wikilink-space dash`:
+
+`[[O'Brien's Page]]` → `href="obriens-page"`
+
+`[[Hello   World!!!]]` → `href="hello-world"`
+
+`[[path/to/FILE.MD]]` → `href="path/to/file.md"`
+
+Default: disabled.
+
 ## Image Embedding
 
 **--embed-images**
@@ -502,7 +522,7 @@ command-line invocations.
 directly.
 
 **Supported boolean options:**
-`indices`, `wikilinks`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`
+`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`
 
 **Supported string options:**
 `bibliography`, `csl`, `title`, `style` (or `css`),

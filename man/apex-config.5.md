@@ -174,6 +174,7 @@ Boolean keys accept any of the following values (case-insensitive):
 
 - `indices` - Enable index processing
 - `wikilinks` - Enable wiki link syntax (`[[Page]]`)
+- `wikilink-sanitize` - Sanitize wiki link URLs (lowercase, remove apostrophes, clean non-alphanumeric)
 - `includes` - Enable file inclusion
 - `relaxed-tables` - Enable relaxed table parsing
 - `alpha-lists` - Enable alphabetic list markers

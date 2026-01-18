@@ -234,7 +234,8 @@ void apex_process_wiki_links_in_tree(cmark_node *document, wiki_link_config *con
 wiki_link_config config = {
     .base_path = "/wiki/",
     .extension = ".html",
-    .space_mode = WIKILINK_SPACE_DASH  // Options: WIKILINK_SPACE_DASH, WIKILINK_SPACE_NONE, WIKILINK_SPACE_UNDERSCORE, WIKILINK_SPACE_SPACE
+    .space_mode = WIKILINK_SPACE_DASH,  // Options: WIKILINK_SPACE_DASH, WIKILINK_SPACE_NONE, WIKILINK_SPACE_UNDERSCORE, WIKILINK_SPACE_SPACE
+    .sanitize = true  // Lowercase, remove apostrophes, clean non-alphanumeric chars
 };
 
 ```

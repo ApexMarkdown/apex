@@ -239,7 +239,9 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  -v, --version          Show version information\n");
     fprintf(stderr, "  --[no-]wikilinks       Enable or disable wiki link syntax [[PageName]]\n");
     fprintf(stderr, "  --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)\n");
-    fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n\n");
+    fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n");
+    fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
 
@@ -1388,6 +1390,10 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             options.wikilink_extension = argv[i];
+        } else if (strcmp(argv[i], "--wikilink-sanitize") == 0) {
+            options.wikilink_sanitize = true;
+        } else if (strcmp(argv[i], "--no-wikilink-sanitize") == 0) {
+            options.wikilink_sanitize = false;
         } else if (strcmp(argv[i], "--transforms") == 0) {
             options.enable_metadata_transforms = true;
         } else if (strcmp(argv[i], "--no-transforms") == 0) {

@@ -126,6 +126,7 @@ typedef struct {
     /* Wiki link options */
     int wikilink_space;  /* Space replacement: 0=dash, 1=none, 2=underscore, 3=space */
     const char *wikilink_extension;  /* File extension to append (e.g., "html") */
+    bool wikilink_sanitize;  /* Sanitize URLs: lowercase, remove apostrophes, replace non-alnum */
 
     /* Script injection options */
     /* Raw <script>...</script> HTML snippets to inject either:

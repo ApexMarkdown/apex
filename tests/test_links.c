@@ -5,8 +5,6 @@
 #include "test_helpers.h"
 #include "apex/apex.h"
 #include "../src/extensions/wiki_links.h"
-#include "cmark-gfm.h"
-#include "cmark-gfm-extension_api.h"
 #include <string.h>
 
 void test_wiki_links(void) {
@@ -161,6 +159,57 @@ void test_wiki_links(void) {
         test_opts.wikilink_extension = NULL;
         html = apex_markdown_to_html("[[My Home Page]]", 16, &test_opts);
         assert_contains(html, "<a href=\"MyHomePage\">My Home Page</a>", "Wiki link multiple spaces with none");
+        apex_free_string(html);
+    }
+
+    struct {
+        const char *md;
+        size_t md_len;
+        int wikilink_space;
+        const char *wikilink_extension;
+        const char *expect;
+        const char *desc;
+    } sanitize_tests[] = {
+        /* basic sanitization */
+        { "[[Mork💓Mindy]]", 17, WIKILINK_SPACE_DASH, NULL, "href=\"mork-mindy\"", "Sanitize emoji in the middle of words" },
+        { "[[UPPERCASE Page]]", 18, WIKILINK_SPACE_DASH, NULL, "<a href=\"uppercase-page\">UPPERCASE Page</a>", "Sanitize lowercases" },
+        { "[[Hello!! World!!]]", 19, WIKILINK_SPACE_DASH, NULL, "<a href=\"hello-world\">Hello!! World!!</a>", "Sanitize replaces non-alnum" },
+        { "[[Hello   World]]", 17, WIKILINK_SPACE_DASH, NULL, "<a href=\"hello-world\">Hello   World</a>", "Sanitize removes duplicate dashes" },
+        { "[[???Hello World???]]", 21, WIKILINK_SPACE_DASH, NULL, "href=\"hello-world\"", "Sanitize removes leading/trailing" },
+        { "[[Hello World]]", 15, WIKILINK_SPACE_DASH, "html", "<a href=\"hello-world.html\">Hello World</a>", "Sanitize with extension" },
+        { "[[path/to/FILE.MD]]", 19, WIKILINK_SPACE_DASH, NULL, "href=\"path/to/file.md\"", "Sanitize preserves slashes and periods" },
+        { "[[My Page Name|Click Here]]", 27, WIKILINK_SPACE_DASH, NULL, "<a href=\"my-page-name\">Click Here</a>", "Sanitize with display text" },
+        /* apostrophes and quotes always removed */
+        { "[[O'Brien's Page]]", 18, WIKILINK_SPACE_DASH, NULL, "href=\"obriens-page\"", "Sanitize removes apostrophes" },
+        { "[[Abso\\`fricking´lutely]]", 27, WIKILINK_SPACE_DASH, NULL, "href=\"absofrickinglutely\"", "Sanitize removes ascii fancy apostrophes" },
+        { "[[Abso‘fricking’lutely]]", 28, WIKILINK_SPACE_DASH, NULL, "href=\"absofrickinglutely\"", "Sanitize removes unicode fancy apostrophes" },
+        { "[[Abso\"fricking\"lutely]]", 28, WIKILINK_SPACE_DASH, NULL, "href=\"absofrickinglutely\"", "Sanitize removes quotes" },
+        { "[[Abso“fricking”lutely]]", 28, WIKILINK_SPACE_DASH, NULL, "href=\"absofrickinglutely\"", "Sanitize removes unicode fancy quotes" },
+        /* different space modes */
+        { "[[Hello World]]", 15, WIKILINK_SPACE_UNDERSCORE, NULL, "<a href=\"hello_world\">Hello World</a>", "Sanitize with underscore mode" },
+        { "[[Hello World!!!]]", 18, WIKILINK_SPACE_NONE, NULL, "<a href=\"helloworld\">Hello World!!!</a>", "Sanitize with none mode" },
+        /* unicode accents */
+        { "[[L" "\xC3\xA9" "on]]", 22, WIKILINK_SPACE_DASH, NULL, "<a href=\"leon\"", "Accents removed NFC: lowercase" },
+        { "[[L" "\xC3\x89" "ON]]", 22, WIKILINK_SPACE_DASH, NULL, "<a href=\"leon\"", "Accents removed NFC: uppercase" },
+        { "[[L" "\x65\xCC\x81" "on]]", 22, WIKILINK_SPACE_DASH, NULL, "<a href=\"leon\"", "Accents removed NFD: lowercase" },
+        { "[[L" "\x45\xCC\x81" "ON]]", 22, WIKILINK_SPACE_DASH, NULL, "<a href=\"leon\"", "Accents removed NFD: uppercase" },
+        /* ligatures: æ (U+00E6) = 0xC3 0xA6, Æ (U+00C6) = 0xC3 0x86, ß (U+00DF) = 0xC3 0x9F*/
+        { "[[" "\xC3\xA6" "on]]", 9, WIKILINK_SPACE_DASH, NULL, "<a href=\"aeon\"", "Ligature ae lowercase" },
+        { "[[" "\xC3\x86" "ON]]", 9, WIKILINK_SPACE_DASH, NULL, "<a href=\"aeon\"", "Ligature ae uppercase" },
+        { "[[Stra" "\xC3\x9F" "e]]", 12, WIKILINK_SPACE_DASH, NULL, "<a href=\"strasse\"", "Ligature ss" },
+    };
+    for (size_t i = 0; i < sizeof(sanitize_tests)/sizeof(sanitize_tests[0]); ++i) {
+        apex_options test_opts = apex_options_default();
+        test_opts.enable_wiki_links = true;
+        test_opts.wikilink_space = sanitize_tests[i].wikilink_space;
+        test_opts.wikilink_sanitize = true;
+        test_opts.wikilink_extension = sanitize_tests[i].wikilink_extension;
+        html = apex_markdown_to_html(
+            sanitize_tests[i].md,
+            sanitize_tests[i].md_len,
+            &test_opts
+        );
+        assert_contains(html, sanitize_tests[i].expect, sanitize_tests[i].desc);
         apex_free_string(html);
     }
 
