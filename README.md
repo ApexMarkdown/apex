@@ -46,7 +46,7 @@ one tool.
 
   Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
 
-- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
+- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space`, `--wikilink-extension`, and `--wikilink-sanitize`
 - **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
 - **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
 - **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
@@ -286,6 +286,8 @@ apex input.md --mode kramdown
 
 `--wikilink-extension EXT` - File extension to append to wiki link URLs (e.g. `html`, `md`)
 
+`--wikilink-sanitize` - Sanitize wiki link URLs (lowercase, remove apostrophes, clean non-alphanumeric characters)
+
 - `--divs` / `--no-divs` - Enable/disable Pandoc fenced divs
 
   syntax (enabled by default in unified mode)
@@ -391,6 +393,7 @@ Options:
   --[no-]wikilinks       Enable or disable wiki link syntax [[PageName]]
   --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)
   --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)
+  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)
 
 If no file is specified, reads from stdin.
 
