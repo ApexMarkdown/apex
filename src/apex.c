@@ -4157,6 +4157,45 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Preprocess grid tables BEFORE spans/special_markers
+     * Grid tables need to process === separators before they get converted to <mark> tags
+     * Grid tables need to be converted to pipe table format first, then captions can be detected
+     */
+    char *grid_tables_processed = NULL;
+    char *normalized_for_grid_tables = NULL;
+    if (options->enable_grid_tables && options->enable_tables) {
+        /* Normalize text_ptr for grid table preprocessing if it doesn't end with newline */
+        size_t pre_grid_len = strlen(text_ptr);
+        bool needs_newline_for_grid = (pre_grid_len > 0 &&
+                                       text_ptr[pre_grid_len - 1] != '\n' &&
+                                       text_ptr[pre_grid_len - 1] != '\r');
+        if (needs_newline_for_grid) {
+            normalized_for_grid_tables = malloc(pre_grid_len + 2);
+            if (normalized_for_grid_tables) {
+                memcpy(normalized_for_grid_tables, text_ptr, pre_grid_len);
+                normalized_for_grid_tables[pre_grid_len] = '\n';
+                normalized_for_grid_tables[pre_grid_len + 1] = '\0';
+            }
+        }
+
+        PROFILE_START(grid_tables_preprocess);
+        grid_tables_processed = apex_preprocess_grid_tables(normalized_for_grid_tables ? normalized_for_grid_tables : text_ptr);
+        PROFILE_END(grid_tables_preprocess);
+
+        /* Handle cleanup */
+        if (normalized_for_grid_tables) {
+            if (grid_tables_processed) {
+                free(normalized_for_grid_tables);
+            } else {
+                free(normalized_for_grid_tables);
+            }
+        }
+
+        if (grid_tables_processed) {
+            text_ptr = grid_tables_processed;
+        }
+    }
+
     /* Preprocess bracketed spans [text]{IAL} */
     char *spans_preprocessed = NULL;
     if (options->enable_spans && (options->mode == APEX_MODE_UNIFIED || options->mode == APEX_MODE_KRAMDOWN)) {
@@ -4376,43 +4415,6 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    /* Preprocess grid tables before caption processing
-     * Grid tables need to be converted to pipe table format first, then captions can be detected
-     */
-    char *grid_tables_processed = NULL;
-    char *normalized_for_grid_tables = NULL;
-    if (options->enable_grid_tables && options->enable_tables) {
-        /* Normalize text_ptr for grid table preprocessing if it doesn't end with newline */
-        size_t pre_grid_len = strlen(text_ptr);
-        bool needs_newline_for_grid = (pre_grid_len > 0 &&
-                                       text_ptr[pre_grid_len - 1] != '\n' &&
-                                       text_ptr[pre_grid_len - 1] != '\r');
-        if (needs_newline_for_grid) {
-            normalized_for_grid_tables = malloc(pre_grid_len + 2);
-            if (normalized_for_grid_tables) {
-                memcpy(normalized_for_grid_tables, text_ptr, pre_grid_len);
-                normalized_for_grid_tables[pre_grid_len] = '\n';
-                normalized_for_grid_tables[pre_grid_len + 1] = '\0';
-            }
-        }
-
-        PROFILE_START(grid_tables_preprocess);
-        grid_tables_processed = apex_preprocess_grid_tables(normalized_for_grid_tables ? normalized_for_grid_tables : text_ptr);
-        PROFILE_END(grid_tables_preprocess);
-
-        /* Handle cleanup */
-        if (normalized_for_grid_tables) {
-            if (grid_tables_processed) {
-                free(normalized_for_grid_tables);
-            } else {
-                free(normalized_for_grid_tables);
-            }
-        }
-
-        if (grid_tables_processed) {
-            text_ptr = grid_tables_processed;
-        }
-    }
 
     /* Normalize table captions before parsing (preprocessing)
      * - Ensure contiguous [Caption] lines become separate paragraphs
@@ -4718,12 +4720,64 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                     *write++ = *read++;
                     remaining--;
                 } else if (read[0] == '=' && read[1] == '=') {
-                    /* Found ==, convert to {== */
-                    const char *start = read;
-                    read += 2;
-                    /* Find matching == */
-                    const char *end = strstr(read, "==");
-                    if (end) {
+                    /* Found ==, but need to check if it's === (which should be skipped) */
+                    if (read[2] == '=') {
+                        /* This is === (3 or more equals), copy as-is - don't convert to mark */
+                        /* Skip sequences of 3 or more = characters entirely */
+                        const char *equals_start = read;
+                        read += 3; /* Skip the first === */
+                        /* Skip any additional = characters */
+                        while (*read == '=') {
+                            read++;
+                        }
+                        /* Copy all the = characters as-is */
+                        size_t equals_len = read - equals_start;
+                        if (equals_len >= remaining) {
+                            size_t written = (size_t)(write - output);
+                            capacity = (written + equals_len + 100) * 2;
+                            char *new_output = realloc(output, capacity);
+                            if (!new_output) {
+                                free(output);
+                                output = NULL;
+                                break;
+                            }
+                            output = new_output;
+                            write = output + written;
+                            remaining = capacity - written;
+                        }
+                        memcpy(write, equals_start, equals_len);
+                        write += equals_len;
+                        remaining -= equals_len;
+                        /* Continue loop - don't fall through to else block */
+                        continue;
+                    } else {
+                        /* Found == (but not ===), convert to {== */
+                        /* Only match exactly ==, not === or more */
+                        const char *start = read;
+                        read += 2;
+                        /* Find matching == (but not ===) */
+                        const char *end = NULL;
+                        const char *search_pos = read;
+                        while ((search_pos = strstr(search_pos, "==")) != NULL) {
+                            /* Check that this is not === */
+                            /* Before: search_pos[-1] should not be '=' (unless search_pos == read) */
+                            bool is_triple_before = (search_pos > read && search_pos[-1] == '=');
+                            /* After: search_pos[2] should not be '=' */
+                            bool is_triple_after = (search_pos[2] == '=');
+                            if (!is_triple_before && !is_triple_after) {
+                                end = search_pos; /* Found matching == */
+                                break;
+                            }
+                            /* This is part of ===, skip it and continue */
+                            if (is_triple_after) {
+                                /* Skip the entire === sequence */
+                                search_pos += 3;
+                                while (*search_pos == '=') search_pos++; /* Skip any additional = */
+                            } else {
+                                search_pos += 2; /* Skip this == and continue searching */
+                            }
+                        }
+                        if (end) {
                         /* Found matching ==, wrap in {==...==} */
                         size_t content_len = (size_t)(end - read);
                         size_t needed = 2 + content_len + 2;  /* {== + content + ==} */
@@ -4771,6 +4825,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                         *write++ = *start;
                         remaining -= 2;
                         read = start + 1;
+                        }
                     }
                 } else if (read[0] == '~' && read[1] == '~') {
                     /* Found ~~, convert to {-- */
