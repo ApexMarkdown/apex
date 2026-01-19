@@ -40,26 +40,48 @@ char *apex_process_highlights(const char *text) {
         /* Look for ==highlight== (not in code, not Critic Markup) */
         /* Skip if preceded by { (Critic Markup) */
         bool is_critic = (read > text && read[-1] == '{');
-        /* A highlight requires ={2}\S where \S is not = to begin */
-        /* Also check that read[2] is not whitespace (to avoid matching == on line by itself) */
+        
+        /* Check opening == requirements:
+         * - Exactly 2 = characters: read[0] == '=' && read[1] == '='
+         * - Not preceded by = or + (or beginning of line): (?<![=+])
+         * - Character after == is not =: read[2] != '='
+         * - Character immediately before or after == is not +
+         * - Character after == is not whitespace
+         */
+        bool preceded_by_equals = (read > text && read[-1] == '=');
+        bool preceded_by_plus = (read > text && read[-1] == '+');
+        bool followed_by_plus = (read[2] == '+');
         bool is_valid_highlight_start = (read[0] == '=' && read[1] == '=' &&
                                          read[2] != '=' && read[2] != '}' &&
                                          read[2] != '\0' && read[2] != '\n' &&
-                                         read[2] != '\r' && read[2] != ' ' && read[2] != '\t');
+                                         read[2] != '\r' && read[2] != ' ' && read[2] != '\t' &&
+                                         !preceded_by_equals && !preceded_by_plus && !followed_by_plus);
 
         if (!in_code_block && !in_inline_code && !is_critic && is_valid_highlight_start) {
 
             /* Find closing == */
             const char *close = read + 2;
             while (*close && *close != '\n' && *close != '\r') {
-                if (close[0] == '=' && close[1] == '=' &&
-                    (close[2] != '=' || close[-1] == '}')) {  /* Not Critic ==} */
-                    break;
+                if (close[0] == '=' && close[1] == '=') {
+                    /* Check closing == requirements:
+                     * - Character after closing == is not =
+                     * - Character before closing == is not space
+                     * - Character immediately before or after closing == is not +
+                     */
+                    bool closing_followed_by_equals = (close[2] == '=');
+                    bool closing_preceded_by_space = (close > read + 2 && (close[-1] == ' ' || close[-1] == '\t'));
+                    bool closing_preceded_by_plus = (close > read + 2 && close[-1] == '+');
+                    bool closing_followed_by_plus = (close[2] == '+');
+                    
+                    if (!closing_followed_by_equals && !closing_preceded_by_space && 
+                        !closing_preceded_by_plus && !closing_followed_by_plus) {
+                        break;
+                    }
                 }
                 close++;
             }
 
-            if (*close && close[0] == '=' && close[1] == '=') {
+            if (*close && close[0] == '=' && close[1] == '=' && close[2] != '=') {
                 /* Found complete ==highlight== */
                 size_t content_len = close - (read + 2);
 
