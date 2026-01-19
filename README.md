@@ -435,6 +435,18 @@ Key documentation pages:
 
 [Syntax Reference](https://github.com/ApexMarkdown/apex/wiki/Syntax) - Complete syntax reference
 
+## Credits
+
+Apex builds on ideas and syntax from several excellent Markdown projects:
+
+- **CommonMark**: [commonmark.org](https://commonmark.org/)
+- **GitHub Flavored Markdown (GFM)**: [github.github.io/gfm](https://github.github.io/gfm/)
+- **Kramdown**: [kramdown.gettalong.org](https://kramdown.gettalong.org/)
+- **Marked**: [markedapp.com](https://markedapp.com/)
+- **mmark**: [github.com/mmarkdown/mmark](https://github.com/mmarkdown/mmark)
+- **MultiMarkdown**: [multimarkdown.com](https://multimarkdown.com/)
+- **Pandoc**: [pandoc.org](https://pandoc.org/)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull
