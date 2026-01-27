@@ -2,13 +2,42 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.59] - 2026-01-27
+
+### Changed
+
+- Show plugin metadata (id, title, author, description, homepage) in a stable order grouped under a single Installed Plugins section when using --list-plugins
+
+### New
+
+- --wikilink-sanitize  to sanitize the wiki links
+- Add comprehensive --wikilink-sanitize documentation to Command-Line-Options.md wiki page
+- Support ++insert++ syntax that renders to <ins> and supports IAL attributes for ids and classes on inserted spans
+- Discover project plugins from .apex directories in the current directory, base directory, and git repository root in addition to global config
+- List installed plugins from project and global .apex/plugins roots in the CLI, following the same precedence rules as runtime plugin loading so users can see exactly which plugins are active for a given project
+
+### Improved
+
+- Highlight detection logic now properly validates both opening and closing == markers with stricter requirements
+- Allow project plugins to shadow global plugins with the same id so projects can locally override or disable user-global plugins
+- Add APEX_SUPPRESS_HIGHLIGHT_WARNINGS environment variable to suppress noisy missing-syntax-highlighter warnings when running in controlled environments
+- Read configuration from project .apex/config.yml (with global config as a fallback) so per-project defaults override user-wide settings while keeping existing metadata and CLI precedence intact
+
+### Fixed
+
+- Highlight conversion now correctly rejects === (three equals) and only matches == (exactly two equals) for mark tags
+- Highlight conversion no longer matches when preceded by = or + characters
+- Highlight conversion no longer matches when followed by + character
+- Highlight conversion no longer matches when closing == is preceded by space or followed by = or +
+- Honor MultiMarkdown-style image attributes on reference-style images in unified and MultiMarkdown modes so definitions like [id]: path \"Title\" class=center width=300 height=200 style=\"...\" correctly apply class, width, height, and style
+- Honor MultiMarkdown-style image attributes on inline and reference-style images in unified and MultiMarkdown modes so syntax like ![alt](/img.jpg \"Title\" class=center width=300 height=200 style=\"...\") or [id]: /img.jpg \"Title\" class=center width=300 height=200 style=\"...\" correctly applies class, width, height, and style to the rendered img tag
+- Preserve MMD6-style image titles in parentheses like ![Image](image.png (Parentheses title)) so they render a proper title attribute instead of leaving a stray closing parenthesis in the output
+
 ## [0.1.58] - 2026-01-15
 
 ### Fixed
 
 - Missing test files
-
-[0.1.58]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.58
 
 ## [0.1.57] - 2026-01-15
 
@@ -25,23 +54,17 @@ All notable changes to Apex will be documented in this file.
 - Definition lists with blank lines between definitions no longer create separate <dl> blocks - all definitions for a term are now grouped in a single definition list.
 - Terms with blank lines before their definitions are now correctly converted to <dt> tags instead of being rendered as paragraphs.
 
-[0.1.57]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.57
-
 ## [0.1.56] - 2026-01-14
 
 ### New
 
 - Add test_marked_integration.c test file for Marked integration features
 
-[0.1.56]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.56
-
 ## [0.1.55] - 2026-01-14
 
 ### New
 
 - Add test_marked_integration.c test file for Marked integration features
-
-[0.1.55]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.55
 
 ## [0.1.54] - 2026-01-14
 
@@ -62,8 +85,6 @@ All notable changes to Apex will be documented in this file.
 
 - Blank line above ASCII art in --version output
 
-[0.1.54]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.54
-
 ## [0.1.53] - 2026-01-13
 
 ### New
@@ -80,8 +101,6 @@ All notable changes to Apex will be documented in this file.
 - Version output automatically detects terminal capabilities and falls back to text-only when logo cannot display (narrow terminal, piped output, NO_COLOR set)
 - --embed-css now embeds all specified stylesheets as inline <style> blocks
 - Test output in errors-only mode (`-e`) now only prints suite titles for suites with failures
-
-[0.1.53]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.53
 
 ## [0.1.52] - 2026-01-11
 
@@ -1980,8 +1999,6 @@ Headers starting with `#` are now correctly recognized instead of being treated 
 
 Math processor now validates that `\(...\)` sequences contain actual math content (letters, numbers, or operators) before processing them. This prevents false positives like `\(%\)` from being treated as math when they only contain special characters.
 
-
-
 ## [0.1.18] - 2025-12-06
 
 ### Fixed
@@ -2176,6 +2193,15 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+z
+
+[0.1.59]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.59
+[0.1.58]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.58
+[0.1.57]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.57
+[0.1.56]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.56
+[0.1.55]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.55
+[0.1.54]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.54
+[0.1.53]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.53
 [0.1.52]: https://github.com/ttscoff/apex/releases/tag/v0.1.52
 [0.1.51]: https://github.com/ttscoff/apex/releases/tag/v0.1.51
 [0.1.50]: https://github.com/ttscoff/apex/releases/tag/v0.1.50
@@ -2251,5 +2277,3 @@ https://github.com/ttscoff/apex/releases/tag/v0.1.10
 [0.1.2]: https://github.com/ttscoff/apex/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ttscoff/apex/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ttscoff/apex/releases/tag/v0.1.0
-
-z

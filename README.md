@@ -1,5 +1,5 @@
 
-[![Version: 0.1.57](https://img.shields.io/badge/Version-0.1.57-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1174/1174](https://img.shields.io/badge/Tests-1174/1174-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.58](https://img.shields.io/badge/Version-0.1.58-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1259/1259](https://img.shields.io/badge/Tests-1259/1259-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -46,7 +46,7 @@ one tool.
 
   Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
 
-- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space`, `--wikilink-extension`, and `--wikilink-sanitize`
+- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
 - **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
 - **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
 - **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
@@ -286,8 +286,6 @@ apex input.md --mode kramdown
 
 `--wikilink-extension EXT` - File extension to append to wiki link URLs (e.g. `html`, `md`)
 
-`--wikilink-sanitize` - Sanitize wiki link URLs (lowercase, remove apostrophes, clean non-alphanumeric characters)
-
 - `--divs` / `--no-divs` - Enable/disable Pandoc fenced divs
 
   syntax (enabled by default in unified mode)
@@ -301,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.56
+Apex Markdown Processor v0.1.58
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -434,18 +432,6 @@ Key documentation pages:
 [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options) - All CLI flags explained
 
 [Syntax Reference](https://github.com/ApexMarkdown/apex/wiki/Syntax) - Complete syntax reference
-
-## Credits
-
-Apex builds on ideas and syntax from several excellent Markdown projects:
-
-- **CommonMark**: [commonmark.org](https://commonmark.org/)
-- **GitHub Flavored Markdown (GFM)**: [github.github.io/gfm](https://github.github.io/gfm/)
-- **Kramdown**: [kramdown.gettalong.org](https://kramdown.gettalong.org/)
-- **Marked**: [markedapp.com](https://markedapp.com/)
-- **mmark**: [github.com/mmarkdown/mmark](https://github.com/mmarkdown/mmark)
-- **MultiMarkdown**: [multimarkdown.com](https://multimarkdown.com/)
-- **Pandoc**: [pandoc.org](https://pandoc.org/)
 
 ## Contributing
 
