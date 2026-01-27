@@ -81,7 +81,7 @@ static void add_attribute(apex_attributes *attrs, const char *key, const char *v
  * Parse IAL/ALD content
  * Format: #id .class .class2 key="value" key2='value2'
  */
-static apex_attributes *parse_ial_content(const char *content, int len) {
+apex_attributes *parse_ial_content(const char *content, int len) {
     apex_attributes *attrs = create_attributes();
     if (!attrs) return NULL;
 
@@ -525,7 +525,7 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
  * Apply attributes to HTML tag
  * Helper function to generate attribute string
  */
-static char *attributes_to_html(apex_attributes *attrs) {
+char *attributes_to_html(apex_attributes *attrs) {
     if (!attrs) return strdup("");
 
     char buffer[4096];
@@ -1917,10 +1917,28 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                     continue;
                 }
 
-                /* Scan forward from url_start looking for:
-                 * 1. Titles: quoted string ("title" or 'title') or parentheses (title)
-                 * 2. Attributes: key=value pattern (for images)
-                 * URL should end before whichever comes first
+                /* Scan forward from url_start.
+                 *
+                 * For images (do_image_attrs == true) we treat everything after the
+                 * first whitespace as an "attribute string" and hand it to
+                 * parse_image_attributes(). That function understands both quoted
+                 * titles ("title" or 'title') and key=value pairs (width=200),
+                 * so constructs like:
+                 *
+                 *   ![alt](url "Title" width=200)
+                 *   ![alt](url width=200)
+                 *
+                 * are all parsed correctly:
+                 *   - "Title" -> title attribute
+                 *   - width=200 -> width attribute
+                 *
+                 * We then remove that attribute string from the markdown we pass
+                 * to cmark, leaving only the URL inside the parentheses so the
+                 * core parser still sees a valid inline image.
+                 *
+                 * In modes without image attributes, we keep the original
+                 * behavior and try to detect a standard Markdown title so that
+                 * cmark can parse it.
                  */
                 p = url_start;
                 while (p < paren_end) {
@@ -1930,26 +1948,44 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         while (after_space < paren_end && (*after_space == ' ' || *after_space == '\t')) after_space++;
 
                         if (after_space < paren_end) {
-                            /* Check if it's a quoted title */
-                            if (*after_space == '"' || *after_space == '\'') {
-                                /* Found a title - URL ends before this space */
-                                url_end = p;
-                                break;
-                            }
+                            if (do_image_attrs) {
+                                /* For images with MMD6-style parentheses titles,
+                                 * keep using the core parser's title handling:
+                                 *
+                                 *   ![Image](image.png (Parentheses title))
+                                 *
+                                 * In this case we should NOT treat the tail as
+                                 * attributes, otherwise we lose the title and
+                                 * leave a stray closing parenthesis in output.
+                                 */
+                                if (*after_space == '(') {
+                                    url_end = p;  /* Let cmark handle the title */
+                                    break;
+                                }
 
-                            /* Check if it's a parentheses title: space followed by '(' */
-                            if (*after_space == '(') {
-                                /* This is a title in parentheses - URL ends before the space */
-                                url_end = p;
-                                break;
-                            }
-
-                            /* Check if it's attributes (for images) */
-                            if (do_image_attrs && looks_like_attribute_start(after_space, paren_end)) {
-                                /* This looks like the start of attributes */
+                                /* For everything else, treat the tail as an
+                                 * attribute string (including quoted title).
+                                 */
                                 attr_start = after_space;
-                                url_end = p; /* URL ends before this space */
+                                url_end = p;
                                 break;
+                            } else {
+                                /* No image attributes: preserve standard Markdown
+                                 * title parsing so cmark can handle it.
+                                 */
+                                /* Check if it's a quoted title */
+                                if (*after_space == '"' || *after_space == '\'') {
+                                    /* Found a title - URL ends before this space */
+                                    url_end = p;
+                                    break;
+                                }
+
+                                /* Check if it's a parentheses title: space followed by '(' */
+                                if (*after_space == '(') {
+                                    /* This is a title in parentheses - URL ends before the space */
+                                    url_end = p;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -2107,9 +2143,22 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 remaining -= encoded_len;
                             }
 
-                            /* Write the rest (title if present, but NOT attributes for images - they're stored separately) */
+                            /* Write the rest for non-image-attribute modes:
+                             * - When image attributes are enabled, we have already
+                             *   parsed any title/width/height/style into attrs and
+                             *   we deliberately omit that tail so cmark only sees
+                             *   ![alt](url).
+                             * - When image attributes are disabled, we preserve
+                             *   the original tail (e.g. "title") for cmark.
+                             */
                             const char *rest_start = url_end;
-                            while (rest_start < paren_end) {
+                            const char *rest_end = paren_end;
+                            if (do_image_attrs && attr_start && attr_start < paren_end) {
+                                /* Drop everything from attr_start onward */
+                                rest_end = attr_start;
+                            }
+
+                            while (rest_start < rest_end) {
                                 if (remaining > 0) {
                                     *write++ = *rest_start++;
                                     remaining--;
@@ -2347,17 +2396,55 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                                     }
                                                     title_end = ial_end + 1; /* Update end position to skip IAL */
                                                     found_ial = true;
-                                            } else if (ial_attrs) {
-                                                apex_free_attributes(ial_attrs);
-                                                title_end = ial_end + 1;
-                                                found_ial = true;
-                                            } else {
-                                                /* Even if parsing failed, skip the IAL syntax to prevent it appearing in output */
-                                                title_end = ial_end + 1;
-                                                found_ial = true;
-                                            }
+                                                } else if (ial_attrs) {
+                                                    apex_free_attributes(ial_attrs);
+                                                    title_end = ial_end + 1;
+                                                    found_ial = true;
+                                                } else {
+                                                    /* Even if parsing failed, skip the IAL syntax to prevent it appearing in output */
+                                                    title_end = ial_end + 1;
+                                                    found_ial = true;
+                                                }
                                             }
                                         }
+                                    }
+                                }
+                            }
+
+                            /* Check for MultiMarkdown-style attributes after title:
+                             * [id]: url "Title" class=center width=300
+                             * These are parsed with the same image-attribute parser used for inline images.
+                             */
+                            if (title_end && do_image_attrs && title_end < line_end) {
+                                const char *after_title_attrs = title_end;
+                                while (after_title_attrs < line_end &&
+                                       (*after_title_attrs == ' ' || *after_title_attrs == '\t')) {
+                                    after_title_attrs++;
+                                }
+
+                                /* If there's remaining content and it doesn't start an IAL block,
+                                 * treat it as a sequence of key=value attributes (MultiMarkdown style).
+                                 */
+                                if (after_title_attrs < line_end && *after_title_attrs != '{') {
+                                    const char *attr_end = line_end;
+                                    size_t attr_len = attr_end - after_title_attrs;
+                                    apex_attributes *mmd_attrs = parse_image_attributes(after_title_attrs, (int)attr_len);
+
+                                    if (mmd_attrs &&
+                                        (mmd_attrs->attr_count > 0 || mmd_attrs->id || mmd_attrs->class_count > 0)) {
+                                        if (!attrs) {
+                                            attrs = mmd_attrs;
+                                        } else {
+                                            apex_attributes *merged = merge_attributes(attrs, mmd_attrs);
+                                            apex_free_attributes(attrs);
+                                            apex_free_attributes(mmd_attrs);
+                                            attrs = merged;
+                                        }
+                                        /* We consumed the rest of the line as attributes */
+                                        title_end = line_end;
+                                        found_ial = true;
+                                    } else if (mmd_attrs) {
+                                        apex_free_attributes(mmd_attrs);
                                     }
                                 }
                             }

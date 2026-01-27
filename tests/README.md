@@ -139,3 +139,8 @@ Some advanced features work but have limited test coverage:
 
 See `docs/TEST_COVERAGE.md` for detailed analysis.
 
+## License
+
+Copyright &copy; 2026 Brett Terpstra
+
+[MIT License](LICENSE)

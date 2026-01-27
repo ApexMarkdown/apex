@@ -48,10 +48,10 @@ cmake_force:
 SHELL = /bin/sh
 
 # The CMake executable.
-CMAKE_COMMAND = /usr/local/bin/cmake
+CMAKE_COMMAND = /opt/homebrew/bin/cmake
 
 # The command to remove a file.
-RM = /usr/local/bin/cmake -E rm -f
+RM = /opt/homebrew/bin/cmake -E rm -f
 
 # Escaping for special characters.
 EQUALS = =
@@ -68,7 +68,7 @@ CMAKE_BINARY_DIR = /Users/ttscoff/Desktop/Code/apex/build-test
 # Special rule for the target test
 test:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running tests..."
-	/usr/local/bin/ctest $(ARGS)
+	/opt/homebrew/bin/ctest $(ARGS)
 .PHONY : test
 
 # Special rule for the target test
@@ -88,7 +88,7 @@ edit_cache/fast: edit_cache
 # Special rule for the target rebuild_cache
 rebuild_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake to regenerate build system..."
-	/usr/local/bin/cmake --regenerate-during-build -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
+	/opt/homebrew/bin/cmake --regenerate-during-build -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
 .PHONY : rebuild_cache
 
 # Special rule for the target rebuild_cache
@@ -107,37 +107,37 @@ list_install_components/fast: list_install_components
 # Special rule for the target install
 install: preinstall
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
-	/usr/local/bin/cmake -P cmake_install.cmake
+	/opt/homebrew/bin/cmake -P cmake_install.cmake
 .PHONY : install
 
 # Special rule for the target install
 install/fast: preinstall/fast
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
-	/usr/local/bin/cmake -P cmake_install.cmake
+	/opt/homebrew/bin/cmake -P cmake_install.cmake
 .PHONY : install/fast
 
 # Special rule for the target install/local
 install/local: preinstall
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
-	/usr/local/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
 .PHONY : install/local
 
 # Special rule for the target install/local
 install/local/fast: preinstall/fast
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
-	/usr/local/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
 .PHONY : install/local/fast
 
 # Special rule for the target install/strip
 install/strip: preinstall
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
-	/usr/local/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
 .PHONY : install/strip
 
 # Special rule for the target install/strip
 install/strip/fast: preinstall/fast
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
-	/usr/local/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+	/opt/homebrew/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
 .PHONY : install/strip/fast
 
 # The main all target
@@ -878,6 +878,36 @@ src/extensions/inline_tables.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/inline_tables.c.s
 .PHONY : src/extensions/inline_tables.c.s
 
+src/extensions/insert.o: src/extensions/insert.c.o
+.PHONY : src/extensions/insert.o
+
+# target to build an object file
+src/extensions/insert.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex.dir/build.make CMakeFiles/apex.dir/src/extensions/insert.c.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/insert.c.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/insert.c.o
+.PHONY : src/extensions/insert.c.o
+
+src/extensions/insert.i: src/extensions/insert.c.i
+.PHONY : src/extensions/insert.i
+
+# target to preprocess a source file
+src/extensions/insert.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex.dir/build.make CMakeFiles/apex.dir/src/extensions/insert.c.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/insert.c.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/insert.c.i
+.PHONY : src/extensions/insert.c.i
+
+src/extensions/insert.s: src/extensions/insert.c.s
+.PHONY : src/extensions/insert.s
+
+# target to generate assembly for a file
+src/extensions/insert.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex.dir/build.make CMakeFiles/apex.dir/src/extensions/insert.c.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/insert.c.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/insert.c.s
+.PHONY : src/extensions/insert.c.s
+
 src/extensions/math.o: src/extensions/math.c.o
 .PHONY : src/extensions/math.o
 
@@ -1027,6 +1057,36 @@ src/extensions/sup_sub.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/sup_sub.c.s
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/sup_sub.c.s
 .PHONY : src/extensions/sup_sub.c.s
+
+src/extensions/syntax_highlight.o: src/extensions/syntax_highlight.c.o
+.PHONY : src/extensions/syntax_highlight.o
+
+# target to build an object file
+src/extensions/syntax_highlight.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex.dir/build.make CMakeFiles/apex.dir/src/extensions/syntax_highlight.c.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/syntax_highlight.c.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/syntax_highlight.c.o
+.PHONY : src/extensions/syntax_highlight.c.o
+
+src/extensions/syntax_highlight.i: src/extensions/syntax_highlight.c.i
+.PHONY : src/extensions/syntax_highlight.i
+
+# target to preprocess a source file
+src/extensions/syntax_highlight.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex.dir/build.make CMakeFiles/apex.dir/src/extensions/syntax_highlight.c.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/syntax_highlight.c.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/syntax_highlight.c.i
+.PHONY : src/extensions/syntax_highlight.c.i
+
+src/extensions/syntax_highlight.s: src/extensions/syntax_highlight.c.s
+.PHONY : src/extensions/syntax_highlight.s
+
+# target to generate assembly for a file
+src/extensions/syntax_highlight.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex.dir/build.make CMakeFiles/apex.dir/src/extensions/syntax_highlight.c.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_static.dir/build.make CMakeFiles/apex_static.dir/src/extensions/syntax_highlight.c.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_framework.dir/build.make CMakeFiles/apex_framework.dir/src/extensions/syntax_highlight.c.s
+.PHONY : src/extensions/syntax_highlight.c.s
 
 src/extensions/table_html_postprocess.o: src/extensions/table_html_postprocess.c.o
 .PHONY : src/extensions/table_html_postprocess.o
@@ -1388,6 +1448,30 @@ tests/test_links.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_links.c.s
 .PHONY : tests/test_links.c.s
 
+tests/test_marked_integration.o: tests/test_marked_integration.c.o
+.PHONY : tests/test_marked_integration.o
+
+# target to build an object file
+tests/test_marked_integration.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_marked_integration.c.o
+.PHONY : tests/test_marked_integration.c.o
+
+tests/test_marked_integration.i: tests/test_marked_integration.c.i
+.PHONY : tests/test_marked_integration.i
+
+# target to preprocess a source file
+tests/test_marked_integration.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_marked_integration.c.i
+.PHONY : tests/test_marked_integration.c.i
+
+tests/test_marked_integration.s: tests/test_marked_integration.c.s
+.PHONY : tests/test_marked_integration.s
+
+# target to generate assembly for a file
+tests/test_marked_integration.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_marked_integration.c.s
+.PHONY : tests/test_marked_integration.c.s
+
 tests/test_metadata.o: tests/test_metadata.c.o
 .PHONY : tests/test_metadata.o
 
@@ -1436,6 +1520,30 @@ tests/test_output.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_output.c.s
 .PHONY : tests/test_output.c.s
 
+tests/test_plugins.o: tests/test_plugins.c.o
+.PHONY : tests/test_plugins.o
+
+# target to build an object file
+tests/test_plugins.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_plugins.c.o
+.PHONY : tests/test_plugins.c.o
+
+tests/test_plugins.i: tests/test_plugins.c.i
+.PHONY : tests/test_plugins.i
+
+# target to preprocess a source file
+tests/test_plugins.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_plugins.c.i
+.PHONY : tests/test_plugins.c.i
+
+tests/test_plugins.s: tests/test_plugins.c.s
+.PHONY : tests/test_plugins.s
+
+# target to generate assembly for a file
+tests/test_plugins.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_plugins.c.s
+.PHONY : tests/test_plugins.c.s
+
 tests/test_runner.o: tests/test_runner.c.o
 .PHONY : tests/test_runner.o
 
@@ -1459,6 +1567,30 @@ tests/test_runner.s: tests/test_runner.c.s
 tests/test_runner.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_runner.c.s
 .PHONY : tests/test_runner.c.s
+
+tests/test_syntax_highlight.o: tests/test_syntax_highlight.c.o
+.PHONY : tests/test_syntax_highlight.o
+
+# target to build an object file
+tests/test_syntax_highlight.c.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_syntax_highlight.c.o
+.PHONY : tests/test_syntax_highlight.c.o
+
+tests/test_syntax_highlight.i: tests/test_syntax_highlight.c.i
+.PHONY : tests/test_syntax_highlight.i
+
+# target to preprocess a source file
+tests/test_syntax_highlight.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_syntax_highlight.c.i
+.PHONY : tests/test_syntax_highlight.c.i
+
+tests/test_syntax_highlight.s: tests/test_syntax_highlight.c.s
+.PHONY : tests/test_syntax_highlight.s
+
+# target to generate assembly for a file
+tests/test_syntax_highlight.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/apex_test_runner.dir/build.make CMakeFiles/apex_test_runner.dir/tests/test_syntax_highlight.c.s
+.PHONY : tests/test_syntax_highlight.c.s
 
 tests/test_tables.o: tests/test_tables.c.o
 .PHONY : tests/test_tables.o
@@ -1565,6 +1697,9 @@ help:
 	@echo "... src/extensions/inline_tables.o"
 	@echo "... src/extensions/inline_tables.i"
 	@echo "... src/extensions/inline_tables.s"
+	@echo "... src/extensions/insert.o"
+	@echo "... src/extensions/insert.i"
+	@echo "... src/extensions/insert.s"
 	@echo "... src/extensions/math.o"
 	@echo "... src/extensions/math.i"
 	@echo "... src/extensions/math.s"
@@ -1580,6 +1715,9 @@ help:
 	@echo "... src/extensions/sup_sub.o"
 	@echo "... src/extensions/sup_sub.i"
 	@echo "... src/extensions/sup_sub.s"
+	@echo "... src/extensions/syntax_highlight.o"
+	@echo "... src/extensions/syntax_highlight.i"
+	@echo "... src/extensions/syntax_highlight.s"
 	@echo "... src/extensions/table_html_postprocess.o"
 	@echo "... src/extensions/table_html_postprocess.i"
 	@echo "... src/extensions/table_html_postprocess.s"
@@ -1619,15 +1757,24 @@ help:
 	@echo "... tests/test_links.o"
 	@echo "... tests/test_links.i"
 	@echo "... tests/test_links.s"
+	@echo "... tests/test_marked_integration.o"
+	@echo "... tests/test_marked_integration.i"
+	@echo "... tests/test_marked_integration.s"
 	@echo "... tests/test_metadata.o"
 	@echo "... tests/test_metadata.i"
 	@echo "... tests/test_metadata.s"
 	@echo "... tests/test_output.o"
 	@echo "... tests/test_output.i"
 	@echo "... tests/test_output.s"
+	@echo "... tests/test_plugins.o"
+	@echo "... tests/test_plugins.i"
+	@echo "... tests/test_plugins.s"
 	@echo "... tests/test_runner.o"
 	@echo "... tests/test_runner.i"
 	@echo "... tests/test_runner.s"
+	@echo "... tests/test_syntax_highlight.o"
+	@echo "... tests/test_syntax_highlight.i"
+	@echo "... tests/test_syntax_highlight.s"
 	@echo "... tests/test_tables.o"
 	@echo "... tests/test_tables.i"
 	@echo "... tests/test_tables.s"

@@ -17,8 +17,8 @@ extern "C" {
 
 #define APEX_VERSION_MAJOR 0
 #define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 58
-#define APEX_VERSION_STRING "0.1.58"
+#define APEX_VERSION_PATCH 59
+#define APEX_VERSION_STRING "0.1.59"
 
 /**
  * Processor compatibility modes
@@ -126,6 +126,7 @@ typedef struct {
     /* Wiki link options */
     int wikilink_space;  /* Space replacement: 0=dash, 1=none, 2=underscore, 3=space */
     const char *wikilink_extension;  /* File extension to append (e.g., "html") */
+    bool wikilink_sanitize;  /* Sanitize URLs: lowercase, remove apostrophes, replace non-alnum */
 
     /* Script injection options */
     /* Raw <script>...</script> HTML snippets to inject either:

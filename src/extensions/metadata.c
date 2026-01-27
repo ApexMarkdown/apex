@@ -2760,6 +2760,8 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             }
         } else if (strcasecmp(key, "wikilink-extension") == 0 || strcasecmp(key, "wikilink_extension") == 0) {
             options->wikilink_extension = value;
+        } else if (strcasecmp(key, "wikilink-sanitize") == 0 || strcasecmp(key, "wikilink_sanitize") == 0) {
+            options->wikilink_sanitize = (strcasecmp(value, "true") == 0 || strcmp(value, "1") == 0);
         }
         /* Syntax highlighting options */
         else if (strcasecmp(key, "code-highlight") == 0 || strcasecmp(key, "code_highlight") == 0) {

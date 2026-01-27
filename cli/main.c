@@ -30,6 +30,311 @@ apex_remote_plugin *apex_remote_find_plugin(apex_remote_plugin_list *list, const
 void apex_remote_free_plugins(apex_remote_plugin_list *list);
 const char *apex_remote_plugin_repo(apex_remote_plugin *p);
 
+/* ------------------------------------------------------------------------- */
+/* Git helpers (mirrored from src/plugins.c for CLI-only use)               */
+/*                                                                           */
+/* Best-effort detection of the Git repository root for the current         */
+/* working directory. Used to locate project-scoped `.apex/plugins`.        */
+/* ------------------------------------------------------------------------- */
+static char *apex_cli_git_toplevel(void) {
+    /* Suppress stderr from git so we don't spam users when not in a repo. */
+    FILE *fp = popen("git rev-parse --show-toplevel 2>/dev/null", "r");
+    if (!fp) {
+        return NULL;
+    }
+
+    char buf[1024];
+    if (!fgets(buf, sizeof(buf), fp)) {
+        pclose(fp);
+        return NULL;
+    }
+
+    int rc = pclose(fp);
+    if (rc != 0) {
+        return NULL;
+    }
+
+    /* Strip trailing newline(s). */
+    size_t len = strlen(buf);
+    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
+        buf[--len] = '\0';
+    }
+    if (len == 0) {
+        return NULL;
+    }
+
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, buf, len + 1);
+    return out;
+}
+
+/* Determine global config path: $XDG_CONFIG_HOME/apex/config.yml
+ * or ~/.config/apex/config.yml. Returns malloc'd string or NULL.
+ */
+static char *apex_cli_find_global_config(void) {
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    char path[1024];
+    const char *candidate = NULL;
+
+    if (xdg && *xdg) {
+        snprintf(path, sizeof(path), "%s/apex/config.yml", xdg);
+        candidate = path;
+    } else {
+        const char *home = getenv("HOME");
+        if (home && *home) {
+            snprintf(path, sizeof(path), "%s/.config/apex/config.yml", home);
+            candidate = path;
+        }
+    }
+
+    if (!candidate) {
+        return NULL;
+    }
+
+    FILE *fp = fopen(candidate, "r");
+    if (!fp) {
+        return NULL;
+    }
+    fclose(fp);
+
+    size_t len = strlen(candidate);
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, candidate, len + 1);
+    return out;
+}
+
+/* Determine project-scoped config path:
+ *   - CWD/.apex/config.yml
+ *   - base_directory/.apex/config.yml (if set)
+ *   - <git repo root>/.apex/config.yml (if inside work tree, and different from base_directory)
+ * The first existing file in this order wins. Returns malloc'd string or NULL.
+ */
+static char *apex_cli_find_project_config(const apex_options *options) {
+    char cwd[1024];
+    cwd[0] = '\0';
+
+    /* 1. CWD/.apex/config.yml */
+    if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
+        char path[1200];
+        snprintf(path, sizeof(path), "%s/.apex/config.yml", cwd);
+        FILE *fp = fopen(path, "r");
+        if (fp) {
+            fclose(fp);
+            size_t len = strlen(path);
+            char *out = malloc(len + 1);
+            if (!out) return NULL;
+            memcpy(out, path, len + 1);
+            return out;
+        }
+    }
+
+    /* 2. base_directory/.apex/config.yml */
+    if (options && options->base_directory && options->base_directory[0] != '\0') {
+        char path[1200];
+        snprintf(path, sizeof(path), "%s/.apex/config.yml", options->base_directory);
+        FILE *fp = fopen(path, "r");
+        if (fp) {
+            fclose(fp);
+            size_t len = strlen(path);
+            char *out = malloc(len + 1);
+            if (!out) return NULL;
+            memcpy(out, path, len + 1);
+            return out;
+        }
+    }
+
+    /* 3. <git repo root>/.apex/config.yml, if CWD is inside the work tree */
+    char *git_root = apex_cli_git_toplevel();
+    if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
+        size_t root_len = strlen(git_root);
+        if (strncmp(cwd, git_root, root_len) == 0 &&
+            (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
+            /* Avoid duplicating base_directory if it matches git_root */
+            if (!options || !options->base_directory ||
+                strcmp(git_root, options->base_directory) != 0) {
+                char path[1200];
+                snprintf(path, sizeof(path), "%s/.apex/config.yml", git_root);
+                FILE *fp = fopen(path, "r");
+                if (fp) {
+                    fclose(fp);
+                    size_t len = strlen(path);
+                    char *out = malloc(len + 1);
+                    if (!out) {
+                        free(git_root);
+                        return NULL;
+                    }
+                    memcpy(out, path, len + 1);
+                    free(git_root);
+                    return out;
+                }
+            }
+        }
+    }
+    if (git_root) {
+        free(git_root);
+    }
+    return NULL;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Local helpers for listing installed plugins                               */
+/*                                                                           */
+/* These mirror the discovery rules in src/plugins.c so that                 */
+/* `--list-plugins` reports the same set of plugins that would actually run  */
+/* when `--plugins` is enabled:                                              */
+/*   - Project-local:                                                        */
+/*       - CWD/.apex/plugins                                                 */
+/*       - base_directory/.apex/plugins (if set)                             */
+/*       - <git repo root>/.apex/plugins (if inside a Git work tree)        */
+/*   - User-global:                                                          */
+/*       - $XDG_CONFIG_HOME/apex/plugins OR ~/.config/apex/plugins           */
+/*                                                                           */
+/* When the same plugin id exists in multiple locations, the first location  */
+/* in the search order wins. This matches runtime behavior, where later      */
+/* directories are skipped if the id is already loaded.                      */
+/* ------------------------------------------------------------------------- */
+
+typedef struct cli_installed_plugin {
+    char *id;
+    char *title;
+    char *author;
+    char *description;
+    char *homepage;
+    struct cli_installed_plugin *next;
+} cli_installed_plugin;
+
+static int cli_installed_plugin_exists(cli_installed_plugin *head, const char *id) {
+    if (!id) return 0;
+    for (cli_installed_plugin *p = head; p; p = p->next) {
+        if (p->id && strcmp(p->id, id) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void cli_free_installed_plugins(cli_installed_plugin *head) {
+    while (head) {
+        cli_installed_plugin *next = head->next;
+        free(head->id);
+        free(head->title);
+        free(head->author);
+        free(head->description);
+        free(head->homepage);
+        free(head);
+        head = next;
+    }
+}
+
+static void cli_collect_installed_from_root(const char *root,
+                                            cli_installed_plugin **head,
+                                            char ***installed_ids,
+                                            size_t *installed_count,
+                                            size_t *installed_cap) {
+    if (!root || !*root || !head || !installed_ids || !installed_count || !installed_cap) {
+        return;
+    }
+
+    DIR *d = opendir(root);
+    if (!d) {
+        return;
+    }
+
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL) {
+        if (ent->d_name[0] == '.') continue;
+
+        char plugin_dir[1200];
+        snprintf(plugin_dir, sizeof(plugin_dir), "%s/%s", root, ent->d_name);
+        struct stat st2;
+        if (stat(plugin_dir, &st2) != 0 || !S_ISDIR(st2.st_mode)) {
+            continue;
+        }
+
+        /* Look for plugin.yml or plugin.yaml */
+        char manifest[1300];
+        snprintf(manifest, sizeof(manifest), "%s/plugin.yml", plugin_dir);
+        FILE *test = fopen(manifest, "r");
+        if (!test) {
+            snprintf(manifest, sizeof(manifest), "%s/plugin.yaml", plugin_dir);
+            test = fopen(manifest, "r");
+        }
+        if (!test) {
+            continue;
+        }
+        fclose(test);
+
+        apex_metadata_item *meta = apex_load_metadata_from_file(manifest);
+        if (!meta) continue;
+
+        const char *id = NULL;
+        const char *title = NULL;
+        const char *author = NULL;
+        const char *description = NULL;
+        const char *homepage = NULL;
+
+        for (apex_metadata_item *m = meta; m; m = m->next) {
+            if (strcmp(m->key, "id") == 0) id = m->value;
+            else if (strcmp(m->key, "title") == 0) title = m->value;
+            else if (strcmp(m->key, "author") == 0) author = m->value;
+            else if (strcmp(m->key, "description") == 0) description = m->value;
+            else if (strcmp(m->key, "homepage") == 0) homepage = m->value;
+        }
+
+        const char *final_id = id ? id : ent->d_name;
+        if (!final_id || cli_installed_plugin_exists(*head, final_id)) {
+            apex_free_metadata(meta);
+            continue;
+        }
+
+        /* Grow installed_ids array as needed */
+        if (*installed_count == *installed_cap) {
+            size_t new_cap = *installed_cap ? (*installed_cap * 2) : 8;
+            char **tmp = realloc(*installed_ids, new_cap * sizeof(char *));
+            if (!tmp) {
+                apex_free_metadata(meta);
+                break;
+            }
+            *installed_ids = tmp;
+            *installed_cap = new_cap;
+        }
+
+        (*installed_ids)[*installed_count] = strdup(final_id);
+        if (!(*installed_ids)[*installed_count]) {
+            apex_free_metadata(meta);
+            break;
+        }
+        (*installed_count)++;
+
+        cli_installed_plugin *node = calloc(1, sizeof(cli_installed_plugin));
+        if (!node) {
+            apex_free_metadata(meta);
+            break;
+        }
+        node->id = strdup(final_id);
+        node->title = title ? strdup(title) : NULL;
+        node->author = author ? strdup(author) : NULL;
+        node->description = description ? strdup(description) : NULL;
+        node->homepage = homepage ? strdup(homepage) : NULL;
+        node->next = NULL;
+
+        /* Append to end to preserve discovery order */
+        if (!*head) {
+            *head = node;
+        } else {
+            cli_installed_plugin *tail = *head;
+            while (tail->next) tail = tail->next;
+            tail->next = node;
+        }
+
+        apex_free_metadata(meta);
+    }
+
+    closedir(d);
+}
+
 /* Profiling helpers (same as in apex.c) */
 static double get_time_ms(void) {
     struct timeval tv;
@@ -239,7 +544,9 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  -v, --version          Show version information\n");
     fprintf(stderr, "  --[no-]wikilinks       Enable or disable wiki link syntax [[PageName]]\n");
     fprintf(stderr, "  --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)\n");
-    fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n\n");
+    fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n");
+    fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
+    fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
 
@@ -1388,6 +1695,10 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             options.wikilink_extension = argv[i];
+        } else if (strcmp(argv[i], "--wikilink-sanitize") == 0) {
+            options.wikilink_sanitize = true;
+        } else if (strcmp(argv[i], "--no-wikilink-sanitize") == 0) {
+            options.wikilink_sanitize = false;
         } else if (strcmp(argv[i], "--transforms") == 0) {
             options.enable_metadata_transforms = true;
         } else if (strcmp(argv[i], "--no-transforms") == 0) {
@@ -1528,40 +1839,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* If no explicit --meta-file was provided, look for a default config:
-     *   1. $XDG_CONFIG_HOME/apex/config.yml
-     *   2. ~/.config/apex/config.yml
-     *
-     * If found, treat it as if the user had passed:
-     *   --meta-file ~/.config/apex/config.yml
-     * (or the XDG path), i.e. normal external metadata with the usual
-     * precedence rules (file < document < command-line).
-     */
-    if (!meta_file) {
-        const char *xdg = getenv("XDG_CONFIG_HOME");
-        char path[1024];
-        const char *candidate = NULL;
-
-        if (xdg && *xdg) {
-            snprintf(path, sizeof(path), "%s/apex/config.yml", xdg);
-            candidate = path;
-        } else {
-            const char *home = getenv("HOME");
-            if (home && *home) {
-                snprintf(path, sizeof(path), "%s/.config/apex/config.yml", home);
-                candidate = path;
-            }
-        }
-
-        if (candidate) {
-            FILE *fp = fopen(candidate, "r");
-            if (fp) {
-                fclose(fp);
-                meta_file = candidate;
-            }
-        }
-    }
-
     /* Handle plugin listing/installation/uninstallation commands before normal conversion */
     if (list_plugins || install_plugin_id || uninstall_plugin_id) {
         if ((install_plugin_id && uninstall_plugin_id) || (install_plugin_id && list_plugins && uninstall_plugin_id)) {
@@ -1623,92 +1900,84 @@ int main(int argc, char *argv[]) {
 
         /* List and install rely on the remote directory as well as local plugins */
 
-        /* Collect installed plugin ids from the global plugins directory (if it exists) */
+        /* Collect installed plugin ids from all locations that apex_plugins_load()
+         * would consult, in the same precedence order so that project plugins
+         * override global ones with the same id.
+         */
+        cli_installed_plugin *installed_head = NULL;
         char **installed_ids = NULL;
         size_t installed_count = 0;
         size_t installed_cap = 0;
 
-        DIR *d = opendir(root);
-        if (d) {
-            struct dirent *ent;
-            while ((ent = readdir(d)) != NULL) {
-                if (ent->d_name[0] == '.') continue;
+        /* Project-scoped (current working directory): CWD/.apex/plugins */
+        char cwd[1024];
+        cwd[0] = '\0';
+        if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
+            char cwd_plugins[1200];
+            snprintf(cwd_plugins, sizeof(cwd_plugins), "%s/.apex/plugins", cwd);
+            cli_collect_installed_from_root(cwd_plugins,
+                                            &installed_head,
+                                            &installed_ids,
+                                            &installed_count,
+                                            &installed_cap);
+        }
 
-                char plugin_dir[1200];
-                snprintf(plugin_dir, sizeof(plugin_dir), "%s/%s", root, ent->d_name);
-                struct stat st2;
-                if (stat(plugin_dir, &st2) != 0 || !S_ISDIR(st2.st_mode)) {
-                    continue;
-                }
+        /* Project-scoped (explicit base_directory): base_directory/.apex/plugins */
+        if (options.base_directory && options.base_directory[0] != '\0') {
+            char base_plugins[1200];
+            snprintf(base_plugins, sizeof(base_plugins), "%s/.apex/plugins", options.base_directory);
+            cli_collect_installed_from_root(base_plugins,
+                                            &installed_head,
+                                            &installed_ids,
+                                            &installed_count,
+                                            &installed_cap);
+        }
 
-                /* Look for plugin.yml or plugin.yaml */
-                char manifest[1300];
-                snprintf(manifest, sizeof(manifest), "%s/plugin.yml", plugin_dir);
-                FILE *test = fopen(manifest, "r");
-                if (!test) {
-                    snprintf(manifest, sizeof(manifest), "%s/plugin.yaml", plugin_dir);
-                    test = fopen(manifest, "r");
-                }
-                if (!test) {
-                    continue;
-                }
-                fclose(test);
-
-                apex_metadata_item *meta = apex_load_metadata_from_file(manifest);
-                if (!meta) continue;
-
-                const char *id = NULL;
-                const char *title = NULL;
-                const char *author = NULL;
-                const char *description = NULL;
-                const char *homepage = NULL;
-
-                for (apex_metadata_item *m = meta; m; m = m->next) {
-                    if (strcmp(m->key, "id") == 0) id = m->value;
-                    else if (strcmp(m->key, "title") == 0) title = m->value;
-                    else if (strcmp(m->key, "author") == 0) author = m->value;
-                    else if (strcmp(m->key, "description") == 0) description = m->value;
-                    else if (strcmp(m->key, "homepage") == 0) homepage = m->value;
-                }
-
-                const char *final_id = id ? id : ent->d_name;
-                if (final_id) {
-                    if (installed_count == installed_cap) {
-                        size_t new_cap = installed_cap ? installed_cap * 2 : 8;
-                        char **tmp = realloc(installed_ids, new_cap * sizeof(char *));
-                        if (!tmp) {
-                            apex_free_metadata(meta);
-                            break;
-                        }
-                        installed_ids = tmp;
-                        installed_cap = new_cap;
-                    }
-                    installed_ids[installed_count++] = strdup(final_id);
-                }
-
-                if (list_plugins) {
-                    if (installed_count == 1) {
-                        /* First installed plugin we print: emit header */
-                        printf("## Installed Plugins\n\n");
-                    }
-                    const char *print_title = title ? title : final_id;
-                    const char *print_author = author ? author : "";
-                    printf("%-20s - %s", final_id, print_title);
-                    if (print_author && *print_author) {
-                        printf("  (author: %s)", print_author);
-                    }
-                    printf("\n");
-                    if (description && *description) {
-                        printf("    %s\n", description);
-                    }
-                    if (homepage && *homepage) {
-                        printf("    homepage: %s\n", homepage);
-                    }
-                }
-
-                apex_free_metadata(meta);
+        /* Project-scoped (Git repository root): <git top>/.apex/plugins
+         * Only used when the current directory is inside the work tree.
+         */
+        char *git_root = apex_cli_git_toplevel();
+        if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
+            size_t root_len = strlen(git_root);
+            /* Ensure the Git root is a parent of (or equal to) the current directory. */
+            if (strncmp(cwd, git_root, root_len) == 0 &&
+                (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
+                char git_plugins[1200];
+                snprintf(git_plugins, sizeof(git_plugins), "%s/.apex/plugins", git_root);
+                cli_collect_installed_from_root(git_plugins,
+                                                &installed_head,
+                                                &installed_ids,
+                                                &installed_count,
+                                                &installed_cap);
             }
-            closedir(d);
+            free(git_root);
+        }
+
+        /* User-global: same root as used for install/uninstall */
+        cli_collect_installed_from_root(root,
+                                        &installed_head,
+                                        &installed_ids,
+                                        &installed_count,
+                                        &installed_cap);
+
+        if (list_plugins && installed_head) {
+            printf("## Installed Plugins\n\n");
+            for (cli_installed_plugin *p = installed_head; p; p = p->next) {
+                const char *print_id = p->id ? p->id : "";
+                const char *print_title = p->title ? p->title : print_id;
+                const char *print_author = p->author ? p->author : "";
+                printf("%-20s - %s", print_id, print_title);
+                if (print_author && *print_author) {
+                    printf("  (author: %s)", print_author);
+                }
+                printf("\n");
+                if (p->description && *p->description) {
+                    printf("    %s\n", p->description);
+                }
+                if (p->homepage && *p->homepage) {
+                    printf("    homepage: %s\n", p->homepage);
+                }
+            }
         }
 
         if (list_plugins) {
@@ -1750,6 +2019,7 @@ int main(int argc, char *argv[]) {
                     for (size_t i = 0; i < installed_count; i++) free(installed_ids[i]);
                     free(installed_ids);
                 }
+                cli_free_installed_plugins(installed_head);
                 return 1;
             }
             apex_remote_print_plugins_filtered(plist, (const char **)installed_ids, installed_count);
@@ -1758,6 +2028,7 @@ int main(int argc, char *argv[]) {
                 for (size_t i = 0; i < installed_count; i++) free(installed_ids[i]);
                 free(installed_ids);
             }
+            cli_free_installed_plugins(installed_head);
             return 0;
         }
         if (install_plugin_id) {
@@ -2108,15 +2379,59 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Load metadata from file if specified */
+    /* Load metadata from:
+     *   - Global config:   $XDG_CONFIG_HOME/apex/config.yml or ~/.config/apex/config.yml
+     *   - Project config:  .apex/config.yml (CWD/base_directory/git root)
+     *   - Explicit --meta-file (if provided)
+     *
+     * These are merged (global < project < explicit) and then merged with
+     * document metadata and command-line metadata below.
+     */
     PROFILE_START(metadata_file_load);
     apex_metadata_item *file_metadata = NULL;
+    apex_metadata_item *global_config_meta = NULL;
+    apex_metadata_item *project_config_meta = NULL;
+    apex_metadata_item *explicit_file_meta = NULL;
+
+    char *global_config_path = apex_cli_find_global_config();
+    char *project_config_path = apex_cli_find_project_config(&options);
+
+    if (global_config_path) {
+        global_config_meta = apex_load_metadata_from_file(global_config_path);
+        if (!global_config_meta) {
+            fprintf(stderr, "Warning: Could not load metadata from global config '%s'\n", global_config_path);
+        }
+    }
+
+    if (project_config_path) {
+        project_config_meta = apex_load_metadata_from_file(project_config_path);
+        if (!project_config_meta) {
+            fprintf(stderr, "Warning: Could not load metadata from project config '%s'\n", project_config_path);
+        }
+    }
+
     if (meta_file) {
-        file_metadata = apex_load_metadata_from_file(meta_file);
-        if (!file_metadata) {
+        explicit_file_meta = apex_load_metadata_from_file(meta_file);
+        if (!explicit_file_meta) {
             fprintf(stderr, "Warning: Could not load metadata from file '%s'\n", meta_file);
         }
     }
+
+    if (global_config_meta || project_config_meta || explicit_file_meta) {
+        file_metadata = apex_merge_metadata(
+            global_config_meta,
+            project_config_meta,
+            explicit_file_meta,
+            NULL
+        );
+    }
+
+    if (global_config_meta) apex_free_metadata(global_config_meta);
+    if (project_config_meta) apex_free_metadata(project_config_meta);
+    if (explicit_file_meta) apex_free_metadata(explicit_file_meta);
+    if (global_config_path) free(global_config_path);
+    if (project_config_path) free(project_config_path);
+
     PROFILE_END(metadata_file_load);
 
     /* Extract document metadata to merge with external sources

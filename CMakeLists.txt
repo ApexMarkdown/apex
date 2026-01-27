@@ -6,7 +6,7 @@ if(POLICY CMP0000)
 endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version" FORCE)
 
-project(apex VERSION 0.1.58 LANGUAGES C)
+project(apex VERSION 0.1.59 LANGUAGES C)
 
 # Set C standard
 set(CMAKE_C_STANDARD 99)
@@ -132,6 +132,7 @@ set(APEX_LIB_SOURCES
     src/extensions/table_html_postprocess.c
     src/extensions/inline_footnotes.c
     src/extensions/highlight.c
+    src/extensions/insert.c
     src/extensions/sup_sub.c
     src/extensions/header_ids.c
     src/extensions/relaxed_tables.c

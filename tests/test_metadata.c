@@ -91,7 +91,7 @@ void test_metadata(void) {
     assert_contains(html, "<li>Another item</li>", "List with colon: second item rendered");
     assert_contains(html, "<li>Third item</li>", "List with colon: third item rendered");
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Metadata Tests", had_failures, false);
 }
@@ -199,7 +199,7 @@ void test_mmd_metadata_keys(void) {
     assert_contains(html, "<h3", "Case-insensitive: BASE HEADER LEVEL works");
     assert_contains(html, "&bdquo;", "Case-insensitive: QUOTES LANGUAGE works");
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Metadata Keys Tests", had_failures, false);
 }
@@ -459,7 +459,7 @@ void test_metadata_transforms(void) {
     html = apex_markdown_to_html(simple_doc, strlen(simple_doc), &opts);
     assert_contains(html, "Hello", "Simple metadata replacement still works");
     apex_free_string(html);
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Metadata Transforms Tests", had_failures, false);
 }
@@ -653,7 +653,7 @@ void test_metadata_control_options(void) {
         printf(COLOR_RED "✗" COLOR_RESET " metadata file: Failed to load metadata_options.yml\n");
     }
 #endif
-    
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Metadata Control of Options Tests", had_failures, false);
 }

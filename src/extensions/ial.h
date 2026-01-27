@@ -80,6 +80,21 @@ void apex_free_alds(ald_entry *alds);
 void apex_free_attributes(apex_attributes *attrs);
 
 /**
+ * Parse IAL/ALD content
+ * Format: #id .class .class2 key="value" key2='value2'
+ * Returns a newly allocated attributes structure, or NULL on error
+ * Caller must free the returned structure using apex_free_attributes
+ */
+apex_attributes *parse_ial_content(const char *content, int len);
+
+/**
+ * Convert attributes to HTML string
+ * Returns a newly allocated string with HTML attributes (e.g., ' id="foo" class="bar"')
+ * Caller must free the returned string
+ */
+char *attributes_to_html(apex_attributes *attrs);
+
+/**
  * Image attribute entry (stored in document order for matching)
  */
 typedef struct image_attr_entry {

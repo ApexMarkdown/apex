@@ -39,6 +39,7 @@ void test_image_width_height_conversion(void);
 void test_math(void);
 void test_critic_markup(void);
 void test_processor_modes(void);
+void test_multimarkdown_image_attributes(void);
 void test_file_includes(void);
 void test_ial(void);
 void test_bracketed_spans(void);
@@ -62,6 +63,7 @@ void test_mmd6_features(void);
 void test_emoji(void);
 void test_special_markers(void);
 void test_inline_tables(void);
+void test_insert_syntax(void);
 void test_advanced_footnotes(void);
 void test_standalone_output(void);
 void test_pretty_html(void);
@@ -98,6 +100,7 @@ static test_suite suites[] = {
     { "wiki_links",                    test_wiki_links },
     { "math",                          test_math },
     { "critic_markup",                 test_critic_markup },
+    { "multimarkdown_image_attributes",test_multimarkdown_image_attributes },
     { "processor_modes",               test_processor_modes },
     { "file_includes",                 test_file_includes },
     { "ial",                           test_ial },
@@ -122,6 +125,7 @@ static test_suite suites[] = {
     { "emoji",                         test_emoji },
     { "special_markers",               test_special_markers },
     { "inline_tables",                 test_inline_tables },
+    { "insert_syntax",                 test_insert_syntax },
     { "advanced_footnotes",            test_advanced_footnotes },
     { "standalone_output",             test_standalone_output },
     { "pretty_html",                   test_pretty_html },

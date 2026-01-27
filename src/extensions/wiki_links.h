@@ -31,6 +31,7 @@ typedef struct {
     const char *base_path;      /* Base path for wiki links (e.g., "/wiki/") */
     const char *extension;      /* File extension to append (e.g., ".html") */
     wikilink_space_mode_t space_mode; /* How to handle spaces in page names */
+    bool sanitize;              /* Enable URL sanitization */
 } wiki_link_config;
 
 /**

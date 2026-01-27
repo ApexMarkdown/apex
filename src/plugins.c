@@ -49,6 +49,49 @@ static double apex_plugins_time_ms(void) {
     return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
 }
 
+/* ------------------------------------------------------------------------- */
+/* Git helpers                                                               */
+/*                                                                           */
+/* When running inside a Git repository, we optionally consult the repo's    */
+/* top-level directory for a project-scoped `.apex/plugins` directory.       */
+/*                                                                           */
+/* This is deliberately best-effort: if Git is unavailable or the current    */
+/* directory is not inside a work tree, we simply skip this step.           */
+/* ------------------------------------------------------------------------- */
+
+static char *apex_git_toplevel(void) {
+    /* Suppress stderr from git so we don't spam users when not in a repo. */
+    FILE *fp = popen("git rev-parse --show-toplevel 2>/dev/null", "r");
+    if (!fp) {
+        return NULL;
+    }
+
+    char buf[1024];
+    if (!fgets(buf, sizeof(buf), fp)) {
+        pclose(fp);
+        return NULL;
+    }
+
+    int rc = pclose(fp);
+    if (rc != 0) {
+        return NULL;
+    }
+
+    /* Strip trailing newline(s). */
+    size_t len = strlen(buf);
+    while (len > 0 && (buf[len - 1] == '\n' || buf[len - 1] == '\r')) {
+        buf[--len] = '\0';
+    }
+    if (len == 0) {
+        return NULL;
+    }
+
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, buf, len + 1);
+    return out;
+}
+
 struct apex_plugin {
     char *id;
     char *title;
@@ -525,13 +568,46 @@ apex_plugin_manager *apex_plugins_load(const apex_options *options) {
     apex_plugin_manager *manager = calloc(1, sizeof(apex_plugin_manager));
     if (!manager) return NULL;
 
-    /* Project-scoped: base_directory/.apex/plugins */
+    /* Project-scoped (current working directory): CWD/.apex/plugins */
+    char cwd[1024];
+    cwd[0] = '\0';
+    if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
+        char *cwd_proj_dir = dup_join(cwd, ".apex/plugins");
+        if (cwd_proj_dir) {
+            load_plugins_from_dir(manager, cwd_proj_dir);
+            free(cwd_proj_dir);
+        }
+    }
+
+    /* Project-scoped (explicit base_directory): base_directory/.apex/plugins */
     if (options->base_directory && options->base_directory[0] != '\0') {
         char *proj_dir = dup_join(options->base_directory, ".apex/plugins");
         if (proj_dir) {
             load_plugins_from_dir(manager, proj_dir);
             free(proj_dir);
         }
+    }
+
+    /* Project-scoped (Git repository root): <git top>/\.apex/plugins
+     * Only used when the current directory is inside the work tree.
+     */
+    char *git_root = apex_git_toplevel();
+    if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
+        size_t root_len = strlen(git_root);
+        /* Ensure the Git root is a parent of (or equal to) the current directory. */
+        if (strncmp(cwd, git_root, root_len) == 0 &&
+            (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
+            /* Avoid re-loading if git_root is the same as base_directory. */
+            if (!options->base_directory ||
+                strcmp(git_root, options->base_directory) != 0) {
+                char *git_proj_dir = dup_join(git_root, ".apex/plugins");
+                if (git_proj_dir) {
+                    load_plugins_from_dir(manager, git_proj_dir);
+                    free(git_proj_dir);
+                }
+            }
+        }
+        free(git_root);
     }
 
     /* User-global: $XDG_CONFIG_HOME/apex/plugins or $HOME/.config/apex/plugins */
