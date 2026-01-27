@@ -2347,17 +2347,55 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                                     }
                                                     title_end = ial_end + 1; /* Update end position to skip IAL */
                                                     found_ial = true;
-                                            } else if (ial_attrs) {
-                                                apex_free_attributes(ial_attrs);
-                                                title_end = ial_end + 1;
-                                                found_ial = true;
-                                            } else {
-                                                /* Even if parsing failed, skip the IAL syntax to prevent it appearing in output */
-                                                title_end = ial_end + 1;
-                                                found_ial = true;
-                                            }
+                                                } else if (ial_attrs) {
+                                                    apex_free_attributes(ial_attrs);
+                                                    title_end = ial_end + 1;
+                                                    found_ial = true;
+                                                } else {
+                                                    /* Even if parsing failed, skip the IAL syntax to prevent it appearing in output */
+                                                    title_end = ial_end + 1;
+                                                    found_ial = true;
+                                                }
                                             }
                                         }
+                                    }
+                                }
+                            }
+
+                            /* Check for MultiMarkdown-style attributes after title:
+                             * [id]: url "Title" class=center width=300
+                             * These are parsed with the same image-attribute parser used for inline images.
+                             */
+                            if (title_end && do_image_attrs && title_end < line_end) {
+                                const char *after_title_attrs = title_end;
+                                while (after_title_attrs < line_end &&
+                                       (*after_title_attrs == ' ' || *after_title_attrs == '\t')) {
+                                    after_title_attrs++;
+                                }
+
+                                /* If there's remaining content and it doesn't start an IAL block,
+                                 * treat it as a sequence of key=value attributes (MultiMarkdown style).
+                                 */
+                                if (after_title_attrs < line_end && *after_title_attrs != '{') {
+                                    const char *attr_end = line_end;
+                                    size_t attr_len = attr_end - after_title_attrs;
+                                    apex_attributes *mmd_attrs = parse_image_attributes(after_title_attrs, (int)attr_len);
+
+                                    if (mmd_attrs &&
+                                        (mmd_attrs->attr_count > 0 || mmd_attrs->id || mmd_attrs->class_count > 0)) {
+                                        if (!attrs) {
+                                            attrs = mmd_attrs;
+                                        } else {
+                                            apex_attributes *merged = merge_attributes(attrs, mmd_attrs);
+                                            apex_free_attributes(attrs);
+                                            apex_free_attributes(mmd_attrs);
+                                            attrs = merged;
+                                        }
+                                        /* We consumed the rest of the line as attributes */
+                                        title_end = line_end;
+                                        found_ial = true;
+                                    } else if (mmd_attrs) {
+                                        apex_free_attributes(mmd_attrs);
                                     }
                                 }
                             }
