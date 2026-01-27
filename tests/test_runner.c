@@ -39,6 +39,7 @@ void test_image_width_height_conversion(void);
 void test_math(void);
 void test_critic_markup(void);
 void test_processor_modes(void);
+void test_multimarkdown_image_attributes(void);
 void test_file_includes(void);
 void test_ial(void);
 void test_bracketed_spans(void);
@@ -99,6 +100,7 @@ static test_suite suites[] = {
     { "wiki_links",                    test_wiki_links },
     { "math",                          test_math },
     { "critic_markup",                 test_critic_markup },
+    { "multimarkdown_image_attributes",test_multimarkdown_image_attributes },
     { "processor_modes",               test_processor_modes },
     { "file_includes",                 test_file_includes },
     { "ial",                           test_ial },

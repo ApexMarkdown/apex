@@ -175,6 +175,70 @@ void test_processor_modes(void) {
 }
 
 /**
+ * Test MultiMarkdown-style image attributes (inline and reference)
+ */
+
+void test_multimarkdown_image_attributes(void) {
+    int suite_failures = suite_start();
+    print_suite_title("MultiMarkdown Image Attribute Tests", false, true);
+
+    apex_options mmd_opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+
+    const char *md =
+        "![Inline no title](/images/test-inline-1.jpg width=200)\n\n"
+        "![Inline with title](/images/test-inline-2.jpg \"Falafel\" width=300)\n\n"
+        "![Inline percent](/images/test-inline-3.jpg width=50%)\n\n"
+        "![Inline classes](/images/test-inline-4.jpg \"Caption\" class=center shadow width=250 height=60%)\n\n"
+        "![Ref with attrs][ref-inline-1]\n\n"
+        "[ref-inline-1]: /images/test-ref-1.jpg width=200\n\n"
+        "![Ref with title][ref-inline-2]\n\n"
+        "[ref-inline-2]: /images/test-ref-2.jpg \"Falafel\" width=300\n\n"
+        "![Ref percent][ref-inline-3]\n\n"
+        "[ref-inline-3]: /images/test-ref-3.jpg width=50%\n\n"
+        "![Ref classes][ref-inline-4]\n\n"
+        "[ref-inline-4]: /images/test-ref-4.jpg \"Caption\" class=center shadow width=250 height=60%\n";
+
+    /* Helper lambda-style macro to run assertions in a given mode */
+#define RUN_IMAGE_ATTR_TESTS(OPTS, MODE_LABEL)                                                      \
+    do {                                                                                            \
+        char *html = apex_markdown_to_html(md, strlen(md), &(OPTS));                                \
+        assert_contains(html, "src=\"/images/test-inline-1.jpg\"", MODE_LABEL " inline url 1");     \
+        assert_contains(html, "width=\"200\"", MODE_LABEL " inline width=200");                     \
+        assert_contains(html, "src=\"/images/test-inline-2.jpg\"", MODE_LABEL " inline url 2");     \
+        assert_contains(html, "title=\"Falafel\"", MODE_LABEL " inline title");                     \
+        assert_contains(html, "width=\"300\"", MODE_LABEL " inline width=300");                     \
+        assert_contains(html, "src=\"/images/test-inline-3.jpg\"", MODE_LABEL " inline url 3");     \
+        assert_contains(html, "style=\"width: 50%\"", MODE_LABEL " inline width 50% style");        \
+        assert_contains(html, "src=\"/images/test-inline-4.jpg\"", MODE_LABEL " inline url 4");     \
+        /* Class list ordering is not guaranteed; just check for center */                          \
+        assert_contains(html, "class=\"center", MODE_LABEL " inline center class");                 \
+        assert_contains(html, "width=\"250\"", MODE_LABEL " inline width=250");                     \
+        assert_contains(html, "height: 60%", MODE_LABEL " inline height 60% style");                \
+        assert_contains(html, "src=\"/images/test-ref-1.jpg\"", MODE_LABEL " ref url 1");           \
+        assert_contains(html, "width=\"200\"", MODE_LABEL " ref width=200");                        \
+        assert_contains(html, "src=\"/images/test-ref-2.jpg\"", MODE_LABEL " ref url 2");           \
+        assert_contains(html, "title=\"Falafel\"", MODE_LABEL " ref title");                        \
+        assert_contains(html, "width=\"300\"", MODE_LABEL " ref width=300");                        \
+        assert_contains(html, "src=\"/images/test-ref-3.jpg\"", MODE_LABEL " ref url 3");           \
+        assert_contains(html, "style=\"width: 50%\"", MODE_LABEL " ref width 50% style");           \
+        assert_contains(html, "src=\"/images/test-ref-4.jpg\"", MODE_LABEL " ref url 4");           \
+        assert_contains(html, "class=\"center", MODE_LABEL " ref center class");                    \
+        assert_contains(html, "width=\"250\"", MODE_LABEL " ref width=250");                        \
+        assert_contains(html, "height: 60%", MODE_LABEL " ref height 60% style");                   \
+        apex_free_string(html);                                                                     \
+    } while (0)
+
+    RUN_IMAGE_ATTR_TESTS(mmd_opts, "MMD");
+    RUN_IMAGE_ATTR_TESTS(unified_opts, "Unified");
+
+#undef RUN_IMAGE_ATTR_TESTS
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
+}
+
+/**
  * Test file includes
  */
 
