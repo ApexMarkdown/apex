@@ -1949,9 +1949,22 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
 
                         if (after_space < paren_end) {
                             if (do_image_attrs) {
-                                /* For images, everything after the first space is
-                                 * treated as attributes (including quoted title).
-                                 * URL ends just before this space.
+                                /* For images with MMD6-style parentheses titles,
+                                 * keep using the core parser's title handling:
+                                 *
+                                 *   ![Image](image.png (Parentheses title))
+                                 *
+                                 * In this case we should NOT treat the tail as
+                                 * attributes, otherwise we lose the title and
+                                 * leave a stray closing parenthesis in output.
+                                 */
+                                if (*after_space == '(') {
+                                    url_end = p;  /* Let cmark handle the title */
+                                    break;
+                                }
+
+                                /* For everything else, treat the tail as an
+                                 * attribute string (including quoted title).
                                  */
                                 attr_start = after_space;
                                 url_end = p;
