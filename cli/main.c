@@ -69,6 +69,115 @@ static char *apex_cli_git_toplevel(void) {
     return out;
 }
 
+/* Determine global config path: $XDG_CONFIG_HOME/apex/config.yml
+ * or ~/.config/apex/config.yml. Returns malloc'd string or NULL.
+ */
+static char *apex_cli_find_global_config(void) {
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    char path[1024];
+    const char *candidate = NULL;
+
+    if (xdg && *xdg) {
+        snprintf(path, sizeof(path), "%s/apex/config.yml", xdg);
+        candidate = path;
+    } else {
+        const char *home = getenv("HOME");
+        if (home && *home) {
+            snprintf(path, sizeof(path), "%s/.config/apex/config.yml", home);
+            candidate = path;
+        }
+    }
+
+    if (!candidate) {
+        return NULL;
+    }
+
+    FILE *fp = fopen(candidate, "r");
+    if (!fp) {
+        return NULL;
+    }
+    fclose(fp);
+
+    size_t len = strlen(candidate);
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, candidate, len + 1);
+    return out;
+}
+
+/* Determine project-scoped config path:
+ *   - CWD/.apex/config.yml
+ *   - base_directory/.apex/config.yml (if set)
+ *   - <git repo root>/.apex/config.yml (if inside work tree, and different from base_directory)
+ * The first existing file in this order wins. Returns malloc'd string or NULL.
+ */
+static char *apex_cli_find_project_config(const apex_options *options) {
+    char cwd[1024];
+    cwd[0] = '\0';
+
+    /* 1. CWD/.apex/config.yml */
+    if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
+        char path[1200];
+        snprintf(path, sizeof(path), "%s/.apex/config.yml", cwd);
+        FILE *fp = fopen(path, "r");
+        if (fp) {
+            fclose(fp);
+            size_t len = strlen(path);
+            char *out = malloc(len + 1);
+            if (!out) return NULL;
+            memcpy(out, path, len + 1);
+            return out;
+        }
+    }
+
+    /* 2. base_directory/.apex/config.yml */
+    if (options && options->base_directory && options->base_directory[0] != '\0') {
+        char path[1200];
+        snprintf(path, sizeof(path), "%s/.apex/config.yml", options->base_directory);
+        FILE *fp = fopen(path, "r");
+        if (fp) {
+            fclose(fp);
+            size_t len = strlen(path);
+            char *out = malloc(len + 1);
+            if (!out) return NULL;
+            memcpy(out, path, len + 1);
+            return out;
+        }
+    }
+
+    /* 3. <git repo root>/.apex/config.yml, if CWD is inside the work tree */
+    char *git_root = apex_cli_git_toplevel();
+    if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
+        size_t root_len = strlen(git_root);
+        if (strncmp(cwd, git_root, root_len) == 0 &&
+            (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
+            /* Avoid duplicating base_directory if it matches git_root */
+            if (!options || !options->base_directory ||
+                strcmp(git_root, options->base_directory) != 0) {
+                char path[1200];
+                snprintf(path, sizeof(path), "%s/.apex/config.yml", git_root);
+                FILE *fp = fopen(path, "r");
+                if (fp) {
+                    fclose(fp);
+                    size_t len = strlen(path);
+                    char *out = malloc(len + 1);
+                    if (!out) {
+                        free(git_root);
+                        return NULL;
+                    }
+                    memcpy(out, path, len + 1);
+                    free(git_root);
+                    return out;
+                }
+            }
+        }
+    }
+    if (git_root) {
+        free(git_root);
+    }
+    return NULL;
+}
+
 /* ------------------------------------------------------------------------- */
 /* Local helpers for listing installed plugins                               */
 /*                                                                           */
@@ -1730,40 +1839,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* If no explicit --meta-file was provided, look for a default config:
-     *   1. $XDG_CONFIG_HOME/apex/config.yml
-     *   2. ~/.config/apex/config.yml
-     *
-     * If found, treat it as if the user had passed:
-     *   --meta-file ~/.config/apex/config.yml
-     * (or the XDG path), i.e. normal external metadata with the usual
-     * precedence rules (file < document < command-line).
-     */
-    if (!meta_file) {
-        const char *xdg = getenv("XDG_CONFIG_HOME");
-        char path[1024];
-        const char *candidate = NULL;
-
-        if (xdg && *xdg) {
-            snprintf(path, sizeof(path), "%s/apex/config.yml", xdg);
-            candidate = path;
-        } else {
-            const char *home = getenv("HOME");
-            if (home && *home) {
-                snprintf(path, sizeof(path), "%s/.config/apex/config.yml", home);
-                candidate = path;
-            }
-        }
-
-        if (candidate) {
-            FILE *fp = fopen(candidate, "r");
-            if (fp) {
-                fclose(fp);
-                meta_file = candidate;
-            }
-        }
-    }
-
     /* Handle plugin listing/installation/uninstallation commands before normal conversion */
     if (list_plugins || install_plugin_id || uninstall_plugin_id) {
         if ((install_plugin_id && uninstall_plugin_id) || (install_plugin_id && list_plugins && uninstall_plugin_id)) {
@@ -2304,15 +2379,59 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Load metadata from file if specified */
+    /* Load metadata from:
+     *   - Global config:   $XDG_CONFIG_HOME/apex/config.yml or ~/.config/apex/config.yml
+     *   - Project config:  .apex/config.yml (CWD/base_directory/git root)
+     *   - Explicit --meta-file (if provided)
+     *
+     * These are merged (global < project < explicit) and then merged with
+     * document metadata and command-line metadata below.
+     */
     PROFILE_START(metadata_file_load);
     apex_metadata_item *file_metadata = NULL;
+    apex_metadata_item *global_config_meta = NULL;
+    apex_metadata_item *project_config_meta = NULL;
+    apex_metadata_item *explicit_file_meta = NULL;
+
+    char *global_config_path = apex_cli_find_global_config();
+    char *project_config_path = apex_cli_find_project_config(&options);
+
+    if (global_config_path) {
+        global_config_meta = apex_load_metadata_from_file(global_config_path);
+        if (!global_config_meta) {
+            fprintf(stderr, "Warning: Could not load metadata from global config '%s'\n", global_config_path);
+        }
+    }
+
+    if (project_config_path) {
+        project_config_meta = apex_load_metadata_from_file(project_config_path);
+        if (!project_config_meta) {
+            fprintf(stderr, "Warning: Could not load metadata from project config '%s'\n", project_config_path);
+        }
+    }
+
     if (meta_file) {
-        file_metadata = apex_load_metadata_from_file(meta_file);
-        if (!file_metadata) {
+        explicit_file_meta = apex_load_metadata_from_file(meta_file);
+        if (!explicit_file_meta) {
             fprintf(stderr, "Warning: Could not load metadata from file '%s'\n", meta_file);
         }
     }
+
+    if (global_config_meta || project_config_meta || explicit_file_meta) {
+        file_metadata = apex_merge_metadata(
+            global_config_meta,
+            project_config_meta,
+            explicit_file_meta,
+            NULL
+        );
+    }
+
+    if (global_config_meta) apex_free_metadata(global_config_meta);
+    if (project_config_meta) apex_free_metadata(project_config_meta);
+    if (explicit_file_meta) apex_free_metadata(explicit_file_meta);
+    if (global_config_path) free(global_config_path);
+    if (project_config_path) free(project_config_path);
+
     PROFILE_END(metadata_file_load);
 
     /* Extract document metadata to merge with external sources
