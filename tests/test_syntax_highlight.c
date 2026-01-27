@@ -52,6 +52,11 @@ static void test_tool_missing_cb(void *ctx) {
     apex_free_string(html);
 }
 
+static void test_tool_missing_with_suppression(void *ctx) {
+    /* Set suppression variable, then clear PATH and run the test */
+    with_env("PATH", "", test_tool_missing_cb, ctx);
+}
+
 static int contains_in_order(const char *haystack, const char *a, const char *b) {
     const char *pa = strstr(haystack, a);
     const char *pb = strstr(haystack, b);
@@ -63,7 +68,8 @@ void test_syntax_highlight_integration(void) {
     print_suite_title("Syntax Highlighting Integration Tests", false, true);
 
     /* Exercise tool-missing branch by clearing PATH during conversion. */
-    with_env("PATH", "", test_tool_missing_cb, NULL);
+    /* Suppress the warning for this intentional test case */
+    with_env("APEX_SUPPRESS_HIGHLIGHT_WARNINGS", "1", test_tool_missing_with_suppression, NULL);
 
     /* Pygments: basic highlight with language */
     {

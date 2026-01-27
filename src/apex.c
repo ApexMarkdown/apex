@@ -33,6 +33,7 @@
 #include "extensions/html_markdown.h"
 #include "extensions/inline_footnotes.h"
 #include "extensions/highlight.h"
+#include "extensions/insert.h"
 #include "extensions/sup_sub.h"
 #include "extensions/header_ids.h"
 #include "extensions/relaxed_tables.h"
@@ -4243,6 +4244,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Process ++insert++ syntax before parsing */
+    char *inserts_processed = NULL;
+    PROFILE_START(inserts);
+    inserts_processed = apex_process_inserts(text_ptr);
+    PROFILE_END(inserts);
+    if (inserts_processed) {
+        text_ptr = inserts_processed;
+    }
+
     /* Process superscript and subscript syntax before parsing */
     char *sup_sub_processed = NULL;
     if (options->enable_sup_sub) {
@@ -5408,6 +5418,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
     if (inline_footnotes_processed) free(inline_footnotes_processed);
     if (highlights_processed) free(highlights_processed);
+    if (inserts_processed) free(inserts_processed);
     if (alpha_lists_processed) free(alpha_lists_processed);
     if (relaxed_tables_processed) free(relaxed_tables_processed);
     if (headerless_tables_processed) free(headerless_tables_processed);

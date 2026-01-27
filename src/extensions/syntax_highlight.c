@@ -246,8 +246,11 @@ char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool li
     /* Check if tool is available */
     if (!apex_syntax_highlighter_available(tool)) {
         const char *binary = get_tool_binary(tool);
-        fprintf(stderr, "Warning: Syntax highlighting tool '%s' not found in PATH. "
-                "Code blocks will not be highlighted.\n", binary ? binary : tool);
+        /* Suppress warning if APEX_SUPPRESS_HIGHLIGHT_WARNINGS is set (e.g., during tests) */
+        if (!getenv("APEX_SUPPRESS_HIGHLIGHT_WARNINGS")) {
+            fprintf(stderr, "Warning: Syntax highlighting tool '%s' not found in PATH. "
+                    "Code blocks will not be highlighted.\n", binary ? binary : tool);
+        }
         return strdup(html);
     }
 

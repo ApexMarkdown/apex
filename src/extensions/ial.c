@@ -81,7 +81,7 @@ static void add_attribute(apex_attributes *attrs, const char *key, const char *v
  * Parse IAL/ALD content
  * Format: #id .class .class2 key="value" key2='value2'
  */
-static apex_attributes *parse_ial_content(const char *content, int len) {
+apex_attributes *parse_ial_content(const char *content, int len) {
     apex_attributes *attrs = create_attributes();
     if (!attrs) return NULL;
 
@@ -525,7 +525,7 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
  * Apply attributes to HTML tag
  * Helper function to generate attribute string
  */
-static char *attributes_to_html(apex_attributes *attrs) {
+char *attributes_to_html(apex_attributes *attrs) {
     if (!attrs) return strdup("");
 
     char buffer[4096];

@@ -1816,5 +1816,76 @@ void test_unsafe_mode(void) {
 }
 
 /**
+ * Test Insert Syntax (++text++)
+ */
+void test_insert_syntax(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Insert Syntax Tests", false, true);
+
+    apex_options opts = apex_options_default();
+    char *html;
+
+    /* Test basic insert without IAL */
+    html = apex_markdown_to_html("Text ++inserted++ here", 23, &opts);
+    assert_contains(html, "<ins>inserted</ins>", "Basic insert syntax");
+    apex_free_string(html);
+
+    /* Test insert with Kramdown-style IAL */
+    html = apex_markdown_to_html("Text ++inserted++{: .class} here", 33, &opts);
+    assert_contains(html, "<ins", "Insert with IAL creates ins tag");
+    assert_contains(html, "class=\"class\"", "Insert with IAL has class");
+    assert_contains(html, "inserted", "Insert with IAL contains text");
+    apex_free_string(html);
+
+    /* Test insert with Pandoc-style IAL */
+    html = apex_markdown_to_html("Text ++inserted++{#id .class} here", 35, &opts);
+    assert_contains(html, "<ins", "Insert with Pandoc IAL creates ins tag");
+    assert_contains(html, "id=\"id\"", "Insert with Pandoc IAL has ID");
+    assert_contains(html, "class=\"class\"", "Insert with Pandoc IAL has class");
+    apex_free_string(html);
+
+    /* Test insert with multiple classes */
+    html = apex_markdown_to_html("Text ++inserted++{: .class1 .class2} here", 39, &opts);
+    assert_contains(html, "class=\"class1 class2\"", "Insert with multiple classes");
+    apex_free_string(html);
+
+    /* Test insert does not interfere with CriticMarkup */
+    opts.enable_critic_markup = true;
+    opts.critic_mode = 2;  /* CRITIC_MARKUP */
+    html = apex_markdown_to_html("Text {++critic++} and ++plain++ here", 38, &opts);
+    assert_contains(html, "<ins class=\"critic\">critic</ins>", "CriticMarkup insert still works");
+    assert_contains(html, "<ins>plain</ins>", "Plain insert still works");
+    apex_free_string(html);
+
+    /* Test insert in code blocks is not processed */
+    html = apex_markdown_to_html("```\n++code++\n```", 18, &opts);
+    assert_contains(html, "++code++", "Insert in code block not processed");
+    assert_not_contains(html, "<ins>code</ins>", "Insert in code block not converted");
+    apex_free_string(html);
+
+    /* Test insert in inline code is not processed */
+    html = apex_markdown_to_html("Text `++code++` here", 20, &opts);
+    assert_contains(html, "++code++", "Insert in inline code not processed");
+    assert_not_contains(html, "<ins>code</ins>", "Insert in inline code not converted");
+    apex_free_string(html);
+
+    /* Test insert with markdown inside */
+    html = apex_markdown_to_html("Text ++*italic*++ here", 23, &opts);
+    assert_contains(html, "<ins>", "Insert tag present");
+    assert_contains(html, "<em>italic</em>", "Markdown inside insert processed");
+    apex_free_string(html);
+
+    /* Test insert with IAL and markdown inside */
+    html = apex_markdown_to_html("Text ++*italic*++{: .highlight} here", 35, &opts);
+    assert_contains(html, "<ins", "Insert with IAL and markdown creates ins tag");
+    assert_contains(html, "class=\"highlight\"", "Insert with IAL has class");
+    assert_contains(html, "<em>italic</em>", "Markdown inside insert with IAL processed");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Insert Syntax Tests", had_failures, false);
+}
+
+/**
  * Test image embedding
  */
