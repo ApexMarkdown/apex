@@ -1226,8 +1226,10 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
             }
         }
 
-        /* Look for << (Marked syntax) */
-        if (!processed_include && !in_code_span && read_pos[0] == '<' && read_pos[1] == '<') {
+        /* Look for << (Marked syntax) at the very start of a line */
+        if (!processed_include && !in_code_span &&
+            (read_pos == text || read_pos[-1] == '\n') &&
+            read_pos[0] == '<' && read_pos[1] == '<') {
             char bracket_type = 0;
             const char *filepath_start = NULL;
             const char *filepath_end = NULL;

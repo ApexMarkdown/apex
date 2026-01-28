@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.61] - 2026-01-28
+
+### Fixed
+
+- Preserve literal include syntax inside backticked code spans so examples like `<<[path/file]` render correctly in HTML without being processed.
+
 ## [0.1.60] - 2026-01-28
 
 ### Changed
@@ -2214,6 +2220,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.61]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.61
 [0.1.60]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.60
 [0.1.59]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.59
 [0.1.58]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.58
