@@ -2509,8 +2509,9 @@ apex_options apex_options_default(void) {
     opts.enable_autolink = true;  /* Default: enabled in unified mode */
     opts.obfuscate_emails = false; /* Default: plaintext emails */
 
-    /* Image embedding options */
-    opts.embed_images = false;  /* Default: disabled */
+    /* Image options */
+    opts.embed_images = false;           /* Default: disabled */
+    opts.enable_image_captions = true;   /* Default: enabled (unified mode defaults) */
 
     /* Citation options */
     opts.enable_citations = false;  /* Disabled by default - enable with --bibliography */
@@ -2607,6 +2608,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_alpha_lists = false;  /* CommonMark: no alpha lists */
             opts.enable_sup_sub = false;  /* CommonMark: no sup/sub */
             opts.enable_autolink = false;  /* CommonMark: no autolinks */
+            opts.enable_image_captions = false; /* CommonMark: no automatic image figure captions */
             opts.enable_citations = false;  /* CommonMark: no citations */
             opts.enable_emoji_autocorrect = false;  /* CommonMark: no emoji autocorrect */
             /* Disable HTML markdown processing in strict CommonMark */
@@ -2640,6 +2642,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_alpha_lists = false;  /* GFM: no alpha lists */
             opts.enable_sup_sub = false;  /* GFM: no sup/sub */
             opts.enable_autolink = true;  /* GFM: autolinks enabled */
+            opts.enable_image_captions = false; /* GFM: no automatic image figure captions */
             opts.enable_citations = false;  /* GFM: no citations */
             opts.enable_emoji_autocorrect = false;  /* GFM: no emoji autocorrect by default */
             /* Disable HTML markdown processing in GFM mode */
@@ -2677,6 +2680,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_mmark_index_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_textindex_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_emoji_autocorrect = false;  /* MMD: no emoji autocorrect by default */
+            opts.enable_image_captions = true; /* MultiMarkdown: image captions enabled by default */
             break;
 
         case APEX_MODE_KRAMDOWN:
@@ -2710,6 +2714,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_autolink = true;  /* Kramdown: autolinks enabled */
             opts.enable_citations = false;  /* Kramdown: no citations (different system) */
             opts.enable_emoji_autocorrect = false;  /* Kramdown: no emoji autocorrect by default */
+            opts.enable_image_captions = false; /* Kramdown: no automatic image figure captions */
             break;
 
         case APEX_MODE_UNIFIED:
@@ -2731,6 +2736,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_divs = true;  /* Unified: Pandoc fenced divs enabled */
             opts.enable_spans = true;  /* Unified: bracketed spans enabled */
             opts.enable_emoji_autocorrect = true;  /* Unified: emoji autocorrect enabled */
+            opts.enable_image_captions = true;     /* Unified: image captions enabled by default */
             break;
     }
 
@@ -5172,6 +5178,17 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                 free(html);
                 html = adjusted_quotes;
             }
+        }
+    }
+
+    /* Convert images to figures with captions when enabled */
+    if (options->enable_image_captions && html) {
+        PROFILE_START(image_captions);
+        char *with_captions = apex_convert_image_captions(html);
+        PROFILE_END(image_captions);
+        if (with_captions) {
+            free(html);
+            html = with_captions;
         }
     }
 

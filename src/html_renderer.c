@@ -2448,3 +2448,267 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
     return output;
 }
 
+/* Helper: trim leading/trailing ASCII whitespace from an attribute value */
+static void apex_trim_attr_value(const char *s, size_t len,
+                                 const char **out_s, size_t *out_len) {
+    const char *start = s;
+    const char *end = s + len;
+    while (start < end && isspace((unsigned char)*start)) start++;
+    while (end > start && isspace((unsigned char)*(end - 1))) end--;
+    *out_s = start;
+    *out_len = (size_t)(end - start);
+}
+
+/**
+ * Convert <img> tags to <figure> with <figcaption> when alt/title are present.
+ * Caption text prefers the image title attribute when present, otherwise
+ * falls back to the alt text. Images without title or alt are left unchanged.
+ */
+char *apex_convert_image_captions(const char *html) {
+    if (!html) return NULL;
+
+    size_t len = strlen(html);
+    /* Allow extra space for <figure> and <figcaption> wrappers */
+    size_t capacity = len * 2 + 128;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        /* Look for <img tag */
+        if (*read == '<' && (read[1] == 'i' || read[1] == 'I') &&
+            (read[2] == 'm' || read[2] == 'M') &&
+            (read[3] == 'g' || read[3] == 'G') &&
+            (read[4] == ' ' || read[4] == '\t' || read[4] == '\r' ||
+             read[4] == '\n' || read[4] == '>' || read[4] == '/')) {
+
+            const char *tag_start = read;
+            const char *p = read + 4;
+
+            /* Find end of tag '>' while respecting quotes */
+            bool in_quote = false;
+            char quote_char = '\0';
+            while (*p) {
+                if (!in_quote && (*p == '"' || *p == '\'')) {
+                    in_quote = true;
+                    quote_char = *p;
+                } else if (in_quote && *p == quote_char) {
+                    in_quote = false;
+                    quote_char = '\0';
+                } else if (!in_quote && *p == '>') {
+                    break;
+                }
+                p++;
+            }
+
+            if (!*p) {
+                /* Malformed tag - copy rest and stop */
+                size_t to_copy = strlen(read);
+                if (to_copy >= remaining) {
+                    size_t used = write - output;
+                    size_t new_cap = (used + to_copy + 1) * 2;
+                    char *new_out = realloc(output, new_cap);
+                    if (!new_out) {
+                        free(output);
+                        return NULL;
+                    }
+                    output = new_out;
+                    write = output + used;
+                    remaining = new_cap - used;
+                }
+                memcpy(write, read, to_copy);
+                write += to_copy;
+                remaining -= to_copy;
+                break;
+            }
+
+            const char *tag_end = p; /* Points at '>' */
+            size_t tag_len = (size_t)(tag_end - tag_start + 1);
+
+            /* Parse attributes between <img and > */
+            const char *attr_start = tag_start + 4;
+            const char *attr_end = tag_end;
+            const char *title_val = NULL;
+            size_t title_len = 0;
+            const char *alt_val = NULL;
+            size_t alt_len = 0;
+
+            const char *q = attr_start;
+            while (q < attr_end) {
+                /* Skip whitespace */
+                while (q < attr_end && isspace((unsigned char)*q)) q++;
+                if (q >= attr_end || *q == '/' || *q == '>') break;
+
+                const char *name_start = q;
+                while (q < attr_end && !isspace((unsigned char)*q) &&
+                       *q != '=' && *q != '>' && *q != '/') {
+                    q++;
+                }
+                const char *name_end = q;
+
+                /* Skip whitespace before '=' */
+                while (q < attr_end && isspace((unsigned char)*q)) q++;
+                if (q >= attr_end || *q != '=') {
+                    /* Not a name=value pair, skip token */
+                    while (q < attr_end && *q != ' ' && *q != '\t' &&
+                           *q != '\r' && *q != '\n' && *q != '>') {
+                        q++;
+                    }
+                    continue;
+                }
+                q++; /* skip '=' */
+                while (q < attr_end && isspace((unsigned char)*q)) q++;
+                if (q >= attr_end) break;
+
+                /* Parse value */
+                const char *value_start = q;
+                const char *value_end = NULL;
+                if (*q == '"' || *q == '\'') {
+                    char qc = *q;
+                    value_start = q + 1;
+                    q++;
+                    while (q < attr_end && *q != qc) q++;
+                    value_end = q;
+                    if (q < attr_end) q++; /* skip closing quote */
+                } else {
+                    while (q < attr_end && !isspace((unsigned char)*q) &&
+                           *q != '>') {
+                        q++;
+                    }
+                    value_end = q;
+                }
+
+                size_t name_len = (size_t)(name_end - name_start);
+                if (name_len > 0) {
+                    /* Compare attribute name case-insensitively */
+                    if (name_len == 5 &&
+                        (strncasecmp(name_start, "title", 5) == 0)) {
+                        title_val = value_start;
+                        title_len = (size_t)(value_end - value_start);
+                    } else if (name_len == 3 &&
+                               (strncasecmp(name_start, "alt", 3) == 0)) {
+                        alt_val = value_start;
+                        alt_len = (size_t)(value_end - value_start);
+                    }
+                }
+            }
+
+            /* Determine caption text: prefer title, otherwise alt */
+            const char *caption = NULL;
+            size_t caption_len = 0;
+
+            if (title_val && title_len > 0) {
+                apex_trim_attr_value(title_val, title_len, &caption, &caption_len);
+            } else if (alt_val && alt_len > 0) {
+                apex_trim_attr_value(alt_val, alt_len, &caption, &caption_len);
+            }
+
+            if (!caption || caption_len == 0) {
+                /* No caption text available - copy tag as-is */
+                if (tag_len >= remaining) {
+                    size_t used = write - output;
+                    size_t new_cap = (used + tag_len + 1) * 2;
+                    char *new_out = realloc(output, new_cap);
+                    if (!new_out) {
+                        free(output);
+                        return NULL;
+                    }
+                    output = new_out;
+                    write = output + used;
+                    remaining = new_cap - used;
+                }
+                memcpy(write, tag_start, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
+                read = tag_end + 1;
+                continue;
+            }
+
+            /* We have caption text - wrap in <figure><img ...><figcaption>...</figcaption></figure> */
+            const char *figure_open = "<figure>";
+            const char *figcaption_open = "<figcaption>";
+            const char *figcaption_close = "</figcaption>";
+            const char *figure_close = "</figure>";
+
+            size_t extra = strlen(figure_open) + strlen(figcaption_open) +
+                           caption_len + strlen(figcaption_close) +
+                           strlen(figure_close);
+            size_t needed = tag_len + extra;
+            if (needed >= remaining) {
+                size_t used = write - output;
+                size_t new_cap = (used + needed + 1) * 2;
+                char *new_out = realloc(output, new_cap);
+                if (!new_out) {
+                    free(output);
+                    return NULL;
+                }
+                output = new_out;
+                write = output + used;
+                remaining = new_cap - used;
+            }
+
+            /* Write <figure> */
+            memcpy(write, figure_open, strlen(figure_open));
+            write += strlen(figure_open);
+            remaining -= strlen(figure_open);
+
+            /* Write original <img ...> tag */
+            memcpy(write, tag_start, tag_len);
+            write += tag_len;
+            remaining -= tag_len;
+
+            /* Write <figcaption>Caption</figcaption></figure> */
+            memcpy(write, figcaption_open, strlen(figcaption_open));
+            write += strlen(figcaption_open);
+            remaining -= strlen(figcaption_open);
+
+            memcpy(write, caption, caption_len);
+            write += caption_len;
+            remaining -= caption_len;
+
+            memcpy(write, figcaption_close, strlen(figcaption_close));
+            write += strlen(figcaption_close);
+            remaining -= strlen(figcaption_close);
+
+            memcpy(write, figure_close, strlen(figure_close));
+            write += strlen(figure_close);
+            remaining -= strlen(figure_close);
+
+            read = tag_end + 1;
+            continue;
+        }
+
+        /* Default: copy character */
+        if (remaining < 1) {
+            size_t used = write - output;
+            size_t new_cap = (used + 64) * 2;
+            char *new_out = realloc(output, new_cap);
+            if (!new_out) {
+                free(output);
+                return NULL;
+            }
+            output = new_out;
+            write = output + used;
+            remaining = new_cap - used;
+        }
+        *write++ = *read++;
+        remaining--;
+    }
+
+    if (remaining < 1) {
+        size_t used = write - output;
+        char *new_out = realloc(output, used + 1);
+        if (!new_out) {
+            free(output);
+            return NULL;
+        }
+        output = new_out;
+        write = output + used;
+    }
+    *write = '\0';
+    return output;
+}
+

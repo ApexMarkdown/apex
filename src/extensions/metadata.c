@@ -2583,6 +2583,12 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->embed_images = false;
             }
+        } else if (strcasecmp(key, "image-captions") == 0 || strcasecmp(key, "image_captions") == 0) {
+            if (is_true_value(value)) {
+                options->enable_image_captions = true;
+            } else if (is_false_value(value)) {
+                options->enable_image_captions = false;
+            }
         } else if (strcasecmp(key, "link-citations") == 0 || strcasecmp(key, "link_citations") == 0) {
             if (is_true_value(value)) {
                 options->link_citations = true;

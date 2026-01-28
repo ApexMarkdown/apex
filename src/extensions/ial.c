@@ -1889,6 +1889,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
     char *write = output;
     size_t remaining = capacity;
     image_attr_entry *local_img_attrs = NULL;
+    /* Track position of images in document so inline attributes
+     * are applied only to the specific image that declared them.
+     * This must count all inline images, including those without
+     * any attributes, to keep it in sync with the AST walk in
+     * apex_apply_image_attributes.
+     */
+    int image_index = 0;
 
     while (*read) {
         /* Look for inline images: ![alt](url attributes) */
@@ -2089,11 +2096,11 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             /* Store attributes with encoded URL - always create new entry (if image attrs enabled) */
                             image_attr_entry *entry = NULL;
                             if (attrs && do_image_attrs) {
-                                /* Count existing entries to get index */
-                                int img_index = 0;
-                                for (image_attr_entry *e = local_img_attrs; e; e = e->next) img_index++;
-
-                                entry = create_image_attr_entry(&local_img_attrs, encoded_url, img_index);
+                                /* Use the running image_index so attributes are
+                                 * bound to the correct inline image position,
+                                 * even when some images have no attributes.
+                                 */
+                                entry = create_image_attr_entry(&local_img_attrs, encoded_url, image_index);
                                 if (entry) {
                                     /* Copy attributes (don't merge) */
                                     for (int i = 0; i < attrs->attr_count; i++) {
@@ -2203,6 +2210,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     read = paren_end;
                                 }
                             }
+
+                            /* We successfully processed an inline image (with or
+                             * without attributes). Bump image_index so subsequent
+                             * images get distinct positions that match the AST.
+                             */
+                            image_index++;
+
                             free(encoded_url);
                             if (attrs) apex_free_attributes(attrs);
                         }

@@ -1705,6 +1705,10 @@ int main(int argc, char *argv[]) {
             options.enable_metadata_transforms = false;
         } else if (strcmp(argv[i], "--embed-images") == 0) {
             options.embed_images = true;
+        } else if (strcmp(argv[i], "--image-captions") == 0) {
+            options.enable_image_captions = true;
+        } else if (strcmp(argv[i], "--no-image-captions") == 0) {
+            options.enable_image_captions = false;
         } else if (strcmp(argv[i], "--base-dir") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --base-dir requires an argument\n");

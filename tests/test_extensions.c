@@ -1951,5 +1951,51 @@ void test_insert_syntax(void) {
 }
 
 /**
+ * Test image captions -> figure/figcaption wrapping
+ * Enabled by default in MultiMarkdown and Unified modes, configurable via options.
+ */
+void test_image_captions(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Image Captions Tests", false, true);
+
+    const char *md_basic =
+        "![Alt only](/img/basic.png)\n\n"
+        "![With title](/img/title.png \"Title caption\")\n\n"
+        "![](/img/empty.png)\n";
+
+    /* MultiMarkdown mode: captions enabled by default */
+    apex_options mmd_opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    char *html = apex_markdown_to_html(md_basic, strlen(md_basic), &mmd_opts);
+    assert_contains(html, "<figure>", "MMD: figures generated");
+    assert_contains(html, "<img src=\"/img/basic.png\"", "MMD: basic image present");
+    assert_contains(html, "<figcaption>Alt only</figcaption>", "MMD: caption from alt text");
+    assert_contains(html, "<img src=\"/img/title.png\"", "MMD: titled image present");
+    assert_contains(html, "<figcaption>Title caption</figcaption>", "MMD: caption from title text");
+    assert_not_contains(html, "<figure><img src=\"/img/empty.png\"", "MMD: no figure for empty alt/title image");
+    apex_free_string(html);
+
+    /* Unified mode: captions enabled by default */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    html = apex_markdown_to_html(md_basic, strlen(md_basic), &unified_opts);
+    assert_contains(html, "<figure>", "Unified: figures generated");
+    assert_contains(html, "<figcaption>Alt only</figcaption>", "Unified: caption from alt text");
+    assert_contains(html, "<figcaption>Title caption</figcaption>", "Unified: caption from title text");
+    assert_not_contains(html, "<figure><img src=\"/img/empty.png\"", "Unified: no figure for empty alt/title image");
+    apex_free_string(html);
+
+    /* Explicitly disabling captions should produce plain <img> tags */
+    apex_options disabled_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    disabled_opts.enable_image_captions = false;
+    html = apex_markdown_to_html(md_basic, strlen(md_basic), &disabled_opts);
+    assert_not_contains(html, "<figure>", "Disabled: no figures generated");
+    assert_not_contains(html, "<figcaption>", "Disabled: no figcaptions generated");
+    assert_contains(html, "<img src=\"/img/basic.png\"", "Disabled: basic image present");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Image Captions Tests", had_failures, false);
+}
+
+/**
  * Test image embedding
  */

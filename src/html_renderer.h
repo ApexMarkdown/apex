@@ -104,6 +104,15 @@ char *apex_adjust_quote_language(const char *html, const char *quotes_language);
  */
 char *apex_apply_aria_labels(const char *html, cmark_node *document);
 
+/**
+ * Convert <img> tags to <figure> with <figcaption> when alt/title are present.
+ * Caption text prefers the image title attribute when present, otherwise
+ * falls back to the alt text. Images without title or alt are left unchanged.
+ * @param html The HTML to process
+ * @return Newly allocated HTML with image figures (must be freed), or NULL on error
+ */
+char *apex_convert_image_captions(const char *html);
+
 #ifdef __cplusplus
 }
 #endif

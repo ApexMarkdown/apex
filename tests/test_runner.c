@@ -68,6 +68,7 @@ void test_advanced_footnotes(void);
 void test_standalone_output(void);
 void test_pretty_html(void);
 void test_header_ids(void);
+void test_image_captions(void);
 void test_indices(void);
 void test_citations(void);
 void test_aria_labels(void);
@@ -130,6 +131,7 @@ static test_suite suites[] = {
     { "standalone_output",             test_standalone_output },
     { "pretty_html",                   test_pretty_html },
     { "header_ids",                    test_header_ids },
+    { "image_captions",                test_image_captions },
     { "image_embedding",               test_image_embedding },
     { "image_width_height_conversion", test_image_width_height_conversion },
     { "indices",                       test_indices },
