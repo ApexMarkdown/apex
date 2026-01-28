@@ -998,12 +998,23 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
     const char *read_pos = text;
     char *write_pos = output;
     size_t remaining = output_capacity;
+    bool in_code_span = false; /* Tracks inline/fenced code spans delimited by backticks */
 
     while (*read_pos) {
         bool processed_include = false;
 
+        /* Toggle code-span state on backticks so we can avoid
+         * processing include syntax that appears inside inline
+         * or fenced code (e.g. `<<[path/file]`). This is a simple
+         * state machine that treats all backticks as paired; it
+         * correctly covers common cases like single backtick code
+         * spans and triple-backtick fences. */
+        if (*read_pos == '`') {
+            in_code_span = !in_code_span;
+        }
+
         /* Look for iA Writer transclusion /filename (at start of line only) */
-        if (read_pos[0] == '/' && (read_pos == text || read_pos[-1] == '\n')) {
+        if (!in_code_span && read_pos[0] == '/' && (read_pos == text || read_pos[-1] == '\n')) {
             const char *filepath_start = read_pos + 1;
             const char *filepath_end = filepath_start;
 
@@ -1094,7 +1105,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
         }
 
         /* Look for MMD transclusion {{file}} */
-        if (!processed_include && read_pos[0] == '{' && read_pos[1] == '{') {
+        if (!processed_include && !in_code_span && read_pos[0] == '{' && read_pos[1] == '{') {
             const char *filepath_start = read_pos + 2;
             const char *filepath_end = strstr(filepath_start, "}}");
 
@@ -1216,7 +1227,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
         }
 
         /* Look for << (Marked syntax) */
-        if (!processed_include && read_pos[0] == '<' && read_pos[1] == '<') {
+        if (!processed_include && !in_code_span && read_pos[0] == '<' && read_pos[1] == '<') {
             char bracket_type = 0;
             const char *filepath_start = NULL;
             const char *filepath_end = NULL;
