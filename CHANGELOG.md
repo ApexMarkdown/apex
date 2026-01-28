@@ -2,6 +2,25 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.60] - 2026-01-28
+
+### Changed
+
+- Convert images with alt or title text to <figure> and <figcaption> in supported modes while leaving plain images unchanged.
+
+### New
+
+- Add --[no-]image-captions CLI flag to control automatic figure and figcaption wrapping of images.
+- Enable automatic image captions by default in MultiMarkdown and Unified modes, configurable per document via metadata.
+
+### Improved
+
+- Add regression tests covering image caption behavior across modes and configuration combinations.
+
+### Fixed
+
+- Prevent image titles and other inline image attributes from bleeding onto different images when parsing and rendering image attributes.
+
 ## [0.1.59] - 2026-01-27
 
 ### Changed
@@ -2195,6 +2214,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.60]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.60
 [0.1.59]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.59
 [0.1.58]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.58
 [0.1.57]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.57
