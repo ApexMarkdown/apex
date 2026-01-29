@@ -2711,4 +2711,3 @@ char *apex_convert_image_captions(const char *html) {
     *write = '\0';
     return output;
 }
-
