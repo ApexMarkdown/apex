@@ -27,6 +27,14 @@ extern "C" {
  */
 char *apex_process_fenced_divs(const char *text);
 
+/**
+ * Post-process HTML to restore custom element tags from wrapper divs.
+ * Replaces <div data-apex-fenced-element="tagname">...</div> with <tagname>...</tagname>.
+ * Call after rendering when fenced divs with custom elements were used.
+ * Returns newly allocated string, or NULL on error
+ */
+char *apex_postprocess_fenced_divs_html(const char *html);
+
 #ifdef __cplusplus
 }
 #endif

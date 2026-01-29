@@ -5011,6 +5011,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Restore custom element tags from fenced-div wrappers (fixes out-of-order HTML) */
+    if (html && options->enable_divs && options->mode == APEX_MODE_UNIFIED) {
+        char *fenced_divs_html = apex_postprocess_fenced_divs_html(html);
+        if (fenced_divs_html) {
+            free(html);
+            html = fenced_divs_html;
+        }
+    }
+
     /* Post-process HTML for advanced table attributes (rowspan/colspan) */
     if (options->enable_tables && html) {
         PROFILE_START(inject_table_attributes);

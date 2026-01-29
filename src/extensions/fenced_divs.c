@@ -454,6 +454,37 @@ static char *parse_attributes(const char *attr_text, size_t attr_len) {
 }
 
 /**
+ * Block-level HTML tag names recognized by cmark-gfm (scanners.re blocktagname).
+ * Custom elements (e.g. custom-element) are not in this list, so cmark treats
+ * them as inline and produces wrong structure. We wrap those in <div> and fix up later.
+ */
+static bool is_cmark_block_tag(const char *tag_name) {
+    static const char *const block_tags[] = {
+        "address", "article", "aside", "base", "basefont", "blockquote", "body",
+        "caption", "center", "col", "colgroup", "dd", "details", "dialog", "dir",
+        "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
+        "frame", "frameset", "h1", "h2", "h3", "h4", "h5", "h6", "head", "header",
+        "hr", "html", "iframe", "legend", "li", "link", "main", "menu", "menuitem",
+        "nav", "noframes", "ol", "optgroup", "option", "p", "param", "section",
+        "source", "title", "summary", "table", "tbody", "td", "tfoot", "th", "thead",
+        "tr", "track", "ul", NULL
+    };
+    for (const char *const *t = block_tags; *t; t++) {
+        const char *a = tag_name;
+        const char *b = *t;
+        while (*a && *b) {
+            int ca = (unsigned char)tolower((unsigned char)*a);
+            int cb = (unsigned char)*b;
+            if (ca != cb) break;
+            a++;
+            b++;
+        }
+        if (!*a && !*b) return true;
+    }
+    return false;
+}
+
+/**
  * Process fenced divs in text
  */
 char *apex_process_fenced_divs(const char *text) {
@@ -473,6 +504,7 @@ char *apex_process_fenced_divs(const char *text) {
         size_t colon_count;
         char *html_attrs;
         char *block_type;  /* HTML element type (div, aside, article, details, etc.) */
+        bool wrapped;      /* true if we emitted <div data-apex-fenced-element="..."> for cmark */
     } div_stack_item;
 
     div_stack_item *div_stack = NULL;
@@ -534,16 +566,22 @@ char *apex_process_fenced_divs(const char *text) {
                 }
             }
 
+            const char *tag_name = block_type ? block_type : "div";
+            bool use_wrapper = !is_cmark_block_tag(tag_name);
+
             div_stack[div_stack_size].colon_count = colon_count;
             div_stack[div_stack_size].html_attrs = html_attrs;
             div_stack[div_stack_size].block_type = block_type ? block_type : strdup("div");
+            div_stack[div_stack_size].wrapped = use_wrapper;
             div_stack_size++;
 
-            /* Write opening tag with markdown="1" to enable markdown parsing inside */
-            const char *tag_name = div_stack[div_stack_size - 1].block_type;
-            size_t tag_name_len = strlen(tag_name);
+            /* For custom elements (not in cmark's block list), emit <div data-apex-fenced-element="tagname" ...>
+             * so cmark sees a block tag; we fix it back to <tagname> in post-process. */
+            const char *emit_tag = use_wrapper ? "div" : tag_name;
+            size_t emit_tag_len = strlen(emit_tag);
             size_t markdown_attr_len = 13; /*  markdown="1" */
-            size_t needed = 1 + tag_name_len + 1 + (html_attrs ? strlen(html_attrs) : 0) + markdown_attr_len + 1; /* <tag...> */
+            size_t wrapper_attr_len = use_wrapper ? (22 + strlen(tag_name)) : 0; /*  data-apex-fenced-element="tagname" */
+            size_t needed = 1 + emit_tag_len + 1 + (html_attrs ? strlen(html_attrs) : 0) + wrapper_attr_len + markdown_attr_len + 1;
             if (remaining < needed) {
                 size_t written = write - output;
                 output_capacity = (written + needed) * 2;
@@ -563,10 +601,18 @@ char *apex_process_fenced_divs(const char *text) {
                 remaining = output_capacity - written;
             }
 
-            if (html_attrs) {
-                write += snprintf(write, remaining, "<%s%s markdown=\"1\">", tag_name, html_attrs);
+            if (use_wrapper) {
+                if (html_attrs) {
+                    write += snprintf(write, remaining, "<div data-apex-fenced-element=\"%s\"%s markdown=\"1\">", tag_name, html_attrs);
+                } else {
+                    write += snprintf(write, remaining, "<div data-apex-fenced-element=\"%s\" markdown=\"1\">", tag_name);
+                }
             } else {
-                write += snprintf(write, remaining, "<%s markdown=\"1\">", tag_name);
+                if (html_attrs) {
+                    write += snprintf(write, remaining, "<%s%s markdown=\"1\">", emit_tag, html_attrs);
+                } else {
+                    write += snprintf(write, remaining, "<%s markdown=\"1\">", emit_tag);
+                }
             }
             remaining = output_capacity - (write - output);
 
@@ -578,12 +624,14 @@ char *apex_process_fenced_divs(const char *text) {
             /* Closing fence - pop from stack */
             div_stack_size--;
             char *block_type = div_stack[div_stack_size].block_type;
+            bool was_wrapped = div_stack[div_stack_size].wrapped;
             if (div_stack[div_stack_size].html_attrs) {
                 free(div_stack[div_stack_size].html_attrs);
             }
 
-            /* Write closing tag */
-            size_t tag_name_len = block_type ? strlen(block_type) : 3; /* default to "div" */
+            /* Write closing tag: </div> when we wrapped for cmark, else </block_type> */
+            const char *close_tag = was_wrapped ? "div" : (block_type ? block_type : "div");
+            size_t tag_name_len = strlen(close_tag);
             size_t needed = 2 + tag_name_len + 1; /* </tag> */
             if (remaining < needed) {
                 size_t written = write - output;
@@ -605,7 +653,7 @@ char *apex_process_fenced_divs(const char *text) {
                 remaining = output_capacity - written;
             }
 
-            write += snprintf(write, remaining, "</%s>", block_type ? block_type : "div");
+            write += snprintf(write, remaining, "</%s>", close_tag);
             if (block_type) free(block_type);
             remaining = output_capacity - (write - output);
 
@@ -661,10 +709,12 @@ char *apex_process_fenced_divs(const char *text) {
     while (div_stack_size > 0) {
         div_stack_size--;
         char *block_type = div_stack[div_stack_size].block_type;
+        bool was_wrapped = div_stack[div_stack_size].wrapped;
         if (div_stack[div_stack_size].html_attrs) {
             free(div_stack[div_stack_size].html_attrs);
         }
-        size_t tag_name_len = block_type ? strlen(block_type) : 3; /* default to "div" */
+        const char *close_tag = was_wrapped ? "div" : (block_type ? block_type : "div");
+        size_t tag_name_len = strlen(close_tag);
         size_t needed = 2 + tag_name_len + 1; /* </tag> */
         if (remaining < needed) {
             size_t written = write - output;
@@ -684,7 +734,7 @@ char *apex_process_fenced_divs(const char *text) {
             write = output + written;
             remaining = output_capacity - written;
         }
-        write += snprintf(write, remaining, "</%s>", block_type ? block_type : "div");
+        write += snprintf(write, remaining, "</%s>", close_tag);
         if (block_type) free(block_type);
         remaining = output_capacity - (write - output);
     }
@@ -693,5 +743,176 @@ char *apex_process_fenced_divs(const char *text) {
 
     *write = '\0';
     return output;
+}
+
+#define FENCED_ELEMENT_PREFIX "<div data-apex-fenced-element=\""
+#define FENCED_ELEMENT_PREFIX_LEN (sizeof(FENCED_ELEMENT_PREFIX) - 1)
+
+/**
+ * Post-process HTML to replace wrapper <div data-apex-fenced-element="tagname">...</div>
+ * with <tagname>...</tagname>. Called after rendering so custom elements get correct output.
+ * Returns newly allocated string, or NULL on error (caller keeps ownership of html).
+ */
+char *apex_postprocess_fenced_divs_html(const char *html) {
+    if (!html) return NULL;
+
+    const char *search = html;
+    size_t html_len = strlen(html);
+    /* Output may be shorter (removing data-apex-fenced-element attr) or longer (longer tagname) */
+    size_t cap = html_len + 1024;
+    char *out = malloc(cap);
+    if (!out) return NULL;
+
+    const char *read = html;
+    char *write = out;
+    size_t remaining = cap;
+
+    while ((search = strstr(search, FENCED_ELEMENT_PREFIX)) != NULL) {
+        /* Copy from read to search */
+        size_t chunk = (size_t)(search - read);
+        if (chunk >= remaining) {
+            size_t written = (size_t)(write - out);
+            cap = written + chunk + html_len + 1024;
+            char *new_out = realloc(out, cap);
+            if (!new_out) {
+                free(out);
+                return NULL;
+            }
+            out = new_out;
+            write = out + written;
+            remaining = cap - written;
+        }
+        memcpy(write, read, chunk);
+        write += chunk;
+        remaining -= chunk;
+
+        const char *p = search + FENCED_ELEMENT_PREFIX_LEN;
+        const char *quote_end = strchr(p, '"');
+        if (!quote_end) break;
+        size_t tagname_len = (size_t)(quote_end - p);
+        if (tagname_len == 0 || tagname_len > 127) break;
+
+        char tagname[128];
+        memcpy(tagname, p, tagname_len);
+        tagname[tagname_len] = '\0';
+
+        /* Find end of opening tag */
+        const char *tag_end = strchr(quote_end + 1, '>');
+        if (!tag_end) break;
+
+        /* Build new opening tag: <tagname + rest of tag with data-apex-fenced-element="tagname" removed */
+        const char *after_attr = quote_end + 1;
+        while (after_attr < tag_end && (isspace((unsigned char)*after_attr))) after_attr++;
+
+        size_t rest_len = (size_t)(tag_end - after_attr);
+        size_t open_tag_len = 1 + tagname_len + 1 + rest_len + 1; /* <tagname ...> */
+        if (rest_len >= remaining) {
+            size_t written = (size_t)(write - out);
+            cap = written + open_tag_len + 256;
+            char *new_out = realloc(out, cap);
+            if (!new_out) {
+                free(out);
+                return NULL;
+            }
+            out = new_out;
+            write = out + written;
+            remaining = cap - written;
+        }
+
+        *write++ = '<';
+        memcpy(write, tagname, tagname_len);
+        write += tagname_len;
+        if (rest_len > 0) {
+            *write++ = ' ';
+            memcpy(write, after_attr, rest_len);
+            write += rest_len;
+        }
+        *write++ = '>';
+        remaining = cap - (size_t)(write - out);
+
+        read = tag_end + 1;
+
+        /* Find matching </div> by counting nested divs */
+        int depth = 1;
+        const char *scan = read;
+        while (*scan && depth > 0) {
+            if (strncmp(scan, "</div>", 6) == 0) {
+                depth--;
+                if (depth == 0) {
+                    /* Copy content from read to scan */
+                    size_t content_len = (size_t)(scan - read);
+                    if (content_len >= remaining) {
+                        size_t written = (size_t)(write - out);
+                        cap = written + content_len + tagname_len + 16;
+                        char *new_out = realloc(out, cap);
+                        if (!new_out) {
+                            free(out);
+                            return NULL;
+                        }
+                        out = new_out;
+                        write = out + written;
+                        remaining = cap - written;
+                    }
+                    memcpy(write, read, content_len);
+                    write += content_len;
+                    remaining -= content_len;
+
+                    /* Write </tagname> */
+                    size_t close_len = 2 + tagname_len + 1;
+                    if (close_len >= remaining) {
+                        size_t written = (size_t)(write - out);
+                        cap = written + close_len + 64;
+                        char *new_out = realloc(out, cap);
+                        if (!new_out) {
+                            free(out);
+                            return NULL;
+                        }
+                        out = new_out;
+                        write = out + written;
+                        remaining = cap - written;
+                    }
+                    *write++ = '<';
+                    *write++ = '/';
+                    memcpy(write, tagname, tagname_len);
+                    write += tagname_len;
+                    *write++ = '>';
+                    remaining = cap - (size_t)(write - out);
+
+                    read = scan + 6;
+                    break;
+                }
+                scan += 6;
+                continue;
+            }
+            if (scan[0] == '<' && scan[1] == 'd' && scan[2] == 'i' && scan[3] == 'v' &&
+                (scan[4] == '>' || isspace((unsigned char)scan[4]))) {
+                depth++;
+                scan += 4;
+                while (*scan && *scan != '>') scan++;
+                if (*scan == '>') scan++;
+                continue;
+            }
+            scan++;
+        }
+        if (depth != 0) break; /* Unmatched, stop */
+        search = read;
+    }
+
+    /* Copy remainder */
+    size_t rest = strlen(read);
+    if (rest >= remaining) {
+        size_t written = (size_t)(write - out);
+        cap = written + rest + 1;
+        char *new_out = realloc(out, cap);
+        if (!new_out) {
+            free(out);
+            return NULL;
+        }
+        out = new_out;
+        write = out + written;
+    }
+    memcpy(write, read, rest + 1);
+
+    return out;
 }
 
