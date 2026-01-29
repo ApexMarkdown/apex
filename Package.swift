@@ -29,6 +29,7 @@ let package = Package(
             ],
             publicHeadersPath: ".",
             cSettings: [
+                .headerSearchPath("../../../PackageSupport/cmark-gfm"),
                 .headerSearchPath("."),
                 .headerSearchPath("../extensions"),
                 .define("CMARK_STATIC_DEFINE"),
@@ -45,6 +46,7 @@ let package = Package(
             path: "vendor/cmark-gfm/extensions",
             publicHeadersPath: ".",
             cSettings: [
+                .headerSearchPath("../../../PackageSupport/cmark-gfm"),
                 .headerSearchPath("../src"),
                 .define("CMARK_GFM_EXTENSIONS_STATIC_DEFINE"),
             ]
