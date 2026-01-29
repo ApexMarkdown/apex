@@ -102,7 +102,11 @@ NSString *const ApexModeUnified = @"unified";
   /* Set standalone document options */
   options.standalone = standalone;
   if (stylesheetPath && [stylesheetPath length] > 0) {
-    options.stylesheet_path = [stylesheetPath UTF8String];
+    const char *paths[2];
+    paths[0] = [stylesheetPath UTF8String];
+    paths[1] = NULL;
+    options.stylesheet_paths = paths;
+    options.stylesheet_count = 1;
   }
   if (title && [title length] > 0) {
     options.document_title = [title UTF8String];
@@ -199,7 +203,11 @@ NSString *const ApexModeUnified = @"unified";
     if (stylesheetValue && [stylesheetValue isKindOfClass:[NSString class]]) {
       NSString *stylesheet = (NSString *)stylesheetValue;
       if ([stylesheet length] > 0) {
-        options.stylesheet_path = [stylesheet UTF8String];
+        const char *paths[2];
+        paths[0] = [stylesheet UTF8String];
+        paths[1] = NULL;
+        options.stylesheet_paths = paths;
+        options.stylesheet_count = 1;
       }
     }
 
