@@ -76,16 +76,16 @@ void test_advanced_tables(void) {
     assert_contains(html, "<td colspan=\"3\">A</td>", "Colspan applied to first row A spanning 3 columns with consecutive pipes");
     apex_free_string(html);
 
-    /* Test colspan marker detection inside nested inline nodes (e.g., emphasis around <<).
-     * This exercises recursive marker detection for colspan cells.
+    /* Test colspan only when cell contains nothing but << and optional whitespace.
+     * A cell with "**<<**" or "raw <<" must NOT be colspan; only bare "<<" (or " << ") is.
      */
-    const char *colspan_nested_marker =
+    const char *colspan_only_bare =
         "| H1 | H2 | H3 |\n"
         "|----|----|----|\n"
-        "| A  | **<<** | << |\n"
-        "| B  | C  | D |\n";
-    html = apex_markdown_to_html(colspan_nested_marker, strlen(colspan_nested_marker), &opts);
-    assert_contains(html, "colspan", "Colspan detected with nested marker");
+        "| A  | B  | << |\n"
+        "| C  | D  | E |\n";
+    html = apex_markdown_to_html(colspan_only_bare, strlen(colspan_only_bare), &opts);
+    assert_contains(html, "colspan", "Colspan only when cell is just << (and optional whitespace)");
     apex_free_string(html);
 
     /* Test that empty cells with whitespace do NOT create colspan */

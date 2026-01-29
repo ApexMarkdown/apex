@@ -29,6 +29,7 @@ More colspan testing:
 | row 2 | colspan |||
 | row 3 | cell    || &larr; colspan |
 | row 4 | forced colspan | << | &larr; colspan |
+| row 5 | raw \<< | \<< | No colspan |
 
 : Just some colspan testing
 

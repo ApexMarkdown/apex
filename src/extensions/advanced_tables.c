@@ -24,81 +24,160 @@
 /* Global flag for per-cell alignment (set when extension is created) */
 static bool g_per_cell_alignment = false;
 
+/* Placeholder for escaped \<< (literal <<). Must match table.c. No underscore so inline parser doesn't treat as emphasis. */
+static const unsigned char ESCAPED_LTLT_PLACEHOLDER[] = "APEXLTLT";
+#define ESCAPED_LTLT_PLACEHOLDER_LEN 8
+
 /**
- * Extract and check text content from a node recursively
- * Returns true if the content is just "<< " (possibly with whitespace)
+ * Recursively collect all text from a node into a buffer.
+ * Caller must free the returned string.
  */
-static bool cell_content_is_colspan_marker(cmark_node *node) {
-    if (!node) return false;
+static char *get_node_full_text(cmark_node *node) {
+    if (!node) return NULL;
 
-    if (cmark_node_get_type(node) == CMARK_NODE_TEXT) {
-        const char *text = cmark_node_get_literal(node);
-        if (text) {
-            /* Simple check: trim whitespace and see if content is just << */
-            const char *start = text;
-            const char *end = text + strlen(text) - 1;
-
-            /* Trim leading whitespace */
-            while (start <= end && isspace((unsigned char)*start)) start++;
-
-            /* Trim trailing whitespace */
-            while (end >= start && isspace((unsigned char)*end)) end--;
-
-            /* Check if we have exactly << */
-            size_t len = end - start + 1;
-            if (len == 2 && start[0] == '<' && start[1] == '<') {
-                return true;
-            }
-
-            /* Also check for HTML entity encoded version (in case encoding happened early) */
-            /* Check exact match */
-            const char *trimmed_encoded_start = start;
-            const char *trimmed_encoded_end = end;
-            size_t encoded_len = trimmed_encoded_end - trimmed_encoded_start + 1;
-            if ((encoded_len == 10 && strncmp(trimmed_encoded_start, "&lt;&lt;", 10) == 0) ||
-                strstr(text, "&lt;&lt;")) {
-                fprintf(stderr, "DEBUG: Found encoded &lt;&lt; marker!\n");
-                return true;
-            }
-        }
-        return false;
+    /* Collect literal from TEXT, CODE, HTML_INLINE so "raw <<" isn't seen as just "<<" */
+    cmark_node_type t = cmark_node_get_type(node);
+    if (t == CMARK_NODE_TEXT || t == CMARK_NODE_CODE || t == CMARK_NODE_HTML_INLINE) {
+        const char *lit = cmark_node_get_literal(node);
+        return lit ? strdup(lit) : NULL;
     }
 
-    /* For non-text nodes, recursively check all children */
+    size_t cap = 64;
+    char *buf = malloc(cap);
+    if (!buf) return NULL;
+    buf[0] = '\0';
+    size_t len = 0;
+
     cmark_node *child = cmark_node_first_child(node);
     while (child) {
-        if (cell_content_is_colspan_marker(child)) {
-            return true;
+        char *part = get_node_full_text(child);
+        if (part) {
+            size_t part_len = strlen(part);
+            while (len + part_len + 1 > cap) {
+                cap *= 2;
+                char *new_buf = realloc(buf, cap);
+                if (!new_buf) {
+                    free(part);
+                    free(buf);
+                    return NULL;
+                }
+                buf = new_buf;
+            }
+            memcpy(buf + len, part, part_len + 1);
+            len += part_len;
+            free(part);
         }
         child = cmark_node_next(child);
     }
+    return buf;
+}
 
-    return false;
+/** Count TEXT/CODE/HTML_INLINE nodes under n that have literal content. */
+static int count_literal_nodes(cmark_node *n) {
+    int count = 0;
+    cmark_node_type t = cmark_node_get_type(n);
+    if (t == CMARK_NODE_TEXT || t == CMARK_NODE_CODE || t == CMARK_NODE_HTML_INLINE) {
+        const char *lit = cmark_node_get_literal(n);
+        return (lit && lit[0]) ? 1 : 0;
+    }
+    for (cmark_node *c = cmark_node_first_child(n); c; c = cmark_node_next(c))
+        count += count_literal_nodes(c);
+    return count;
 }
 
 /**
- * Check if a cell should span (contains << marker)
- *
- * NOTE: Plain empty cells should NOT trigger colspan - only cells with the
- * << marker (from consecutive pipes like |||) should create colspans.
- * Empty cells with whitespace between pipes should remain as separate cells.
+ * Check if a cell should span (contains << marker).
+ * Only treat as colspan when the cell contains NOTHING but "<<" and optional whitespace.
+ * Any other character (e.g. "raw <<", "**<<**", "x <<") must NOT be interpreted as colspan.
+ * Content that is \<< (escaped) is replaced at parse time with a placeholder; we do not treat it as colspan.
+ * Prefer raw string content when available so we see the actual characters; otherwise use parsed full text.
+ * raw_content_override: if non-NULL, use this as the raw content (e.g. captured before user_data was overwritten).
  */
-static bool is_colspan_cell(cmark_node *cell) {
+static bool is_colspan_cell(cmark_node *cell, const char *raw_content_override) {
     if (!cell) return false;
 
-    cmark_node *child = cmark_node_first_child(cell);
-    if (!child) return false; /* Empty cell without << marker - don't merge */
+    char *full_text = get_node_full_text(cell);
+    if (!full_text) return false;
 
-    /* Check all children recursively for the << marker */
-    /* Start from the first child and check recursively */
-    while (child) {
-        if (cell_content_is_colspan_marker(child)) {
-            return true;
+    /* Use raw content when available so "raw <<" or "**<<**" etc. are not falsely treated as colspan.
+     * Prefer raw_content_override (captured before process_cell_alignment overwrote user_data). */
+    const char *raw = raw_content_override;
+    if (!raw || !raw[0]) {
+        void *ud = cmark_node_get_user_data(cell);
+        if (ud) {
+            char *s = (char *)ud;
+            if (s[0] && !strstr(s, "colspan") && !strstr(s, "rowspan") && !strstr(s, "data-"))
+                raw = s;
         }
-        child = cmark_node_next(child);
+    }
+    if (!raw || !raw[0])
+        raw = cmark_node_get_string_content(cell);
+    if (!raw || !raw[0]) {
+        cmark_node *first = cmark_node_first_child(cell);
+        if (first && !cmark_node_next(first) &&
+            cmark_node_get_type(first) == CMARK_NODE_PARAGRAPH)
+            raw = cmark_node_get_string_content(first);
+    }
+    if (raw && raw[0]) {
+        free(full_text);
+        full_text = strdup(raw);
+        if (!full_text) return false;
+    } else {
+        /* No raw content (cleared after parse). If the cell has more than one literal-bearing node
+         * (TEXT/CODE/HTML_INLINE), we had e.g. "raw <<" so do not colspan. */
+        if (count_literal_nodes(cell) > 1) {
+            free(full_text);
+            return false;
+        }
     }
 
-    return false;
+    const char *start = full_text;
+    const char *end = full_text + strlen(full_text);
+    if (start == end) {
+        free(full_text);
+        return false;
+    }
+    end--; /* last char */
+
+    /* Trim leading whitespace */
+    while (start <= end && isspace((unsigned char)*start)) start++;
+    /* Trim trailing whitespace */
+    while (end >= start && isspace((unsigned char)*end)) end--;
+
+    size_t len = (end >= start) ? (size_t)(end - start + 1) : 0;
+
+    bool result = false;
+    /* Only treat as colspan when the ENTIRE cell content is exactly "<<". */
+    if (len == 2 && start[0] == '<' && start[1] == '<') {
+        result = true;  /* Exactly << → colspan */
+    }
+    /* Escaped \<< is replaced with placeholder; do not treat as colspan */
+    if (len == ESCAPED_LTLT_PLACEHOLDER_LEN &&
+        memcmp(start, ESCAPED_LTLT_PLACEHOLDER, ESCAPED_LTLT_PLACEHOLDER_LEN) == 0) {
+        result = false;
+    }
+    /* "raw <<" or any other content that contains << but isn't exactly << → not colspan */
+    if (len > 2 && strstr(full_text, "<<") != NULL) {
+        result = false;
+    }
+
+    /* If we would treat as colspan but node's raw content buffer (string_content) has
+     * more than "<<", prefer it so "raw <<" isn't wrongly merged (e.g. if user_data was lost). */
+    if (result) {
+        const char *raw_buf = cmark_node_get_string_content(cell);
+        if (raw_buf && raw_buf[0]) {
+            const char *r = raw_buf;
+            const char *r_end = r + strlen(r);
+            if (r_end > r) r_end--;
+            while (r <= r_end && isspace((unsigned char)*r)) r++;
+            while (r_end >= r && isspace((unsigned char)*r_end)) r_end--;
+            if (r_end >= r && (size_t)(r_end - r + 1) > 2)
+                result = false;
+        }
+    }
+
+    free(full_text);
+    return result;
 }
 
 /**
@@ -135,7 +214,7 @@ static char *process_cell_alignment(cmark_node *cell) {
 
     /* Recursively find all text nodes in the cell */
     cmark_node *text_node = NULL;
-    
+
     /* Try to find the first text node */
     cmark_node *child = cmark_node_first_child(cell);
     while (child && !text_node) {
@@ -451,6 +530,19 @@ static void process_table_spans(cmark_node *table) {
 
             while (cell) {
                 if (cmark_node_get_type(cell) == CMARK_NODE_TABLE_CELL) {
+                    /* Capture raw cell content before process_cell_alignment may overwrite user_data.
+                     * Table parser stores raw content in user_data; we need it for colspan check
+                     * so "raw <<" is not wrongly treated as colspan. */
+                    const char *raw_content = NULL;
+                    {
+                        void *ud = cmark_node_get_user_data(cell);
+                        if (ud) {
+                            char *s = (char *)ud;
+                            if (s[0] && !strstr(s, "colspan") && !strstr(s, "rowspan") && !strstr(s, "data-"))
+                                raw_content = s;
+                        }
+                    }
+
                     /* Process per-cell alignment markers (:) BEFORE colspan/rowspan processing
                      * so that alignment is preserved when cells are merged. */
                     if (g_per_cell_alignment) {
@@ -461,21 +553,37 @@ static void process_table_spans(cmark_node *table) {
                             /* Add style attribute for alignment */
                             char *existing_attrs = (char *)cmark_node_get_user_data(cell);
                             char new_attrs[256];
-                            
+
                             if (existing_attrs && strlen(existing_attrs) > 0) {
                                 snprintf(new_attrs, sizeof(new_attrs), "%s style=\"text-align: %s\"", existing_attrs, align);
                             } else {
                                 snprintf(new_attrs, sizeof(new_attrs), " style=\"text-align: %s\"", align);
                             }
-                            
+
                             if (existing_attrs) free(existing_attrs);
                             cmark_node_set_user_data(cell, strdup(new_attrs));
                             }
                         }
                     }
 
-                            /* Check for colspan */
-                    bool is_colspan = is_colspan_cell(cell);
+                            /* Check for colspan (pass raw_content so we see "raw <<" etc. before user_data was overwritten) */
+                    bool is_colspan = is_colspan_cell(cell, raw_content);
+                    /* Final safeguard: if we would merge, re-check parsed content length.
+                     * If the cell has multiple literal nodes (e.g. "raw " + "<<") the full text
+                     * is longer than "<<"; do not merge so "raw <<" stays a normal cell. */
+                    if (is_colspan) {
+                        char *full = get_node_full_text(cell);
+                        if (full) {
+                            const char *p = full;
+                            while (*p && isspace((unsigned char)*p)) p++;
+                            const char *q = p + strlen(p);
+                            if (q > p) q--;
+                            while (q >= p && isspace((unsigned char)*q)) q--;
+                            if (q >= p && (size_t)(q - p + 1) > 2)
+                                is_colspan = false;
+                            free(full);
+                        }
+                    }
                     if (is_colspan) {
                         /* Only process colspan if we have a previous cell in the SAME ROW */
                         if (!prev_cell || cmark_node_parent(prev_cell) != row) {
@@ -554,13 +662,13 @@ static void process_table_spans(cmark_node *table) {
                              * 1. Current cell has << marker (explicit colspan marker, always merge), OR
                              * 2. Target is empty AND next is also empty (consecutive empty cells from |||), OR
                              * 3. Target has content AND next is empty/end (empty cells after content from | header |||)
-                             * 
+                             *
                              * Do NOT merge if:
                              * - Target has content AND next also has content (isolated empty cell like | A | | B |)
                              * - Target is empty but next has content (empty cell before content, like | | A |) */
                             /* For << markers (explicit colspan), always merge regardless of other conditions */
-                            bool should_merge = is_colspan || 
-                                (target_is_empty && !next_has_content) || 
+                            bool should_merge = is_colspan ||
+                                (target_is_empty && !next_has_content) ||
                                 (!target_is_empty && !next_has_content);
 
                             if (should_merge) {
@@ -605,7 +713,7 @@ static void process_table_spans(cmark_node *table) {
                                 } else {
                                     snprintf(new_attrs, sizeof(new_attrs), " colspan=\"%d\"", current_colspan + 1);
                                 }
-                                
+
                                 /* Free old user_data before setting new */
                                 if (prev_attrs) free(prev_attrs);
                                 cmark_node_set_user_data(target_cell, strdup(new_attrs));

@@ -16,6 +16,12 @@
 #include <ctype.h>
 #include <time.h>
 
+/* Placeholder for escaped \<< (literal <<). Must match table.c. No underscore so inline parser doesn't treat as emphasis. */
+static const unsigned char ESCAPED_LTLT_PLACEHOLDER[] = "APEXLTLT";
+#define ESCAPED_LTLT_PLACEHOLDER_LEN 8
+#define ESCAPED_LTLT_REPLACEMENT "&lt;&lt;"
+#define ESCAPED_LTLT_REPLACEMENT_LEN 8
+
 /* Structure to track cells with attributes */
 typedef struct cell_attr {
     int table_index;   /* Which table (0, 1, 2, ...) */
@@ -1701,7 +1707,7 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
 
         /* Check for cell opening tags - process both header and body cells
          * IMPORTANT: Check for <thead> and <tbody> first to avoid matching them as <th> or <td> cells */
-        if ((in_row || in_thead) && 
+        if ((in_row || in_thead) &&
             (strncmp(read, "<td", 3) == 0 || strncmp(read, "<th", 3) == 0) &&
             strncmp(read, "<thead>", 7) != 0 && strncmp(read, "<tbody>", 7) != 0 &&
             strncmp(read, "<tfoot>", 7) != 0) {
@@ -1933,7 +1939,7 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                         }
                     }
                 }
-                
+
                 if (cell_preview[0] != '\0') {
                     /* For very large tables, skip content-based matching to avoid timeout */
                     /* Position-based matching should be sufficient for most cases */
@@ -1985,9 +1991,9 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                     }
                 }
             }
-            
-            /* Additional fallback: If we still don't have a match, try to find any cell in the same 
-             * table/row with matching content that has colspan. This is important when cells with << 
+
+            /* Additional fallback: If we still don't have a match, try to find any cell in the same
+             * table/row with matching content that has colspan. This is important when cells with <<
              * are removed and column indices shift. Extract cell content if we haven't already. */
             if (!matching && ast_row_idx >= 0 && attrs != NULL) {
                 /* Extract cell content if we haven't already */
@@ -2007,7 +2013,7 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                         }
                     }
                 }
-                
+
                 if (cell_preview[0] != '\0') {
                     /* Try matching within the same AST row first */
                     for (cell_attr *a = attrs; a; a = a->next) {
@@ -2034,7 +2040,7 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                             }
                         }
                     }
-                    
+
                     /* If no match found, try nearby rows (row index might be off by 1 due to removed rows) */
                     if (!matching) {
                         for (cell_attr *a = attrs; a; a = a->next) {
@@ -2278,11 +2284,11 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                 col_idx == 0) {
                 make_row_header = true;
             }
-            
+
             /* Also detect empty first header cell here as a fallback, in case the earlier detection didn't run.
              * This runs for header cells (is_th) when processing the first cell (col_idx == 0) in the first row (row_idx == 0).
              * We need to check BEFORE col_idx is incremented, so this check happens early in the cell processing. */
-            if (!make_row_header && 
+            if (!make_row_header &&
                 in_table && !in_tbody && !in_tfoot && in_thead &&
                 table_idx >= 0 && table_idx < 50 &&
                 row_idx == 0 && col_idx == 0 && is_th) {
@@ -2619,6 +2625,46 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
     }
 
 done:
+    /* Replace placeholder for escaped \<< with &lt;&lt; so literal << displays correctly. */
+    if (output) {
+        const char *replacement = ESCAPED_LTLT_REPLACEMENT;
+        const size_t replacement_len = ESCAPED_LTLT_REPLACEMENT_LEN;
+
+        size_t out_len = strlen(output);
+        size_t n = 0;
+        const char *p = output;
+        while (p + ESCAPED_LTLT_PLACEHOLDER_LEN <= output + out_len) {
+            if (memcmp(p, ESCAPED_LTLT_PLACEHOLDER, ESCAPED_LTLT_PLACEHOLDER_LEN) == 0) {
+                n++;
+                p += ESCAPED_LTLT_PLACEHOLDER_LEN;
+            } else {
+                p++;
+            }
+        }
+        if (n > 0) {
+            size_t new_len = out_len - n * ESCAPED_LTLT_PLACEHOLDER_LEN + n * replacement_len;
+            char *new_out = malloc(new_len + 1);
+            if (new_out) {
+                char *w = new_out;
+                const char *r = output;
+                while (r < output + out_len) {
+                    if (r + ESCAPED_LTLT_PLACEHOLDER_LEN <= output + out_len &&
+                        memcmp(r, ESCAPED_LTLT_PLACEHOLDER, ESCAPED_LTLT_PLACEHOLDER_LEN) == 0) {
+                        memcpy(w, replacement, replacement_len);
+                        w += replacement_len;
+                        r += ESCAPED_LTLT_PLACEHOLDER_LEN;
+                    } else {
+                        *w++ = *r++;
+                    }
+                }
+                *w = '\0';
+                free(output);
+                output = new_out;
+                out_len = new_len;
+            }
+        }
+
+    }
     return output;
 }
 
