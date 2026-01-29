@@ -18,17 +18,17 @@
  */
 static const char *find_ial_after(const char *text, const char **ial_end) {
     const char *p = text;
-    
+
     /* Skip whitespace */
     while (*p && (*p == ' ' || *p == '\t')) {
         p++;
     }
-    
+
     /* Check for IAL pattern { ... } */
     if (*p == '{') {
         const char *start = p;
         p++;
-        
+
         /* Find closing } */
         const char *close = strchr(p, '}');
         if (close) {
@@ -36,7 +36,7 @@ static const char *find_ial_after(const char *text, const char **ial_end) {
             return start;
         }
     }
-    
+
     return NULL;
 }
 
@@ -73,7 +73,7 @@ char *apex_process_inserts(const char *text) {
         /* Look for ++insert++ (not in code, not Critic Markup) */
         /* Skip if preceded by { (Critic Markup) */
         bool is_critic = (read > text && read[-1] == '{');
-        
+
         /* Check opening ++ requirements:
          * - Exactly 2 + characters: read[0] == '+' && read[1] == '+'
          * - Not preceded by + or { (or beginning of line)
@@ -104,8 +104,8 @@ char *apex_process_inserts(const char *text) {
                     bool closing_followed_by_plus = (close[2] == '+');
                     bool closing_preceded_by_space = (close > read + 2 && (close[-1] == ' ' || close[-1] == '\t'));
                     bool closing_preceded_by_plus = (close > read + 2 && close[-1] == '+');
-                    
-                    if (!closing_followed_by_plus && !closing_preceded_by_space && 
+
+                    if (!closing_followed_by_plus && !closing_preceded_by_space &&
                         !closing_preceded_by_plus) {
                         break;
                     }
@@ -122,14 +122,14 @@ char *apex_process_inserts(const char *text) {
                     const char *after_close = close + 2;
                     const char *ial_end = NULL;
                     const char *ial_start = find_ial_after(after_close, &ial_end);
-                    
+
                     if (ial_start) {
                         /* Has IAL - convert to <ins markdown="span" ...>text</ins> */
                         size_t ial_len = (ial_end - 1) - (ial_start + 1);  /* Content inside {} */
-                        
+
                         /* Parse IAL attributes */
                         apex_attributes *attrs = parse_ial_content(ial_start + 1, ial_len);
-                        
+
                         if (attrs) {
                             /* Build ins tag with attributes */
                             char *attr_str = attributes_to_html(attrs);
@@ -200,7 +200,7 @@ char *apex_process_inserts(const char *text) {
                             apex_free_attributes(attrs);
                         }
                     }
-                    
+
                     /* No IAL - write simple <ins>text</ins> */
                     const char *open_tag = "<ins>";
                     size_t tag_len = strlen(open_tag);

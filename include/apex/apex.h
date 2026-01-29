@@ -17,8 +17,8 @@ extern "C" {
 
 #define APEX_VERSION_MAJOR 0
 #define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 62
-#define APEX_VERSION_STRING "0.1.62"
+#define APEX_VERSION_PATCH 63
+#define APEX_VERSION_STRING "0.1.63"
 
 /**
  * Processor compatibility modes

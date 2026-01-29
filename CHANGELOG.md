@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.63] - 2026-01-29
+
+### Fixed
+
+- Pandoc fenced divs using custom element names (e.g. ::: >custom-element customclass) now output correct HTML: the custom element wraps its paragraphs instead of the opening tag being incorrectly wrapped in a <p> (fixes GitHub issue #5).
+- Escaped `\<<` in table cells now renders as literal `<<` in HTML (placeholder APEXLTLT is replaced with &lt;&lt; in table HTML postprocess).
+
 ## [0.1.62] - 2026-01-29
 
 ### Fixed
@@ -2227,6 +2234,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.63]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.63
 [0.1.62]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.62
 [0.1.61]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.61
 [0.1.60]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.60

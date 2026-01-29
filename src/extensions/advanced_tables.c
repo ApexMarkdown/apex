@@ -763,13 +763,14 @@ static void process_table_spans(cmark_node *table) {
                                 sscanf(strstr(prev_attrs, "rowspan="), "rowspan=\"%d\"", &current_rowspan);
                             }
 
-                            /* Increment rowspan - append or replace */
+                            /* Increment rowspan - append only if prev_attrs looks like HTML attributes
+                             * (contains '='). The table parser may store raw cell content in user_data;
+                             * we must not prepend that to rowspan or we get <td Engineering rowspan="2">. */
                             char new_attrs[256];
-                            if (prev_attrs && !strstr(prev_attrs, "rowspan=")) {
-                                /* Append to existing attributes */
+                            bool prev_looks_like_attrs = (prev_attrs && strchr(prev_attrs, '=') != NULL);
+                            if (prev_looks_like_attrs && !strstr(prev_attrs, "rowspan=")) {
                                 snprintf(new_attrs, sizeof(new_attrs), "%s rowspan=\"%d\"", prev_attrs, current_rowspan + 1);
                             } else {
-                                /* Replace or create new */
                                 snprintf(new_attrs, sizeof(new_attrs), " rowspan=\"%d\"", current_rowspan + 1);
                             }
                             /* Free old user_data before setting new */

@@ -2254,18 +2254,27 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                  * subsequent empty cells that are part of the same colspan range */
                 continue;
             } else if (matching && (strstr(matching->attributes, "rowspan") || strstr(matching->attributes, "colspan"))) {
-                /* Copy opening tag */
-                while (*read && *read != '>') {
-                    *write++ = *read++;
-                }
-                /* Inject attributes before > */
+                /* Copy only the tag name (<td or <th). Skip everything until '>' - do not copy, so we never
+                 * include erroneously placed cell content (e.g. <td A > or <tdA>). Then inject our attributes
+                 * and write '>'. Existing attributes like align are dropped for this cell to avoid copying
+                 * malformed content; alignment can be re-applied by postprocess if needed. */
+                memcpy(write, read, 3);
+                write += 3;
+                read += 3;
+                while (*read && *read != '>') read++;
+                /* Always add a space between tag name and first attribute */
+                *write++ = ' ';
+                /* Inject our attributes (skip leading space in attrs if present) */
                 const char *attr_str = matching->attributes;
+                while (*attr_str == ' ' || *attr_str == '\t') attr_str++;
                 while (*attr_str) {
                     *write++ = *attr_str++;
                 }
-                /* Copy the > */
+                /* Copy or write the '>' so cell content follows correctly */
                 if (*read == '>') {
                     *write++ = *read++;
+                } else {
+                    *write++ = '>';
                 }
                 col_idx++;
                 prev_cell_matching = matching;  /* Track this cell for next cell's colspan check */
