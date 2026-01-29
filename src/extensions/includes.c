@@ -975,6 +975,101 @@ static char *get_transclude_base(const char *base_dir, apex_metadata_item *metad
 }
 
 /**
+ * Normalize fenced code block delimiters to use odd numbers of backticks.
+ * This ensures our simple toggle-based code span detection works correctly.
+ * Only modifies fence delimiters at the start of lines, not backticks
+ * inside code blocks.
+ */
+static char *normalize_fence_delimiters(const char *text) {
+    if (!text) return NULL;
+
+    size_t len = strlen(text);
+    char *output = malloc(len * 2 + 1);  /* Allocate generously */
+    if (!output) return NULL;
+
+    char *write = output;
+    const char *read = text;
+    bool in_fenced_block = false;
+    int original_fence_length = 0;  /* Original count from opening fence */
+    int normalized_fence_length = 0; /* Normalized count (always odd) */
+
+    while (*read) {
+        /* Check if we're at the start of a line */
+        bool at_line_start = (read == text || read[-1] == '\n');
+
+        if (at_line_start && *read == '`') {
+            /* Count consecutive backticks */
+            int backtick_count = 0;
+            const char *backtick_start = read;
+            while (*read == '`') {
+                backtick_count++;
+                read++;
+            }
+
+            /* Check if this looks like a fence delimiter:
+             * - At least 3 backticks
+             * - Followed by optional language info and newline or end of text
+             */
+            bool is_fence = (backtick_count >= 3);
+            if (is_fence) {
+                /* Check what follows - should be whitespace, language info, or newline */
+                const char *after_backticks = read;
+                while (*after_backticks && *after_backticks != '\n' &&
+                       *after_backticks != '\r') {
+                    after_backticks++;
+                }
+
+                /* If we're closing a fence, check if it matches the original length */
+                if (in_fenced_block && backtick_count == original_fence_length) {
+                    /* Closing fence that matches opening - normalize to match the normalized opening fence */
+                    for (int i = 0; i < normalized_fence_length; i++) {
+                        *write++ = '`';
+                    }
+                    in_fenced_block = false;
+                    original_fence_length = 0;
+                    normalized_fence_length = 0;
+                } else if (!in_fenced_block) {
+                    /* Opening fence - normalize to odd number */
+                    if (backtick_count % 2 == 0) {
+                        /* Even number - add one backtick */
+                        normalized_fence_length = backtick_count + 1;
+                        for (int i = 0; i < normalized_fence_length; i++) {
+                            *write++ = '`';
+                        }
+                    } else {
+                        /* Already odd - copy as-is */
+                        normalized_fence_length = backtick_count;
+                        memcpy(write, backtick_start, backtick_count);
+                        write += backtick_count;
+                    }
+                    original_fence_length = backtick_count;
+                    in_fenced_block = true;
+                } else {
+                    /* Inside a code block but this doesn't match our fence - copy as-is */
+                    memcpy(write, backtick_start, backtick_count);
+                    write += backtick_count;
+                }
+
+                /* Copy the rest of the line */
+                while (read < after_backticks) {
+                    *write++ = *read++;
+                }
+            } else {
+                /* Not a fence delimiter - copy backticks as-is */
+                memcpy(write, backtick_start, backtick_count);
+                write += backtick_count;
+            }
+        } else {
+            /* Not at start of line or not a backtick - copy character */
+            *write++ = *read++;
+        }
+    }
+
+    *write = '\0';
+    return output;
+}
+
+/**
  * Process file includes in text
  */
 char *apex_process_includes(const char *text, const char *base_dir, apex_metadata_item *metadata, int depth) {
@@ -983,11 +1078,21 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
         return strdup(text);  /* Silently return original text */
     }
 
-    size_t text_len = strlen(text);
+    /* Normalize fenced code block delimiters to odd numbers of backticks
+     * so our toggle-based code span detection works correctly */
+    char *normalized_text = normalize_fence_delimiters(text);
+    if (!normalized_text) return NULL;
+
+    const char *text_to_process = normalized_text;
+
+    size_t text_len = strlen(text_to_process);
     size_t output_capacity = text_len * 10;  /* Generous for includes */
     if (output_capacity < 1024 * 1024) output_capacity = 1024 * 1024;  /* At least 1MB */
     char *output = malloc(output_capacity);
-    if (!output) return NULL;
+    if (!output) {
+        free(normalized_text);
+        return NULL;
+    }
 
     /* Get effective base directory from transclude base metadata */
     char *effective_base_dir = get_transclude_base(base_dir, metadata);
@@ -995,7 +1100,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
         effective_base_dir = strdup(base_dir);
     }
 
-    const char *read_pos = text;
+    const char *read_pos = text_to_process;
     char *write_pos = output;
     size_t remaining = output_capacity;
     bool in_code_span = false; /* Tracks inline/fenced code spans delimited by backticks */
@@ -1424,6 +1529,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
     /* Cleanup */
     if (effective_base_dir) free(effective_base_dir);
+    if (normalized_text) free(normalized_text);
 
     return output;
 }
