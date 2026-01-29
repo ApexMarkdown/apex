@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.64] - 2026-01-29
+
+### Fixed
+
+- Require Marked-style include syntax (`<<[file]`, `<<(file)`, `<<{file}`) to appear at the very beginning of a line, preventing indented code blocks from being processed as includes.
+- Normalize even-numbered fenced code block delimiters to odd backticks so include syntax inside fenced code blocks (e.g. ````...````) is never processed; only fence delimiters at line start are normalized, not backticks inside code block content.
+- Pandoc fenced divs using custom element names (e.g. ::: >custom-element customclass) now output correct HTML: the custom element wraps its paragraphs instead of the opening tag being incorrectly wrapped in a <p> (fixes GitHub issue #5).
+- Escaped `\<<` in table cells now renders as literal `<<` in HTML (placeholder APEXLTLT is replaced with &lt;&lt; in table HTML postprocess).
+- Rowspan no longer puts cell content in the opening tag (e.g. <td Engineering rowspan="2">); rowspan is now applied correctly so the first cell shows <td rowspan="2">A</td>.
+- When injecting rowspan/colspan into table HTML, only the tag name (<td or <th) is copied then attributes are injected; content between tag name and ">" is skipped so malformed or erroneously placed content is never written into the tag.
+
 ## [0.1.63] - 2026-01-29
 
 ### Fixed
@@ -2234,6 +2245,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.64]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.64
 [0.1.63]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.63
 [0.1.62]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.62
 [0.1.61]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.61
