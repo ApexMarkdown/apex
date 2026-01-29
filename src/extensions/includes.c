@@ -1119,7 +1119,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
         }
 
         /* Look for iA Writer transclusion /filename (at start of line only) */
-        if (!in_code_span && read_pos[0] == '/' && (read_pos == text || read_pos[-1] == '\n')) {
+        if (!in_code_span && read_pos[0] == '/' && (read_pos == text_to_process || read_pos[-1] == '\n')) {
             const char *filepath_start = read_pos + 1;
             const char *filepath_end = filepath_start;
 
@@ -1333,7 +1333,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
         /* Look for << (Marked syntax) at the very start of a line */
         if (!processed_include && !in_code_span &&
-            (read_pos == text || read_pos[-1] == '\n') &&
+            (read_pos == text_to_process || read_pos[-1] == '\n') &&
             read_pos[0] == '<' && read_pos[1] == '<') {
             char bracket_type = 0;
             const char *filepath_start = NULL;
