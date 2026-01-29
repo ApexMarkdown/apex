@@ -16,9 +16,20 @@ let package = Package(
         )
     ],
     targets: [
+        // Headers for cmark-gfm SPM build (config.h, cmark-gfm_export.h, cmark-gfm_version.h).
+        // Separate target so dependency include path is used; headerSearchPath is not
+        // applied when the package is built as a dependency (Xcode/SPM bug).
+        .target(
+            name: "CcmarkGFMSupport",
+            path: "PackageSupport/cmark-gfm",
+            sources: ["cmark_gfm_spm_stub.c"],
+            publicHeadersPath: ".",
+            cSettings: [.headerSearchPath(".")]
+        ),
         // cmark-gfm core library (built from submodule)
         .target(
             name: "CcmarkGFM",
+            dependencies: ["CcmarkGFMSupport"],
             path: "vendor/cmark-gfm/src",
             exclude: [
                 "main.c",  // CLI executable
@@ -29,7 +40,6 @@ let package = Package(
             ],
             publicHeadersPath: ".",
             cSettings: [
-                .headerSearchPath("../../../PackageSupport/cmark-gfm"),
                 .headerSearchPath("."),
                 .headerSearchPath("../extensions"),
                 .define("CMARK_STATIC_DEFINE"),
@@ -42,11 +52,10 @@ let package = Package(
         // cmark-gfm extensions
         .target(
             name: "CcmarkGFMExtensions",
-            dependencies: ["CcmarkGFM"],
+            dependencies: ["CcmarkGFM", "CcmarkGFMSupport"],
             path: "vendor/cmark-gfm/extensions",
             publicHeadersPath: ".",
             cSettings: [
-                .headerSearchPath("../../../PackageSupport/cmark-gfm"),
                 .headerSearchPath("../src"),
                 .define("CMARK_GFM_EXTENSIONS_STATIC_DEFINE"),
             ]
