@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.65] - 2026-01-29
+
+### Fixed
+
+- SPM builds no longer fail with missing config.h or cmark-gfm_export.h when adding Apex via Swift Package Manager.
+- SPM builds no longer fail at link time with undefined symbol _apex_apply_syntax_highlighting when adding Apex via Swift Package Manager.
+
 ## [0.1.64] - 2026-01-29
 
 ### Fixed
@@ -2245,6 +2252,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.65]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.65
 [0.1.64]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.64
 [0.1.63]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.63
 [0.1.62]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.62
