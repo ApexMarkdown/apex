@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.62] - 2026-01-29
+
+### Fixed
+
+- Require Marked-style include syntax (`<<[file]`, `<<(file)`, `<<{file}`) to appear at the very beginning of a line, preventing indented code blocks from being processed as includes.
+- Normalize even-numbered fenced code block delimiters to odd backticks so include syntax inside fenced code blocks (e.g. ````...````) is never processed; only fence delimiters at line start are normalized, not backticks inside code block content.
+
 ## [0.1.61] - 2026-01-28
 
 ### Fixed
@@ -2220,6 +2227,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.62]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.62
 [0.1.61]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.61
 [0.1.60]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.60
 [0.1.59]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.59
