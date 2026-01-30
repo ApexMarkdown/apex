@@ -3968,6 +3968,12 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *liquid_protected = NULL;
 
 
+    if (getenv("APEX_DEBUG_PIPELINE")) {
+        size_t len = strlen(text_ptr);
+        fprintf(stderr, "[APEX_DEBUG] pipeline start (len=%zu): %.200s%s\n",
+                len, text_ptr, len > 200 ? "..." : "");
+    }
+
     if (options->mode == APEX_MODE_MULTIMARKDOWN ||
         options->mode == APEX_MODE_KRAMDOWN ||
         options->mode == APEX_MODE_UNIFIED) {
@@ -3975,10 +3981,20 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         PROFILE_START(metadata);
         metadata = apex_extract_metadata(&text_ptr);
         PROFILE_END(metadata);
+        if (getenv("APEX_DEBUG_PIPELINE")) {
+            size_t len = strlen(text_ptr);
+            fprintf(stderr, "[APEX_DEBUG] after extract_metadata (len=%zu): %.200s%s\n",
+                    len, text_ptr, len > 200 ? "..." : "");
+        }
 
         /* Extract ALDs for Kramdown */
         if (options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
             alds = apex_extract_alds(&text_ptr);
+            if (getenv("APEX_DEBUG_PIPELINE")) {
+                size_t len = strlen(text_ptr);
+                fprintf(stderr, "[APEX_DEBUG] after extract_alds (len=%zu): %.200s%s\n",
+                        len, text_ptr, len > 200 ? "..." : "");
+            }
         }
 
         /* Extract abbreviations */
@@ -4149,6 +4165,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         PROFILE_END(image_attrs_preprocess);
         if (image_attrs_processed) {
             text_ptr = image_attrs_processed;
+            if (getenv("APEX_DEBUG_PIPELINE")) {
+                size_t len = strlen(text_ptr);
+                fprintf(stderr, "[APEX_DEBUG] after image_attrs (len=%zu): %.250s%s\n",
+                        len, text_ptr, len > 250 ? "..." : "");
+            }
         }
     }
 
@@ -4160,6 +4181,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         PROFILE_END(ial_preprocess);
         if (ial_preprocessed) {
             text_ptr = ial_preprocessed;
+            if (getenv("APEX_DEBUG_PIPELINE")) {
+                size_t len = strlen(text_ptr);
+                fprintf(stderr, "[APEX_DEBUG] after ial_preprocess (len=%zu): %.250s%s\n",
+                        len, text_ptr, len > 250 ? "..." : "");
+            }
         }
     }
 
@@ -4913,6 +4939,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     apex_register_extensions(parser, options);
 
     /* Feed normalized text to parser */
+    if (getenv("APEX_DEBUG_PIPELINE")) {
+        fprintf(stderr, "[APEX_DEBUG] markdown to parse (len=%zu): %.350s%s\n",
+                text_len, text_ptr, text_len > 350 ? "..." : "");
+    }
     cmark_parser_feed(parser, text_ptr, text_len);
     cmark_node *document = cmark_parser_finish(parser);
     PROFILE_END(parsing);
@@ -5002,6 +5032,14 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         html = cmark_render_html(document, cmark_opts, NULL);
     }
     PROFILE_END(rendering);
+
+    if (getenv("APEX_DEBUG_PIPELINE")) {
+        size_t html_len = html ? strlen(html) : 0;
+        fprintf(stderr, "[APEX_DEBUG] rendered html len=%zu\n", html_len);
+        if (html_len > 0 && html_len < 600) {
+            fprintf(stderr, "[APEX_DEBUG] html: %.500s%s\n", html, html_len > 500 ? "..." : "");
+        }
+    }
 
     /* Restore any protected Liquid tags in the rendered HTML */
     if (html && liquid_tags && liquid_tag_count > 0) {

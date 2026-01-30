@@ -533,6 +533,17 @@ static apex_metadata_item *parse_mmd_metadata(const char *text, size_t *consumed
         /* Parse key: value */
         char *colon = strchr(line, ':');
         if (colon) {
+            /* Skip lines that look like Markdown links or images (e.g. [text](url) or ![alt](url) or ...[](#){: .class })
+             * so that "[![...](#){: .class }" is not parsed as metadata due to the ": " in "{: " */
+            if (strstr(line, "[!") != NULL ||
+                (strchr(line, '[') && strchr(line, ']') && strstr(line, "]("))) {
+                if (found_metadata) {
+                    *consumed = line_start - text;
+                    return items;
+                }
+                *consumed = 0;
+                return NULL;
+            }
             /* Check if there's a protocol (http://, https://, mailto:) BEFORE the colon */
             /* If so, this is likely a URL in the key, not metadata */
             size_t key_len = (size_t)(colon - line);

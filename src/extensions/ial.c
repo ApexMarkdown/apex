@@ -1075,6 +1075,10 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
         /* Apply attributes to the target inline element */
         char *attr_str = attributes_to_html(attrs);
         cmark_node_set_user_data(target, attr_str);
+        if (getenv("APEX_DEBUG_PIPELINE") && cmark_node_get_type(target) == CMARK_NODE_LINK) {
+            fprintf(stderr, "[APEX_DEBUG] IAL applied to link (attrs: %.80s%s)\n",
+                    attr_str ? attr_str : "(null)", attr_str && strlen(attr_str) > 80 ? "..." : "");
+        }
         apex_free_attributes(attrs);
 
         /* Remove the IAL from the text node, preserving any text before/after it */
@@ -2048,10 +2052,73 @@ static bool looks_like_attribute_start(const char *p, const char *end) {
 }
 
 /**
+ * Check if URL has a protocol (scheme followed by ://). Such URLs are assumed
+ * already percent-encoded; we do not encode them. Scheme = letter then *( letter / digit / "+" / "-" / "." ) per URI spec.
+ */
+static bool has_protocol(const char *url) {
+    if (!url || !*url) return false;
+    const char *p = url;
+    if (!(*p >= 'a' && *p <= 'z') && !(*p >= 'A' && *p <= 'Z'))
+        return false;
+    p++;
+    while ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') || (*p >= '0' && *p <= '9') ||
+           *p == '+' || *p == '-' || *p == '.')
+        p++;
+    return (p[0] == ':' && p[1] == '/' && p[2] == '/');
+}
+
+/**
+ * Known attribute names (for splitting URL from attributes; avoids splitting on query params).
+ */
+/**
+ * Check if attributes look like image-specific (width, height, style, class, id, rel, data-srcset-2x).
+ * Used to decide whether a reference definition with attributes should be treated as image ref.
+ */
+static bool attrs_are_image_specific(apex_attributes *attrs) {
+    if (!attrs) return false;
+    if (attrs->id || (attrs->class_count > 0)) return true;
+    for (int i = 0; i < attrs->attr_count; i++) {
+        const char *key = attrs->keys[i];
+        if (strcmp(key, "width") == 0 || strcmp(key, "height") == 0 ||
+            strcmp(key, "style") == 0 || strcmp(key, "class") == 0 ||
+            strcmp(key, "id") == 0 || strcmp(key, "rel") == 0 ||
+            strcmp(key, "data-srcset-2x") == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Check if text at 'p' (after optional space) looks like the start of attributes:
+ * a key with no spaces followed immediately by '=' (\w+=), or a quoted title (" or ').
+ * Used to split URL from attributes without treating URL query params as attributes.
+ */
+static bool looks_like_attr_key_equals(const char *p, const char *end) {
+    if (!p || p >= end) return false;
+    while (p < end && (*p == ' ' || *p == '\t')) p++;
+    if (p >= end) return false;
+    /* Quoted title at end */
+    if (*p == '"' || *p == '\'') return true;
+    /* key= : one or more word chars (letter, digit, underscore) then = */
+    const char *key_start = p;
+    while (p < end && ((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+                       (*p >= '0' && *p <= '9') || *p == '_'))
+        p++;
+    return (p > key_start && p < end && *p == '=');
+}
+
+/**
  * Preprocess markdown to extract image attributes and URL-encode all link URLs
  */
 char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_attrs, apex_mode_t mode) {
     if (!text) return NULL;
+
+    if (getenv("APEX_DEBUG_PIPELINE")) {
+        size_t len = strlen(text);
+        fprintf(stderr, "[APEX_DEBUG] preprocess_image_attributes in (len=%zu): %.300s%s\n",
+                len, text, len > 300 ? "..." : "");
+    }
 
     /* Check if we should do URL encoding */
     bool do_url_encoding = (mode == APEX_MODE_UNIFIED ||
@@ -2141,6 +2208,19 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         while (after_space < paren_end && (*after_space == ' ' || *after_space == '\t')) after_space++;
 
                         if (after_space < paren_end) {
+                            /* Space + key= or bare @2x: always split so we don't encode into URL */
+                            if (looks_like_attr_key_equals(after_space, paren_end)) {
+                                attr_start = after_space;
+                                url_end = p;
+                                break;
+                            }
+                            if ((size_t)(paren_end - after_space) >= 3 &&
+                                after_space[0] == '@' && after_space[1] == '2' && after_space[2] == 'x' &&
+                                (after_space + 3 >= paren_end || isspace((unsigned char)after_space[3]))) {
+                                attr_start = after_space;
+                                url_end = p;
+                                break;
+                            }
                             if (do_image_attrs) {
                                 /* For images with MMD6-style parentheses titles,
                                  * keep using the core parser's title handling:
@@ -2190,8 +2270,8 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                     url_end = paren_end;
                 }
 
-                /* If image attributes disabled, treat everything as URL */
-                if (!do_image_attrs) {
+                /* If image attributes disabled and we didn't split on known attributes, treat everything as URL */
+                if (!do_image_attrs && !attr_start) {
                     attr_start = NULL;
                     url_end = paren_end;
                 }
@@ -2204,9 +2284,9 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         memcpy(url, url_start, url_len);
                         url[url_len] = '\0';
 
-                        /* Extract attributes if present */
+                        /* Extract attributes if present (from do_image_attrs split or known-attribute split) */
                         apex_attributes *attrs = NULL;
-                        if (attr_start && attr_start < paren_end && do_image_attrs) {
+                        if (attr_start && attr_start < paren_end) {
                             size_t attr_len = paren_end - attr_start;
                             attrs = parse_image_attributes(attr_start, attr_len);
                         }
@@ -2276,12 +2356,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             }
                         }
 
-                        /* URL encode the URL (if enabled) */
-                        char *encoded_url = do_url_encoding ? url_encode(url) : strdup(url);
+                        /* URL encode the URL only when enabled and URL has no known protocol (http/https/file/x-marked) */
+                        bool skip_encode = has_protocol(url);
+                        char *encoded_url = (do_url_encoding && !skip_encode) ? url_encode(url) : strdup(url);
                         if (encoded_url) {
-                            /* Store attributes with encoded URL - always create new entry (if image attrs enabled) */
+                            /* Store attributes with URL - create entry whenever we have attrs (from do_image_attrs or known-attribute split) */
                             image_attr_entry *entry = NULL;
-                            if (attrs && do_image_attrs) {
+                            if (attrs) {
                                 /* Use the running image_index so attributes are
                                  * bound to the correct inline image position,
                                  * even when some images have no attributes.
@@ -2336,17 +2417,12 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 remaining -= encoded_len;
                             }
 
-                            /* Write the rest for non-image-attribute modes:
-                             * - When image attributes are enabled, we have already
-                             *   parsed any title/width/height/style into attrs and
-                             *   we deliberately omit that tail so cmark only sees
-                             *   ![alt](url).
-                             * - When image attributes are disabled, we preserve
-                             *   the original tail (e.g. "title") for cmark.
+                            /* Write the rest: when we split URL from attributes (do_image_attrs or known-attribute),
+                             * omit the attribute tail so cmark only sees ![alt](url). Otherwise preserve tail for cmark.
                              */
                             const char *rest_start = url_end;
                             const char *rest_end = paren_end;
-                            if (do_image_attrs && attr_start && attr_start < paren_end) {
+                            if (attr_start && attr_start < paren_end) {
                                 /* Drop everything from attr_start onward */
                                 rest_end = attr_start;
                             }
@@ -2462,6 +2538,20 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         while (after_space < line_end && (*after_space == ' ' || *after_space == '\t')) after_space++;
 
                         if (after_space < line_end) {
+                            /* Space + key= or bare @2x: split so attributes are applied (regardless of do_image_attrs) */
+                            if (looks_like_attr_key_equals(after_space, line_end)) {
+                                attr_start = after_space;
+                                url_end = p;
+                                break;
+                            }
+                            /* Bare @2x (retina srcset) - not \w+= but we treat as attribute */
+                            if ((size_t)(line_end - after_space) >= 3 &&
+                                after_space[0] == '@' && after_space[1] == '2' && after_space[2] == 'x' &&
+                                (after_space + 3 >= line_end || isspace((unsigned char)after_space[3]))) {
+                                attr_start = after_space;
+                                url_end = p;
+                                break;
+                            }
                             /* Check if it's a quoted title */
                             if (*after_space == '"' || *after_space == '\'') {
                                 /* Found a title - URL ends before this space */
@@ -2491,14 +2581,6 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 url_end = p;
                                 break;
                             }
-                            /* Check for bare @2x (retina srcset) */
-                            if (do_image_attrs && (size_t)(line_end - after_space) >= 3 &&
-                                after_space[0] == '@' && after_space[1] == '2' && after_space[2] == 'x' &&
-                                (after_space + 3 >= line_end || isspace((unsigned char)after_space[3]))) {
-                                attr_start = after_space;
-                                url_end = p;
-                                break;
-                            }
                         }
                     }
                     p++;
@@ -2516,14 +2598,14 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         memcpy(url, url_start, url_len);
                         url[url_len] = '\0';
 
-                        /* Extract attributes if present */
+                        /* Extract attributes if present (from do_image_attrs or known-attribute split) */
                         apex_attributes *attrs = NULL;
                         const char *title_end = NULL;
                         char *title_text = NULL;
                         bool found_ial = false;
-                        if (attr_start && do_image_attrs) {
+                        if (attr_start) {
                             const char *attr_end = p;
-                            while (*attr_end && *attr_end != '\n' && *attr_end != '\r') attr_end++;
+                            while (attr_end < line_end && *attr_end != '\n' && *attr_end != '\r') attr_end++;
                             size_t attr_len = attr_end - attr_start;
                             attrs = parse_image_attributes(attr_start, attr_len);
                             title_end = attr_end;
@@ -2792,17 +2874,15 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             continue;
                         }
 
-                        /* URL encode the URL (if enabled) - always encode for reference definitions */
-                        char *encoded_url = do_url_encoding ? url_encode(url) : strdup(url);
+                        /* URL encode the URL only when enabled and URL has no known protocol */
+                        bool skip_encode_ref = has_protocol(url);
+                        char *encoded_url = (do_url_encoding && !skip_encode_ref) ? url_encode(url) : strdup(url);
                         if (encoded_url) {
-                            /* If has attributes, store them with reference name */
-                            /* Note: ref_name will be duplicated in create_image_attr_entry_with_ref */
-                            /* Also create entry if attrs is NULL but we detected IAL (for expansion even if parsing failed) */
-                            if (do_image_attrs && ref_name) {
-                                /* Check if we should create entry - either we have attrs, or we detected IAL */
-                                bool has_attrs = (attrs != NULL);
-
-                                if (has_attrs || found_ial) {
+                            bool has_image_attrs = (attrs != NULL && attrs_are_image_specific(attrs));
+                            /* If has image-specific attributes (width, height, etc.), store with reference name.
+                             * Don't create entry for link refs with only a title (e.g. [ref]: url "title"). */
+                            if (ref_name) {
+                                if (has_image_attrs || (do_image_attrs && found_ial)) {
                                     image_attr_entry *entry = create_image_attr_entry_with_ref(&local_img_attrs, encoded_url, ref_name);
                                     if (entry) {
                                         if (attrs) {
@@ -2825,16 +2905,9 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     }
                                 }
                             }
-                            /* If this reference definition has attributes, we'll remove it from output */
-                            /* (attributes are stored and will be applied via expansion) */
-                            /* If it doesn't have attributes, we need to write it back so cmark can resolve it */
-                            /* Check if we created an entry (either with attrs or detected IAL) */
-                            bool created_entry = false;
-                            if (do_image_attrs && ref_name) {
-                                bool has_attrs = (attrs != NULL);
-                                created_entry = (has_attrs || found_ial);
-                            }
-                            bool should_remove = (created_entry && do_image_attrs);
+                            /* If this reference definition has image-specific attributes, remove it so we expand and apply attrs */
+                            bool created_entry = (ref_name && (has_image_attrs || (do_image_attrs && found_ial)));
+                            bool should_remove = created_entry;
 
                             if (should_remove) {
                                 /* Reference definitions with attributes are removed from output (like ALDs) */
@@ -2953,11 +3026,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
         }
 
         /* Look for regular links: [text](url) or [text](url "title") - URL encode only the URL */
+        /* Skip when link text starts with "![": that's [![image]...], process as image when we hit '!' */
         if (*read == '[' && (read == text || read[-1] != '!')) {
             const char *link_start = read;
             const char *link_text_end = strchr(link_start, ']');
-            if (link_text_end && link_text_end[1] == '(') {
-                /* Found [text]\( */
+            if (link_text_end && link_text_end[1] == '(' &&
+                !(link_text_end > link_start + 2 && link_start[1] == '!' && link_start[2] == '[')) {
+                /* Found [text]\( and not [![image]...] */
                 const char *url_start = link_text_end + 2; /* After ]( */
                 const char *p = url_start;
                 const char *url_end = NULL;
@@ -3118,8 +3193,12 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
 
     /* Second pass: expand reference-style images that have attributes */
     /* We need to expand ![ref][img1] to ![ref](url attributes) for definitions with attributes */
-    /* After expansion, we need to reprocess the expanded inline images */
-    if (do_image_attrs && local_img_attrs) {
+    /* Run when we have ref_name entries (from do_image_attrs or known-attribute split on ref defs) */
+    bool has_ref_entries = false;
+    for (image_attr_entry *e = local_img_attrs; e; e = e->next) {
+        if (e->ref_name) { has_ref_entries = true; break; }
+    }
+    if ((do_image_attrs && local_img_attrs) || has_ref_entries) {
         char *expanded_output = malloc(strlen(output) * 3 + 1);
         if (expanded_output) {
             const char *read2 = output;
@@ -3161,6 +3240,9 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 /* Look up if this reference has attributes */
                                 image_attr_entry *def_entry = find_image_attr_by_ref(local_img_attrs, ref_name);
                                 if (def_entry && def_entry->url) {
+                                    if (getenv("APEX_DEBUG_PIPELINE")) {
+                                        fprintf(stderr, "[APEX_DEBUG] expand ref [%s] -> inline image\n", ref_name);
+                                    }
                                     /* Expand to inline image: ![alt](url attributes) */
                                     /* Extract alt text */
                                     size_t alt_len = alt_end - read2;
@@ -3401,6 +3483,12 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
 
     /* Return the image attributes list */
     *img_attrs = local_img_attrs;
+
+    if (getenv("APEX_DEBUG_PIPELINE") && output) {
+        size_t len = strlen(output);
+        fprintf(stderr, "[APEX_DEBUG] preprocess_image_attributes out (len=%zu): %.300s%s\n",
+                len, output, len > 300 ? "..." : "");
+    }
 
     return output;
 }
