@@ -1,5 +1,5 @@
 
-[![Version: 0.1.68](https://img.shields.io/badge/Version-0.1.68-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1288/1288](https://img.shields.io/badge/Tests-1288/1288-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.69](https://img.shields.io/badge/Version-0.1.69-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1288/1288](https://img.shields.io/badge/Tests-1288/1288-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.68
+Apex Markdown Processor v0.1.69
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -374,6 +374,7 @@ Options:
   --show-tooltips         Show tooltips on citations
   -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)
   --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax
+  --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing
   --title TITLE          Document title (requires --standalone, default: "Document")
   --[no-]transforms      Enable or disable metadata variable transforms [%key:transform]
   --[no-]unsafe          Allow or disallow raw HTML in output
