@@ -2505,6 +2505,9 @@ apex_options apex_options_default(void) {
     /* Superscript and subscript */
     opts.enable_sup_sub = true;  /* Default: enabled in unified mode */
 
+    /* Strikethrough (GFM-style ~~text~~) */
+    opts.enable_strikethrough = true;  /* Default: enabled in unified mode */
+
     /* Autolink options */
     opts.enable_autolink = true;  /* Default: enabled in unified mode */
     opts.obfuscate_emails = false; /* Default: plaintext emails */
@@ -2608,6 +2611,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_mixed_list_markers = false;  /* CommonMark: current behavior (separate lists) */
             opts.allow_alpha_lists = false;  /* CommonMark: no alpha lists */
             opts.enable_sup_sub = false;  /* CommonMark: no sup/sub */
+            opts.enable_strikethrough = false;  /* CommonMark: no strikethrough */
             opts.enable_autolink = false;  /* CommonMark: no autolinks */
             opts.enable_image_captions = false; /* CommonMark: no automatic image figure captions */
             opts.enable_citations = false;  /* CommonMark: no citations */
@@ -2642,6 +2646,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_mixed_list_markers = false;  /* GFM: current behavior (separate lists) */
             opts.allow_alpha_lists = false;  /* GFM: no alpha lists */
             opts.enable_sup_sub = false;  /* GFM: no sup/sub */
+            opts.enable_strikethrough = true;  /* GFM: strikethrough enabled */
             opts.enable_autolink = true;  /* GFM: autolinks enabled */
             opts.enable_image_captions = false; /* GFM: no automatic image figure captions */
             opts.enable_citations = false;  /* GFM: no citations */
@@ -2676,6 +2681,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_alpha_lists = false;  /* MultiMarkdown: no alpha lists */
             opts.enable_citations = true;  /* MultiMarkdown: citations enabled (if bibliography provided) */
             opts.enable_sup_sub = true;  /* MultiMarkdown: support sup/sub */
+            opts.enable_strikethrough = false;  /* MultiMarkdown: no strikethrough by default */
             opts.enable_autolink = true;  /* MultiMarkdown: autolinks enabled */
             opts.enable_indices = false;  /* Indices disabled by default - use --indices to enable */
             opts.enable_mmark_index_syntax = false;  /* Disabled by default - use --indices to enable */
@@ -2712,6 +2718,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_mixed_list_markers = false;  /* Kramdown: current behavior (separate lists) */
             opts.allow_alpha_lists = false;  /* Kramdown: no alpha lists */
             opts.enable_sup_sub = false;  /* Kramdown: no sup/sub */
+            opts.enable_strikethrough = false;  /* Kramdown: no strikethrough by default */
             opts.enable_autolink = true;  /* Kramdown: autolinks enabled */
             opts.enable_citations = false;  /* Kramdown: no citations (different system) */
             opts.enable_emoji_autocorrect = false;  /* Kramdown: no emoji autocorrect by default */
@@ -2729,6 +2736,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.allow_mixed_list_markers = true;  /* Unified: inherit type from first item */
             opts.allow_alpha_lists = true;  /* Unified: support alpha lists */
             opts.enable_sup_sub = true;  /* Unified: support sup/sub (default: true) */
+            opts.enable_strikethrough = true;  /* Unified: strikethrough enabled (default: true) */
             opts.unsafe = true;  /* Unified mode: allow raw HTML by default */
             opts.enable_citations = true;  /* Unified: citations enabled (if bibliography provided) */
             opts.enable_indices = true;  /* Unified: indices enabled */
@@ -2813,8 +2821,8 @@ static void apex_register_extensions(cmark_parser *parser, const apex_options *o
         }
     }
 
-    /* GFM strikethrough (for all modes that support it) */
-    if (options->mode == APEX_MODE_GFM || options->mode == APEX_MODE_UNIFIED) {
+    /* GFM strikethrough (~~text~~) - controlled by enable_strikethrough option */
+    if (options->enable_strikethrough) {
         cmark_syntax_extension *strike_ext = cmark_find_syntax_extension("strikethrough");
         if (strike_ext) {
             cmark_parser_attach_syntax_extension(parser, strike_ext);

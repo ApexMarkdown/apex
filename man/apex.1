@@ -35,13 +35,39 @@ Generate complete HTML document with \f[CR]<html>\f[R],
 \f[CR]<head>\f[R], and \f[CR]<body>\f[R] tags.
 .TP
 \f[B]\(enstyle\f[R] \f[I]FILE\f[R], \f[B]\(encss\f[R] \f[I]FILE\f[R]
-Link to CSS file in document head (requires \f[B]\(enstandalone\f[R]).
+Link to CSS file(s) in document head (requires
+\f[B]\(enstandalone\f[R]).
+Can be used multiple times or accept comma\-separated list (e.g.,
+\f[CR]\-\-css style.css \-\-css syntax.css\f[R] or
+\f[CR]\-\-css style.css,syntax.css\f[R]).
 Overrides CSS metadata if specified.
 .TP
 \f[B]\(enembed\-css\f[R]
-When used with \f[B]\(encss FILE\f[R], read the CSS file and embed its
-contents into a \f[CR]<style>\f[R] tag in the document head instead of
-emitting a \f[CR]<link rel=\(dqstylesheet\(dq>\f[R] tag.
+When used with \f[B]\(encss FILE\f[R], read the CSS file(s) and embed
+their contents into \f[CR]<style>\f[R] tags in the document head instead
+of emitting \f[CR]<link rel=\(dqstylesheet\(dq>\f[R] tags.
+All specified stylesheets are embedded.
+.TP
+\f[B]\(encode\-highlight\f[R] \f[I]TOOL\f[R]
+Use external tool for syntax highlighting of code blocks.
+\f[I]TOOL\f[R] must be \f[B]pygments\f[R] (or \f[B]p\f[R],
+\f[B]pyg\f[R]) or \f[B]skylighting\f[R] (or \f[B]s\f[R], \f[B]sky\f[R]).
+Code blocks are sent to the external tool with their language specifier
+(if present) or with auto\-detection enabled.
+The highlighted HTML output replaces the original code block in the
+document.
+.TP
+\f[B]\(encode\-line\-numbers\f[R]
+Include line numbers in syntax\-highlighted code blocks.
+Requires \f[B]\(encode\-highlight\f[R].
+When used with Pygments, adds \f[CR]linenos=1\f[R] option.
+When used with Skylighting, adds \f[CR]\-n\f[R] flag.
+.TP
+\f[B]\(enhighlight\-language\-only\f[R]
+Only apply syntax highlighting to code blocks that have a language
+specified (via \f[CR]\(ga\(ga\(galanguage\f[R] or IAL).
+Code blocks without a language will be left unhighlighted.
+Requires \f[B]\(encode\-highlight\f[R].
 .TP
 \f[B]\(enscript\f[R] \f[I]VALUE\f[R]
 Inject \f[CR]<script>\f[R] tags either before \f[CR]</body>\f[R] in
@@ -91,6 +117,28 @@ Accept all Critic Markup changes (apply edits).
 \f[B]\(enreject\f[R]
 Reject all Critic Markup changes (revert edits).
 .TP
+\f[B]\(encode\-highlight\f[R] \f[I]TOOL\f[R]
+Use external tool for syntax highlighting of code blocks.
+\f[I]TOOL\f[R] must be \f[B]pygments\f[R] (or abbreviations \f[B]p\f[R],
+\f[B]pyg\f[R]) or \f[B]skylighting\f[R] (or abbreviations \f[B]s\f[R],
+\f[B]sky\f[R]).
+Code blocks are sent to the external tool with their language specifier
+(if present) or with auto\-detection enabled.
+The highlighted HTML output replaces the original code block in the
+document.
+.TP
+\f[B]\(encode\-line\-numbers\f[R]
+Include line numbers in syntax\-highlighted code blocks.
+Requires \f[B]\(encode\-highlight\f[R].
+When used with Pygments, adds \f[CR]linenos=1\f[R] option.
+When used with Skylighting, adds \f[CR]\-n\f[R] flag.
+.TP
+\f[B]\(enhighlight\-language\-only\f[R]
+Only apply syntax highlighting to code blocks that have a language
+specified (via \f[CR]\(ga\(ga\(galanguage\f[R] or IAL).
+Code blocks without a language will be left unhighlighted.
+Requires \f[B]\(encode\-highlight\f[R].
+.TP
 \f[B]\(enincludes\f[R], \f[B]\(enno\-includes\f[R]
 Enable or disable file inclusion.
 Enabled by default in unified mode.
@@ -130,6 +178,51 @@ OPTIONS below).
 \f[B]\(enhardbreaks\f[R]
 Treat newlines as hard breaks.
 .TP
+\f[B]\(enwidont\f[R]
+Prevent short widows in headings by inserting non\-breaking spaces
+(\f[CR]&nbsp;\f[R]) between trailing words when their combined length is
+10 characters or less.
+Applies to h1\-h6 headings.
+.TP
+\f[B]\(encode\-is\-poetry\f[R]
+Treat code blocks without a language as poetry by adding the
+\f[CR]poetry\f[R] class.
+Automatically enables \f[B]\(enhighlight\-language\-only\f[R].
+.TP
+\f[B]\(enmarkdown\-in\-html\f[R], \f[B]\(enno\-markdown\-in\-html\f[R]
+Enable or disable markdown processing inside HTML blocks with
+\f[CR]markdown\f[R] attributes.
+Enabled by default in unified mode.
+.TP
+\f[B]\(enrandom\-footnote\-ids\f[R]
+Use hash\-based footnote IDs (e.g., \f[CR]fn\-a7b3c9d2\-1\f[R]) instead
+of sequential IDs to avoid collisions when combining multiple documents.
+.TP
+\f[B]\(enhashtags\f[R]
+Convert \f[CR]#tags\f[R] into span\-wrapped hashtags with the
+\f[CR]mkhashtag\f[R] class.
+.TP
+\f[B]\(enstyle\-hashtags\f[R]
+Use the \f[CR]mkstyledtag\f[R] class instead of \f[CR]mkhashtag\f[R] for
+hashtags.
+Requires \f[B]\(enhashtags\f[R].
+.TP
+\f[B]\(enproofreader\f[R]
+Treat \f[CR]==highlight==\f[R] and \f[CR]\(ti\(tidelete\(ti\(ti\f[R] as
+CriticMarkup highlight and deletion syntax.
+Automatically enables CriticMarkup processing.
+.TP
+\f[B]\(enhr\-page\-break\f[R]
+Replace \f[CR]<hr>\f[R] elements with Marked\-style page break divs.
+.TP
+\f[B]\(entitle\-from\-h1\f[R]
+Use the first H1 heading as the document title when no title is
+specified via \f[B]\(entitle\f[R] or metadata.
+Requires \f[B]\(enstandalone\f[R].
+.TP
+\f[B]\(enpage\-break\-before\-footnotes\f[R]
+Insert a page break before the footnotes section.
+.TP
 \f[B]\(enno\-footnotes\f[R]
 Disable footnote support.
 .TP
@@ -168,8 +261,16 @@ Allow mixed list markers at same level (inherit type from first item).
 .TP
 \f[B]\(enrelaxed\-tables\f[R], \f[B]\(enno\-relaxed\-tables\f[R]
 Enable relaxed table parsing (no separator rows required).
-Default: enabled in unified/kramdown modes, disabled in
-commonmark/gfm/multimarkdown modes.
+.TP
+\f[B]\(enper\-cell\-alignment\f[R], \f[B]\(enno\-per\-cell\-alignment\f[R]
+Enable per\-cell alignment markers in tables.
+When enabled, cells starting with a colon (\f[CR]:\f[R]) are
+left\-aligned, ending with a colon (\f[CR]:\f[R]) are right\-aligned, or
+both (\f[CR]:content:\f[R]) are center\-aligned.
+The colons are stripped from the output and replaced with
+\f[CR]style=\(dqtext\-align: ...\(dq\f[R] attributes.
+Default: enabled in unified mode, disabled in commonmark, gfm, mmd, and
+kramdown modes.
 .TP
 \f[B]\(encaptions\f[R] \f[I]POSITION\f[R]
 Table caption position: \f[B]above\f[R] or \f[B]below\f[R] (default:
@@ -217,6 +318,36 @@ For example, \f[CR]\-\-wikilink\-extension html\f[R] creates
 \f[CR]href=\(dqPage.html\(dq\f[R] and
 \f[CR]\-\-wikilink\-extension .html\f[R] also creates
 \f[CR]href=\(dqPage.html\(dq\f[R].
+.TP
+\f[B]\(enwikilink\-sanitize\f[R], \f[B]\(enno\-wikilink\-sanitize\f[R]
+Sanitize wiki link URLs for cleaner, more compatible links.
+When enabled:
+.IP \(bu 2
+Removes apostrophes and quotation marks (i.e.\ removes
+\f[CR]\(dq\(aq\(rs\f[R]´\(oq\(cq\(lq\(rq\(ga)
+.IP \(bu 2
+Converts select latin\-1 characters to ASCII (e.g.\ e\-acute \-> e)
+.IP \(bu 2
+Converts uppercase to lowercase
+.IP \(bu 2
+Replaces non\-ascii and any non\-alphanumeric ascii characters with the
+space\-mode character (except \f[CR]/\f[R] and \f[CR].\f[R])
+.IP \(bu 2
+Removes duplicate space\-mode characters
+.IP \(bu 2
+Removes leading and trailing space\-mode characters
+.PP
+For example, with
+\f[CR]\-\-wikilink\-sanitize \-\-wikilink\-space dash\f[R]:
+.PP
+\f[CR][[O\(aqBrien\(aqs Page]]\f[R] →
+\f[CR]href=\(dqobriens\-page\(dq\f[R]
+.PP
+\f[CR][[Hello   World!!!]]\f[R] → \f[CR]href=\(dqhello\-world\(dq\f[R]
+.PP
+\f[CR][[path/to/FILE.MD]]\f[R] → \f[CR]href=\(dqpath/to/file.md\(dq\f[R]
+.PP
+Default: disabled.
 .SS Image Embedding
 .TP
 \f[B]\(enembed\-images\f[R]
@@ -227,6 +358,17 @@ Images are read from the filesystem and encoded as base64 data URLs
 (e.g., \f[CR]data:image/png;base64,...\f[R]).
 Relative paths are resolved using the base directory (see
 \f[B]\(enbase\-dir\f[R]).
+.TP
+\f[B]\(enimage\-captions\f[R], \f[B]\(enno\-image\-captions\f[R]
+Wrap images with title or alt text in \f[CR]<figure>\f[R] elements with
+\f[CR]<figcaption>\f[R].
+Default: enabled in unified and MultiMarkdown modes; disabled in
+commonmark, gfm, and kramdown modes.
+.TP
+\f[B]\(enemoji\-autocorrect\f[R], \f[B]\(enno\-emoji\-autocorrect\f[R]
+Convert emoji names (e.g., \f[CR]:rocket:\f[R]) to Unicode emoji
+characters.
+Default: enabled in unified mode; disabled in other modes.
 .SS Path Resolution
 .TP
 \f[B]\(enbase\-dir\f[R] \f[I]DIR\f[R]
@@ -260,6 +402,14 @@ word/identifier (e.g., \f[CR]H\(ti2\(tiO\f[R] creates H₂O).
 When tildes are at word boundaries (e.g., \f[CR]\(titext\(ti\f[R]), they
 create underline instead.
 Default: enabled in unified and MultiMarkdown modes.
+.TP
+\f[B]\(enstrikethrough\f[R], \f[B]\(enno\-strikethrough\f[R]
+Enable or disable GFM\-style strikethrough processing
+(\f[CR]\(ti\(titext\(ti\(ti\f[R]).
+When enabled, \f[CR]\(ti\(titext\(ti\(ti\f[R] renders as
+\f[CR]<del>text</del>\f[R].
+Default: enabled in GFM and unified modes; disabled in commonmark, mmd,
+and kramdown modes.
 .TP
 \f[B]\(endivs\f[R], \f[B]\(enno\-divs\f[R]
 Enable or disable Pandoc fenced divs syntax
@@ -381,6 +531,10 @@ Show help message and exit.
 .TP
 \f[B]\-v\f[R], \f[B]\(enversion\f[R]
 Show version information and exit.
+.TP
+\f[B]\(enprogress\f[R], \f[B]\(enno\-progress\f[R]
+Show progress indicator during processing.
+Default: enabled when stderr is a TTY.
 .SS Multi\-file Utilities
 .TP
 \f[B]\(encombine\f[R] \f[I]files\&...\f[R]
@@ -495,16 +649,21 @@ command\-line invocations.
 \f[B]String options\f[R] use the value directly.
 .PP
 \f[B]Supported boolean options:\f[R] \f[CR]indices\f[R],
-\f[CR]wikilinks\f[R], \f[CR]includes\f[R], \f[CR]relaxed\-tables\f[R],
-\f[CR]alpha\-lists\f[R], \f[CR]mixed\-lists\f[R], \f[CR]sup\-sub\f[R],
+\f[CR]wikilinks\f[R], \f[CR]wikilink\-sanitize\f[R],
+\f[CR]includes\f[R], \f[CR]relaxed\-tables\f[R],
+\f[CR]per\-cell\-alignment\f[R], \f[CR]alpha\-lists\f[R],
+\f[CR]mixed\-lists\f[R], \f[CR]sup\-sub\f[R], \f[CR]strikethrough\f[R],
 \f[CR]autolink\f[R], \f[CR]transforms\f[R], \f[CR]unsafe\f[R],
 \f[CR]tables\f[R], \f[CR]footnotes\f[R], \f[CR]smart\f[R],
 \f[CR]math\f[R], \f[CR]ids\f[R], \f[CR]header\-anchors\f[R],
-\f[CR]embed\-images\f[R], \f[CR]link\-citations\f[R],
-\f[CR]show\-tooltips\f[R], \f[CR]suppress\-bibliography\f[R],
-\f[CR]suppress\-index\f[R], \f[CR]group\-index\-by\-letter\f[R],
-\f[CR]obfuscate\-emails\f[R], \f[CR]pretty\f[R], \f[CR]standalone\f[R],
-\f[CR]hardbreaks\f[R]
+\f[CR]embed\-images\f[R], \f[CR]image\-captions\f[R],
+\f[CR]link\-citations\f[R], \f[CR]show\-tooltips\f[R],
+\f[CR]suppress\-bibliography\f[R], \f[CR]suppress\-index\f[R],
+\f[CR]group\-index\-by\-letter\f[R], \f[CR]obfuscate\-emails\f[R],
+\f[CR]pretty\f[R], \f[CR]standalone\f[R], \f[CR]hardbreaks\f[R],
+\f[CR]plugins\f[R], \f[CR]emoji\-autocorrect\f[R],
+\f[CR]code\-line\-numbers\f[R], \f[CR]highlight\-language\-only\f[R],
+\f[CR]markdown\-in\-html\f[R]
 .PP
 \f[B]Supported string options:\f[R] \f[CR]bibliography\f[R],
 \f[CR]csl\f[R], \f[CR]title\f[R], \f[CR]style\f[R] (or \f[CR]css\f[R]),
@@ -545,6 +704,9 @@ options.
 Apex supports a wide range of Markdown extensions:
 .IP \(bu 2
 \f[B]Tables\f[R]: GFM\-style tables with alignment
+.IP \(bu 2
+\f[B]Strikethrough\f[R]: GFM\-style \f[CR]\(ti\(titext\(ti\(ti\f[R]
+(controlled by \f[B]\(enstrikethrough\f[R])
 .IP \(bu 2
 \f[B]Footnotes\f[R]: Reference\-style footnotes
 .IP \(bu 2
@@ -598,7 +760,13 @@ options via metadata for per\-document configuration
 multiple format options
 .RE
 .IP \(bu 2
-\f[B]Relaxed Tables\f[R]: Support for tables without separator
+\f[B]Relaxed Tables\f[R]: Support for tables without separator rows
+(Kramdown\-style).
+Enabled by default in unified and Kramdown modes.
+.IP \(bu 2
+\f[B]Per\-Cell Alignment\f[R]: Support for alignment markers using
+colons at the start and/or end of table cells.
+Enabled by default in unified mode only.
 .RS 2
 .PP
 rows (Kramdown\-style)

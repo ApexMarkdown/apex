@@ -234,18 +234,8 @@ first item).
 starting with a colon (`:`) are left-aligned, ending with a colon
 (`:`) are right-aligned, or both (`:content:`) are center-aligned.
 The colons are stripped from the output and replaced with
-`style="text-align: ..."` attributes. Enabled by default in unified
-mode, disabled in other modes.
-Default: enabled in unified/kramdown modes, disabled in
-commonmark/gfm/multimarkdown modes.
-
-**--per-cell-alignment**, **--no-per-cell-alignment**
-: Enable per-cell alignment markers in tables. When enabled, cells
-starting with a colon (`:`) are left-aligned, ending with a colon
-(`:`) are right-aligned, or both (`:content:`) are center-aligned.
-The colons are stripped from the output and replaced with
-`style="text-align: ..."` attributes. Enabled by default in unified
-mode, disabled in other modes.
+`style="text-align: ..."` attributes. Default: enabled in unified
+mode, disabled in commonmark, gfm, mmd, and kramdown modes.
 
 **--captions** *POSITION*
 : Table caption position: **above** or **below** (default:
@@ -309,6 +299,12 @@ Default: disabled.
 **--embed-images**
 :   Embed local images as base64 data URLs in HTML output. Only local images (file paths) are embedded; remote images (http://, https://) are not processed. Images are read from the filesystem and encoded as base64 data URLs (e.g., `data:image/png;base64,...`). Relative paths are resolved using the base directory (see **--base-dir**).
 
+**--image-captions**, **--no-image-captions**
+:   Wrap images with title or alt text in `<figure>` elements with `<figcaption>`. Default: enabled in unified and MultiMarkdown modes; disabled in commonmark, gfm, and kramdown modes.
+
+**--emoji-autocorrect**, **--no-emoji-autocorrect**
+:   Convert emoji names (e.g., `:rocket:`) to Unicode emoji characters. Default: enabled in unified mode; disabled in other modes.
+
 ## Path Resolution
 
 **--base-dir** *DIR*
@@ -330,6 +326,9 @@ relative paths.
 
 **--sup-sub**, **--no-sup-sub**
 :   Enable MultiMarkdown-style superscript and subscript syntax. The `^` character creates superscript for the text immediately following it (stops at space or punctuation). The `~` character creates subscript when used within a word/identifier (e.g., `H~2~O` creates H₂O). When tildes are at word boundaries (e.g., `~text~`), they create underline instead. Default: enabled in unified and MultiMarkdown modes.
+
+**--strikethrough**, **--no-strikethrough**
+:   Enable or disable GFM-style strikethrough processing (`~~text~~`). When enabled, `~~text~~` renders as `<del>text</del>`. Default: enabled in GFM and unified modes; disabled in commonmark, mmd, and kramdown modes.
 
 **--divs**, **--no-divs**
 :   Enable or disable Pandoc fenced divs syntax (`::::: {#id .class} ... :::::`). Fenced divs allow you to create HTML block elements with attributes using a special fence syntax. By default, fenced divs create `<div>` elements, but you can specify different block types using the `>blocktype` syntax (e.g., `::: >aside {.sidebar} ... :::` creates an `<aside>` element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
@@ -432,6 +431,9 @@ before removing the plugin.
 **-v**, **--version**
 :   Show version information and exit.
 
+**--progress**, **--no-progress**
+:   Show progress indicator during processing. Default: enabled when stderr is a TTY.
+
 ## Multi-file Utilities
 
 **--combine** *files...*
@@ -522,7 +524,7 @@ command-line invocations.
 directly.
 
 **Supported boolean options:**
-`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`
+`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `strikethrough`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `image-captions`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`, `plugins`, `emoji-autocorrect`, `code-line-numbers`, `highlight-language-only`, `markdown-in-html`
 
 **Supported string options:**
 `bibliography`, `csl`, `title`, `style` (or `css`),
@@ -562,6 +564,7 @@ metadata options.
 Apex supports a wide range of Markdown extensions:
 
 - **Tables**: GFM-style tables with alignment
+- **Strikethrough**: GFM-style `~~text~~` (controlled by **--strikethrough**)
 - **Footnotes**: Reference-style footnotes
 - **Math**: Inline (`$...$`) and display (`$$...$$`) math
 

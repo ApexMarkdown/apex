@@ -100,6 +100,9 @@ typedef struct {
     /* Superscript and subscript */
     bool enable_sup_sub;  /* Support MultiMarkdown-style ^text^ and ~text~ syntax */
 
+    /* Strikethrough (GFM-style ~~text~~) */
+    bool enable_strikethrough;
+
     /* Autolink options */
     bool enable_autolink;  /* Enable autolinking of URLs and email addresses */
     bool obfuscate_emails; /* Obfuscate email links/text using HTML entities */

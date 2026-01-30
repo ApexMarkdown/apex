@@ -528,6 +528,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --show-tooltips         Show tooltips on citations\n");
     fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
     fprintf(stderr, "  --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
+    fprintf(stderr, "  --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing\n");
     fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
     fprintf(stderr, "  --[no-]transforms      Enable or disable metadata variable transforms [%%key:transform]\n");
     fprintf(stderr, "  --[no-]unsafe          Allow or disallow raw HTML in output\n");
@@ -1629,6 +1630,10 @@ int main(int argc, char *argv[]) {
             options.enable_autolink = true;
         } else if (strcmp(argv[i], "--no-autolink") == 0) {
             options.enable_autolink = false;
+        } else if (strcmp(argv[i], "--strikethrough") == 0) {
+            options.enable_strikethrough = true;
+        } else if (strcmp(argv[i], "--no-strikethrough") == 0) {
+            options.enable_strikethrough = false;
         } else if (strcmp(argv[i], "--obfuscate-emails") == 0) {
             options.obfuscate_emails = true;
         } else if (strcmp(argv[i], "--progress") == 0) {
