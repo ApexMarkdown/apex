@@ -4488,7 +4488,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *html_markdown_processed = NULL;
     if (options->enable_markdown_in_html) {
         PROFILE_START(html_markdown);
-        html_markdown_processed = apex_process_html_markdown(text_ptr);
+        html_markdown_processed = apex_process_html_markdown(text_ptr, img_attrs);
         PROFILE_END(html_markdown);
         if (html_markdown_processed) {
             text_ptr = html_markdown_processed;

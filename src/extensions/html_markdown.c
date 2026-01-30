@@ -141,9 +141,12 @@ static const char *find_closing_tag(const char *text, const char *tag_name) {
 
 /**
  * Process HTML tags with markdown attributes
+ * If img_attrs is non-NULL, image attributes (e.g. width/height from ref defs) are applied to images in markdown="1" regions.
  */
-char *apex_process_html_markdown(const char *text) {
+char *apex_process_html_markdown(const char *text, void *img_attrs) {
     if (!text) return NULL;
+
+    image_attr_entry *attrs = (image_attr_entry *)img_attrs;
 
     size_t text_len = strlen(text);
     size_t output_capacity = text_len * 2;
@@ -233,7 +236,7 @@ char *apex_process_html_markdown(const char *text) {
 
                 /* Recursively process nested divs with markdown="1" BEFORE parsing */
                 /* This ensures nested divs are processed before cmark-gfm sees them */
-                char *processed_content = apex_process_html_markdown(content);
+                char *processed_content = apex_process_html_markdown(content, img_attrs);
                 if (processed_content) {
                     free(content);
                     content = processed_content;
@@ -251,6 +254,10 @@ char *apex_process_html_markdown(const char *text) {
                     if (doc) {
                         /* Process IAL in inner content so block/span IAL (e.g. {: .lead }) are applied */
                         apex_process_ial_in_tree(doc, NULL);
+                        /* Apply image attributes (e.g. width/height from ref defs) so images in fenced divs get them */
+                        if (attrs) {
+                            apex_apply_image_attributes(doc, attrs);
+                        }
                         /* Render to HTML with IAL attributes injected */
                         char *html = apex_render_html_with_attributes(doc, cmark_opts);
                         if (html) {
