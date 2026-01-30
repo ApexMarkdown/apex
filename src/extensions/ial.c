@@ -736,11 +736,16 @@ char *attributes_to_html(apex_attributes *attrs) {
 static bool extract_ial_from_paragraph(cmark_node *para, apex_attributes **attrs_out, ald_entry *alds) {
     if (cmark_node_get_type(para) != CMARK_NODE_PARAGRAPH) return false;
 
-    /* Must have exactly one child (a text node) - no links, no formatting */
+    /* Must have one text node, optionally followed by softbreak/linebreak (so "{: .lead}\n" is recognized) */
     cmark_node *text_node = cmark_node_first_child(para);
     if (!text_node) return false;
-    if (cmark_node_next(text_node) != NULL) return false;  /* More than one child - not pure IAL */
     if (cmark_node_get_type(text_node) != CMARK_NODE_TEXT) return false;
+    cmark_node *after_text = cmark_node_next(text_node);
+    if (after_text) {
+        cmark_node_type after_type = cmark_node_get_type(after_text);
+        if (after_type != CMARK_NODE_SOFTBREAK && after_type != CMARK_NODE_LINEBREAK) return false;
+        if (cmark_node_next(after_text) != NULL) return false;
+    }
 
     const char *text = cmark_node_get_literal(text_node);
     if (!text) return false;
@@ -759,10 +764,20 @@ static bool extract_ial_from_paragraph(cmark_node *para, apex_attributes **attrs
     const char *close = (second_char == ':') ? strchr(text + 2, '}') : strchr(text + 1, '}');
     if (!close) return false;
 
-    /* Check nothing after } except whitespace */
+    /* If there is non-whitespace after }, use only the IAL prefix (e.g. "{: .lead}\n</div>" -> extract "{: .lead}") */
     const char *after = close + 1;
     while (*after && isspace((unsigned char)*after)) after++;
-    if (*after != '\0' && *after != '\n') return false;
+    if (*after && *after != '\n') {
+        /* Trailing content (e.g. </div>) - extract IAL from prefix only */
+        size_t prefix_len = (size_t)(close + 1 - text);
+        char *prefix = malloc(prefix_len + 1);
+        if (!prefix) return false;
+        memcpy(prefix, text, prefix_len);
+        prefix[prefix_len] = '\0';
+        bool ok = extract_ial_from_text(prefix, attrs_out, alds);
+        free(prefix);
+        return ok;
+    }
 
     /* This is a pure IAL paragraph - extract attributes */
     return extract_ial_from_text(text, attrs_out, alds);
@@ -981,8 +996,52 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
         }
 
         if (!target) {
-            /* No inline element found - IAL doesn't apply to anything */
-            apex_free_attributes(attrs);
+            /* No inline element found - if this is a paragraph and there is content before this IAL (so not a pure IAL-only paragraph), apply to the paragraph (block IAL without blank line).
+             * Content before IAL can be: a previous sibling (e.g. text + softbreak + IAL text node), or text before IAL in this node (e.g. single node "Text\n{: .lead }"). */
+            bool has_preceding_content = (cmark_node_previous(child) != NULL) || (ial_start > text);
+            if (container_type == CMARK_NODE_PARAGRAPH && has_preceding_content) {
+                /* IAL was at end of text - apply to paragraph (e.g. "Text\n{: .lead }" on one block) */
+                char *attr_str = attributes_to_html(attrs);
+                cmark_node_set_user_data(container, attr_str);
+                apex_free_attributes(attrs);
+
+                /* Remove the IAL from the text node */
+                size_t prefix_len = ial_start - text;
+                const char *suffix = close + 1;
+                size_t suffix_len = strlen(suffix);
+                size_t new_len = prefix_len + suffix_len;
+                char *new_text = NULL;
+
+                if (new_len > 0) {
+                    new_text = malloc(new_len + 1);
+                    if (new_text) {
+                        if (prefix_len > 0) memcpy(new_text, text, prefix_len);
+                        if (suffix_len > 0)
+                            strcpy(new_text + prefix_len, suffix);
+                        else
+                            new_text[prefix_len] = '\0';
+                        if (prefix_len > 0 && suffix_len == 0) {
+                            char *end = new_text + prefix_len - 1;
+                            while (end >= new_text && isspace((unsigned char)*end)) *end-- = '\0';
+                        }
+                        if (strlen(new_text) == 0) {
+                            cmark_node_unlink(child);
+                            cmark_node_free(child);
+                            free(new_text);
+                            new_text = NULL;
+                        } else {
+                            cmark_node_set_literal(child, new_text);
+                        }
+                    }
+                } else {
+                    cmark_node_unlink(child);
+                    cmark_node_free(child);
+                }
+                if (new_text) free(new_text);
+                found_ial = true;
+            } else {
+                apex_free_attributes(attrs);
+            }
             child = next;
             continue;
         }
@@ -1166,7 +1225,8 @@ static bool extract_ial_from_heading(cmark_node *heading, apex_attributes **attr
 }
 
 /**
- * Check if a paragraph is ONLY an IAL (should be removed entirely)
+ * Check if a paragraph is ONLY an IAL (should be removed entirely).
+ * Allows optional trailing softbreak/linebreak so "{: .lead}\n" is recognized when the parser adds a linebreak node.
  */
 static bool is_pure_ial_paragraph(cmark_node *para) {
     if (cmark_node_get_type(para) != CMARK_NODE_PARAGRAPH) {
@@ -1180,8 +1240,15 @@ static bool is_pure_ial_paragraph(cmark_node *para) {
     if (cmark_node_get_type(text_node) != CMARK_NODE_TEXT) {
         return false;
     }
-    if (cmark_node_next(text_node) != NULL) {
-        return false;
+    cmark_node *after_text = cmark_node_next(text_node);
+    if (after_text) {
+        cmark_node_type after_type = cmark_node_get_type(after_text);
+        if (after_type != CMARK_NODE_SOFTBREAK && after_type != CMARK_NODE_LINEBREAK) {
+            return false;
+        }
+        if (cmark_node_next(after_text) != NULL) {
+            return false;
+        }
     }
 
     const char *text = cmark_node_get_literal(text_node);
@@ -1220,12 +1287,8 @@ static bool is_pure_ial_paragraph(cmark_node *para) {
         return false;
     }
 
-    /* Check nothing after the closing brace (should be at end of trimmed text) */
-    const char *after = close + 1;
-    while (after < text_end && isspace((unsigned char)*after)) {
-        after++;
-    }
-    return (after >= text_end);
+    /* Allow optional trailing content (e.g. "{: .lead}\n</div>" when IAL is followed by HTML in same block); still treat as pure IAL for previous block */
+    return true;
 }
 
 /**
@@ -1293,13 +1356,22 @@ static cmark_node *process_node_ial(cmark_node *node, ald_entry *alds) {
     }
 
 
-    /* Look at next sibling for IAL paragraph */
+    /* Look at next sibling(s) for IAL paragraph (skip over HTML blocks; cmark may put </div> between paragraph and IAL) */
     cmark_node *next = cmark_node_next(node);
     if (!next) {
         return NULL;  /* No node to free */
     }
 
-    if (cmark_node_get_type(next) != CMARK_NODE_PARAGRAPH) {
+    /* Skip HTML/custom blocks so we find a following IAL paragraph (e.g. paragraph, </div> html_block, {: .lead} paragraph) */
+    while (next) {
+        cmark_node_type next_type = cmark_node_get_type(next);
+        if (next_type != CMARK_NODE_HTML_BLOCK && next_type != CMARK_NODE_CUSTOM_BLOCK) {
+            break;
+        }
+        next = cmark_node_next(next);
+    }
+
+    if (!next || cmark_node_get_type(next) != CMARK_NODE_PARAGRAPH) {
         return NULL;  /* No node to free */
     }
 

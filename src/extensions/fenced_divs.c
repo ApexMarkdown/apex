@@ -616,6 +616,13 @@ char *apex_process_fenced_divs(const char *text) {
             }
             remaining = output_capacity - (write - output);
 
+            /* Emit newline after opening tag so inner content is on its own line(s);
+             * otherwise cmark can treat tag+content as one HTML block and IAL/paragraphs won't parse. */
+            if (remaining > 0) {
+                *write++ = '\n';
+                remaining--;
+            }
+
             /* Skip the fence line */
             read = line_end;
             if (*read == '\r') read++;

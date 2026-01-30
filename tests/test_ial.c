@@ -145,6 +145,29 @@ void test_ial(void) {
     assert_contains(html, "class=\"spaced-class\"", "Inline IAL with spaces");
     apex_free_string(html);
 
+    /* Test block IAL on paragraph when IAL is on same line (no blank line) - span IAL path */
+    const char *same_line_ial = "Lead paragraph text.\n{: .lead }";
+    html = apex_markdown_to_html(same_line_ial, strlen(same_line_ial), &opts);
+    assert_contains(html, "class=\"lead\"", "Paragraph IAL same line (no blank)");
+    assert_not_contains(html, "{: .lead }", "IAL removed from output");
+    apex_free_string(html);
+
+    /* Test block IAL with raw div (simulates fenced div output: two paragraphs, second is IAL) */
+    apex_options opts_unified = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *raw_div_ial = "<div class=\"section\">\n\nOpening paragraph here.\n\n{: .lead }\n\n</div>";
+    html = apex_markdown_to_html(raw_div_ial, strlen(raw_div_ial), &opts_unified);
+    assert_contains(html, "class=\"lead\"", "Block IAL with raw div: .lead on paragraph");
+    assert_not_contains(html, "<p>{: .lead }</p>", "Block IAL with raw div: IAL paragraph removed");
+    apex_free_string(html);
+
+    /* Test block IAL inside fenced div (Unified mode: divs + IAL preprocess) */
+    const char *fenced_ial = "::: section\nOpening paragraph here.\n{: .lead }\n:::";
+    html = apex_markdown_to_html(fenced_ial, strlen(fenced_ial), &opts_unified);
+    assert_contains(html, "class=\"section\"", "Fenced div IAL: section div present");
+    assert_contains(html, "class=\"lead\"", "Fenced div IAL: .lead on paragraph");
+    assert_not_contains(html, "<p>{: .lead }</p>", "Fenced div IAL: IAL paragraph removed");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("IAL Tests", had_failures, false);
 }

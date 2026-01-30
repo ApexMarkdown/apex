@@ -4,6 +4,8 @@
  */
 
 #include "html_markdown.h"
+#include "ial.h"
+#include "../html_renderer.h"
 #include "cmark-gfm.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -240,15 +242,17 @@ char *apex_process_html_markdown(const char *text) {
 
                 /* Create parser and parse */
                 /* Use CMARK_OPT_UNSAFE to allow raw HTML (including nested divs) */
-                int options = CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE;
-                cmark_parser *parser = cmark_parser_new(options);
+                int cmark_opts = CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE;
+                cmark_parser *parser = cmark_parser_new(cmark_opts);
                 if (parser) {
                     cmark_parser_feed(parser, content, content_len);
                     cmark_node *doc = cmark_parser_finish(parser);
 
                     if (doc) {
-                        /* Render to HTML */
-                        char *html = cmark_render_html(doc, options, NULL);
+                        /* Process IAL in inner content so block/span IAL (e.g. {: .lead }) are applied */
+                        apex_process_ial_in_tree(doc, NULL);
+                        /* Render to HTML with IAL attributes injected */
+                        char *html = apex_render_html_with_attributes(doc, cmark_opts);
                         if (html) {
                             /* Write opening tag (without markdown attribute) */
                             char opening_tag[2048];
