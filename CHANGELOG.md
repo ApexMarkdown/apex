@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.68] - 2026-01-30
+
+### Changed
+
+- Run image caption conversion whenever HTML is produced so caption="" is always honored; pass enable_image_captions and title_captions_only into the converter.
+
+### New
+
+- Allow caption="TEXT" attribute on images (IAL); always wraps in figure/figcaption even when --image-captions is disabled, and strips the caption attribute from the emitted img tag.
+- Add --title-captions-only and --no-title-captions-only CLI flags.
+- Add title-captions-only / title_captions_only metadata support.
+
+### Improved
+
+- When --title-captions-only is set, automatically enable image captions so both flags are not required.
+
 ## [0.1.67] - 2026-01-30
 
 ### New
@@ -2272,6 +2288,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.68]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.68
 [0.1.67]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.67
 [0.1.66]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.66
 [0.1.65]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.65
