@@ -2460,11 +2460,11 @@ static void apex_trim_attr_value(const char *s, size_t len,
 }
 
 /**
- * Convert <img> tags to <figure> with <figcaption> when alt/title are present.
- * Caption text prefers the image title attribute when present, otherwise
- * falls back to the alt text. Images without title or alt are left unchanged.
+ * Convert <img> tags to <figure> with <figcaption> when alt/title/caption are present.
+ * If caption="TEXT" is present, always wrap. Otherwise when enable_image_captions,
+ * use title or alt (unless title_captions_only, then only title).
  */
-char *apex_convert_image_captions(const char *html) {
+char *apex_convert_image_captions(const char *html, bool enable_image_captions, bool title_captions_only) {
     if (!html) return NULL;
 
     size_t len = strlen(html);
@@ -2526,7 +2526,6 @@ char *apex_convert_image_captions(const char *html) {
             }
 
             const char *tag_end = p; /* Points at '>' */
-            size_t tag_len = (size_t)(tag_end - tag_start + 1);
 
             /* Parse attributes between <img and > */
             const char *attr_start = tag_start + 4;
@@ -2535,6 +2534,10 @@ char *apex_convert_image_captions(const char *html) {
             size_t title_len = 0;
             const char *alt_val = NULL;
             size_t alt_len = 0;
+            const char *caption_val = NULL;
+            size_t caption_len = 0;
+            const char *caption_attr_start = NULL; /* start of caption attr (for stripping) */
+            const char *caption_attr_end = NULL;
 
             const char *q = attr_start;
             while (q < attr_end) {
@@ -2592,22 +2595,47 @@ char *apex_convert_image_captions(const char *html) {
                                (strncasecmp(name_start, "alt", 3) == 0)) {
                         alt_val = value_start;
                         alt_len = (size_t)(value_end - value_start);
+                    } else if (name_len == 7 &&
+                               (strncasecmp(name_start, "caption", 7) == 0)) {
+                        caption_val = value_start;
+                        caption_len = (size_t)(value_end - value_start);
+                        /* Include leading space so we strip " caption=\"...\"" */
+                        caption_attr_start = (name_start > attr_start && isspace((unsigned char)name_start[-1])) ? name_start - 1 : name_start;
+                        caption_attr_end = q;
                     }
                 }
             }
 
-            /* Determine caption text: prefer title, otherwise alt */
+            /* Determine caption text: caption= always wins; else title or alt per options */
             const char *caption = NULL;
-            size_t caption_len = 0;
+            size_t caption_text_len = 0;
+            bool use_caption_attr = (caption_val != NULL && caption_len > 0);
 
-            if (title_val && title_len > 0) {
-                apex_trim_attr_value(title_val, title_len, &caption, &caption_len);
-            } else if (alt_val && alt_len > 0) {
-                apex_trim_attr_value(alt_val, alt_len, &caption, &caption_len);
+            if (use_caption_attr) {
+                apex_trim_attr_value(caption_val, caption_len, &caption, &caption_text_len);
+            }
+            if (!use_caption_attr && (caption == NULL || caption_text_len == 0)) {
+                if (!enable_image_captions) {
+                    caption = NULL;
+                    caption_text_len = 0;
+                } else if (title_captions_only) {
+                    /* Only use title, never alt */
+                    if (title_val && title_len > 0) {
+                        apex_trim_attr_value(title_val, title_len, &caption, &caption_text_len);
+                    }
+                } else {
+                    /* Default: prefer title, then alt */
+                    if (title_val && title_len > 0) {
+                        apex_trim_attr_value(title_val, title_len, &caption, &caption_text_len);
+                    } else if (alt_val && alt_len > 0) {
+                        apex_trim_attr_value(alt_val, alt_len, &caption, &caption_text_len);
+                    }
+                }
             }
 
-            if (!caption || caption_len == 0) {
-                /* No caption text available - copy tag as-is */
+            if (!caption || caption_text_len == 0) {
+                /* No caption - copy tag as-is */
+                size_t tag_len = (size_t)(tag_end - tag_start + 1);
                 if (tag_len >= remaining) {
                     size_t used = write - output;
                     size_t new_cap = (used + tag_len + 1) * 2;
@@ -2633,10 +2661,19 @@ char *apex_convert_image_captions(const char *html) {
             const char *figcaption_close = "</figcaption>";
             const char *figure_close = "</figure>";
 
+            /* When we have caption= attribute, output img tag without it (strip caption attr) */
+            size_t img_tag_output_len;
+            if (caption_attr_start != NULL && caption_attr_end != NULL) {
+                img_tag_output_len = (size_t)(caption_attr_start - tag_start) +
+                    (size_t)(tag_end + 1 - caption_attr_end);
+            } else {
+                img_tag_output_len = (size_t)(tag_end - tag_start + 1);
+            }
+
             size_t extra = strlen(figure_open) + strlen(figcaption_open) +
-                           caption_len + strlen(figcaption_close) +
+                           caption_text_len + strlen(figcaption_close) +
                            strlen(figure_close);
-            size_t needed = tag_len + extra;
+            size_t needed = img_tag_output_len + extra;
             if (needed >= remaining) {
                 size_t used = write - output;
                 size_t new_cap = (used + needed + 1) * 2;
@@ -2655,19 +2692,31 @@ char *apex_convert_image_captions(const char *html) {
             write += strlen(figure_open);
             remaining -= strlen(figure_open);
 
-            /* Write original <img ...> tag */
-            memcpy(write, tag_start, tag_len);
-            write += tag_len;
-            remaining -= tag_len;
+            /* Write <img ...> tag (omitting caption attribute if present) */
+            if (caption_attr_start != NULL && caption_attr_end != NULL) {
+                size_t part1 = (size_t)(caption_attr_start - tag_start);
+                memcpy(write, tag_start, part1);
+                write += part1;
+                remaining -= part1;
+                size_t part2 = (size_t)(tag_end + 1 - caption_attr_end);
+                memcpy(write, caption_attr_end, part2);
+                write += part2;
+                remaining -= part2;
+            } else {
+                size_t tag_len = (size_t)(tag_end - tag_start + 1);
+                memcpy(write, tag_start, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
+            }
 
             /* Write <figcaption>Caption</figcaption></figure> */
             memcpy(write, figcaption_open, strlen(figcaption_open));
             write += strlen(figcaption_open);
             remaining -= strlen(figcaption_open);
 
-            memcpy(write, caption, caption_len);
-            write += caption_len;
-            remaining -= caption_len;
+            memcpy(write, caption, caption_text_len);
+            write += caption_text_len;
+            remaining -= caption_text_len;
 
             memcpy(write, figcaption_close, strlen(figcaption_close));
             write += strlen(figcaption_close);

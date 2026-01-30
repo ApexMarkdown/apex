@@ -2512,6 +2512,7 @@ apex_options apex_options_default(void) {
     /* Image options */
     opts.embed_images = false;           /* Default: disabled */
     opts.enable_image_captions = true;   /* Default: enabled (unified mode defaults) */
+    opts.title_captions_only = false;    /* Default: use title or alt for caption */
 
     /* Citation options */
     opts.enable_citations = false;  /* Disabled by default - enable with --bibliography */
@@ -5190,10 +5191,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    /* Convert images to figures with captions when enabled */
-    if (options->enable_image_captions && html) {
+    /* Convert images to figures with captions (caption="..." always wraps; otherwise when enable_image_captions) */
+    if (html) {
         PROFILE_START(image_captions);
-        char *with_captions = apex_convert_image_captions(html);
+        char *with_captions = apex_convert_image_captions(html, options->enable_image_captions, options->title_captions_only);
         PROFILE_END(image_captions);
         if (with_captions) {
             free(html);

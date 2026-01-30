@@ -2013,6 +2013,28 @@ void test_image_captions(void) {
     assert_contains(html, "<img src=\"/img/basic.png\"", "Disabled: basic image present");
     apex_free_string(html);
 
+    /* caption="TEXT" on image adds figure/figcaption even when --image-captions is off */
+    const char *md_caption_attr = "![Alt](/img/cap.png){caption=\"Explicit caption\"}\n";
+    apex_options no_captions_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    no_captions_opts.enable_image_captions = false;
+    html = apex_markdown_to_html(md_caption_attr, strlen(md_caption_attr), &no_captions_opts);
+    assert_contains(html, "<figure>", "caption=: figure present");
+    assert_contains(html, "<figcaption>Explicit caption</figcaption>", "caption=: figcaption text");
+    assert_not_contains(html, "caption=\"", "caption=: caption attr stripped from img");
+    apex_free_string(html);
+
+    /* --title-captions-only: only images with title get captions; alt-only images do not */
+    const char *md_alt_and_title =
+        "![Alt only](/img/alt.png)\n\n"
+        "![With title](/img/title.png \"Title caption\")\n";
+    apex_options title_only_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    title_only_opts.enable_image_captions = true;
+    title_only_opts.title_captions_only = true;
+    html = apex_markdown_to_html(md_alt_and_title, strlen(md_alt_and_title), &title_only_opts);
+    assert_contains(html, "<figcaption>Title caption</figcaption>", "title_captions_only: caption from title");
+    assert_not_contains(html, "<figcaption>Alt only</figcaption>", "title_captions_only: no caption from alt");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Image Captions Tests", had_failures, false);
 }

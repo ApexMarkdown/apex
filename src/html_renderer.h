@@ -105,13 +105,18 @@ char *apex_adjust_quote_language(const char *html, const char *quotes_language);
 char *apex_apply_aria_labels(const char *html, cmark_node *document);
 
 /**
- * Convert <img> tags to <figure> with <figcaption> when alt/title are present.
- * Caption text prefers the image title attribute when present, otherwise
- * falls back to the alt text. Images without title or alt are left unchanged.
+ * Convert <img> tags to <figure> with <figcaption> when alt/title/caption are present.
+ * If an image has caption="TEXT", that is always used and figure/figcaption is added
+ * regardless of enable_image_captions. Otherwise, when enable_image_captions is true:
+ * caption text prefers title when present, then alt (unless title_captions_only is true,
+ * in which case only images with a title get a caption). When title_captions_only is true,
+ * alt text is not used for captions.
  * @param html The HTML to process
+ * @param enable_image_captions Whether to wrap images with title/alt in figure/figcaption
+ * @param title_captions_only When true, only add captions for images that have a title attribute
  * @return Newly allocated HTML with image figures (must be freed), or NULL on error
  */
-char *apex_convert_image_captions(const char *html);
+char *apex_convert_image_captions(const char *html, bool enable_image_captions, bool title_captions_only);
 
 #ifdef __cplusplus
 }

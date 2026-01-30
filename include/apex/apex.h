@@ -107,6 +107,7 @@ typedef struct {
     /* Image options */
     bool embed_images;           /* Embed local images as base64 data URLs */
     bool enable_image_captions;  /* Wrap images in <figure> with <figcaption> when alt/title present */
+    bool title_captions_only;    /* When enable_image_captions is true, only add captions for images with a title attribute (ignore alt) */
 
     /* Citation options */
     bool enable_citations;  /* Enable citation processing */

@@ -2589,6 +2589,13 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->enable_image_captions = false;
             }
+        } else if (strcasecmp(key, "title-captions-only") == 0 || strcasecmp(key, "title_captions_only") == 0) {
+            if (is_true_value(value)) {
+                options->title_captions_only = true;
+                options->enable_image_captions = true;  /* implied when title-captions-only is set */
+            } else if (is_false_value(value)) {
+                options->title_captions_only = false;
+            }
         } else if (strcasecmp(key, "link-citations") == 0 || strcasecmp(key, "link_citations") == 0) {
             if (is_true_value(value)) {
                 options->link_citations = true;
