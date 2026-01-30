@@ -2,6 +2,26 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.67] - 2026-01-30
+
+### New
+
+- Image attribute @2x in inline, reference-style, or IAL (e.g. ![alt](url @2x) or [ref]: url @2x) emits srcset="url 1x, url@2x 2x"; the 2x asset is assumed to have the same path with @2x before the extension (e.g. icon.png -> icon@2x.png).
+
+### Fixed
+
+- SPM builds no longer fail with "config.h" file not found or "Could not build module 'CcmarkGFM'" when adding Apex as an integrated Xcode package or as a Swift Package dependency.
+
+## [0.1.66] - 2026-01-30
+
+### New
+
+- Image attribute @2x in inline, reference-style, or IAL (e.g. ![alt](url @2x) or [ref]: url @2x) emits srcset="url 1x, url@2x 2x"; the 2x asset is assumed to have the same path with @2x before the extension (e.g. icon.png -> icon@2x.png).
+
+### Fixed
+
+- SPM builds no longer fail with "config.h" file not found or "Could not build module 'CcmarkGFM'" when adding Apex as an integrated Xcode package or as a Swift Package dependency.
+
 ## [0.1.65] - 2026-01-29
 
 ### Fixed
@@ -2252,6 +2272,8 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.67]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.67
+[0.1.66]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.66
 [0.1.65]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.65
 [0.1.64]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.64
 [0.1.63]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.63
