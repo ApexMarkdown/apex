@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.71] - 2026-01-30
+
+### Changed
+
+- Strikethrough is now controlled by the enable_strikethrough option instead of mode; can be enabled in modes that lack it by default (commonmark, mmd, kramdown) and disabled in modes that include it (gfm, unified).
+
+### New
+
+- Add --strikethrough and --no-strikethrough CLI flags to enable or disable GFM-style ~~strikethrough~~ processing independent of mode.
+- Strikethrough is configurable via metadata using the strikethrough or strike-through keys (true/false).
+
 ## [0.1.70] - 2026-01-30
 
 ### Changed
@@ -2315,6 +2326,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.71]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.71
 [0.1.70]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.70
 [0.1.69]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.69
 [0.1.68]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.68
