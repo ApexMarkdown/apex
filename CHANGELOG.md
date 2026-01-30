@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.69] - 2026-01-30
+
+### Improved
+
+- URLs with a protocol (http, https, etc.) are no longer URL-encoded so query parameters in image URLs are preserved.
+- Image reference definitions with key= attributes or bare @2x after the URL are now split and applied (width, height, srcset) in all modes, not only when image attributes are enabled.
+
+### Fixed
+
+- Paragraph IAL on the same line (no blank line), e.g. "Text\n{: .lead }", now applies the class to the paragraph.
+- Block IAL (e.g. {: .lead }) inside fenced divs and markdown="1" blocks now applies to the previous paragraph and the IAL line is removed from output.
+- Block IAL is now recognized when an HTML block (e.g. </div>) sits between the content paragraph and the IAL paragraph.
+- Reference-style images (e.g. ![alt][ref] with [ref]: url width=250 height=83) no longer produce blank output; attributes are applied and refs are expanded correctly.
+- First line of document that looks like a Markdown link or image (e.g. [![...](#){: .class }]) is no longer consumed as MMD metadata, fixing blank output for such content.
+- Image width, height, and other attributes from reference definitions are now applied to images inside fenced divs (::: ... :::) and other HTML elements with markdown="1"; they were previously dropped when inner content was parsed and rendered separately.
+
 ## [0.1.68] - 2026-01-30
 
 ### Changed
@@ -2288,6 +2304,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.69]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.69
 [0.1.68]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.68
 [0.1.67]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.67
 [0.1.66]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.66

@@ -1,5 +1,5 @@
 <!--README-->
-[![Version: <!--VER-->0.1.67<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.67<!--END VER-->-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1281/1281](https://img.shields.io/badge/Tests-1281/1281-a5da78)<!--END TESTS_BADGE-->
+[![Version: <!--VER-->0.1.68<!--END VER-->](https://img.shields.io/badge/Version-<!--VER-->0.1.68<!--END VER-->-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1288/1288](https://img.shields.io/badge/Tests-1288/1288-a5da78)<!--END TESTS_BADGE-->
 
 <!--GITHUB-->
 # Apex
