@@ -42,3 +42,19 @@ Expected: `<img src="/images/test-ref-4.jpg" alt="Ref classes" class="center sha
 
 [ref-inline-4]: /images/test-ref-4.jpg "Caption" class=center shadow width=250 height=60%
 
+## @2x (retina srcset)
+
+Expected: `srcset="img/icon.png 1x, img/icon@2x.png 2x"` (and src="img/icon.png")
+
+![BlogBook](img/icon.png @2x)
+
+Expected: @2x with title - srcset present
+
+![BlogBook](img/icon.png "Hero" @2x)
+
+Expected: reference-style @2x - srcset present
+
+![Logo][logo-2x]
+
+[logo-2x]: img/hero.png @2x
+

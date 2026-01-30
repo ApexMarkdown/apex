@@ -234,6 +234,27 @@ void test_multimarkdown_image_attributes(void) {
 
 #undef RUN_IMAGE_ATTR_TESTS
 
+    /* Test @2x srcset: ![alt](url @2x) and ![alt](url "title" @2x) emit srcset="url 1x, url@2x 2x" */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *at2x_inline = "![BlogBook](img/icon_512x512.png @2x)";
+        char *html = apex_markdown_to_html(at2x_inline, strlen(at2x_inline), &opts);
+        assert_contains(html, "src=\"img/icon_512x512.png\"", "@2x inline: src present");
+        assert_contains(html, "srcset=\"img/icon_512x512.png 1x, img/icon_512x512@2x.png 2x\"", "@2x inline: srcset 1x and 2x");
+        apex_free_string(html);
+
+        const char *at2x_title = "![BlogBook](img/icon_512x512.png \"title\" @2x)";
+        html = apex_markdown_to_html(at2x_title, strlen(at2x_title), &opts);
+        assert_contains(html, "srcset=\"img/icon_512x512.png 1x, img/icon_512x512@2x.png 2x\"", "@2x with title: srcset");
+        apex_free_string(html);
+
+        /* Reference-style: [ref]: url @2x */
+        const char *at2x_ref = "![Logo][logo]\n\n[logo]: img/hero.png @2x";
+        html = apex_markdown_to_html(at2x_ref, strlen(at2x_ref), &opts);
+        assert_contains(html, "srcset=\"img/hero.png 1x, img/hero@2x.png 2x\"", "@2x reference: srcset");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
 }

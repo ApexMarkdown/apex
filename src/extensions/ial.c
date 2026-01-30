@@ -202,6 +202,13 @@ apex_attributes *parse_ial_content(const char *content, int len) {
             continue;
         }
 
+        /* Check for bare @2x (retina srcset marker) */
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == '@' && key_start[1] == '2' && key_start[2] == 'x') {
+            add_attribute(attrs, "data-srcset-2x", "1");
+            continue;
+        }
+
         /* Unknown token, skip */
         p++;
     }
@@ -687,8 +694,12 @@ char *attributes_to_html(apex_attributes *attrs) {
         const char *key = attrs->keys[i];
         const char *val = attrs->values[i];
 
-        /* Skip width, height, and style - we already processed them */
+        /* Skip width, height, style - we already processed them */
         if (strcmp(key, "width") == 0 || strcmp(key, "height") == 0 || strcmp(key, "style") == 0) {
+            continue;
+        }
+        /* Skip internal @2x marker - used by attributes_to_html_for_image to emit srcset */
+        if (strcmp(key, "data-srcset-2x") == 0) {
             continue;
         }
 
@@ -1671,11 +1682,114 @@ static apex_attributes *parse_image_attributes(const char *attr_str, int len) {
             continue;
         }
 
+        /* Check for bare @2x (retina srcset marker) */
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == '@' && key_start[1] == '2' && key_start[2] == 'x') {
+            add_attribute(attrs, "data-srcset-2x", "1");
+            continue;
+        }
+
         /* Unknown token, skip */
         p++;
     }
 
     return attrs;
+}
+
+/**
+ * Build the @2x version of a URL (insert @2x before the last dot and extension).
+ * e.g. "img/icon.png" -> "img/icon@2x.png"
+ * Caller must free the returned string.
+ */
+static char *url_with_2x_suffix(const char *url) {
+    if (!url || !*url) return NULL;
+
+    const char *last_dot = strrchr(url, '.');
+    if (!last_dot) {
+        /* No extension - append @2x */
+        char *out = malloc(strlen(url) + 4 + 1);
+        if (!out) return NULL;
+        strcpy(out, url);
+        strcat(out, "@2x");
+        return out;
+    }
+
+    size_t base_len = (size_t)(last_dot - url);
+    size_t ext_len = strlen(last_dot);
+    char *out = malloc(base_len + 4 + ext_len + 1);
+    if (!out) return NULL;
+    memcpy(out, url, base_len);
+    memcpy(out + base_len, "@2x", 3);
+    out[base_len + 3] = '\0';
+    strcat(out, last_dot);
+    return out;
+}
+
+/**
+ * Check if attributes contain the @2x srcset marker
+ */
+static bool attrs_have_srcset_2x(apex_attributes *attrs) {
+    if (!attrs) return false;
+    return find_attribute_index(attrs, "data-srcset-2x") >= 0;
+}
+
+/**
+ * Convert image attributes to HTML string, including srcset when @2x is present.
+ * When data-srcset-2x is in attrs, emits srcset="url 1x, url@2x 2x" and omits data-srcset-2x from output.
+ * Caller must free the returned string.
+ */
+static char *attributes_to_html_for_image(const char *url, apex_attributes *attrs) {
+    if (!attrs) return strdup("");
+
+    bool want_srcset = attrs_have_srcset_2x(attrs);
+    char *url_2x = want_srcset && url ? url_with_2x_suffix(url) : NULL;
+
+    char *base_attrs = attributes_to_html(attrs);
+    if (!base_attrs) {
+        free(url_2x);
+        return strdup("");
+    }
+
+    /* If no srcset needed, return base_attrs (attributes_to_html already omits data-srcset-2x) */
+    if (!want_srcset || !url_2x) {
+        free(url_2x);
+        return base_attrs;
+    }
+
+    /* Build " srcset=\"url 1x, url_2x 2x\"" and prepend to base_attrs */
+    size_t srcset_len = 10 + strlen(url) + 6 + strlen(url_2x) + 6; /* srcset="..." 1x, "..." 2x" */
+    char *srcset_attr = malloc(srcset_len + 1);
+    if (!srcset_attr) {
+        free(base_attrs);
+        free(url_2x);
+        return base_attrs;
+    }
+    snprintf(srcset_attr, srcset_len + 1, " srcset=\"%s 1x, %s 2x\"", url, url_2x);
+    free(url_2x);
+
+    /* Prepend srcset to base_attrs */
+    size_t base_len = strlen(base_attrs);
+    while (base_len > 0 && (base_attrs[base_len - 1] == ' ' || base_attrs[base_len - 1] == '\t')) {
+        base_attrs[--base_len] = '\0';
+    }
+    size_t srcset_attr_len = strlen(srcset_attr);
+    char *result = malloc(srcset_attr_len + (base_len ? base_len + 2 : 0) + 1);
+    if (!result) {
+        free(srcset_attr);
+        return base_attrs;
+    }
+    char *w = result;
+    memcpy(w, srcset_attr, srcset_attr_len);
+    w += srcset_attr_len;
+    if (base_len > 0) {
+        *w++ = ' ';
+        memcpy(w, base_attrs, base_len + 1);
+    } else {
+        *w = '\0';
+    }
+    free(srcset_attr);
+    free(base_attrs);
+    return result;
 }
 
 /**
@@ -2301,6 +2415,14 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             /* Check for key= pattern (inline attributes) */
                             if (do_image_attrs && looks_like_attribute_start(after_space, line_end)) {
                                 /* This looks like attributes */
+                                attr_start = after_space;
+                                url_end = p;
+                                break;
+                            }
+                            /* Check for bare @2x (retina srcset) */
+                            if (do_image_attrs && (size_t)(line_end - after_space) >= 3 &&
+                                after_space[0] == '@' && after_space[1] == '2' && after_space[2] == 'x' &&
+                                (after_space + 3 >= line_end || isspace((unsigned char)after_space[3]))) {
                                 attr_start = after_space;
                                 url_end = p;
                                 break;
@@ -3264,8 +3386,8 @@ void apex_apply_image_attributes(cmark_node *document, image_attr_entry *img_att
             }
 
             if (matching && matching->attrs) {
-                /* Apply attributes to this image */
-                char *attr_str = attributes_to_html(matching->attrs);
+                /* Apply attributes to this image (use URL for @2x srcset when present) */
+                char *attr_str = attributes_to_html_for_image(url, matching->attrs);
                 if (attr_str) {
                     /* Merge with existing user_data if present */
                     char *existing = (char *)cmark_node_get_user_data(node);
