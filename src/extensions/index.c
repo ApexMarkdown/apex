@@ -272,6 +272,139 @@ static int parse_textindex(const char *text, int pos, int len,
 }
 
 /**
+ * Strip Leanpub formatting (*italics*, **bold*) from index term for display
+ */
+static void strip_leanpub_formatting(char *str) {
+    if (!str) return;
+
+    char *w = str;
+    const char *r = str;
+
+    while (*r) {
+        if (*r == '*') {
+            /* Skip * or ** */
+            if (r[1] == '*') {
+                r += 2;
+            } else {
+                r++;
+            }
+            continue;
+        }
+        *w++ = *r++;
+    }
+    *w = '\0';
+}
+
+/**
+ * Parse Leanpub index syntax: {i: term}, {i: "term"}, {i: "Main!sub"}
+ * See https://help.leanpub.com/en/articles/6961502-how-to-create-an-index-in-a-leanpub-book
+ * Returns length consumed, or 0 if not a match
+ */
+static int parse_leanpub_index(const char *text, int pos, int len,
+                               apex_index_entry **entry_out) {
+    if (pos + 4 >= len) return 0;
+
+    const char *p = text + pos;
+
+    /* Must start with {i: */
+    if (p[0] != '{' || p[1] != 'i' || p[2] != ':') return 0;
+    p += 3;
+
+    /* Skip space after colon */
+    while (p < text + len && (*p == ' ' || *p == '\t')) p++;
+    if (p >= text + len) return 0;
+
+    char *item = NULL;
+    char *subitem = NULL;
+
+    if (*p == '"') {
+        /* Quoted: {i: "term"} or {i: "Main!sub"} */
+        p++;  /* Skip opening quote */
+        const char *start = p;
+
+        while (p < text + len && *p != '"') {
+            if (*p == '\\' && p + 1 < text + len) {
+                p += 2;  /* Skip escaped char */
+            } else {
+                p++;
+            }
+        }
+        if (p >= text + len || *p != '"') return 0;
+
+        size_t term_len = p - start;
+        char *term = malloc(term_len + 1);
+        if (!term) return 0;
+        memcpy(term, start, term_len);
+        term[term_len] = '\0';
+
+        /* Parse Main!sub hierarchy */
+        char *excl = strchr(term, '!');
+        if (excl) {
+            *excl = '\0';
+            item = strdup(term);
+            subitem = strdup(excl + 1);
+            trim_string(item);
+            trim_string(subitem);
+            strip_leanpub_formatting(item);
+            strip_leanpub_formatting(subitem);
+            free(term);
+        } else {
+            strip_leanpub_formatting(term);
+            trim_string(term);
+            item = term;
+        }
+
+        p++;  /* Skip closing quote */
+    } else {
+        /* Unquoted: {i: Ishmael} */
+        const char *start = p;
+        while (p < text + len && *p != '}' && *p != '\n') {
+            if (is_valid_index_char(*p)) {
+                p++;
+            } else {
+                return 0;  /* Invalid char in unquoted term */
+            }
+        }
+        if (p >= text + len || *p != '}') {
+            return 0;
+        }
+
+        size_t term_len = p - start;
+        if (term_len == 0) return 0;
+
+        item = malloc(term_len + 1);
+        if (!item) return 0;
+        memcpy(item, start, term_len);
+        item[term_len] = '\0';
+        trim_string(item);
+        if (strlen(item) == 0) {
+            free(item);
+            return 0;
+        }
+    }
+
+    /* Must end with } */
+    while (p < text + len && (*p == ' ' || *p == '\t')) p++;
+    if (p >= text + len || *p != '}') {
+        free(item);
+        free(subitem);
+        return 0;
+    }
+    p++;  /* Skip } */
+
+    apex_index_entry *entry = apex_index_entry_new(item, APEX_INDEX_LEANPUB);
+    if (entry) {
+        entry->subitem = subitem;
+        *entry_out = entry;
+    } else {
+        free(item);
+        free(subitem);
+    }
+
+    return p - (text + pos);
+}
+
+/**
  * Create a new index entry
  */
 apex_index_entry *apex_index_entry_new(const char *item, apex_index_syntax_t syntax_type) {
@@ -334,6 +467,7 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
     /* Quick scan: check if any index patterns exist before processing */
     bool has_mmark_pattern = false;
     bool has_textindex_pattern = false;
+    bool has_leanpub_pattern = false;
 
     if (options->enable_mmark_index_syntax) {
         /* Look for (! or (!! patterns */
@@ -359,8 +493,20 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
         }
     }
 
+    if (options->enable_leanpub_index_syntax && !has_mmark_pattern) {
+        /* Look for {i: pattern */
+        const char *p = text;
+        while (*p && p < text + text_len - 4) {
+            if (p[0] == '{' && p[1] == 'i' && p[2] == ':') {
+                has_leanpub_pattern = true;
+                break;
+            }
+            p++;
+        }
+    }
+
     /* Early exit if no patterns found */
-    if (!has_mmark_pattern && !has_textindex_pattern) {
+    if (!has_mmark_pattern && !has_textindex_pattern && !has_leanpub_pattern) {
         return NULL;
     }
 
@@ -387,11 +533,17 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
             consumed = parse_textindex(text, read - text, text_len, &entry);
         }
 
+        /* Try Leanpub syntax if no match yet and Leanpub is enabled */
+        if (!entry && options->enable_leanpub_index_syntax && *read == '{' && read + 3 < text + text_len &&
+            read[1] == 'i' && read[2] == ':') {
+            consumed = parse_leanpub_index(text, read - text, text_len, &entry);
+        }
+
         if (entry && consumed > 0) {
             /* Add entry to registry */
             entry->position = read - text;
             char anchor_id[64];
-            snprintf(anchor_id, sizeof(anchor_id), "idxref:%d", registry->next_ref_id);
+            snprintf(anchor_id, sizeof(anchor_id), "idxref-%d", registry->next_ref_id);
             entry->anchor_id = strdup(anchor_id);
             entry->next = registry->entries;
             registry->entries = entry;

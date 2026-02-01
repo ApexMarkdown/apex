@@ -1,9 +1,10 @@
 /**
  * Index Extension for Apex
  *
- * Supports two index syntaxes:
+ * Supports three index syntaxes:
  * - mmark/MultiMarkdown: (!item), (!item, subitem), (!!item, subitem)
  * - TextIndex: {^}, [term]{^}, {^params}
+ * - Leanpub: {i: term}, {i: "term"}, {i: "Main!sub"}
  */
 
 #ifndef APEX_INDEX_H
@@ -20,7 +21,8 @@ extern "C" {
 /* Index syntax types */
 typedef enum {
     APEX_INDEX_MMARK = 0,
-    APEX_INDEX_TEXTINDEX = 1
+    APEX_INDEX_TEXTINDEX = 1,
+    APEX_INDEX_LEANPUB = 2
 } apex_index_syntax_t;
 
 /* Index entry structure */
@@ -29,7 +31,7 @@ typedef struct apex_index_entry {
     char *subitem;                 /* Sub-item (optional) */
     bool primary;                  /* Primary entry flag (mmark) */
     int position;                  /* Position in document */
-    char *anchor_id;               /* Generated anchor ID (e.g., "idxref:0") */
+    char *anchor_id;               /* Generated anchor ID (e.g., "idxref-0") */
     apex_index_syntax_t syntax_type;  /* MMARK or TEXTINDEX */
     struct apex_index_entry *next;  /* Linked list */
 } apex_index_entry;

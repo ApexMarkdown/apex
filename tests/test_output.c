@@ -529,6 +529,7 @@ void test_indices(void) {
     opts.enable_indices = true;
     opts.enable_mmark_index_syntax = true;
     opts.enable_textindex_syntax = true;
+    opts.enable_leanpub_index_syntax = true;
     opts.group_index_by_letter = true;
 
     char *html;
@@ -537,7 +538,7 @@ void test_indices(void) {
     const char *mmark_basic = "This is about protocols (!Protocol).";
     html = apex_markdown_to_html(mmark_basic, strlen(mmark_basic), &opts);
     assert_contains(html, "class=\"index\"", "mmark index generates index marker");
-    assert_contains(html, "idxref:", "mmark index generates anchor ID");
+    assert_contains(html, "idxref-", "mmark index generates anchor ID");
     assert_contains(html, "Protocol", "mmark index preserves term");
     apex_free_string(html);
 
@@ -566,13 +567,30 @@ void test_indices(void) {
     const char *textindex_basic = "This is about firmware{^}.";
     html = apex_markdown_to_html(textindex_basic, strlen(textindex_basic), &opts);
     assert_contains(html, "class=\"index\"", "TextIndex generates index marker");
-    assert_contains(html, "idxref:", "TextIndex generates anchor ID");
+    assert_contains(html, "idxref-", "TextIndex generates anchor ID");
     apex_free_string(html);
 
     /* Test TextIndex with explicit term */
     const char *textindex_explicit = "This uses [key combinations]{^}.";
     html = apex_markdown_to_html(textindex_explicit, strlen(textindex_explicit), &opts);
     assert_contains(html, "class=\"index\"", "TextIndex explicit term generates marker");
+    apex_free_string(html);
+
+    /* Test Leanpub index syntax */
+    const char *leanpub_basic = "Call me Ishmael{i: Ishmael}.";
+    html = apex_markdown_to_html(leanpub_basic, strlen(leanpub_basic), &opts);
+    assert_contains(html, "class=\"index\"", "Leanpub index generates index marker");
+    assert_contains(html, "Ishmael", "Leanpub index preserves term");
+    apex_free_string(html);
+
+    /* Test Leanpub hierarchical index */
+    apex_options opts_gfm = apex_options_for_mode(APEX_MODE_GFM);
+    opts_gfm.enable_indices = true;
+    opts_gfm.enable_leanpub_index_syntax = true;
+    const char *leanpub_hier = "Niagara{i: \"Niagara!cataract\"} of sand.";
+    html = apex_markdown_to_html(leanpub_hier, strlen(leanpub_hier), &opts_gfm);
+    assert_contains(html, "Niagara", "Leanpub hierarchical includes main term");
+    assert_contains(html, "cataract", "Leanpub hierarchical includes subitem");
     apex_free_string(html);
 
     /* Test index generation at end of document */
@@ -632,7 +650,7 @@ void test_indices(void) {
     const char *disabled_test = "This is about protocols (!Protocol).";
     html = apex_markdown_to_html(disabled_test, strlen(disabled_test), &opts_disabled);
     assert_not_contains(html, "class=\"index\"", "Index markers not generated when disabled");
-    assert_not_contains(html, "idxref:", "Index anchors not generated when disabled");
+    assert_not_contains(html, "idxref-", "Index anchors not generated when disabled");
     apex_free_string(html);
 
     /* Test mmark syntax only mode */
@@ -699,7 +717,7 @@ void test_indices(void) {
     const char *link_test = "This is about protocols (!Protocol).";
     html = apex_markdown_to_html(link_test, strlen(link_test), &opts);
     assert_contains(html, "index-return", "Index entries have return links");
-    assert_contains(html, "href=\"#idxref:", "Index entries link to anchors");
+    assert_contains(html, "href=\"#idxref-", "Index entries link to anchors");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);

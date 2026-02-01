@@ -2530,6 +2530,7 @@ apex_options apex_options_default(void) {
     opts.enable_indices = false;
     opts.enable_mmark_index_syntax = false;
     opts.enable_textindex_syntax = false;
+    opts.enable_leanpub_index_syntax = false;
     opts.suppress_index = false;
     opts.group_index_by_letter = true;
 
@@ -2686,6 +2687,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_indices = false;  /* Indices disabled by default - use --indices to enable */
             opts.enable_mmark_index_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_textindex_syntax = false;  /* Disabled by default - use --indices to enable */
+            opts.enable_leanpub_index_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_emoji_autocorrect = false;  /* MMD: no emoji autocorrect by default */
             opts.enable_image_captions = true; /* MultiMarkdown: image captions enabled by default */
             break;
@@ -2742,6 +2744,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_indices = true;  /* Unified: indices enabled */
             opts.enable_mmark_index_syntax = true;  /* Unified: mmark index syntax */
             opts.enable_textindex_syntax = true;  /* Unified: TextIndex syntax enabled */
+            opts.enable_leanpub_index_syntax = true;  /* Unified: Leanpub index syntax enabled */
             opts.enable_divs = true;  /* Unified: Pandoc fenced divs enabled */
             opts.enable_spans = true;  /* Unified: bracketed spans enabled */
             opts.enable_emoji_autocorrect = true;  /* Unified: emoji autocorrect enabled */

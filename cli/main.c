@@ -486,7 +486,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown\n");
     fprintf(stderr, "                          (modes auto-set format; use this to override in unified mode)\n");
     fprintf(stderr, "  --[no-]includes        Enable file inclusion (enabled by default in unified mode)\n");
-    fprintf(stderr, "  --indices               Enable index processing (mmark and TextIndex syntax)\n");
+    fprintf(stderr, "  --indices               Enable index processing (mmark, TextIndex, and Leanpub syntax)\n");
     fprintf(stderr, "  --install-plugin ID    Install plugin by id from directory, or by Git URL/GitHub shorthand (user/repo)\n");
     fprintf(stderr, "  --link-citations       Link citations to bibliography entries\n");
     fprintf(stderr, "  --list-plugins         List installed plugins and available plugins from the remote directory\n");
@@ -1765,6 +1765,7 @@ int main(int argc, char *argv[]) {
             options.enable_indices = true;
             options.enable_mmark_index_syntax = true;
             options.enable_textindex_syntax = true;
+            options.enable_leanpub_index_syntax = true;
         } else if (strcmp(argv[i], "--no-indices") == 0) {
             options.enable_indices = false;
         } else if (strcmp(argv[i], "--no-index") == 0) {

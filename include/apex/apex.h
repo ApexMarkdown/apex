@@ -125,6 +125,7 @@ typedef struct {
     bool enable_indices;  /* Enable index processing */
     bool enable_mmark_index_syntax;  /* Enable mmark (!item) syntax */
     bool enable_textindex_syntax;  /* Enable TextIndex {^} syntax */
+    bool enable_leanpub_index_syntax;  /* Enable Leanpub {i: "term"} syntax */
     bool suppress_index;  /* Suppress index output */
     bool group_index_by_letter;  /* Group index entries by first letter */
 
