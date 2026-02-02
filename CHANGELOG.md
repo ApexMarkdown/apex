@@ -2,6 +2,23 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.72] - 2026-02-02
+
+### Changed
+
+- --indices now enables mmark, TextIndex, and Leanpub syntax; Leanpub is on by default in unified mode.
+- Index anchor IDs use idxref-N format (was idxref:N) to avoid emoji processing corrupting placeholders.
+
+### New
+
+- Add Leanpub index syntax: {i: term}, {i: "term"}, and {i: "Main!sub"} for hierarchical entries under headings.
+- {index} marker: write {index} in the document to place the generated index at that position (replaced with <!--INDEX--> internally).
+
+### Fixed
+
+- TextIndex [term]{^} no longer includes the closing bracket in the index entry (e.g. "fresh" instead of "fresh]").
+- Leanpub {i: term} is no longer consumed by MMD metadata or parsed as IAL; content is preserved in output.
+
 ## [0.1.71] - 2026-01-30
 
 ### Changed
@@ -2326,6 +2343,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.72]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.72
 [0.1.71]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.71
 [0.1.70]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.70
 [0.1.69]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.69

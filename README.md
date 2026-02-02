@@ -1,5 +1,5 @@
 
-[![Version: 0.1.69](https://img.shields.io/badge/Version-0.1.69-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1288/1288](https://img.shields.io/badge/Tests-1288/1288-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.71](https://img.shields.io/badge/Version-0.1.71-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1292/1292](https://img.shields.io/badge/Tests-1292/1292-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.69
+Apex Markdown Processor v0.1.71
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -332,7 +332,7 @@ Options:
   --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown
                           (modes auto-set format; use this to override in unified mode)
   --[no-]includes        Enable file inclusion (enabled by default in unified mode)
-  --indices               Enable index processing (mmark and TextIndex syntax)
+  --indices               Enable index processing (mmark, TextIndex, and Leanpub syntax)
   --install-plugin ID    Install plugin by id from directory, or by Git URL/GitHub shorthand (user/repo)
   --link-citations       Link citations to bibliography entries
   --list-plugins         List installed plugins and available plugins from the remote directory
