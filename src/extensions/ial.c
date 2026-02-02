@@ -226,6 +226,9 @@ static bool is_ald_line(const char *line, char **ref_name, apex_attributes **att
     /* Skip leading whitespace */
     while (isspace((unsigned char)*p)) p++;
 
+    /* Leanpub index syntax {i: term} is not an ALD */
+    if (p[0] == '{' && p[1] == 'i' && p[2] == ':') return false;
+
     /* Check for {: */
     if (p[0] != '{' || p[1] != ':') return false;
     p += 2;
@@ -423,6 +426,8 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
 
     /* Check if it's a valid IAL format: {: or {# or {. */
     char second_char = ial_start[1];
+    /* Leanpub index syntax {i: term} is not IAL */
+    if (second_char == 'i' && ial_start[2] == ':') return false;
     if (second_char != ':' && second_char != '#' && second_char != '.') return false;
 
     /* Find closing } */
@@ -1460,6 +1465,8 @@ static bool is_ial_line(const char *line, size_t len) {
 
     /* Must start with {: or {# or {. */
     if (p + 2 > end || p[0] != '{') return false;
+    /* Leanpub index syntax {i: term} is not IAL */
+    if (p[1] == 'i' && p[2] == ':') return false;
     char second_char = p[1];
     if (second_char != ':' && second_char != '#' && second_char != '.') return false;
 

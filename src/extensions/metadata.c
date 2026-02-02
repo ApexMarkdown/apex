@@ -484,6 +484,16 @@ static apex_metadata_item *parse_mmd_metadata(const char *text, size_t *consumed
             continue;
         }
 
+        /* Skip Leanpub index syntax ({i: term}) - colon would be parsed as metadata key:value */
+        if (strstr(trimmed, "{i:") != NULL) {
+            if (found_metadata) {
+                *consumed = line_start - text;
+                return items;
+            }
+            *consumed = 0;
+            return NULL;
+        }
+
         /* Skip TOC markers ({{TOC...}}) */
         if (strncmp(trimmed, "{{TOC", 5) == 0) {
             /* This is a TOC marker, not metadata */

@@ -188,7 +188,8 @@ static int parse_textindex(const char *text, int pos, int len,
         }
 
         if (*bracket_start == '[') {
-            size_t term_len = (brace_start - 1) - bracket_start;
+            /* Term is content between [ and ], excluding the brackets */
+            size_t term_len = (brace_start - 1) - (bracket_start + 1);
             if (term_len > 0 && term_len < 200) {
                 term = malloc(term_len + 1);
                 if (term) {

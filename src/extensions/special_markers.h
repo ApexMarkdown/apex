@@ -5,6 +5,7 @@
  * <!--BREAK-->        - Page break for print/PDF
  * <!--PAUSE:X-->      - Autoscroll pause for X seconds
  * {::pagebreak /}     - Leanpub page break
+ * {index}             - Leanpub index placement (replaced with <!--INDEX-->)
  */
 
 #ifndef APEX_SPECIAL_MARKERS_H

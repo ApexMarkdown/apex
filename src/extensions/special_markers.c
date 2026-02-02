@@ -153,6 +153,32 @@ char *apex_process_special_markers(const char *text) {
             continue;
         }
 
+        /* Check for {index} (Leanpub index placement marker).
+         * Replaced with <!--INDEX--> so the index extension inserts the index there.
+         * The marker is always removed from the document (either replaced by the
+         * index block or left as an invisible HTML comment when index is suppressed). */
+        if (strncmp(read, "{index}", 8) == 0) {
+            const char *replacement = "<!--INDEX-->";
+            size_t repl_len = strlen(replacement);
+            if (repl_len >= remaining) {
+                size_t written = (size_t)(write - output);
+                capacity = (written + repl_len + 100) * 2;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(output);
+                    return strdup(text);
+                }
+                output = new_output;
+                write = output + written;
+                remaining = capacity - written;
+            }
+            memcpy(write, replacement, repl_len);
+            write += repl_len;
+            remaining -= repl_len;
+            read += 8;
+            continue;
+        }
+
         /* Not a special marker, copy character */
         if (remaining > 0) {
             *write++ = *read++;
