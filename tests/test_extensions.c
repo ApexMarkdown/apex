@@ -255,6 +255,58 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* Reference-style image with attributes between two @2x images:
+     * - First image: inline with @2x, should get srcset
+     * - Middle image: reference-style with width/height/style, no @2x, should get attributes but no srcset
+     * - Last image: inline with @2x, should get srcset
+     * This guards against @2x or index bookkeeping causing the middle image to lose its attributes.
+     */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *three_img_md =
+            "![First](img/first.png @2x)\n\n"
+            "![Badge][badge]\n\n"
+            "[badge]: img/badge.png width=250 height=83 style=\"margin: 0 auto;\"\n\n"
+            "![Last](img/last.png @2x)\n";
+
+        char *html = apex_markdown_to_html(three_img_md, strlen(three_img_md), &opts);
+
+        /* First image: has srcset with @2x */
+        assert_contains(html,
+                        "src=\"img/first.png\"",
+                        "@2x three-image: first src present");
+        assert_contains(html,
+                        "srcset=\"img/first.png 1x, img/first@2x.png 2x\"",
+                        "@2x three-image: first srcset present");
+
+        /* Middle (badge) image: has width/height/style, but no srcset */
+        assert_contains(html,
+                        "src=\"img/badge.png\"",
+                        "@2x three-image: middle src present");
+        assert_contains(html,
+                        "width=\"250\"",
+                        "@2x three-image: middle width attribute");
+        assert_contains(html,
+                        "height=\"83\"",
+                        "@2x three-image: middle height attribute");
+        assert_contains(html,
+                        "style=\"margin: 0 auto;\"",
+                        "@2x three-image: middle style attribute");
+        assert_not_contains(html,
+                            "img/badge@2x.png",
+                            "@2x three-image: middle has no @2x srcset");
+
+        /* Last image: has srcset with @2x */
+        assert_contains(html,
+                        "src=\"img/last.png\"",
+                        "@2x three-image: last src present");
+        assert_contains(html,
+                        "srcset=\"img/last.png 1x, img/last@2x.png 2x\"",
+                        "@2x three-image: last srcset present");
+
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
 }

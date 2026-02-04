@@ -1780,31 +1780,73 @@ static apex_attributes *parse_image_attributes(const char *attr_str, int len) {
 }
 
 /**
- * Build the @2x version of a URL (insert @2x before the last dot and extension).
- * e.g. "img/icon.png" -> "img/icon@2x.png"
- * Caller must free the returned string.
+ * Build the @2x version of a URL.
+ *
+ * Rules:
+ * - Never modify the domain portion of a URL (everything up to the first '/' after the scheme).
+ * - Only insert "@2x" before a file-style extension in the path, e.g.:
+ *     "img/icon.png" -> "img/icon@2x.png"
+ *     "https://host/img/icon.png?x=1" -> "https://host/img/icon@2x.png?x=1"
+ * - If there is no '.' in the path segment (before query/fragment), we skip srcset and
+ *   return NULL rather than trying to synthesize a bogus "@2x" URL.
+ *
+ * Caller must free the returned string when non-NULL.
  */
 static char *url_with_2x_suffix(const char *url) {
     if (!url || !*url) return NULL;
 
-    const char *last_dot = strrchr(url, '.');
-    if (!last_dot) {
-        /* No extension - append @2x */
-        char *out = malloc(strlen(url) + 4 + 1);
-        if (!out) return NULL;
-        strcpy(out, url);
-        strcat(out, "@2x");
-        return out;
+    /* Skip scheme (e.g. "http://", "https://") so we don't treat dots in the scheme. */
+    const char *p = strstr(url, "://");
+    if (p) {
+        p += 3;  /* move past "://" */
+    } else {
+        p = url;
     }
 
-    size_t base_len = (size_t)(last_dot - url);
-    size_t ext_len = strlen(last_dot);
-    char *out = malloc(base_len + 4 + ext_len + 1);
+    /* Find first '/' after scheme to separate domain from path. */
+    const char *first_slash = strchr(p, '/');
+
+    /* Path search should start at first_slash (if any), otherwise at url. */
+    const char *path_start = first_slash ? first_slash : url;
+
+    /* Identify end of path segment before query ('?') or fragment ('#'). */
+    const char *qmark = strchr(path_start, '?');
+    const char *hash  = strchr(path_start, '#');
+    const char *path_end = NULL;
+    if (qmark && hash) {
+        path_end = (qmark < hash) ? qmark : hash;
+    } else if (qmark) {
+        path_end = qmark;
+    } else if (hash) {
+        path_end = hash;
+    } else {
+        path_end = url + strlen(url);
+    }
+
+    /* Search for last '.' in the path portion only (do not look in the domain). */
+    const char *scan_start = path_start;
+    const char *scan_end   = path_end;
+    const char *last_dot   = NULL;
+    for (const char *c = scan_start; c < scan_end; c++) {
+        if (*c == '.') {
+            last_dot = c;
+        }
+    }
+
+    /* If there is no '.' in the path (i.e. no obvious extension), skip @2x. */
+    if (!last_dot) {
+        return NULL;
+    }
+
+    /* Build: prefix (up to dot) + "@2x" + suffix (from dot to end of URL). */
+    size_t prefix_len = (size_t)(last_dot - url);
+    size_t suffix_len = strlen(last_dot);
+    char *out = malloc(prefix_len + 3 + suffix_len + 1); /* 3 for "@2x" */
     if (!out) return NULL;
-    memcpy(out, url, base_len);
-    memcpy(out + base_len, "@2x", 3);
-    out[base_len + 3] = '\0';
-    strcat(out, last_dot);
+
+    memcpy(out, url, prefix_len);
+    memcpy(out + prefix_len, "@2x", 3);
+    memcpy(out + prefix_len + 3, last_dot, suffix_len + 1); /* include NUL */
     return out;
 }
 
@@ -2132,9 +2174,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             mode == APEX_MODE_MULTIMARKDOWN ||
                             mode == APEX_MODE_KRAMDOWN);
 
-    /* Check if we should process image attributes */
+    /* Check if we should process image attributes.
+     * Enabled for Unified, MultiMarkdown, and GFM modes so that width/height/style
+     * and @2x markers on images and reference definitions are honored consistently.
+     */
     bool do_image_attrs = (mode == APEX_MODE_UNIFIED ||
-                           mode == APEX_MODE_MULTIMARKDOWN);
+                           mode == APEX_MODE_MULTIMARKDOWN ||
+                           mode == APEX_MODE_GFM);
 
     if (!do_url_encoding && !do_image_attrs) {
         /* Nothing to do */
@@ -3198,6 +3244,19 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
 
     *write = '\0';
 
+    if (getenv("APEX_DEBUG_PIPELINE") && local_img_attrs) {
+        fprintf(stderr, "[APEX_DEBUG] image_attr_entries:\n");
+        for (image_attr_entry *e = local_img_attrs; e; e = e->next) {
+            bool has_2x = attrs_have_srcset_2x(e->attrs);
+            fprintf(stderr,
+                    "  - url=\"%s\" index=%d ref=\"%s\" has_2x=%s\n",
+                    e->url ? e->url : "(null)",
+                    e->index,
+                    e->ref_name ? e->ref_name : "",
+                    has_2x ? "yes" : "no");
+        }
+    }
+
     /* Second pass: expand reference-style images that have attributes */
     /* We need to expand ![ref][img1] to ![ref](url attributes) for definitions with attributes */
     /* Run when we have ref_name entries (from do_image_attrs or known-attribute split on ref defs) */
@@ -3226,11 +3285,15 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         const char *ref_start = alt_end + 2; /* After ][ */
                         const char *ref_end = strchr(ref_start, ']');
                         if (ref_end) {
-                            /* Extract reference name */
-                            size_t ref_name_len = ref_end - ref_start;
+                            /* Extract reference name (strip surrounding [ ]) */
+                            const char *name_start = (*ref_start == '[') ? ref_start + 1 : ref_start;
+                            if (name_start > ref_end) {
+                                name_start = ref_start;
+                            }
+                            size_t ref_name_len = (size_t)(ref_end - name_start);
                             char *ref_name = malloc(ref_name_len + 1);
                             if (ref_name) {
-                                memcpy(ref_name, ref_start, ref_name_len);
+                                memcpy(ref_name, name_start, ref_name_len);
                                 ref_name[ref_name_len] = '\0';
                                 /* Trim whitespace from reference name */
                                 char *p = ref_name;
@@ -3513,50 +3576,44 @@ void apex_apply_image_attributes(cmark_node *document, image_attr_entry *img_att
 
     cmark_iter *iter = cmark_iter_new(document);
     cmark_event_type event;
-    int image_index = 0;  /* Track position of images in document */
-    bool *used_by_index = NULL;
-    int attr_count = 0;
 
-    /* Count attributes and allocate used array */
-    for (image_attr_entry *e = img_attrs; e; e = e->next) attr_count++;
-    if (attr_count > 0) {
-        used_by_index = calloc(attr_count, sizeof(bool));
-    }
-
+    /* For each image node, we:
+     * 1. Prefer a matching inline entry (index >= 0), using each at most once.
+     * 2. If none, fall back to a reference-style entry (index == -1) matching by URL.
+     *
+     * This avoids relying on a separate image_index counter that can drift when
+     * images are expanded/rewrapped, and cleanly distinguishes inline vs ref
+     * attributes without letting one overwrite the other.
+     */
     while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
         cmark_node *node = cmark_iter_get_node(iter);
         if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_IMAGE) {
             const char *url = cmark_node_get_url(node);
             image_attr_entry *matching = NULL;
 
-            /* First try to match by index (for inline images, index >= 0) */
-            int idx = 0;
-            for (image_attr_entry *e = img_attrs; e; e = e->next, idx++) {
-                if (e->index >= 0 && e->index == image_index && !used_by_index[idx]) {
+            /* First, try to find an unused inline entry for this URL (index >= 0). */
+            for (image_attr_entry *e = img_attrs; e; e = e->next) {
+                if (e->index >= 0 && e->url && url && strcmp(e->url, url) == 0 && e->attrs) {
                     matching = e;
-                    used_by_index[idx] = true;
+                    /* Consume this inline entry so it is only applied once. */
+                    e->index = -2; /* mark as used inline */
                     break;
                 }
             }
 
-            /* If no match by index, try by URL (for reference-style images, index == -1) */
+            /* If no inline entry found, try reference-style entries (index == -1) by URL. */
             if (!matching && url) {
-                idx = 0;
-                for (image_attr_entry *e = img_attrs; e; e = e->next, idx++) {
-                    if (e->index == -1 && !used_by_index[idx] && e->url && strcmp(e->url, url) == 0) {
-                        /* Reference-style: don't mark as used, so it can match multiple images */
+                for (image_attr_entry *e = img_attrs; e; e = e->next) {
+                    if (e->index == -1 && e->url && strcmp(e->url, url) == 0 && e->attrs) {
                         matching = e;
-                        /* Don't set used_by_index for reference-style - they can be reused */
                         break;
                     }
                 }
             }
 
             if (matching && matching->attrs) {
-                /* Apply attributes to this image (use URL for @2x srcset when present) */
                 char *attr_str = attributes_to_html_for_image(url, matching->attrs);
                 if (attr_str) {
-                    /* Merge with existing user_data if present */
                     char *existing = (char *)cmark_node_get_user_data(node);
                     if (existing) {
                         char *combined = malloc(strlen(existing) + strlen(attr_str) + 2);
@@ -3574,12 +3631,9 @@ void apex_apply_image_attributes(cmark_node *document, image_attr_entry *img_att
                     }
                 }
             }
-
-            image_index++;  /* Move to next image */
         }
     }
 
-    free(used_by_index);
     cmark_iter_free(iter);
 }
 
