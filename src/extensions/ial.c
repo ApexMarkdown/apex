@@ -202,10 +202,15 @@ apex_attributes *parse_ial_content(const char *content, int len) {
             continue;
         }
 
-        /* Check for bare @2x (retina srcset marker) */
+        /* Check for bare @2x/@3x (retina srcset markers) */
         if (p > key_start && (size_t)(p - key_start) == 3 &&
             key_start[0] == '@' && key_start[1] == '2' && key_start[2] == 'x') {
             add_attribute(attrs, "data-srcset-2x", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == '@' && key_start[1] == '3' && key_start[2] == 'x') {
+            add_attribute(attrs, "data-srcset-3x", "1");
             continue;
         }
 
@@ -694,7 +699,7 @@ char *attributes_to_html(apex_attributes *attrs) {
         APPEND(style_str);
     }
 
-    /* Add other attributes (excluding width/height/style which we already processed) */
+    /* Add other attributes (excluding width/height/style and internal srcset markers) */
     for (int i = 0; i < attrs->attr_count; i++) {
         const char *key = attrs->keys[i];
         const char *val = attrs->values[i];
@@ -703,8 +708,9 @@ char *attributes_to_html(apex_attributes *attrs) {
         if (strcmp(key, "width") == 0 || strcmp(key, "height") == 0 || strcmp(key, "style") == 0) {
             continue;
         }
-        /* Skip internal @2x marker - used by attributes_to_html_for_image to emit srcset */
-        if (strcmp(key, "data-srcset-2x") == 0) {
+        /* Skip internal @2x/@3x markers - used by attributes_to_html_for_image to emit srcset */
+        if (strcmp(key, "data-srcset-2x") == 0 ||
+            strcmp(key, "data-srcset-3x") == 0) {
             continue;
         }
 
@@ -1765,10 +1771,15 @@ static apex_attributes *parse_image_attributes(const char *attr_str, int len) {
             continue;
         }
 
-        /* Check for bare @2x (retina srcset marker) */
+        /* Check for bare @2x/@3x (retina srcset markers) */
         if (p > key_start && (size_t)(p - key_start) == 3 &&
             key_start[0] == '@' && key_start[1] == '2' && key_start[2] == 'x') {
             add_attribute(attrs, "data-srcset-2x", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == '@' && key_start[1] == '3' && key_start[2] == 'x') {
+            add_attribute(attrs, "data-srcset-3x", "1");
             continue;
         }
 
@@ -1851,46 +1862,134 @@ static char *url_with_2x_suffix(const char *url) {
 }
 
 /**
- * Check if attributes contain the @2x srcset marker
+ * Check if attributes contain the @2x/@3x srcset markers
  */
 static bool attrs_have_srcset_2x(apex_attributes *attrs) {
     if (!attrs) return false;
     return find_attribute_index(attrs, "data-srcset-2x") >= 0;
 }
 
+static bool attrs_have_srcset_3x(apex_attributes *attrs) {
+    if (!attrs) return false;
+    return find_attribute_index(attrs, "data-srcset-3x") >= 0;
+}
+
 /**
- * Convert image attributes to HTML string, including srcset when @2x is present.
- * When data-srcset-2x is in attrs, emits srcset="url 1x, url@2x 2x" and omits data-srcset-2x from output.
+ * Build the @3x version of a URL.
+ * Uses the same domain-safe rules as url_with_2x_suffix.
+ */
+static char *url_with_3x_suffix(const char *url) {
+    if (!url || !*url) return NULL;
+
+    /* Skip scheme (e.g. "http://", "https://") so we don't treat dots in the scheme. */
+    const char *p = strstr(url, "://");
+    if (p) {
+        p += 3;  /* move past "://" */
+    } else {
+        p = url;
+    }
+
+    /* Find first '/' after scheme to separate domain from path. */
+    const char *first_slash = strchr(p, '/');
+
+    /* Path search should start at first_slash (if any), otherwise at url. */
+    const char *path_start = first_slash ? first_slash : url;
+
+    /* Identify end of path segment before query ('?') or fragment ('#'). */
+    const char *qmark = strchr(path_start, '?');
+    const char *hash  = strchr(path_start, '#');
+    const char *path_end = NULL;
+    if (qmark && hash) {
+        path_end = (qmark < hash) ? qmark : hash;
+    } else if (qmark) {
+        path_end = qmark;
+    } else if (hash) {
+        path_end = hash;
+    } else {
+        path_end = url + strlen(url);
+    }
+
+    /* Search for last '.' in the path portion only (do not look in the domain). */
+    const char *scan_start = path_start;
+    const char *scan_end   = path_end;
+    const char *last_dot   = NULL;
+    for (const char *c = scan_start; c < scan_end; c++) {
+        if (*c == '.') {
+            last_dot = c;
+        }
+    }
+
+    if (!last_dot) {
+        return NULL;
+    }
+
+    size_t prefix_len = (size_t)(last_dot - url);
+    size_t suffix_len = strlen(last_dot);
+    char *out = malloc(prefix_len + 3 + suffix_len + 1); /* 3 for "@3x" */
+    if (!out) return NULL;
+
+    memcpy(out, url, prefix_len);
+    memcpy(out + prefix_len, "@3x", 3);
+    memcpy(out + prefix_len + 3, last_dot, suffix_len + 1); /* include NUL */
+    return out;
+}
+
+/**
+ * Convert image attributes to HTML string, including srcset when @2x/@3x is present.
+ * When data-srcset-2x/data-srcset-3x are in attrs, emits srcset="url 1x, url@2x 2x[, url@3x 3x]"
+ * and omits the internal markers from the output attributes.
  * Caller must free the returned string.
  */
 static char *attributes_to_html_for_image(const char *url, apex_attributes *attrs) {
     if (!attrs) return strdup("");
 
-    bool want_srcset = attrs_have_srcset_2x(attrs);
-    char *url_2x = want_srcset && url ? url_with_2x_suffix(url) : NULL;
+    bool have_2x = attrs_have_srcset_2x(attrs);
+    bool have_3x = attrs_have_srcset_3x(attrs);
+
+    /* @3x implies we should also emit a 2x entry, even if @2x was not explicitly set. */
+    bool want_2x = have_2x || have_3x;
+    bool want_3x = have_3x;
+
+    char *url_2x = (want_2x && url) ? url_with_2x_suffix(url) : NULL;
+    char *url_3x = (want_3x && url) ? url_with_3x_suffix(url) : NULL;
 
     char *base_attrs = attributes_to_html(attrs);
     if (!base_attrs) {
         free(url_2x);
+        free(url_3x);
         return strdup("");
     }
 
-    /* If no srcset needed, return base_attrs (attributes_to_html already omits data-srcset-2x) */
-    if (!want_srcset || !url_2x) {
+    /* If no valid srcset needed, return base_attrs (attributes_to_html already omits data-srcset-*). */
+    if (!want_2x || !url_2x) {
         free(url_2x);
+        free(url_3x);
         return base_attrs;
     }
 
-    /* Build " srcset=\"url 1x, url_2x 2x\"" and prepend to base_attrs */
-    size_t srcset_len = 10 + strlen(url) + 6 + strlen(url_2x) + 6; /* srcset="..." 1x, "..." 2x" */
-    char *srcset_attr = malloc(srcset_len + 1);
+    /* Build srcset string. */
+    size_t len = strlen(url) + strlen(url_2x) + 32;
+    if (want_3x && url_3x) {
+        len += strlen(url_3x) + 16;
+    }
+    char *srcset_attr = malloc(len);
     if (!srcset_attr) {
         free(base_attrs);
         free(url_2x);
+        free(url_3x);
         return base_attrs;
     }
-    snprintf(srcset_attr, srcset_len + 1, " srcset=\"%s 1x, %s 2x\"", url, url_2x);
+
+    if (want_3x && url_3x) {
+        /* url 1x, url@2x 2x, url@3x 3x */
+        snprintf(srcset_attr, len, " srcset=\"%s 1x, %s 2x, %s 3x\"", url, url_2x, url_3x);
+    } else {
+        /* url 1x, url@2x 2x */
+        snprintf(srcset_attr, len, " srcset=\"%s 1x, %s 2x\"", url, url_2x);
+    }
+
     free(url_2x);
+    free(url_3x);
 
     /* Prepend srcset to base_attrs */
     size_t base_len = strlen(base_attrs);
@@ -2120,7 +2219,7 @@ static bool has_protocol(const char *url) {
  * Known attribute names (for splitting URL from attributes; avoids splitting on query params).
  */
 /**
- * Check if attributes look like image-specific (width, height, style, class, id, rel, data-srcset-2x).
+ * Check if attributes look like image-specific (width, height, style, class, id, rel, data-srcset-2x, data-srcset-3x).
  * Used to decide whether a reference definition with attributes should be treated as image ref.
  */
 static bool attrs_are_image_specific(apex_attributes *attrs) {
@@ -2131,7 +2230,8 @@ static bool attrs_are_image_specific(apex_attributes *attrs) {
         if (strcmp(key, "width") == 0 || strcmp(key, "height") == 0 ||
             strcmp(key, "style") == 0 || strcmp(key, "class") == 0 ||
             strcmp(key, "id") == 0 || strcmp(key, "rel") == 0 ||
-            strcmp(key, "data-srcset-2x") == 0) {
+            strcmp(key, "data-srcset-2x") == 0 ||
+            strcmp(key, "data-srcset-3x") == 0) {
             return true;
         }
     }
@@ -2261,14 +2361,16 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         while (after_space < paren_end && (*after_space == ' ' || *after_space == '\t')) after_space++;
 
                         if (after_space < paren_end) {
-                            /* Space + key= or bare @2x: always split so we don't encode into URL */
+                            /* Space + key= or bare @2x/@3x: always split so we don't encode into URL */
                             if (looks_like_attr_key_equals(after_space, paren_end)) {
                                 attr_start = after_space;
                                 url_end = p;
                                 break;
                             }
                             if ((size_t)(paren_end - after_space) >= 3 &&
-                                after_space[0] == '@' && after_space[1] == '2' && after_space[2] == 'x' &&
+                                after_space[0] == '@' &&
+                                ((after_space[1] == '2' && after_space[2] == 'x') ||
+                                 (after_space[1] == '3' && after_space[2] == 'x')) &&
                                 (after_space + 3 >= paren_end || isspace((unsigned char)after_space[3]))) {
                                 attr_start = after_space;
                                 url_end = p;
@@ -2591,15 +2693,17 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         while (after_space < line_end && (*after_space == ' ' || *after_space == '\t')) after_space++;
 
                         if (after_space < line_end) {
-                            /* Space + key= or bare @2x: split so attributes are applied (regardless of do_image_attrs) */
+                            /* Space + key= or bare @2x/@3x: split so attributes are applied (regardless of do_image_attrs) */
                             if (looks_like_attr_key_equals(after_space, line_end)) {
                                 attr_start = after_space;
                                 url_end = p;
                                 break;
                             }
-                            /* Bare @2x (retina srcset) - not \w+= but we treat as attribute */
+                            /* Bare @2x/@3x (retina srcset) - not \w+= but we treat as attribute */
                             if ((size_t)(line_end - after_space) >= 3 &&
-                                after_space[0] == '@' && after_space[1] == '2' && after_space[2] == 'x' &&
+                                after_space[0] == '@' &&
+                                ((after_space[1] == '2' && after_space[2] == 'x') ||
+                                 (after_space[1] == '3' && after_space[2] == 'x')) &&
                                 (after_space + 3 >= line_end || isspace((unsigned char)after_space[3]))) {
                                 attr_start = after_space;
                                 url_end = p;
