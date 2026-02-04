@@ -307,6 +307,26 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* @3x marker: behaves like @2x but emits both 2x and 3x entries in srcset */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *at3x_inline = "![BlogBook](img/icon_512x512.png @3x)";
+        char *html = apex_markdown_to_html(at3x_inline, strlen(at3x_inline), &opts);
+        assert_contains(html, "src=\"img/icon_512x512.png\"", "@3x inline: src present");
+        assert_contains(html,
+                        "srcset=\"img/icon_512x512.png 1x, img/icon_512x512@2x.png 2x, img/icon_512x512@3x.png 3x\"",
+                        "@3x inline: srcset 1x, 2x, 3x");
+        apex_free_string(html);
+
+        /* Reference-style: [ref]: url @3x */
+        const char *at3x_ref = "![Logo][logo3]\n\n[logo3]: img/hero3.png @3x";
+        html = apex_markdown_to_html(at3x_ref, strlen(at3x_ref), &opts);
+        assert_contains(html,
+                        "srcset=\"img/hero3.png 1x, img/hero3@2x.png 2x, img/hero3@3x.png 3x\"",
+                        "@3x reference: srcset 1x, 2x, 3x");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
 }
