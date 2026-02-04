@@ -2,6 +2,19 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.73] - 2026-02-04
+
+### New
+
+- Multi-image test coverage ensures that a reference-style image with attributes between two @2x images keeps its attributes without gaining an unwanted 2x srcset, and that the surrounding images still emit correct srcset values
+- @3x image attribute adds support for 3x retina assets and automatically emits srcset entries for 1x, 2x, and 3x variants of the same path for both inline and reference-style images
+
+### Fixed
+
+- @2x image attribute no longer mangles domains or query-string-only URLs; srcset 2x URLs are only generated when the path has a real file extension and the domain portion is never altered
+- Reference-style image attributes (width, height, style, classes, id) are correctly applied in Unified, MultiMarkdown, and GFM modes, even when mixed with inline images and fenced div/figure blocks
+- Reference-style image attributes no longer leak across images; inline images with @2x keep their own srcset and reference-style images only gain 2x srcset when explicitly marked
+
 ## [0.1.72] - 2026-02-02
 
 ### Changed
@@ -2343,6 +2356,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.73]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.73
 [0.1.72]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.72
 [0.1.71]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.71
 [0.1.70]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.70
