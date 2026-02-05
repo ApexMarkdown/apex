@@ -60,8 +60,8 @@ static char *process_inline_abbreviations(const char *text, abbr_item **abbrs_li
 
                 if (exp_end) {
                     /* Extract abbreviation and expansion */
-                    int abbr_len = abbr_end - abbr_start;
-                    int exp_len = exp_end - exp_start;
+                    size_t abbr_len = (size_t)(abbr_end - abbr_start);
+                    size_t exp_len = (size_t)(exp_end - exp_start);
 
                     if (abbr_len > 0 && abbr_len < 256 && exp_len > 0 && exp_len < 1024) {
                         char abbr_text[256], exp_text[1024];
@@ -243,8 +243,8 @@ char *apex_replace_abbreviations(const char *html, abbr_item *abbrs) {
                     const char *abbr_end = strchr(start + 1, ')');
                     if (abbr_end && abbr_end < end) {
                         /* Extract abbreviation and expansion */
-                        int abbr_len = abbr_end - (start + 1);
-                        int exp_len = end - (abbr_end + 1);
+                        size_t abbr_len = (size_t)(abbr_end - (start + 1));
+                        size_t exp_len = (size_t)(end - (abbr_end + 1));
 
                         if (abbr_len > 0 && exp_len > 0) {
                             char abbr_text[256];
@@ -279,7 +279,7 @@ char *apex_replace_abbreviations(const char *html, abbr_item *abbrs) {
                     }
                 } else {
                     /* Reference abbreviation: [&gt;MMD] */
-                    int ref_len = end - start;
+                    size_t ref_len = (size_t)(end - start);
                     if (ref_len > 0 && ref_len < 256) {
                         char ref[256];
                         memcpy(ref, start, ref_len);
