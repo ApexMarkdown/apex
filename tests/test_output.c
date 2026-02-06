@@ -5,8 +5,10 @@
 #include "test_helpers.h"
 #include "apex/apex.h"
 #include "../src/extensions/includes.h"
+#include "../src/ast_json.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 void test_toc(void) {
     int suite_failures = suite_start();
@@ -1113,6 +1115,123 @@ void test_combine_gitbook_like(void) {
 }
 
 /**
- * Test advanced tables on comprehensive_test.md
- * This tests rowspan and caption fixes that showed up in the larger file
+ * Test Pandoc JSON parser with filter-style output (Header + RawBlock with
+ * escaped quotes and newlines in the raw string).
  */
+void test_ast_json_parser(void) {
+    int suite_failures = suite_start();
+    print_suite_title("AST JSON Parser (filter output with RawBlock)", false, true);
+
+    /* Minimal: only RawBlock with no escapes – should parse to 1 child */
+    const char *minimal = "{\"pandoc-api-version\":[1,23,1],\"meta\":{},\"blocks\":[{\"t\":\"RawBlock\",\"c\":[\"html\",\"ab\"]}]}";
+    apex_options opts0 = apex_options_default();
+    cmark_node *doc0 = apex_pandoc_json_to_cmark(minimal, &opts0);
+    int minimal_ok = (doc0 && cmark_node_first_child(doc0) && !cmark_node_next(cmark_node_first_child(doc0)));
+    if (doc0) cmark_node_free(doc0);
+    test_result(minimal_ok, "Minimal RawBlock (no escapes) parses to one block");
+
+    /* Single RawBlock with the exact long string (escaped quotes + newlines) */
+    const char *single_raw = "{\"pandoc-api-version\":[1,23,1],\"meta\":{},\"blocks\":[{\"t\":\"RawBlock\",\"c\":[\"html\",\"<figure><p>&lt; <img src=\\\"image.png\\\" alt=\\\"Image\\\" /></p>\\n</figure>\\n\"]}]}";
+    cmark_node *doc1 = apex_pandoc_json_to_cmark(single_raw, &opts0);
+    int single_ok = (doc1 && cmark_node_first_child(doc1) && !cmark_node_next(cmark_node_first_child(doc1)));
+    if (doc1) cmark_node_free(doc1);
+    test_result(single_ok, "Single RawBlock with \\\" and \\n in content parses");
+
+    /* Header only – should parse to 1 child */
+    const char *header_only = "{\"pandoc-api-version\":[1,23,1],\"meta\":{},\"blocks\":[{\"t\":\"Header\",\"c\":[1,[\"\",[],[]],[{\"t\":\"Str\",\"c\":\"UNWRAP FILTER\"}]}]}";
+    cmark_node *doc_h = apex_pandoc_json_to_cmark(header_only, &opts0);
+    int header_ok = (doc_h && cmark_node_first_child(doc_h) && !cmark_node_next(cmark_node_first_child(doc_h)));
+    if (doc_h) cmark_node_free(doc_h);
+    test_result(header_ok, "Header-only document parses to one block");
+
+    /* Round-trip: build Header + RawBlock, serialize to JSON, parse back → must get 2 blocks */
+    {
+        cmark_node *build = cmark_node_new(CMARK_NODE_DOCUMENT);
+        cmark_node *h = cmark_node_new(CMARK_NODE_HEADING);
+        cmark_node_set_heading_level(h, 1);
+        cmark_node *htext = cmark_node_new(CMARK_NODE_TEXT);
+        cmark_node_set_literal(htext, "Title");
+        cmark_node_append_child(h, htext);
+        cmark_node_append_child(build, h);
+        cmark_node *raw = cmark_node_new(CMARK_NODE_HTML_BLOCK);
+        cmark_node_set_literal(raw, "<p>x</p>");
+        cmark_node_append_child(build, raw);
+        char *two_block_json = apex_cmark_to_pandoc_json(build, &opts0);
+        cmark_node_free(build);
+        int round_ok = 0;
+        if (two_block_json) {
+            cmark_node *back = apex_pandoc_json_to_cmark(two_block_json, &opts0);
+            if (back) {
+                int n = 0;
+                for (cmark_node *b = cmark_node_first_child(back); b; b = cmark_node_next(b)) n++;
+                round_ok = (n == 2);
+                cmark_node_free(back);
+            }
+            free(two_block_json);
+        }
+        test_result(round_ok, "Round-trip (Header + RawBlock) JSON parses to two blocks");
+    }
+
+    /* Full filter-style: Header + RawBlock; single literal so run-time has },{ with no stray quote */
+    const char *json = "{\"pandoc-api-version\":[1,23,1],\"meta\":{},\"blocks\":[{\"t\":\"Header\",\"c\":[1,[\"\",[],[]],[{\"t\":\"Str\",\"c\":\"UNWRAP FILTER\"}]]},{\"t\":\"RawBlock\",\"c\":[\"html\",\"<figure><p>&lt; <img src=\\\"image.png\\\" alt=\\\"Image\\\" /></p>\\n</figure>\\n\"]}]}";
+
+    /* Same payload but with "c" before "t" (dkjson order) for second block. Ensure comma between blocks. */
+    const char *json_c_before_t = "{\"pandoc-api-version\":[1,23,1],\"meta\":{},\"blocks\":[{\"t\":\"Header\",\"c\":[1,[\"\",[],[]],[{\"t\":\"Str\",\"c\":\"X\"}]]},{\"c\":[\"html\",\"<x/>\"],\"t\":\"RawBlock\"}]}";
+
+    apex_options opts = apex_options_default();
+    cmark_node *doc = apex_pandoc_json_to_cmark(json, &opts);
+    if (!doc) {
+        test_result(false, "apex_pandoc_json_to_cmark returned NULL");
+        bool had_failures = suite_end(suite_failures);
+        print_suite_title("AST JSON Parser (filter output with RawBlock)", had_failures, false);
+        return;
+    }
+
+    cmark_node *first = cmark_node_first_child(doc);
+    int count = 0;
+    for (cmark_node *n = first; n; n = cmark_node_next(n)) count++;
+    test_result(count == 2, "Parsed document has two block children (Header + RawBlock)");
+    if (count >= 1) {
+        cmark_node_type t1 = cmark_node_get_type(first);
+        test_result(t1 == CMARK_NODE_HEADING, "First block is heading");
+    }
+    if (count >= 2) {
+        cmark_node *second = cmark_node_next(first);
+        cmark_node_type t2 = cmark_node_get_type(second);
+        test_result(t2 == CMARK_NODE_HTML_BLOCK, "Second block is HTML block");
+    }
+
+    cmark_node_free(doc);
+
+    /* Minimal two-block: Para + RawBlock (no Header nesting) */
+    const char *minimal_two = "{\"blocks\":[{\"t\":\"Para\",\"c\":[]},{\"t\":\"RawBlock\",\"c\":[\"html\",\"x\"]}]}";
+    cmark_node *doc_min = apex_pandoc_json_to_cmark(minimal_two, &opts);
+    int count_min = 0;
+    if (doc_min) {
+        for (cmark_node *n = cmark_node_first_child(doc_min); n; n = cmark_node_next(n)) count_min++;
+        cmark_node_free(doc_min);
+    }
+    test_result(doc_min && count_min == 2, "Minimal two-block (Para + RawBlock) parses to two blocks");
+
+    /* Single RawBlock with "c" before "t" (dkjson order) – must parse to 1 block */
+    const char *single_c_before_t = "{\"pandoc-api-version\":[1,23,1],\"meta\":{},\"blocks\":[{\"c\":[\"html\",\"<x/>\"],\"t\":\"RawBlock\"}]}";
+    cmark_node *doc1cb = apex_pandoc_json_to_cmark(single_c_before_t, &opts);
+    int count1cb = 0;
+    if (doc1cb) {
+        for (cmark_node *n = cmark_node_first_child(doc1cb); n; n = cmark_node_next(n)) count1cb++;
+        cmark_node_free(doc1cb);
+    }
+    test_result(doc1cb && count1cb == 1, "Single RawBlock with \"c\" before \"t\" parses to one block");
+
+    /* dkjson-style key order: "c" before "t" for second block – parser must still yield 2 blocks */
+    cmark_node *doc2 = apex_pandoc_json_to_cmark(json_c_before_t, &opts);
+    int count2 = 0;
+    if (doc2) {
+        for (cmark_node *n = cmark_node_first_child(doc2); n; n = cmark_node_next(n)) count2++;
+        cmark_node_free(doc2);
+    }
+    test_result(doc2 && count2 == 2, "Header + RawBlock with \"c\" before \"t\" parses to two blocks");
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("AST JSON Parser (filter output with RawBlock)", had_failures, false);
+}

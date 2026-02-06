@@ -149,11 +149,33 @@ Directly from a Git URL or GitHub shorthand: `--install-plugin https://github.co
 - Uninstall a local plugin with `--uninstall-plugin ID`.
 - See installed and available plugins with `--list-plugins`.
 
+For **AST filters** (Pandoc-style JSON filters), Apex also supports:
+
+- Install filters from the central directory:
+
+  ```bash
+  apex --install-filter title
+  apex --install-filter delink
+  ```
+
+  This clones the corresponding repositories from the
+  [`ApexMarkdown/apex-filters`](https://github.com/ApexMarkdown/apex-filters)
+  directory into your local filters directory
+  (`$XDG_CONFIG_HOME/apex/filters` or `~/.config/apex/filters`).
+
+- Run filters on a conversion:
+
+  ```bash
+  apex --filter title input.md > output.html
+  apex --filter delink input.md > output.html
+  apex --filters input.md > output.html   # run all installed filters
+  ```
+
 When installing from a direct Git URL or GitHub repo name,
 Apex will prompt with a security warning before cloning,
 since plugins execute unverified code.
 
-For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki.
+For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki. For AST filters, see the [Filters](https://github.com/ApexMarkdown/apex/wiki/Filters) page.
 
 ## Installation
 

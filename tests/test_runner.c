@@ -74,6 +74,7 @@ void test_citations(void);
 void test_aria_labels(void);
 void test_marked_integration_features(void);
 void test_plugins_integration(void);
+void test_ast_json_parser(void);
 
 /**
  * Test suite registry
@@ -140,6 +141,7 @@ static test_suite suites[] = {
     { "marked_integration",            test_marked_integration_features },
     { "marked",                        test_marked_integration_features },
     { "plugins_integration",           test_plugins_integration },
+    { "ast_json",                      test_ast_json_parser },
 };
 
 static const size_t suite_count = sizeof(suites) / sizeof(suites[0]);

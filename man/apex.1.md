@@ -403,6 +403,43 @@ document or at the `<!--INDEX-->` marker if present. Entries
 are sorted alphabetically and can be grouped by first
 letter.
 
+## AST Filters
+
+**--filter** *NAME*
+: Run a single AST filter from the user filters directory
+  (`$XDG_CONFIG_HOME/apex/filters` or `~/.config/apex/filters`). *NAME* is
+  the basename of an executable that reads Pandoc JSON from stdin and writes
+  Pandoc JSON to stdout.
+
+**--filters**
+: Run all executable files in the user filters directory, in sorted
+  filename order. Directory filters run first if **--filter** is also used.
+
+**--lua-filter** *FILE*
+: Run a Lua script as an AST filter. Apex invokes the system **lua**
+  interpreter with *FILE*. The script reads a Pandoc JSON document from
+  stdin and must write a Pandoc JSON document to stdout. A JSON library
+  (e.g. dkjson) is required; see the Filters documentation for details.
+
+**--no-strict-filters**
+: Do not abort when a filter fails or returns invalid JSON; log a
+  warning and continue with the previous AST. Default: abort on error.
+
+**--list-filters**
+: List installed filters and available filters from the central
+  apex-filters directory. Shows filter IDs; available filters show
+  title, author, description, and homepage.
+
+**--install-filter** *ID-or-URL*
+: Install an AST filter into the user filters directory. *ID-or-URL*
+  may be a filter ID from the central apex-filters directory (e.g.
+  **unwrap**) or a Git URL / GitHub shorthand. When installing from a URL,
+  Apex may prompt for confirmation.
+
+**--uninstall-filter** *ID*
+: Uninstall a filter by ID. Removes the filter (file or directory)
+  from the user filters directory. Apex prompts for confirmation.
+
 ## Plugins
 
 **--plugins**, **--no-plugins**

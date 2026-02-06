@@ -108,6 +108,8 @@ endif()
 # Library source files
 set(APEX_LIB_SOURCES
     src/apex.c
+    src/ast_json.c
+    src/filters_ast.c
     src/plugins_env.c
     src/plugins.c
     src/plugins_remote.c

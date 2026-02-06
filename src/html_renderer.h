@@ -118,6 +118,12 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document);
  */
 char *apex_convert_image_captions(const char *html, bool enable_image_captions, bool title_captions_only);
 
+/**
+ * Strip <p> that wraps only a single <img> (and optional leading "&lt; ") inside
+ * <figure>, so the result is <figure><img...></figure>. Call after image captions.
+ */
+char *apex_strip_figure_paragraph_wrapper(const char *html);
+
 #ifdef __cplusplus
 }
 #endif
