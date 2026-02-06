@@ -179,6 +179,15 @@ typedef struct {
     /* When reading from stdin, this is either the base directory (if set) or empty. */
     const char *input_file_path;
 
+    /* AST filter options (Pandoc-style JSON filters) */
+    /* When non-NULL and ast_filter_count > 0, Apex will serialize the */
+    /* cmark AST to a Pandoc-compatible JSON AST, pipe it through each  */
+    /* configured filter command, and then parse the transformed JSON    */
+    /* back into a cmark AST before rendering.                           */
+    const char **ast_filter_commands;  /* Array of command strings */
+    size_t ast_filter_count;           /* Number of filter commands */
+    bool ast_filter_strict;            /* If true, abort on filter error/invalid JSON */
+
     /* Progress reporting callback */
     /* Called during processing to report progress. Parameters:
      * - stage: Description of current processing stage (e.g., "Processing tables", "Running plugin: kbd")

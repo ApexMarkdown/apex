@@ -42,6 +42,8 @@
 #include "extensions/fenced_divs.h"
 #include "extensions/syntax_highlight.h"
 #include "plugins.h"
+#include "ast_json.h"
+#include "filters_ast.h"
 
 /* Custom renderer */
 #include "html_renderer.h"
@@ -2571,6 +2573,11 @@ apex_options apex_options_default(void) {
     /* Source file information (used by plugins via APEX_FILE_PATH) */
     opts.input_file_path = NULL;
 
+    /* AST filter options (Pandoc-style JSON filters) */
+    opts.ast_filter_commands = NULL;
+    opts.ast_filter_count = 0;
+    opts.ast_filter_strict = true; /* Default: fail fast on filter errors */
+
     /* Progress reporting */
     opts.progress_callback = NULL;
     opts.progress_user_data = NULL;
@@ -4954,7 +4961,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         fprintf(stderr, "[APEX_DEBUG] markdown to parse (len=%zu): %.350s%s\n",
                 text_len, text_ptr, text_len > 350 ? "..." : "");
     }
-    cmark_parser_feed(parser, text_ptr, text_len);
+    cmark_parser_feed(parser, text_len ? text_ptr : "", text_len);
     cmark_node *document = cmark_parser_finish(parser);
     PROFILE_END(parsing);
 
@@ -4968,6 +4975,23 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         free(working_text);
         apex_free_metadata(metadata);
         return NULL;
+    }
+
+    /* Run AST-level filters (Pandoc-style JSON filters) before any */
+    /* AST post-processing or rendering. */
+    if (options->ast_filter_commands && options->ast_filter_count > 0) {
+        cmark_node *filtered = apex_run_ast_filters(document, options, "html");
+        if (!filtered && options->ast_filter_strict) {
+            cmark_node_free(document);
+            cmark_parser_free(parser);
+            free(working_text);
+            apex_free_metadata(metadata);
+            return NULL;
+        }
+        if (filtered && filtered != document) {
+            cmark_node_free(document);
+            document = filtered;
+        }
     }
 
     /* Postprocess wiki links if enabled */
@@ -5248,6 +5272,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         if (with_captions) {
             free(html);
             html = with_captions;
+        }
+    }
+
+    /* Strip redundant <p> around single <img> inside <figure> (e.g. from ::: >figure with "< ![Image](...)") */
+    if (html) {
+        char *stripped = apex_strip_figure_paragraph_wrapper(html);
+        if (stripped) {
+            free(html);
+            html = stripped;
         }
     }
 

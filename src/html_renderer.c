@@ -2655,6 +2655,48 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
                 continue;
             }
 
+            /* Don't wrap in another <figure> if this image is already inside a <figure>
+             * (e.g. from a fenced div ::: >figure), to avoid nested figure/figcaption. */
+            {
+                int figure_depth = 0;
+                const char *scan = html;
+                while (scan < tag_start) {
+                    if (*scan == '<') {
+                        if (scan + 8 <= tag_start &&
+                            (strncasecmp(scan + 1, "figure", 6) == 0) &&
+                            (scan[7] == '>' || isspace((unsigned char)scan[7]))) {
+                            figure_depth++;
+                        } else if (scan + 9 <= tag_start &&
+                                   (strncasecmp(scan + 1, "/figure", 7) == 0) &&
+                                   (scan[8] == '>' || isspace((unsigned char)scan[8]))) {
+                            if (figure_depth > 0) figure_depth--;
+                        }
+                    }
+                    scan++;
+                }
+                if (figure_depth > 0) {
+                    /* Already inside a figure - copy img tag as-is, no extra wrap */
+                    size_t tag_len = (size_t)(tag_end - tag_start + 1);
+                    if (tag_len >= remaining) {
+                        size_t used = write - output;
+                        size_t new_cap = (used + tag_len + 1) * 2;
+                        char *new_out = realloc(output, new_cap);
+                        if (!new_out) {
+                            free(output);
+                            return NULL;
+                        }
+                        output = new_out;
+                        write = output + used;
+                        remaining = new_cap - used;
+                    }
+                    memcpy(write, tag_start, tag_len);
+                    write += tag_len;
+                    remaining -= tag_len;
+                    read = tag_end + 1;
+                    continue;
+                }
+            }
+
             /* We have caption text - wrap in <figure><img ...><figcaption>...</figcaption></figure> */
             const char *figure_open = "<figure>";
             const char *figcaption_open = "<figcaption>";
@@ -2756,6 +2798,146 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
         }
         output = new_out;
         write = output + used;
+    }
+    *write = '\0';
+    return output;
+}
+
+/**
+ * Strip redundant <p> that wraps only a single <img> inside <figure>, and any
+ * leading "&lt; " (angle-prefix) so the result is <figure><img...></figure>.
+ * Used when fenced div ::: >figure contains "< ![Image](...)" which becomes
+ * <figure><p>&lt; <img...></p></figure>.
+ */
+char *apex_strip_figure_paragraph_wrapper(const char *html) {
+    if (!html) return NULL;
+    size_t len = strlen(html);
+    const char *end = html + len;
+    size_t capacity = len + 1;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+    const char *read = html;
+    char *write = output;
+    size_t remaining = capacity;
+    int figure_depth = 0;
+
+    while (*read) {
+        /* Track when we're inside <figure>...</figure> */
+        if (*read == '<') {
+            const char *tag = read + 1;
+            if (tag[0] != '/') {
+                if ((strncasecmp(tag, "figure", 6) == 0) &&
+                    (tag[6] == '>' || isspace((unsigned char)tag[6])))
+                    figure_depth++;
+            } else {
+                if ((strncasecmp(tag + 1, "figure", 6) == 0) &&
+                    (tag[7] == '>' || isspace((unsigned char)tag[7])))
+                    figure_depth--;
+            }
+        }
+        /* Look for <figure (with optional attributes) - copy it */
+        if (*read == '<' && read[1] != '/') {
+            const char *tag = read + 1;
+            if ((strncasecmp(tag, "figure", 6) == 0) &&
+                (tag[6] == '>' || isspace((unsigned char)tag[6]))) {
+                while (*read && *read != '>') {
+                    if (remaining < 2) {
+                        size_t used = write - output;
+                        capacity = (used + len) * 2;
+                        char *n = realloc(output, capacity);
+                        if (!n) { free(output); return NULL; }
+                        output = n; write = output + used; remaining = capacity - used;
+                    }
+                    *write++ = *read++;
+                    remaining--;
+                }
+                if (*read == '>') {
+                    *write++ = *read++;
+                    remaining--;
+                }
+                continue;
+            }
+            /* Inside figure: look for <p that wraps only &lt; + single <img> */
+            if (figure_depth > 0 &&
+                (strncasecmp(tag, "p", 1) == 0) &&
+                (tag[1] == '>' || isspace((unsigned char)tag[1]))) {
+                const char *p_open_end = read + 1;
+                while (*p_open_end && *p_open_end != '>') p_open_end++;
+                if (!*p_open_end) {
+                    *write++ = *read++;
+                    remaining--;
+                    continue;
+                }
+                p_open_end++; /* past '>' */
+                const char *inner = p_open_end;
+                /* Skip optional "&lt;" or "&lt; " and whitespace */
+                while (*inner == ' ' || *inner == '\t' || *inner == '\n' || *inner == '\r') inner++;
+                if (inner + 4 <= end && strncmp(inner, "&lt;", 4) == 0) {
+                    inner += 4;
+                    while (*inner == ' ' || *inner == '\t' || *inner == '\n' || *inner == '\r') inner++;
+                }
+                /* Must be <img ...> */
+                if (*inner != '<' || (inner[1] != 'i' && inner[1] != 'I') ||
+                    (inner[2] != 'm' && inner[2] != 'M') ||
+                    (inner[3] != 'g' && inner[3] != 'G') ||
+                    (inner[4] != ' ' && inner[4] != '\t' && inner[4] != '>' && inner[4] != '/')) {
+                    *write++ = *read++;
+                    remaining--;
+                    continue;
+                }
+                const char *img_start = inner;
+                const char *img_end = inner + 4;
+                while (*img_end && *img_end != '>') {
+                    if (*img_end == '"' || *img_end == '\'') {
+                        char q = *img_end++;
+                        while (*img_end && *img_end != q) img_end++;
+                        if (*img_end) img_end++;
+                    } else {
+                        img_end++;
+                    }
+                }
+                if (*img_end != '>') {
+                    *write++ = *read++;
+                    remaining--;
+                    continue;
+                }
+                img_end++; /* past '>' */
+                /* Skip whitespace then must be </p> */
+                const char *after_img = img_end;
+                while (*after_img == ' ' || *after_img == '\t' || *after_img == '\n' || *after_img == '\r') after_img++;
+                if (after_img + 5 <= end &&
+                    (after_img[0] == '<' && after_img[1] == '/' &&
+                     (after_img[2] == 'p' || after_img[2] == 'P') &&
+                     (after_img[3] == '>' || isspace((unsigned char)after_img[3])))) {
+                    const char *p_close = after_img + 3;
+                    while (*p_close && *p_close != '>') p_close++;
+                    if (*p_close == '>') p_close++;
+                    /* Replace entire <p>...</p> with just the <img> */
+                    size_t img_len = (size_t)(img_end - img_start);
+                    if (img_len >= remaining) {
+                        size_t used = write - output;
+                        capacity = (used + img_len + 1) * 2;
+                        char *n = realloc(output, capacity);
+                        if (!n) { free(output); return NULL; }
+                        output = n; write = output + used; remaining = capacity - used;
+                    }
+                    memcpy(write, img_start, img_len);
+                    write += img_len;
+                    remaining -= img_len;
+                    read = p_close;
+                    continue;
+                }
+            }
+        }
+        if (remaining < 2) {
+            size_t used = write - output;
+            capacity = (used + len) * 2;
+            char *n = realloc(output, capacity);
+            if (!n) { free(output); return NULL; }
+            output = n; write = output + used; remaining = capacity - used;
+        }
+        *write++ = *read++;
+        remaining--;
     }
     *write = '\0';
     return output;

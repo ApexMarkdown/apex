@@ -37,7 +37,7 @@ void apex_remote_free_plugins(apex_remote_plugin_list *list) {
 }
 
 /* Fetch JSON from a URL using curl. Returns malloc'd buffer or NULL. */
-static char *apex_remote_fetch_json(const char *url) {
+char *apex_remote_fetch_json(const char *url) {
     if (!url) return NULL;
     /* Use curl -fsSL to fail on HTTP errors and be quiet except for data. */
     char cmd[1024];
@@ -85,7 +85,7 @@ static char *apex_remote_fetch_json(const char *url) {
 /* Very small JSON helper: extract string value for a key from an object snippet.
  * Assumes JSON is well-formed and keys/values are double-quoted.
  */
-static char *apex_remote_extract_string(const char *obj, const char *key) {
+char *apex_remote_extract_string(const char *obj, const char *key) {
     if (!obj || !key) return NULL;
     char pattern[128];
     snprintf(pattern, sizeof(pattern), "\"%s\"", key);

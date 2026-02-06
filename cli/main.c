@@ -17,7 +17,7 @@
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 
-/* Remote plugin directory helpers (from plugins_remote.c) */
+    /* Remote plugin directory helpers (from plugins_remote.c) */
 typedef struct apex_remote_plugin apex_remote_plugin;
 typedef struct apex_remote_plugin_list apex_remote_plugin_list;
 
@@ -29,6 +29,10 @@ void apex_remote_print_plugins_filtered(apex_remote_plugin_list *list,
 apex_remote_plugin *apex_remote_find_plugin(apex_remote_plugin_list *list, const char *id);
 void apex_remote_free_plugins(apex_remote_plugin_list *list);
 const char *apex_remote_plugin_repo(apex_remote_plugin *p);
+
+/* Shared JSON helpers used for filters as well */
+char *apex_remote_fetch_json(const char *url);
+char *apex_remote_extract_string(const char *obj, const char *key);
 
 /* ------------------------------------------------------------------------- */
 /* Git helpers (mirrored from src/plugins.c for CLI-only use)               */
@@ -488,6 +492,11 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]includes        Enable file inclusion (enabled by default in unified mode)\n");
     fprintf(stderr, "  --indices               Enable index processing (mmark, TextIndex, and Leanpub syntax)\n");
     fprintf(stderr, "  --install-plugin ID    Install plugin by id from directory, or by Git URL/GitHub shorthand (user/repo)\n");
+    fprintf(stderr, "  --install-filter ID    Install AST filter by id from the central filters directory or by Git URL/GitHub shorthand\n");
+    fprintf(stderr, "  --filter NAME          Run a single AST filter from ~/.config/apex/filters/NAME (Pandoc-style JSON filter)\n");
+    fprintf(stderr, "  --filters              Run all executable filters in ~/.config/apex/filters (sorted by name)\n");
+    fprintf(stderr, "  --lua-filter FILE      Run a Lua script as an AST filter via 'lua FILE' (Pandoc-style JSON filter)\n");
+    fprintf(stderr, "  --no-strict-filters    Do not abort on AST filter errors/invalid JSON; skip failing filters instead\n");
     fprintf(stderr, "  --link-citations       Link citations to bibliography entries\n");
     fprintf(stderr, "  --list-plugins         List installed plugins and available plugins from the remote directory\n");
     fprintf(stderr, "  --uninstall-plugin ID  Uninstall plugin by id\n");
@@ -1250,6 +1259,9 @@ int main(int argc, char *argv[]) {
     bool list_plugins = false;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
+
+    /* Filter install (AST filters) */
+    const char *install_filter_id = NULL;
     const char *input_file = NULL;
     const char *output_file = NULL;
     const char *meta_file = NULL;
@@ -1283,6 +1295,18 @@ int main(int argc, char *argv[]) {
     char **script_tags = NULL;
     size_t script_tag_count = 0;
     size_t script_tag_capacity = 4;
+
+    /* AST filters (Pandoc-style JSON filters) configured from CLI */
+    char   **ast_filter_names = NULL;   /* Filter names from --filter (resolved in config dir) */
+    size_t   ast_filter_name_count = 0;
+    size_t   ast_filter_name_capacity = 4;
+    bool     run_all_filters_dir = false;  /* --filters */
+    bool     ast_filters_strict = true;    /* default strict mode; --no-strict-filters disables */
+
+    /* Lua filters: explicit script paths run via 'lua <script>' */
+    char   **lua_filter_paths = NULL;
+    size_t   lua_filter_count = 0;
+    size_t   lua_filter_capacity = 4;
 
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
@@ -1333,6 +1357,61 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             install_plugin_id = argv[i];
+        } else if (strcmp(argv[i], "--install-filter") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --install-filter requires an id argument\n");
+                return 1;
+            }
+            install_filter_id = argv[i];
+        } else if (strcmp(argv[i], "--filter") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --filter requires a name argument\n");
+                return 1;
+            }
+            /* Collect filter names; resolution to full paths happens later */
+            if (!ast_filter_names) {
+                ast_filter_names = malloc(ast_filter_name_capacity * sizeof(char *));
+                if (!ast_filter_names) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+            } else if (ast_filter_name_count >= ast_filter_name_capacity) {
+                size_t new_cap = ast_filter_name_capacity ? ast_filter_name_capacity * 2 : 4;
+                char **tmp = realloc(ast_filter_names, new_cap * sizeof(char *));
+                if (!tmp) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                ast_filter_names = tmp;
+                ast_filter_name_capacity = new_cap;
+            }
+            ast_filter_names[ast_filter_name_count++] = argv[i];
+        } else if (strcmp(argv[i], "--filters") == 0) {
+            run_all_filters_dir = true;
+        } else if (strcmp(argv[i], "--no-strict-filters") == 0) {
+            ast_filters_strict = false;
+        } else if (strcmp(argv[i], "--lua-filter") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --lua-filter requires a script path argument\n");
+                return 1;
+            }
+            if (!lua_filter_paths) {
+                lua_filter_paths = malloc(lua_filter_capacity * sizeof(char *));
+                if (!lua_filter_paths) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+            } else if (lua_filter_count >= lua_filter_capacity) {
+                size_t new_cap = lua_filter_capacity ? lua_filter_capacity * 2 : 4;
+                char **tmp = realloc(lua_filter_paths, new_cap * sizeof(char *));
+                if (!tmp) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                lua_filter_paths = tmp;
+                lua_filter_capacity = new_cap;
+            }
+            lua_filter_paths[lua_filter_count++] = argv[i];
         } else if (strcmp(argv[i], "--uninstall-plugin") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --uninstall-plugin requires an id argument\n");
@@ -2260,6 +2339,207 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Handle filter installation before normal conversion.
+     * Filters are distributed from the apex-filters directory:
+     *   https://github.com/ApexMarkdown/apex-filters
+     * and installed into:
+     *   $XDG_CONFIG_HOME/apex/filters or ~/.config/apex/filters
+     */
+    if (install_filter_id) {
+        /* Determine filters root: $XDG_CONFIG_HOME/apex/filters or ~/.config/apex/filters */
+        const char *xdg = getenv("XDG_CONFIG_HOME");
+        char root[1024];
+        if (xdg && *xdg) {
+            snprintf(root, sizeof(root), "%s/apex/filters", xdg);
+        } else {
+            const char *home = getenv("HOME");
+            if (!home || !*home) {
+                fprintf(stderr, "Error: HOME not set; cannot determine filter install directory.\n");
+                return 1;
+            }
+            snprintf(root, sizeof(root), "%s/.config/apex/filters", home);
+        }
+
+        /* Check if install_filter_id is a direct URL/shorthand (GitHub repo) */
+        char *normalized_repo = normalize_plugin_repo_url(install_filter_id);
+        const char *repo = NULL;
+        char *final_filter_id = NULL;
+
+        if (normalized_repo) {
+            repo = normalized_repo;
+
+            fprintf(stderr,
+                    "Apex filters execute unverified code. Only install filters from trusted sources.\n"
+                    "Continue? (y/n) ");
+            fflush(stderr);
+            char answer[8] = {0};
+            if (!fgets(answer, sizeof(answer), stdin) ||
+                (answer[0] != 'y' && answer[0] != 'Y')) {
+                fprintf(stderr, "Aborted filter install.\n");
+                free(normalized_repo);
+                return 1;
+            }
+        } else {
+            /* Not a URL - look up in the remote filters directory */
+            const char *dir_url = "https://raw.githubusercontent.com/ApexMarkdown/apex-filters/refs/heads/main/apex-filters.json";
+            char *json = apex_remote_fetch_json(dir_url);
+            if (!json) {
+                fprintf(stderr, "Error: failed to fetch filter directory from %s\n", dir_url);
+                return 1;
+            }
+
+            /* Very small JSON scan: find entry with matching "id" and extract "repo" */
+            const char *p = json;
+            int found = 0;
+            while ((p = strstr(p, "\"id\"")) != NULL) {
+                const char *id_start = strchr(p, ':');
+                if (!id_start) break;
+                id_start++;
+                while (*id_start == ' ' || *id_start == '\t') id_start++;
+                if (*id_start != '\"') { p = id_start; continue; }
+                id_start++;
+                const char *id_end = strchr(id_start, '\"');
+                if (!id_end) break;
+                size_t id_len = (size_t)(id_end - id_start);
+
+                if (strlen(install_filter_id) == id_len &&
+                    strncmp(install_filter_id, id_start, id_len) == 0) {
+                    /* Found matching id; search for "repo" in this object */
+                    const char *obj_start = p;
+                    char *repo_val = apex_remote_extract_string(obj_start, "repo");
+                    if (!repo_val) {
+                        fprintf(stderr, "Error: filter '%s' missing repo URL in directory.\n", install_filter_id);
+                        free(json);
+                        return 1;
+                    }
+                    repo = repo_val;
+                    final_filter_id = strdup(install_filter_id);
+                    found = 1;
+                    break;
+                }
+                p = id_end;
+            }
+
+            if (!found) {
+                fprintf(stderr, "Error: filter '%s' not found in directory.\n", install_filter_id);
+                free(json);
+                return 1;
+            }
+            free(json);
+        }
+
+        /* Ensure root directory exists */
+        char mkdir_cmd[1200];
+        snprintf(mkdir_cmd, sizeof(mkdir_cmd), "mkdir -p \"%s\"", root);
+        int mkrc = system(mkdir_cmd);
+        if (mkrc != 0) {
+            fprintf(stderr, "Error: failed to create filter directory '%s'.\n", root);
+            if (normalized_repo) free(normalized_repo);
+            if (final_filter_id) free(final_filter_id);
+            if (repo && repo != normalized_repo) free((void *)repo);
+            return 1;
+        }
+
+        /* Determine temporary or final target directory */
+        char temp_target[1200];
+        if (!final_filter_id) {
+            /* Derive a temporary name from repo URL */
+            const char *last_slash = strrchr(repo, '/');
+            const char *name_start = last_slash ? (last_slash + 1) : repo;
+            const char *name_end = strstr(name_start, ".git");
+            if (!name_end) name_end = name_start + strlen(name_start);
+            size_t name_len = name_end - name_start;
+            if (name_len > 0 && name_len < 200) {
+                char temp_name[256];
+                memcpy(temp_name, name_start, name_len);
+                temp_name[name_len] = '\0';
+                snprintf(temp_target, sizeof(temp_target), "%s/.apex_install_%s", root, temp_name);
+            } else {
+                snprintf(temp_target, sizeof(temp_target), "%s/.apex_install_temp", root);
+            }
+        } else {
+            snprintf(temp_target, sizeof(temp_target), "%s/%s", root, final_filter_id);
+        }
+
+        /* Refuse to overwrite existing directory when using a final id */
+        if (final_filter_id) {
+            char test_cmd[1300];
+            snprintf(test_cmd, sizeof(test_cmd), "[ -d \"%s\" ]", temp_target);
+            int exists_rc = system(test_cmd);
+            if (exists_rc == 0) {
+                fprintf(stderr, "Error: filter directory '%s' already exists. Remove it first to reinstall.\n", temp_target);
+                if (normalized_repo) free(normalized_repo);
+                if (final_filter_id) free(final_filter_id);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+        }
+
+        /* Clone repo using git */
+        char clone_cmd[2048];
+        snprintf(clone_cmd, sizeof(clone_cmd), "git clone \"%s\" \"%s\"", repo, temp_target);
+        int git_rc = system(clone_cmd);
+        if (git_rc != 0) {
+            fprintf(stderr, "Error: git clone failed for '%s'. Is git installed and the URL correct?\n", repo);
+            if (normalized_repo) free(normalized_repo);
+            if (final_filter_id) free(final_filter_id);
+            if (repo && repo != normalized_repo) free((void *)repo);
+            return 1;
+        }
+
+        /* If we didn't get a final id from the directory, use install_filter_id as the final name */
+        if (!final_filter_id) {
+            final_filter_id = strdup(install_filter_id);
+            if (!final_filter_id) {
+                fprintf(stderr, "Error: Memory allocation failed\n");
+                if (normalized_repo) free(normalized_repo);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+        }
+
+        char final_target[1200];
+        snprintf(final_target, sizeof(final_target), "%s/%s", root, final_filter_id);
+
+        /* If temp_target != final_target, move into place */
+        if (strcmp(temp_target, final_target) != 0) {
+            char final_test_cmd[1300];
+            snprintf(final_test_cmd, sizeof(final_test_cmd), "[ -d \"%s\" ]", final_target);
+            int final_exists_rc = system(final_test_cmd);
+            if (final_exists_rc == 0) {
+                fprintf(stderr, "Error: filter directory '%s' already exists. Remove it first to reinstall.\n", final_target);
+                char rm_cmd[1300];
+                snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf \"%s\"", temp_target);
+                system(rm_cmd);
+                free(final_filter_id);
+                if (normalized_repo) free(normalized_repo);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+
+            char mv_cmd[2500];
+            snprintf(mv_cmd, sizeof(mv_cmd), "mv \"%s\" \"%s\"", temp_target, final_target);
+            int mv_rc = system(mv_cmd);
+            if (mv_rc != 0) {
+                fprintf(stderr, "Error: failed to move filter to final location '%s'.\n", final_target);
+                char rm_cmd[1300];
+                snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf \"%s\"", temp_target);
+                system(rm_cmd);
+                free(final_filter_id);
+                if (normalized_repo) free(normalized_repo);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+        }
+
+        fprintf(stderr, "Installed filter '%s' into %s\n", final_filter_id, final_target);
+
+        if (normalized_repo) free(normalized_repo);
+        if (final_filter_id) free(final_filter_id);
+        if (repo && repo != normalized_repo) free((void *)repo);
+        return 0;
+    }
+
     /* mmd-merge mode: emulate MultiMarkdown mmd_merge.pl and exit */
     if (mmd_merge_mode) {
         FILE *out = stdout;
@@ -2622,6 +2902,209 @@ int main(int argc, char *argv[]) {
         options.enable_plugins = plugins_cli_value;
     }
 
+    /* Resolve AST filters configured from CLI into absolute command paths.
+     * Filters live in $XDG_CONFIG_HOME/apex/filters or ~/.config/apex/filters.
+     */
+    char **ast_filter_commands = NULL;
+    size_t ast_filter_count = 0;
+    if (run_all_filters_dir || ast_filter_name_count > 0 || lua_filter_count > 0) {
+        const char *xdg = getenv("XDG_CONFIG_HOME");
+        char root[1024];
+        if (xdg && *xdg) {
+            snprintf(root, sizeof(root), "%s/apex/filters", xdg);
+        } else {
+            const char *home = getenv("HOME");
+            if (!home || !*home) {
+                fprintf(stderr, "Error: HOME not set; cannot determine filters directory.\n");
+                return 1;
+            }
+            snprintf(root, sizeof(root), "%s/.config/apex/filters", home);
+        }
+
+        /* Ensure root directory exists when running --filters or --filter */
+        struct stat st_root;
+        if (stat(root, &st_root) != 0 || !S_ISDIR(st_root.st_mode)) {
+            if (run_all_filters_dir || ast_filter_name_count > 0) {
+                fprintf(stderr, "Error: filters directory '%s' does not exist.\n", root);
+                return 1;
+            }
+        }
+
+        /* Collect all filters from directory when --filters is set */
+        if (run_all_filters_dir) {
+            DIR *d = opendir(root);
+            if (!d) {
+                fprintf(stderr, "Error: cannot open filters directory '%s'\n", root);
+                return 1;
+            }
+            struct dirent *ent;
+            size_t capacity = 8;
+            ast_filter_commands = malloc(capacity * sizeof(char *));
+            if (!ast_filter_commands) {
+                closedir(d);
+                fprintf(stderr, "Error: Memory allocation failed\n");
+                return 1;
+            }
+            while ((ent = readdir(d)) != NULL) {
+                if (ent->d_name[0] == '.') continue;
+                char path[1200];
+                snprintf(path, sizeof(path), "%s/%s", root, ent->d_name);
+                struct stat st;
+                if (stat(path, &st) != 0 || !S_ISREG(st.st_mode)) {
+                    continue;
+                }
+                if (ast_filter_count == capacity) {
+                    capacity *= 2;
+                    char **tmp = realloc(ast_filter_commands, capacity * sizeof(char *));
+                    if (!tmp) {
+                        closedir(d);
+                        fprintf(stderr, "Error: Memory allocation failed\n");
+                        return 1;
+                    }
+                    ast_filter_commands = tmp;
+                }
+                ast_filter_commands[ast_filter_count] = strdup(path);
+                if (!ast_filter_commands[ast_filter_count]) {
+                    closedir(d);
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                ast_filter_count++;
+            }
+            closedir(d);
+        }
+
+        /* Resolve individual --filter NAME entries to absolute paths.
+         *
+         * Resolution rules:
+         *   - If root/NAME is a regular file, use that directly.
+         *   - If root/NAME is a directory, look for a script inside it:
+         *       root/NAME/NAME
+         *       root/NAME/NAME.lua
+         *       root/NAME/NAME.py
+         *       root/NAME/NAME.rb
+         *     and use the first regular file found.
+         */
+        if (ast_filter_name_count > 0) {
+            size_t capacity = (ast_filter_commands ? ast_filter_count : 0) + ast_filter_name_count;
+            if (!ast_filter_commands) {
+                ast_filter_commands = malloc(capacity * sizeof(char *));
+                if (!ast_filter_commands) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+            } else {
+                char **tmp = realloc(ast_filter_commands, capacity * sizeof(char *));
+                if (!tmp) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                ast_filter_commands = tmp;
+            }
+
+            for (size_t i = 0; i < ast_filter_name_count; i++) {
+                const char *name = ast_filter_names[i];
+                char path[1200];
+                snprintf(path, sizeof(path), "%s/%s", root, name);
+                struct stat st;
+                if (stat(path, &st) != 0) {
+                    fprintf(stderr, "Error: filter '%s' not found at %s\n", name, path);
+                    return 1;
+                }
+
+                char resolved[1400];
+                int  resolved_ok = 0;
+
+                if (S_ISREG(st.st_mode)) {
+                    /* Direct executable/script */
+                    snprintf(resolved, sizeof(resolved), "%s", path);
+                    resolved_ok = 1;
+                } else if (S_ISDIR(st.st_mode)) {
+                    /* Directory: probe for common script names inside */
+                    const char *candidates[4];
+                    char buf0[1400], buf1[1400], buf2[1400], buf3[1400];
+
+                    snprintf(buf0, sizeof(buf0), "%s/%s", path, name);
+                    snprintf(buf1, sizeof(buf1), "%s/%s.lua", path, name);
+                    snprintf(buf2, sizeof(buf2), "%s/%s.py", path, name);
+                    snprintf(buf3, sizeof(buf3), "%s/%s.rb", path, name);
+
+                    candidates[0] = buf0;
+                    candidates[1] = buf1;
+                    candidates[2] = buf2;
+                    candidates[3] = buf3;
+
+                    for (size_t c = 0; c < 4; c++) {
+                        struct stat stc;
+                        if (stat(candidates[c], &stc) == 0 && S_ISREG(stc.st_mode)) {
+                            snprintf(resolved, sizeof(resolved), "%s", candidates[c]);
+                            resolved_ok = 1;
+                            break;
+                        }
+                    }
+
+                    if (!resolved_ok) {
+                        fprintf(stderr,
+                                "Error: filter '%s' is a directory at %s but no executable script was found inside.\n",
+                                name, path);
+                        fprintf(stderr,
+                                "Tried: %s/%s, %s/%s.lua, %s/%s.py, %s/%s.rb\n",
+                                path, name, path, name, path, name, path, name);
+                        return 1;
+                    }
+                } else {
+                    fprintf(stderr, "Error: filter '%s' at %s is not a regular file or directory\n", name, path);
+                    return 1;
+                }
+
+                ast_filter_commands[ast_filter_count] = strdup(resolved);
+                if (!ast_filter_commands[ast_filter_count]) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                ast_filter_count++;
+            }
+        }
+
+        /* Append explicit Lua filters as commands: `lua <script>` */
+        if (lua_filter_count > 0) {
+            size_t capacity = (ast_filter_commands ? ast_filter_count : 0) + lua_filter_count;
+            if (!ast_filter_commands) {
+                ast_filter_commands = malloc(capacity * sizeof(char *));
+                if (!ast_filter_commands) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+            } else {
+                char **tmp = realloc(ast_filter_commands, capacity * sizeof(char *));
+                if (!tmp) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                ast_filter_commands = tmp;
+            }
+
+            for (size_t i = 0; i < lua_filter_count; i++) {
+                const char *script = lua_filter_paths[i];
+                /* Build a simple 'lua "<script>"' command */
+                char cmd[1400];
+                snprintf(cmd, sizeof(cmd), "lua \"%s\"", script);
+                ast_filter_commands[ast_filter_count] = strdup(cmd);
+                if (!ast_filter_commands[ast_filter_count]) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                ast_filter_count++;
+            }
+        }
+
+        if (ast_filter_count > 0) {
+            options.ast_filter_commands = (const char **)ast_filter_commands;
+            options.ast_filter_count = ast_filter_count;
+            options.ast_filter_strict = ast_filters_strict;
+        }
+    }
+
     /* Attach any collected script tags to options as a NULL-terminated array */
     if (script_tags) {
         /* Ensure NULL terminator */
@@ -2710,6 +3193,16 @@ int main(int argc, char *argv[]) {
         }
         free(script_tags);
     }
+
+    /* Free AST filter command paths allocated for this run */
+    if (ast_filter_commands) {
+        for (size_t i = 0; i < ast_filter_count; i++) {
+            free(ast_filter_commands[i]);
+        }
+        free(ast_filter_commands);
+    }
+
+    /* lua_filter_paths entries are argv pointers; no need to free them here */
 
     /* Free base_directory if we allocated it */
     if (allocated_base_dir) {
