@@ -22,10 +22,12 @@ typedef struct apex_remote_plugin apex_remote_plugin;
 typedef struct apex_remote_plugin_list apex_remote_plugin_list;
 
 apex_remote_plugin_list *apex_remote_fetch_directory(const char *url);
+apex_remote_plugin_list *apex_remote_fetch_filters_directory(const char *url);
 void apex_remote_print_plugins(apex_remote_plugin_list *list);
 void apex_remote_print_plugins_filtered(apex_remote_plugin_list *list,
                                         const char **installed_ids,
-                                        size_t installed_count);
+                                        size_t installed_count,
+                                        const char *noun);
 apex_remote_plugin *apex_remote_find_plugin(apex_remote_plugin_list *list, const char *id);
 void apex_remote_free_plugins(apex_remote_plugin_list *list);
 const char *apex_remote_plugin_repo(apex_remote_plugin *p);
@@ -492,7 +494,9 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]includes        Enable file inclusion (enabled by default in unified mode)\n");
     fprintf(stderr, "  --indices               Enable index processing (mmark, TextIndex, and Leanpub syntax)\n");
     fprintf(stderr, "  --install-plugin ID    Install plugin by id from directory, or by Git URL/GitHub shorthand (user/repo)\n");
+    fprintf(stderr, "  --list-filters         List installed filters and available filters from the remote directory\n");
     fprintf(stderr, "  --install-filter ID    Install AST filter by id from the central filters directory or by Git URL/GitHub shorthand\n");
+    fprintf(stderr, "  --uninstall-filter ID  Uninstall filter by id\n");
     fprintf(stderr, "  --filter NAME          Run a single AST filter from ~/.config/apex/filters/NAME (Pandoc-style JSON filter)\n");
     fprintf(stderr, "  --filters              Run all executable filters in ~/.config/apex/filters (sorted by name)\n");
     fprintf(stderr, "  --lua-filter FILE      Run a Lua script as an AST filter via 'lua FILE' (Pandoc-style JSON filter)\n");
@@ -1259,6 +1263,8 @@ int main(int argc, char *argv[]) {
     bool list_plugins = false;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
+    bool list_filters = false;
+    const char *uninstall_filter_id = NULL;
 
     /* Filter install (AST filters) */
     const char *install_filter_id = NULL;
@@ -1357,12 +1363,20 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             install_plugin_id = argv[i];
+        } else if (strcmp(argv[i], "--list-filters") == 0) {
+            list_filters = true;
         } else if (strcmp(argv[i], "--install-filter") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --install-filter requires an id argument\n");
                 return 1;
             }
             install_filter_id = argv[i];
+        } else if (strcmp(argv[i], "--uninstall-filter") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --uninstall-filter requires an id argument\n");
+                return 1;
+            }
+            uninstall_filter_id = argv[i];
         } else if (strcmp(argv[i], "--filter") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --filter requires a name argument\n");
@@ -2116,7 +2130,7 @@ int main(int argc, char *argv[]) {
                 cli_free_installed_plugins(installed_head);
                 return 1;
             }
-            apex_remote_print_plugins_filtered(plist, (const char **)installed_ids, installed_count);
+            apex_remote_print_plugins_filtered(plist, (const char **)installed_ids, installed_count, "plugins");
             apex_remote_free_plugins(plist);
             if (installed_ids) {
                 for (size_t i = 0; i < installed_count; i++) free(installed_ids[i]);
@@ -2339,13 +2353,18 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Handle filter installation before normal conversion.
+    /* Handle filter listing/installation/uninstallation before normal conversion.
      * Filters are distributed from the apex-filters directory:
      *   https://github.com/ApexMarkdown/apex-filters
      * and installed into:
      *   $XDG_CONFIG_HOME/apex/filters or ~/.config/apex/filters
      */
-    if (install_filter_id) {
+    if (list_filters || install_filter_id || uninstall_filter_id) {
+        if (install_filter_id && uninstall_filter_id) {
+            fprintf(stderr, "Error: --install-filter and --uninstall-filter cannot be combined.\n");
+            return 1;
+        }
+
         /* Determine filters root: $XDG_CONFIG_HOME/apex/filters or ~/.config/apex/filters */
         const char *xdg = getenv("XDG_CONFIG_HOME");
         char root[1024];
@@ -2360,6 +2379,93 @@ int main(int argc, char *argv[]) {
             snprintf(root, sizeof(root), "%s/.config/apex/filters", home);
         }
 
+        /* Uninstall filter */
+        if (uninstall_filter_id) {
+            char target[1200];
+            snprintf(target, sizeof(target), "%s/%s", root, uninstall_filter_id);
+
+            struct stat st;
+            if (stat(target, &st) != 0) {
+                fprintf(stderr, "Error: filter '%s' is not installed at %s\n", uninstall_filter_id, target);
+                return 1;
+            }
+
+            fprintf(stderr, "About to remove filter:\n  %s\n", target);
+            fprintf(stderr, "Proceed? [y/N]: ");
+            fflush(stderr);
+
+            char answer[16];
+            if (!fgets(answer, sizeof(answer), stdin)) {
+                fprintf(stderr, "Aborted.\n");
+                return 1;
+            }
+            if (answer[0] != 'y' && answer[0] != 'Y') {
+                fprintf(stderr, "Aborted.\n");
+                return 1;
+            }
+
+            if (S_ISDIR(st.st_mode)) {
+                char rm_cmd[1400];
+                snprintf(rm_cmd, sizeof(rm_cmd), "rm -rf \"%s\"", target);
+                int rm_rc = system(rm_cmd);
+                if (rm_rc != 0) {
+                    fprintf(stderr, "Error: failed to remove filter directory '%s'.\n", target);
+                    return 1;
+                }
+            } else {
+                if (unlink(target) != 0) {
+                    fprintf(stderr, "Error: failed to remove filter '%s'.\n", target);
+                    return 1;
+                }
+            }
+
+            fprintf(stderr, "Uninstalled filter '%s' from %s\n", uninstall_filter_id, target);
+            return 0;
+        }
+
+        /* List filters: installed from root + available from remote directory */
+        if (list_filters) {
+            const char *dir_url = "https://raw.githubusercontent.com/ApexMarkdown/apex-filters/refs/heads/main/apex-filters.json";
+            apex_remote_plugin_list *flist = apex_remote_fetch_filters_directory(dir_url);
+
+            /* Collect installed filter ids (files and directories in root) */
+            char *installed_ids[128];
+            size_t installed_count = 0;
+            DIR *dir = opendir(root);
+            if (dir) {
+                struct dirent *ent;
+                while ((ent = readdir(dir)) != NULL && installed_count < 128) {
+                    if (ent->d_name[0] == '.' && (ent->d_name[1] == '\0' || (ent->d_name[1] == '.' && ent->d_name[2] == '\0')))
+                        continue;
+                    if (strncmp(ent->d_name, ".apex_", 6) == 0)
+                        continue;
+                    installed_ids[installed_count] = strdup(ent->d_name);
+                    if (installed_ids[installed_count])
+                        installed_count++;
+                }
+                closedir(dir);
+            }
+
+            printf("## Installed Filters\n");
+            if (installed_count == 0) {
+                printf("(none)\n");
+            } else {
+                for (size_t i = 0; i < installed_count; i++)
+                    printf("%s\n", installed_ids[i]);
+            }
+
+            printf("---\n");
+            printf("## Available Filters\n");
+            apex_remote_print_plugins_filtered(flist, (const char **)installed_ids, installed_count, "filters");
+
+            for (size_t i = 0; i < installed_count; i++)
+                free(installed_ids[i]);
+            if (flist) apex_remote_free_plugins(flist);
+            return 0;
+        }
+
+        /* Install filter */
+        if (install_filter_id) {
         /* Check if install_filter_id is a direct URL/shorthand (GitHub repo) */
         char *normalized_repo = normalize_plugin_repo_url(install_filter_id);
         const char *repo = NULL;
@@ -2538,6 +2644,7 @@ int main(int argc, char *argv[]) {
         if (final_filter_id) free(final_filter_id);
         if (repo && repo != normalized_repo) free((void *)repo);
         return 0;
+        }
     }
 
     /* mmd-merge mode: emulate MultiMarkdown mmd_merge.pl and exit */

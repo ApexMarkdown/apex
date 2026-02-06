@@ -114,15 +114,11 @@ char *apex_remote_extract_string(const char *obj, const char *key) {
     return out;
 }
 
-/* Parse a very small subset of JSON: { \"plugins\": [ { ... }, { ... } ] } */
-static apex_remote_plugin_list *apex_remote_parse_directory(const char *json) {
-    if (!json) return NULL;
-    const char *plugins_key = "\"plugins\"";
-    const char *p = strstr(json, plugins_key);
-    if (!p) {
-        fprintf(stderr, "Error: plugin directory JSON missing \"plugins\" key.\n");
-        return NULL;
-    }
+/* Parse array of objects from JSON; array_key is e.g. "\"plugins\"" or "\"filters\"" */
+static apex_remote_plugin_list *apex_remote_parse_array(const char *json, const char *array_key) {
+    if (!json || !array_key) return NULL;
+    const char *p = strstr(json, array_key);
+    if (!p) return NULL;
     p = strchr(p, '[');
     if (!p) return NULL;
     p++; /* move past '[' */
@@ -195,6 +191,27 @@ static apex_remote_plugin_list *apex_remote_parse_directory(const char *json) {
     return list;
 }
 
+/* Parse { \"plugins\": [ ... ] } */
+static apex_remote_plugin_list *apex_remote_parse_directory(const char *json) {
+    if (!json) return NULL;
+    if (!strstr(json, "\"plugins\"")) {
+        fprintf(stderr, "Error: plugin directory JSON missing \"plugins\" key.\n");
+        return NULL;
+    }
+    return apex_remote_parse_array(json, "\"plugins\"");
+}
+
+/* Parse { \"filters\": [ ... ] } - same shape as plugins (id, title, description, author, homepage, repo) */
+static apex_remote_plugin_list *apex_remote_parse_filters_directory(const char *json) {
+    if (!json) return NULL;
+    const char *p = strstr(json, "\"filters\"");
+    if (!p) {
+        fprintf(stderr, "Error: filter directory JSON missing \"filters\" key.\n");
+        return NULL;
+    }
+    return apex_remote_parse_array(json, "\"filters\"");
+}
+
 /* Public helpers used by CLI */
 
 apex_remote_plugin_list *apex_remote_fetch_directory(const char *url) {
@@ -205,11 +222,20 @@ apex_remote_plugin_list *apex_remote_fetch_directory(const char *url) {
     return list;
 }
 
+apex_remote_plugin_list *apex_remote_fetch_filters_directory(const char *url) {
+    char *json = apex_remote_fetch_json(url);
+    if (!json) return NULL;
+    apex_remote_plugin_list *list = apex_remote_parse_filters_directory(json);
+    free(json);
+    return list;
+}
+
 void apex_remote_print_plugins_filtered(apex_remote_plugin_list *list,
                                         const char **installed_ids,
-                                        size_t installed_count) {
+                                        size_t installed_count,
+                                        const char *noun) {
     if (!list || !list->head) {
-        fprintf(stderr, "No plugins found in remote directory.\n");
+        fprintf(stderr, "No %s found in remote directory.\n", noun ? noun : "plugins");
         return;
     }
     for (apex_remote_plugin *p = list->head; p; p = p->next) {
@@ -243,7 +269,7 @@ void apex_remote_print_plugins_filtered(apex_remote_plugin_list *list,
 }
 
 void apex_remote_print_plugins(apex_remote_plugin_list *list) {
-    apex_remote_print_plugins_filtered(list, NULL, 0);
+    apex_remote_print_plugins_filtered(list, NULL, 0, NULL);
 }
 
 apex_remote_plugin *apex_remote_find_plugin(apex_remote_plugin_list *list, const char *id) {
