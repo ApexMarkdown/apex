@@ -582,39 +582,55 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
         if (*cur->s != '{') { ok = 0; break; }
         cur->s++; /* object start */
 
-        /* Expect {"t":"Tag","c":...} */
-        char *key = NULL;
+        /* Parse object with any key order (e.g. dkjson outputs "c" before "t") */
         char *tag = NULL;
-        cmark_node *node = NULL;
-
-        /* Read "t" field */
-        json_skip_ws(cur);
-        key = json_parse_string(cur);
-        if (!key) { ok = 0; break; }
-        if (!json_match_char(cur, ':')) { free(key); ok = 0; break; }
-        tag = json_parse_string(cur);
-        if (!tag) { free(key); ok = 0; break; }
-        free(key);
-
-        /* Move to next field ("," or "}") */
-        json_skip_ws(cur);
-        if (*cur->s == ',') {
-            cur->s++;
+        char *c_buf = NULL;
+        while (1) {
+            json_skip_ws(cur);
+            if (*cur->s == '}') {
+                cur->s++;
+                break;
+            }
+            char *key = json_parse_string(cur);
+            if (!key) { ok = 0; break; }
+            if (!json_match_char(cur, ':')) { free(key); ok = 0; break; }
+            if (strcmp(key, "t") == 0) {
+                tag = json_parse_string(cur);
+                free(key);
+                if (!tag) { ok = 0; break; }
+            } else if (strcmp(key, "c") == 0) {
+                json_skip_ws(cur);
+                const char *v_start = cur->s;
+                if (!json_skip_value(cur)) { free(key); ok = 0; break; }
+                size_t vlen = (size_t)(cur->s - v_start);
+                c_buf = (char *)malloc(vlen + 1);
+                if (!c_buf) { free(key); ok = 0; break; }
+                memcpy(c_buf, v_start, vlen);
+                c_buf[vlen] = '\0';
+                free(key);
+            } else {
+                if (!json_skip_value(cur)) { free(key); ok = 0; break; }
+                free(key);
+            }
+            json_skip_ws(cur);
+            if (*cur->s == ',') cur->s++;
+        }
+        if (!ok || !tag || !c_buf) {
+            free(tag);
+            free(c_buf);
+            ok = 0;
+            break;
         }
 
-        /* For now, we expect "c":VALUE but we only need VALUE. */
-        json_skip_ws(cur);
-        key = json_parse_string(cur);
-        if (!key) { free(tag); ok = 0; break; }
-        if (!json_match_char(cur, ':')) { free(key); free(tag); ok = 0; break; }
-        free(key);
+        /* Parse "c" from buffer so we can dispatch by tag */
+        json_cursor ccur = { c_buf };
+        cmark_node *node = NULL;
 
-        /* Build a cmark node based on tag and content */
         if (strcmp(tag, "Str") == 0) {
-            char *txt = json_parse_string(cur);
-            if (!txt) { free(tag); ok = 0; break; }
+            char *txt = json_parse_string(&ccur);
+            if (!txt) { free(tag); free(c_buf); ok = 0; break; }
             node = cmark_node_new(CMARK_NODE_TEXT);
-            if (!node) { free(tag); free(txt); ok = 0; break; }
+            if (!node) { free(tag); free(c_buf); free(txt); ok = 0; break; }
             cmark_node_set_literal(node, txt);
             free(txt);
         } else if (strcmp(tag, "SoftBreak") == 0) {
@@ -622,52 +638,39 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
         } else if (strcmp(tag, "LineBreak") == 0) {
             node = cmark_node_new(CMARK_NODE_LINEBREAK);
         } else if (strcmp(tag, "Emph") == 0 || strcmp(tag, "Strong") == 0) {
-            /* Content is an array of inlines */
-            if (!json_match_char(cur, '[')) { free(tag); ok = 0; break; }
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); ok = 0; break; }
             cmark_node *wrapper = cmark_node_new(strcmp(tag, "Emph") == 0
                                                  ? CMARK_NODE_EMPH
                                                  : CMARK_NODE_STRONG);
-            if (!wrapper) { free(tag); ok = 0; break; }
-            json_skip_ws(cur);
-            if (*cur->s != ']') {
-                cmark_node *child_first = parse_inlines_array(cur);
+            if (!wrapper) { free(tag); free(c_buf); ok = 0; break; }
+            json_skip_ws(&ccur);
+            if (*ccur.s != ']') {
+                cmark_node *child_first = parse_inlines_array(&ccur);
                 cmark_node *child = child_first;
                 while (child) {
                     cmark_node *next = cmark_node_next(child);
                     cmark_node_append_child(wrapper, child);
                     child = next;
                 }
-            } else {
-                cur->s++; /* consume ']' */
             }
             node = wrapper;
         } else if (strcmp(tag, "Code") == 0) {
-            /* ["Attr", "text"] – we skip attributes and just read second string */
-            if (!json_match_char(cur, '[')) { free(tag); ok = 0; break; }
-            /* Skip Attr triple */
-            if (!json_skip_value(cur)) { free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ',')) { free(tag); ok = 0; break; }
-            char *txt = json_parse_string(cur);
-            if (!txt) { free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ']')) { free(tag); free(txt); ok = 0; break; }
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_skip_value(&ccur)) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); ok = 0; break; }
+            char *txt = json_parse_string(&ccur);
+            if (!txt) { free(tag); free(c_buf); ok = 0; break; }
             node = cmark_node_new(CMARK_NODE_CODE);
-            if (!node) { free(tag); free(txt); ok = 0; break; }
+            if (!node) { free(tag); free(c_buf); free(txt); ok = 0; break; }
             cmark_node_set_literal(node, txt);
             free(txt);
         } else if (strcmp(tag, "Span") == 0) {
-            /* Span with attributes: {"t":"Span","c":[Attr,[Inlines...]]}
-             * For now we ignore attributes and just splice children into the
-             * inline stream, so filters using Span don't break Apex.
-             */
-            if (!json_match_char(cur, '[')) { free(tag); ok = 0; break; }
-            /* Attr */
-            if (!json_skip_value(cur)) { free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ',')) { free(tag); ok = 0; break; }
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_skip_value(&ccur)) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); ok = 0; break; }
 
-            cmark_node *child_first = parse_inlines_array(cur);
-            if (!json_match_char(cur, ']')) { free(tag); ok = 0; break; }
+            cmark_node *child_first = parse_inlines_array(&ccur);
 
-            /* We'll append children directly to dummy; no single node wrapper. */
             cmark_node *child = child_first;
             while (child) {
                 cmark_node *next = cmark_node_next(child);
@@ -678,27 +681,21 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
                 }
                 child = next;
             }
-            /* Do not set node; we already appended children. */
             node = NULL;
         } else if (strcmp(tag, "Math") == 0) {
-            /* {"t":"Math","c":[{"t":"DisplayMath"|"InlineMath"},"<latex>"]} */
-            if (!json_match_char(cur, '[')) { free(tag); ok = 0; break; }
-
-            /* Parse kind object: {"t":"DisplayMath"} */
-            if (!json_match_char(cur, '{')) { free(tag); ok = 0; break; }
-            char *kind_key = json_parse_string(cur); /* "t" */
-            if (!kind_key) { free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ':')) { free(kind_key); free(tag); ok = 0; break; }
-            char *kind = json_parse_string(cur);      /* "DisplayMath" or "InlineMath" */
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, '{')) { free(tag); free(c_buf); ok = 0; break; }
+            char *kind_key = json_parse_string(&ccur);
+            if (!kind_key) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, ':')) { free(kind_key); free(tag); free(c_buf); ok = 0; break; }
+            char *kind = json_parse_string(&ccur);
             free(kind_key);
-            if (!kind) { free(tag); ok = 0; break; }
-            if (!json_match_char(cur, '}')) { free(kind); free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ',')) { free(kind); free(tag); ok = 0; break; }
+            if (!kind) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, '}')) { free(kind); free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, ',')) { free(kind); free(tag); free(c_buf); ok = 0; break; }
 
-            /* LaTeX code string */
-            char *code = json_parse_string(cur);
-            if (!code) { free(kind); free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ']')) { free(code); free(kind); free(tag); ok = 0; break; }
+            char *code = json_parse_string(&ccur);
+            if (!code) { free(kind); free(tag); free(c_buf); ok = 0; break; }
 
             const char *delim = (strcmp(kind, "DisplayMath") == 0) ? "$$" : "$";
             size_t dlen = strlen(delim);
@@ -709,6 +706,7 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
                 free(code);
                 free(kind);
                 free(tag);
+                free(c_buf);
                 ok = 0;
                 break;
             }
@@ -720,6 +718,7 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
                 free(code);
                 free(kind);
                 free(tag);
+                free(c_buf);
                 ok = 0;
                 break;
             }
@@ -729,27 +728,21 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
             free(code);
             free(kind);
         } else if (strcmp(tag, "RawInline") == 0) {
-            /* ["format","text"] – skip format, use text */
-            if (!json_match_char(cur, '[')) { free(tag); ok = 0; break; }
-            if (!json_skip_value(cur)) { free(tag); ok = 0; break; } /* format */
-            if (!json_match_char(cur, ',')) { free(tag); ok = 0; break; }
-            char *txt = json_parse_string(cur);
-            if (!txt) { free(tag); ok = 0; break; }
-            if (!json_match_char(cur, ']')) { free(tag); free(txt); ok = 0; break; }
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_skip_value(&ccur)) { free(tag); free(c_buf); ok = 0; break; }
+            if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); ok = 0; break; }
+            char *txt = json_parse_string(&ccur);
+            if (!txt) { free(tag); free(c_buf); ok = 0; break; }
             node = cmark_node_new(CMARK_NODE_HTML_INLINE);
-            if (!node) { free(tag); free(txt); ok = 0; break; }
+            if (!node) { free(tag); free(c_buf); free(txt); ok = 0; break; }
             cmark_node_set_literal(node, txt);
             free(txt);
-        } else {
-            /* Unknown inline – skip value, no node created */
-            if (!json_skip_value(cur)) { free(tag); ok = 0; break; }
         }
+        /* Unknown inline: node stays NULL, no node created */
 
         free(tag);
-
-        /* Close object */
-        json_skip_ws(cur);
-        if (!json_match_char(cur, '}')) { ok = 0; break; }
+        free(c_buf);
+        /* Object closing '}' already consumed in the key-order loop */
 
             if (node) {
                 if (!cmark_node_append_child(dummy, node)) {
@@ -791,33 +784,61 @@ static cmark_node *parse_inlines_array(json_cursor *cur) {
     return first;
 }
 
-/* Parse a single Block object {"t": "...", "c": ...} */
+/* Parse a single Block object {"t": "...", "c": ...} (any key order, e.g. dkjson "c" before "t") */
 static cmark_node *parse_block_object(json_cursor *cur) {
     if (!json_match_char(cur, '{')) return NULL;
 
-    /* Read "t" */
-    char *key = json_parse_string(cur);
-    if (!key) return NULL;
-    if (!json_match_char(cur, ':')) { free(key); return NULL; }
-    char *tag = json_parse_string(cur);
-    if (!tag) { free(key); return NULL; }
-    free(key);
+    char *tag = NULL;
+    char *c_buf = NULL;
+    while (1) {
+        json_skip_ws(cur);
+        if (*cur->s == '}') {
+            /* Only leave the loop when we have both "t" and "c" (handles dkjson "c" before "t") */
+            if (tag && c_buf) {
+                cur->s++;
+                break;
+            }
+            free(tag);
+            free(c_buf);
+            return NULL;
+        }
+        char *key = json_parse_string(cur);
+        if (!key) return NULL;
+        if (!json_match_char(cur, ':')) { free(key); free(tag); free(c_buf); return NULL; }
+        if (strcmp(key, "t") == 0) {
+            tag = json_parse_string(cur);
+            free(key);
+            if (!tag) { free(c_buf); return NULL; }
+        } else if (strcmp(key, "c") == 0) {
+            json_skip_ws(cur);
+            const char *v_start = cur->s;
+            if (!json_skip_value(cur)) { free(key); free(tag); free(c_buf); return NULL; }
+            size_t vlen = (size_t)(cur->s - v_start);
+            c_buf = (char *)malloc(vlen + 1);
+            if (!c_buf) { free(key); free(tag); return NULL; }
+            memcpy(c_buf, v_start, vlen);
+            c_buf[vlen] = '\0';
+            free(key);
+        } else {
+            if (!json_skip_value(cur)) { free(key); free(tag); free(c_buf); return NULL; }
+            free(key);
+        }
+        json_skip_ws(cur);
+        if (*cur->s == ',') cur->s++;
+    }
+    if (!tag || !c_buf) {
+        free(tag);
+        free(c_buf);
+        return NULL;
+    }
 
-    /* Move to "c" field (skip commas/whitespace) */
-    json_skip_ws(cur);
-    if (*cur->s == ',') cur->s++;
-    json_skip_ws(cur);
-    key = json_parse_string(cur); /* should be "c" */
-    if (!key) { free(tag); return NULL; }
-    if (!json_match_char(cur, ':')) { free(key); free(tag); return NULL; }
-    free(key);
-
+    json_cursor ccur = { c_buf };
     cmark_node *node = NULL;
 
     if (strcmp(tag, "Para") == 0) {
         cmark_node *para = cmark_node_new(CMARK_NODE_PARAGRAPH);
-        if (!para) { free(tag); return NULL; }
-        cmark_node *child_first = parse_inlines_array(cur);
+        if (!para) { free(tag); free(c_buf); return NULL; }
+        cmark_node *child_first = parse_inlines_array(&ccur);
         cmark_node *child = child_first;
         while (child) {
             cmark_node *next = cmark_node_next(child);
@@ -826,67 +847,63 @@ static cmark_node *parse_block_object(json_cursor *cur) {
         }
         node = para;
     } else if (strcmp(tag, "Header") == 0) {
-        if (!json_match_char(cur, '[')) { free(tag); return NULL; }
-        long level = json_parse_int(cur);
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
+        long level = json_parse_int(&ccur);
         if (level <= 0) level = 1;
-        if (!json_match_char(cur, ',')) { free(tag); return NULL; }
-        /* Skip Attr triple */
-        if (!json_skip_value(cur)) { free(tag); return NULL; }
-        if (!json_match_char(cur, ',')) { free(tag); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
+        if (!json_skip_value(&ccur)) { free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
         cmark_node *heading = cmark_node_new(CMARK_NODE_HEADING);
-        if (!heading) { free(tag); return NULL; }
+        if (!heading) { free(tag); free(c_buf); return NULL; }
         cmark_node_set_heading_level(heading, (int)level);
-        cmark_node *child_first = parse_inlines_array(cur);
+        cmark_node *child_first = parse_inlines_array(&ccur);
         cmark_node *child = child_first;
         while (child) {
             cmark_node *next = cmark_node_next(child);
             cmark_node_append_child(heading, child);
             child = next;
         }
-        /* parse_inlines_array consumed the inlines ']'; "c" is [level,Attr,Inlines] so one more ']' closes "c" */
-        json_skip_ws(cur);
-        if (*cur->s == ']')
-            cur->s++;
+        json_skip_ws(&ccur);
+        if (*ccur.s == ']')
+            ccur.s++;
         node = heading;
     } else if (strcmp(tag, "HorizontalRule") == 0) {
-        /* c is [] – we just skip value */
-        if (!json_skip_value(cur)) { free(tag); return NULL; }
+        if (!json_skip_value(&ccur)) { free(tag); free(c_buf); return NULL; }
         node = cmark_node_new(CMARK_NODE_THEMATIC_BREAK);
     } else if (strcmp(tag, "RawBlock") == 0) {
-        /* ["format","text"] – skip format, use text */
-        if (!json_match_char(cur, '[')) { free(tag); return NULL; }
-        if (!json_skip_value(cur)) { free(tag); return NULL; }
-        if (!json_match_char(cur, ',')) { free(tag); return NULL; }
-        char *txt = json_parse_string(cur);
-        if (!txt) { free(tag); return NULL; }
-        if (!json_match_char(cur, ']')) { free(tag); free(txt); return NULL; }
+        json_skip_ws(&ccur);
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
+        if (!json_skip_value(&ccur)) { free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
+        char *txt = json_parse_string(&ccur);
+        if (!txt) { free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, ']')) { free(tag); free(c_buf); free(txt); return NULL; }
         node = cmark_node_new(CMARK_NODE_HTML_BLOCK);
-        if (!node) { free(tag); free(txt); return NULL; }
+        if (!node) { free(tag); free(c_buf); free(txt); return NULL; }
         cmark_node_set_literal(node, txt);
         free(txt);
     } else if (strcmp(tag, "CodeBlock") == 0) {
-        if (!json_match_char(cur, '[')) { free(tag); return NULL; }
-        /* Attr triple: [id, [classes], [[k,v]...]] – we only care about first class as fence info */
-        if (!json_match_char(cur, '[')) { free(tag); return NULL; }
-        char *id = json_parse_string(cur); /* id */
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
+        char *id = json_parse_string(&ccur);
         (void)id;
         free(id);
-        if (!json_match_char(cur, ',')) { free(tag); return NULL; }
-        if (!json_match_char(cur, '[')) { free(tag); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
         char *lang = NULL;
-        json_skip_ws(cur);
-        if (*cur->s != ']') {
-            lang = json_parse_string(cur);
+        json_skip_ws(&ccur);
+        if (*ccur.s != ']') {
+            lang = json_parse_string(&ccur);
         }
-        if (!json_match_char(cur, ']')) { free(tag); free(lang); return NULL; }
-        if (!json_match_char(cur, ',')) { free(tag); free(lang); return NULL; }
-        if (!json_skip_value(cur)) { free(tag); free(lang); return NULL; } /* attributes array */
-        if (!json_match_char(cur, ']')) { free(tag); free(lang); return NULL; }
-        if (!json_match_char(cur, ',')) { free(tag); free(lang); return NULL; }
-        char *txt = json_parse_string(cur);
-        if (!txt) { free(tag); free(lang); return NULL; }
+        if (!json_match_char(&ccur, ']')) { free(tag); free(c_buf); free(lang); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); free(lang); return NULL; }
+        if (!json_skip_value(&ccur)) { free(tag); free(c_buf); free(lang); return NULL; }
+        if (!json_match_char(&ccur, ']')) { free(tag); free(c_buf); free(lang); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); free(lang); return NULL; }
+        char *txt = json_parse_string(&ccur);
+        if (!txt) { free(tag); free(c_buf); free(lang); return NULL; }
         node = cmark_node_new(CMARK_NODE_CODE_BLOCK);
-        if (!node) { free(tag); free(lang); free(txt); return NULL; }
+        if (!node) { free(tag); free(c_buf); free(lang); free(txt); return NULL; }
         cmark_node_set_literal(node, txt);
         if (lang && *lang) {
             cmark_node_set_fence_info(node, lang);
@@ -896,90 +913,98 @@ static cmark_node *parse_block_object(json_cursor *cur) {
     } else if (strcmp(tag, "BulletList") == 0 || strcmp(tag, "OrderedList") == 0) {
         int is_ordered = (strcmp(tag, "OrderedList") == 0);
         if (is_ordered) {
-            if (!json_match_char(cur, '[')) { free(tag); return NULL; }
-            /* [start, style, delim] */
-            long start = json_parse_int(cur);
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
+            long start = json_parse_int(&ccur);
             if (start <= 0) start = 1;
-            if (!json_match_char(cur, ',')) { free(tag); return NULL; }
-            if (!json_skip_value(cur)) { free(tag); return NULL; } /* style */
-            if (!json_match_char(cur, ',')) { free(tag); return NULL; }
-            if (!json_skip_value(cur)) { free(tag); return NULL; } /* delim */
-            if (!json_match_char(cur, ',')) { free(tag); return NULL; }
+            if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
+            if (!json_skip_value(&ccur)) { free(tag); free(c_buf); return NULL; }
+            if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
+            if (!json_skip_value(&ccur)) { free(tag); free(c_buf); return NULL; }
+            if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
         } else {
-            if (!json_match_char(cur, '[')) { free(tag); return NULL; }
+            if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
         }
 
         cmark_node *list = cmark_node_new(CMARK_NODE_LIST);
-        if (!list) { free(tag); return NULL; }
+        if (!list) { free(tag); free(c_buf); return NULL; }
         if (is_ordered) {
             cmark_node_set_list_type(list, CMARK_ORDERED_LIST);
-            /* we already parsed start; but for simplicity we leave default start=1 */
         } else {
             cmark_node_set_list_type(list, CMARK_BULLET_LIST);
         }
 
-        /* items: [ [blocks...], [blocks...] ] */
-        if (!json_match_char(cur, '[')) { cmark_node_free(list); free(tag); return NULL; }
-        json_skip_ws(cur);
-        while (*cur->s != ']') {
-            if (!json_match_char(cur, '[')) { cmark_node_free(list); free(tag); return NULL; }
+        if (!json_match_char(&ccur, '[')) { cmark_node_free(list); free(tag); free(c_buf); return NULL; }
+        json_skip_ws(&ccur);
+        while (*ccur.s != ']') {
+            if (!json_match_char(&ccur, '[')) { cmark_node_free(list); free(tag); free(c_buf); return NULL; }
             cmark_node *item = cmark_node_new(CMARK_NODE_ITEM);
-            if (!item) { cmark_node_free(list); free(tag); return NULL; }
-            cmark_node *blocks = parse_blocks_array(cur);
-            cmark_node *blk = blocks;
-            while (blk) {
-                cmark_node *next = cmark_node_next(blk);
-                cmark_node_append_child(item, blk);
-                blk = next;
+            if (!item) { cmark_node_free(list); free(tag); free(c_buf); return NULL; }
+            cmark_node *blocks = parse_blocks_array(&ccur);
+            if (blocks) {
+                cmark_node *blk = cmark_node_first_child(blocks);
+                while (blk) {
+                    cmark_node *next = cmark_node_next(blk);
+                    cmark_node_append_child(item, blk);
+                    blk = next;
+                }
+                cmark_node_free(blocks);
             }
-            if (!json_match_char(cur, ']')) { cmark_node_free(item); cmark_node_free(list); free(tag); return NULL; }
+            if (!json_match_char(&ccur, ']')) { cmark_node_free(item); cmark_node_free(list); free(tag); free(c_buf); return NULL; }
 
             cmark_node_append_child(list, item);
 
-            json_skip_ws(cur);
-            if (*cur->s == ',') {
-                cur->s++;
+            json_skip_ws(&ccur);
+            if (*ccur.s == ',') {
+                ccur.s++;
                 continue;
-            } else if (*cur->s == ']') {
+            } else if (*ccur.s == ']') {
                 break;
             } else {
                 break;
             }
         }
-        if (!json_match_char(cur, ']')) { cmark_node_free(list); free(tag); return NULL; }
-        if (!json_match_char(cur, ']')) { cmark_node_free(list); free(tag); return NULL; }
+        if (!json_match_char(&ccur, ']')) { cmark_node_free(list); free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, ']')) { cmark_node_free(list); free(tag); free(c_buf); return NULL; }
         node = list;
     } else if (strcmp(tag, "BlockQuote") == 0) {
-        if (!json_match_char(cur, '[')) { free(tag); return NULL; }
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
         cmark_node *bq = cmark_node_new(CMARK_NODE_BLOCK_QUOTE);
-        if (!bq) { free(tag); return NULL; }
-        cmark_node *blocks = parse_blocks_array(cur);
-        cmark_node *blk = blocks;
-        while (blk) {
-            cmark_node *next = cmark_node_next(blk);
-            cmark_node_append_child(bq, blk);
-            blk = next;
+        if (!bq) { free(tag); free(c_buf); return NULL; }
+        cmark_node *blocks = parse_blocks_array(&ccur);
+        if (blocks) {
+            cmark_node *blk = cmark_node_first_child(blocks);
+            while (blk) {
+                cmark_node *next = cmark_node_next(blk);
+                cmark_node_append_child(bq, blk);
+                blk = next;
+            }
+            cmark_node_free(blocks);
         }
-        if (!json_match_char(cur, ']')) { cmark_node_free(bq); free(tag); return NULL; }
+        if (!json_match_char(&ccur, ']')) { cmark_node_free(bq); free(tag); free(c_buf); return NULL; }
         node = bq;
+    } else if (strcmp(tag, "Div") == 0) {
+        /* c = [Attr, blocks] – skip Attr, parse inner blocks and return chain so caller appends all */
+        if (!json_match_char(&ccur, '[')) { free(tag); free(c_buf); return NULL; }
+        if (!json_skip_value(&ccur)) { free(tag); free(c_buf); return NULL; }
+        if (!json_match_char(&ccur, ',')) { free(tag); free(c_buf); return NULL; }
+        node = parse_blocks_array(&ccur);
+        if (!json_match_char(&ccur, ']')) {
+            if (node) cmark_node_free(node);
+            free(tag);
+            free(c_buf);
+            return NULL;
+        }
     } else {
-        /* Unknown block – skip its content and create empty paragraph */
-        if (!json_skip_value(cur)) { free(tag); return NULL; }
         node = cmark_node_new(CMARK_NODE_PARAGRAPH);
     }
 
     free(tag);
-
-    /* Close object */
-    if (!json_match_char(cur, '}')) {
-        if (node) cmark_node_free(node);
-        return NULL;
-    }
-
+    free(c_buf);
     return node;
 }
 
 static cmark_node *parse_blocks_array(json_cursor *cur) {
+    json_skip_ws(cur);
     if (!json_match_char(cur, '[')) return NULL;
     cmark_node *dummy = cmark_node_new(CMARK_NODE_DOCUMENT);
     if (!dummy) return NULL;
@@ -993,9 +1018,14 @@ static cmark_node *parse_blocks_array(json_cursor *cur) {
 
     int ok = 1;
     while (ok) {
+        json_skip_ws(cur);
         cmark_node *blk = parse_block_object(cur);
         if (!blk) { ok = 0; break; }
-        cmark_node_append_child(dummy, blk);
+        while (blk) {
+            cmark_node *next = cmark_node_next(blk);
+            cmark_node_append_child(dummy, blk);
+            blk = next;
+        }
 
         json_skip_ws(cur);
         if (*cur->s == ',') {
@@ -1013,17 +1043,9 @@ static cmark_node *parse_blocks_array(json_cursor *cur) {
         return NULL;
     }
 
-    cmark_node *first = cmark_node_first_child(dummy);
-    if (first) {
-        cmark_node *child = first;
-        while (child) {
-            cmark_node *next = cmark_node_next(child);
-            cmark_node_unlink(child);
-            child = next;
-        }
-    }
-    cmark_node_free(dummy);
-    return first;
+    /* Return the dummy so the caller can iterate over its children and append each to doc;
+     * returning the first child would require unlinking, which clears next and drops the chain. */
+    return dummy;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1055,11 +1077,14 @@ cmark_node *apex_pandoc_json_to_cmark(const char *json,
 
         if (strcmp(key, "blocks") == 0) {
             cmark_node *blocks = parse_blocks_array(&cur);
-            cmark_node *blk = blocks;
-            while (blk) {
-                cmark_node *next = cmark_node_next(blk);
-                cmark_node_append_child(doc, blk);
-                blk = next;
+            if (blocks) {
+                cmark_node *blk = cmark_node_first_child(blocks);
+                while (blk) {
+                    cmark_node *next = cmark_node_next(blk);
+                    cmark_node_append_child(doc, blk);
+                    blk = next;
+                }
+                cmark_node_free(blocks);
             }
         } else {
             /* Skip other fields (pandoc-api-version, meta, etc.) */
