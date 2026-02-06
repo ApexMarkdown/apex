@@ -2,6 +2,8 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.75] - 2026-02-06
+
 ## [0.1.74] - 2026-02-06
 
 ### New
@@ -2381,6 +2383,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.75]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.75
 [0.1.74]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.74
 [0.1.73]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.73
 [0.1.72]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.72
