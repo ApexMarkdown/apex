@@ -1,5 +1,5 @@
 
-[![Version: 0.1.72](https://img.shields.io/badge/Version-0.1.72-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1304/1304](https://img.shields.io/badge/Tests-1304/1304-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.73](https://img.shields.io/badge/Version-0.1.73-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1314/1314](https://img.shields.io/badge/Tests-1314/1314-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -149,33 +149,11 @@ Directly from a Git URL or GitHub shorthand: `--install-plugin https://github.co
 - Uninstall a local plugin with `--uninstall-plugin ID`.
 - See installed and available plugins with `--list-plugins`.
 
-For **AST filters** (Pandoc-style JSON filters), Apex also supports:
-
-- Install filters from the central directory:
-
-  ```bash
-  apex --install-filter title
-  apex --install-filter delink
-  ```
-
-  This clones the corresponding repositories from the
-  [`ApexMarkdown/apex-filters`](https://github.com/ApexMarkdown/apex-filters)
-  directory into your local filters directory
-  (`$XDG_CONFIG_HOME/apex/filters` or `~/.config/apex/filters`).
-
-- Run filters on a conversion:
-
-  ```bash
-  apex --filter title input.md > output.html
-  apex --filter delink input.md > output.html
-  apex --filters input.md > output.html   # run all installed filters
-  ```
-
 When installing from a direct Git URL or GitHub repo name,
 Apex will prompt with a security warning before cloning,
 since plugins execute unverified code.
 
-For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki. For AST filters, see the [Filters](https://github.com/ApexMarkdown/apex/wiki/Filters) page.
+For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki.
 
 ## Installation
 
@@ -321,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.72
+Apex Markdown Processor v0.1.73
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -356,6 +334,13 @@ Options:
   --[no-]includes        Enable file inclusion (enabled by default in unified mode)
   --indices               Enable index processing (mmark, TextIndex, and Leanpub syntax)
   --install-plugin ID    Install plugin by id from directory, or by Git URL/GitHub shorthand (user/repo)
+  --list-filters         List installed filters and available filters from the remote directory
+  --install-filter ID    Install AST filter by id from the central filters directory or by Git URL/GitHub shorthand
+  --uninstall-filter ID  Uninstall filter by id
+  --filter NAME          Run a single AST filter from ~/.config/apex/filters/NAME (Pandoc-style JSON filter)
+  --filters              Run all executable filters in ~/.config/apex/filters (sorted by name)
+  --lua-filter FILE      Run a Lua script as an AST filter via 'lua FILE' (Pandoc-style JSON filter)
+  --no-strict-filters    Do not abort on AST filter errors/invalid JSON; skip failing filters instead
   --link-citations       Link citations to bibliography entries
   --list-plugins         List installed plugins and available plugins from the remote directory
   --uninstall-plugin ID  Uninstall plugin by id

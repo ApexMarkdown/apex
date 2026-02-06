@@ -2,6 +2,31 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.74] - 2026-02-06
+
+### New
+
+- AST filters (Pandoc-style JSON): run filters via --filter, --filters, and --lua-filter; apex_options gains ast_filter_commands, ast_filter_count, and ast_filter_strict
+- --install-filter to install AST filters from the apex-filters directory or from a Git URL
+- --no-strict-filters to skip failing filters and invalid filter JSON instead of aborting
+- Div blocks in Pandoc JSON are now parsed (attributes skipped, inner blocks appended to the document)
+- --list-filters lists installed filters (from the user filters directory) and available filters from the central apex-filters directory, with titles, authors, descriptions, and homepages for available entries
+- --uninstall-filter ID removes a filter by id (file or directory) after a confirmation prompt; cannot be combined with --install-filter
+
+### Improved
+
+- Silence C compiler narrowing warnings in the abbreviations extension so embedding Apex and building language bindings can run with cleaner, warning-free builds
+- Images already inside a <figure> (e.g. from ::: >figure) are no longer wrapped again in figure/figcaption by the image-caption logic
+- Redundant <p> around a single <img> inside <figure> is stripped so ::: >figure with "< ![Image](...)" yields <figure><img...></figure> without an inner paragraph
+- Pandoc JSON parser accepts block and inline objects with keys in any order (e.g. "c" before "t" as emitted by dkjson/Lua) so filter output from Lua and other generators parses correctly
+- Filter directory JSON parsing is shared for both "plugins" and "filters" arrays; apex_remote_fetch_filters_directory fetches and parses apex-filters.json for list/install
+- Apex_remote_print_plugins_filtered accepts an optional noun so the empty-list message says "filters" when listing filters instead of "plugins"
+
+### Fixed
+
+- Pandoc JSON parser now consumes the closing "c" array bracket after Header inlines so multi-block filter output (e.g. unwrap filter with heading plus figure) parses correctly and renders full output
+- Multi-block Pandoc JSON (e.g. Header + RawBlock) now parses to all blocks instead of only the first; parse_blocks_array returns the container and callers adopt its children then free it so the block chain is preserved
+
 ## [0.1.73] - 2026-02-04
 
 ### New
@@ -2356,6 +2381,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.74]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.74
 [0.1.73]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.73
 [0.1.72]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.72
 [0.1.71]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.71
