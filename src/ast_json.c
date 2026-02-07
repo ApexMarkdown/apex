@@ -251,16 +251,36 @@ static int write_block(apex_json_buf *b, cmark_node *node) {
     case CMARK_NODE_CODE_BLOCK: {
         const char *lit = cmark_node_get_literal(node);
         const char *lang = cmark_node_get_fence_info(node);
-        if (!apex_json_buf_append(b, "{\"t\":\"CodeBlock\",\"c\":[")) return 0;
-        /* Attr with language as first class in classes list, when present */
-        if (!apex_json_buf_append(b, "[")) return 0; /* id */
-        if (!apex_json_buf_append_escaped_string(b, "")) return 0;
+        size_t lit_len = lit ? strlen(lit) : 0;
+        /* Strip single trailing newline so JSON does not contain \\n (avoids decoder issues) */
+        if (lit_len > 0 && lit[lit_len - 1] == '\n') {
+            lit_len--;
+        }
+        if (!apex_json_buf_append(b, "{\"t\":\"CodeBlock\",\"c\":[[")) return 0; /* c = [Attr, content]; Attr = [id, classes, keyvals]; parser expects [[ */
+        if (!apex_json_buf_append_escaped_string(b, "")) return 0; /* id (no extra "[" so attr is [id,classes,keyvals] not [[...) */
         if (!apex_json_buf_append(b, ",[")) return 0; /* classes */
         if (lang && *lang) {
             if (!apex_json_buf_append_escaped_string(b, lang)) return 0;
         }
-        if (!apex_json_buf_append(b, "],[]],")) return 0; /* attributes */
-        if (!apex_json_buf_append_escaped_string(b, lit ? lit : "")) return 0;
+        /* Close Attr (keyvals then attr) with ]], then comma before content */
+        if (lang && strcmp(lang, "inc") == 0) {
+            if (!apex_json_buf_append(b, "]\x2c[[\"inc\",\"yes\"]]],")) return 0;
+        } else {
+            if (!apex_json_buf_append(b, "],[]]],")) return 0;
+        }
+        if (lit_len > 0) {
+            char *lit_copy = (char *)malloc(lit_len + 1);
+            if (lit_copy) {
+                memcpy(lit_copy, lit, lit_len);
+                lit_copy[lit_len] = '\0';
+                if (!apex_json_buf_append_escaped_string(b, lit_copy)) { free(lit_copy); return 0; }
+                free(lit_copy);
+            } else if (!apex_json_buf_append_escaped_string(b, "")) {
+                return 0;
+            }
+        } else if (!apex_json_buf_append_escaped_string(b, "")) {
+            return 0;
+        }
         if (!apex_json_buf_append(b, "]}")) return 0;
         break;
     }

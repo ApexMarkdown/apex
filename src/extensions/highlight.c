@@ -40,7 +40,7 @@ char *apex_process_highlights(const char *text) {
         /* Look for ==highlight== (not in code, not Critic Markup) */
         /* Skip if preceded by { (Critic Markup) */
         bool is_critic = (read > text && read[-1] == '{');
-        
+
         /* Check opening == requirements:
          * - Exactly 2 = characters: read[0] == '=' && read[1] == '='
          * - Not preceded by = or + (or beginning of line): (?<![=+])
@@ -72,8 +72,8 @@ char *apex_process_highlights(const char *text) {
                     bool closing_preceded_by_space = (close > read + 2 && (close[-1] == ' ' || close[-1] == '\t'));
                     bool closing_preceded_by_plus = (close > read + 2 && close[-1] == '+');
                     bool closing_followed_by_plus = (close[2] == '+');
-                    
-                    if (!closing_followed_by_equals && !closing_preceded_by_space && 
+
+                    if (!closing_followed_by_equals && !closing_preceded_by_space &&
                         !closing_preceded_by_plus && !closing_followed_by_plus) {
                         break;
                     }

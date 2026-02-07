@@ -2386,8 +2386,21 @@ int main(int argc, char *argv[]) {
 
             struct stat st;
             if (stat(target, &st) != 0) {
-                fprintf(stderr, "Error: filter '%s' is not installed at %s\n", uninstall_filter_id, target);
-                return 1;
+                /* Try with common extensions (e.g. code-includes.lua from path install) */
+                const char *exts[] = { ".lua", ".py", ".rb" };
+                int found = 0;
+                for (size_t e = 0; e < sizeof(exts)/sizeof(exts[0]); e++) {
+                    snprintf(target, sizeof(target), "%s/%s%s", root, uninstall_filter_id, exts[e]);
+                    if (stat(target, &st) == 0) {
+                        found = 1;
+                        break;
+                    }
+                }
+                if (!found) {
+                    snprintf(target, sizeof(target), "%s/%s", root, uninstall_filter_id);
+                    fprintf(stderr, "Error: filter '%s' is not installed at %s\n", uninstall_filter_id, target);
+                    return 1;
+                }
             }
 
             fprintf(stderr, "About to remove filter:\n  %s\n", target);
@@ -2470,6 +2483,7 @@ int main(int argc, char *argv[]) {
         char *normalized_repo = normalize_plugin_repo_url(install_filter_id);
         const char *repo = NULL;
         char *final_filter_id = NULL;
+        char *filter_path = NULL;  /* optional: single file path inside repo (e.g. "src/code-includes.lua") */
 
         if (normalized_repo) {
             repo = normalized_repo;
@@ -2510,7 +2524,7 @@ int main(int argc, char *argv[]) {
 
                 if (strlen(install_filter_id) == id_len &&
                     strncmp(install_filter_id, id_start, id_len) == 0) {
-                    /* Found matching id; search for "repo" in this object */
+                    /* Found matching id; search for "repo" and optional "path" in this object */
                     const char *obj_start = p;
                     char *repo_val = apex_remote_extract_string(obj_start, "repo");
                     if (!repo_val) {
@@ -2520,6 +2534,7 @@ int main(int argc, char *argv[]) {
                     }
                     repo = repo_val;
                     final_filter_id = strdup(install_filter_id);
+                    filter_path = apex_remote_extract_string(obj_start, "path");
                     found = 1;
                     break;
                 }
@@ -2542,8 +2557,65 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Error: failed to create filter directory '%s'.\n", root);
             if (normalized_repo) free(normalized_repo);
             if (final_filter_id) free(final_filter_id);
+            if (filter_path) free(filter_path);
             if (repo && repo != normalized_repo) free((void *)repo);
             return 1;
+        }
+
+        /* Single-file install: clone to temp, copy path to root/<basename(path)>, remove temp */
+        if (filter_path && final_filter_id) {
+            const char *path_basename = strrchr(filter_path, '/');
+            path_basename = path_basename ? (path_basename + 1) : filter_path;
+            char final_file[1200];
+            snprintf(final_file, sizeof(final_file), "%s/%s", root, path_basename);
+            char test_cmd[1300];
+            snprintf(test_cmd, sizeof(test_cmd), "[ -e \"%s\" ]", final_file);
+            if (system(test_cmd) == 0) {
+                fprintf(stderr, "Error: filter '%s' already exists at %s. Remove it first to reinstall.\n", final_filter_id, final_file);
+                if (normalized_repo) free(normalized_repo);
+                if (final_filter_id) free(final_filter_id);
+                if (filter_path) free(filter_path);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+            char temp_target[1200];
+            snprintf(temp_target, sizeof(temp_target), "%s/.apex_install_%s", root, final_filter_id);
+            char clone_cmd[2048];
+            snprintf(clone_cmd, sizeof(clone_cmd), "git clone --depth 1 \"%s\" \"%s\"", repo, temp_target);
+            int git_rc = system(clone_cmd);
+            if (git_rc != 0) {
+                fprintf(stderr, "Error: git clone failed for '%s'. Is git installed and the URL correct?\n", repo);
+                if (normalized_repo) free(normalized_repo);
+                if (final_filter_id) free(final_filter_id);
+                if (filter_path) free(filter_path);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+            char src_file[1800];
+            snprintf(src_file, sizeof(src_file), "%s/%s", temp_target, filter_path);
+            char cp_cmd[3000];
+            snprintf(cp_cmd, sizeof(cp_cmd), "cp \"%s\" \"%s\"", src_file, final_file);
+            if (system(cp_cmd) != 0) {
+                fprintf(stderr, "Error: failed to copy '%s' from repo to %s\n", filter_path, final_file);
+                snprintf(cp_cmd, sizeof(cp_cmd), "rm -rf \"%s\"", temp_target);
+                system(cp_cmd);
+                if (normalized_repo) free(normalized_repo);
+                if (final_filter_id) free(final_filter_id);
+                if (filter_path) free(filter_path);
+                if (repo && repo != normalized_repo) free((void *)repo);
+                return 1;
+            }
+            char chmod_cmd[1300];
+            snprintf(chmod_cmd, sizeof(chmod_cmd), "chmod +x \"%s\"", final_file);
+            system(chmod_cmd);
+            snprintf(cp_cmd, sizeof(cp_cmd), "rm -rf \"%s\"", temp_target);
+            system(cp_cmd);
+            fprintf(stderr, "Installed filter '%s' into %s\n", final_filter_id, final_file);
+            if (normalized_repo) free(normalized_repo);
+            if (final_filter_id) free(final_filter_id);
+            if (filter_path) free(filter_path);
+            if (repo && repo != normalized_repo) free((void *)repo);
+            return 0;
         }
 
         /* Determine temporary or final target directory */
@@ -2576,6 +2648,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: filter directory '%s' already exists. Remove it first to reinstall.\n", temp_target);
                 if (normalized_repo) free(normalized_repo);
                 if (final_filter_id) free(final_filter_id);
+                if (filter_path) free(filter_path);
                 if (repo && repo != normalized_repo) free((void *)repo);
                 return 1;
             }
@@ -2589,6 +2662,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Error: git clone failed for '%s'. Is git installed and the URL correct?\n", repo);
             if (normalized_repo) free(normalized_repo);
             if (final_filter_id) free(final_filter_id);
+            if (filter_path) free(filter_path);
             if (repo && repo != normalized_repo) free((void *)repo);
             return 1;
         }
@@ -2599,6 +2673,7 @@ int main(int argc, char *argv[]) {
             if (!final_filter_id) {
                 fprintf(stderr, "Error: Memory allocation failed\n");
                 if (normalized_repo) free(normalized_repo);
+                if (filter_path) free(filter_path);
                 if (repo && repo != normalized_repo) free((void *)repo);
                 return 1;
             }
@@ -2619,6 +2694,7 @@ int main(int argc, char *argv[]) {
                 system(rm_cmd);
                 free(final_filter_id);
                 if (normalized_repo) free(normalized_repo);
+                if (filter_path) free(filter_path);
                 if (repo && repo != normalized_repo) free((void *)repo);
                 return 1;
             }
@@ -2633,6 +2709,7 @@ int main(int argc, char *argv[]) {
                 system(rm_cmd);
                 free(final_filter_id);
                 if (normalized_repo) free(normalized_repo);
+                if (filter_path) free(filter_path);
                 if (repo && repo != normalized_repo) free((void *)repo);
                 return 1;
             }
@@ -2642,6 +2719,7 @@ int main(int argc, char *argv[]) {
 
         if (normalized_repo) free(normalized_repo);
         if (final_filter_id) free(final_filter_id);
+        if (filter_path) free(filter_path);
         if (repo && repo != normalized_repo) free((void *)repo);
         return 0;
         }
@@ -3114,20 +3192,32 @@ int main(int argc, char *argv[]) {
                 char path[1200];
                 snprintf(path, sizeof(path), "%s/%s", root, name);
                 struct stat st;
-                if (stat(path, &st) != 0) {
-                    fprintf(stderr, "Error: filter '%s' not found at %s\n", name, path);
-                    return 1;
-                }
+                int path_exists = (stat(path, &st) == 0);
 
                 char resolved[1400];
                 int  resolved_ok = 0;
 
-                if (S_ISREG(st.st_mode)) {
-                    /* Direct executable/script */
+                /* Try root/NAME as regular file first */
+                if (path_exists && S_ISREG(st.st_mode)) {
                     snprintf(resolved, sizeof(resolved), "%s", path);
                     resolved_ok = 1;
-                } else if (S_ISDIR(st.st_mode)) {
-                    /* Directory: probe for common script names inside */
+                }
+                /* Else try root/NAME.lua, root/NAME.py, root/NAME.rb as regular files (single-file installs) */
+                if (!resolved_ok) {
+                    const char *exts[] = { ".lua", ".py", ".rb" };
+                    for (size_t e = 0; e < sizeof(exts)/sizeof(exts[0]); e++) {
+                        char with_ext[1400];
+                        snprintf(with_ext, sizeof(with_ext), "%s/%s%s", root, name, exts[e]);
+                        struct stat ste;
+                        if (stat(with_ext, &ste) == 0 && S_ISREG(ste.st_mode)) {
+                            snprintf(resolved, sizeof(resolved), "%s", with_ext);
+                            resolved_ok = 1;
+                            break;
+                        }
+                    }
+                }
+                /* Else if root/NAME is a directory, look for script inside */
+                if (!resolved_ok && path_exists && S_ISDIR(st.st_mode)) {
                     const char *candidates[4];
                     char buf0[1400], buf1[1400], buf2[1400], buf3[1400];
 
@@ -3159,12 +3249,23 @@ int main(int argc, char *argv[]) {
                                 path, name, path, name, path, name, path, name);
                         return 1;
                     }
-                } else {
-                    fprintf(stderr, "Error: filter '%s' at %s is not a regular file or directory\n", name, path);
+                }
+                if (!resolved_ok) {
+                    fprintf(stderr, "Error: filter '%s' not found at %s (or %s.lua, %s.py, %s.rb)\n",
+                            name, path, path, path, path);
                     return 1;
                 }
 
-                ast_filter_commands[ast_filter_count] = strdup(resolved);
+                /* Lua scripts without shebang: run via `lua "path"` */
+                size_t rlen = strlen(resolved);
+                int is_lua = (rlen > 4 && strcmp(resolved + rlen - 4, ".lua") == 0);
+                if (is_lua) {
+                    char cmd[1400];
+                    snprintf(cmd, sizeof(cmd), "lua \"%s\"", resolved);
+                    ast_filter_commands[ast_filter_count] = strdup(cmd);
+                } else {
+                    ast_filter_commands[ast_filter_count] = strdup(resolved);
+                }
                 if (!ast_filter_commands[ast_filter_count]) {
                     fprintf(stderr, "Error: Memory allocation failed\n");
                     return 1;
