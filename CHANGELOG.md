@@ -2,6 +2,26 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.76] - 2026-02-07
+
+### Changed
+
+- Formula/apex.rb: version 0.1.75 and release sha256.
+
+### New
+
+- Install filter by path: directory JSON can specify "path" (e.g. "contrib/code-includes.lua"); apex clones repo to temp, copies that file to filters/<basename>, then removes temp.
+- Code blocks with info string "inc" emit Pandoc keyvals [["inc","yes"]] in AST JSON so code-includes-style filters can replace block content with file contents.
+
+### Improved
+
+- Uninstall: when filter is not a directory, try filters/NAME.lua, NAME.py, NAME.rb and remove that file.
+- Filter resolution: --filter NAME now resolves to filters/NAME, filters/NAME.lua, filters/NAME.py, or filters/NAME.rb (regular files) before trying NAME as a directory.
+
+### Fixed
+
+- .lua filters are run via `lua "path"` so scripts without a shebang work.
+
 ## [0.1.75] - 2026-02-06
 
 ## [0.1.74] - 2026-02-06
@@ -2383,6 +2403,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.76]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.76
 [0.1.75]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.75
 [0.1.74]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.74
 [0.1.73]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.73
