@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.77] - 2026-02-09
+
+### Fixed
+
+- Package.swift missing filters
+- Package.swift missing ast_json
+
 ## [0.1.76] - 2026-02-07
 
 ### Changed
@@ -2403,6 +2410,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.77]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.77
 [0.1.76]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.76
 [0.1.75]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.75
 [0.1.74]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.74
