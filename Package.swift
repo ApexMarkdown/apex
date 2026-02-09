@@ -86,6 +86,7 @@ let package = Package(
             sources: [
                 "src/apex.c",
                 "src/filters_ast.c",
+                "src/ast_json.c",
                 "src/plugins_env.c",
                 "src/plugins.c",
                 "src/plugins_remote.c",
