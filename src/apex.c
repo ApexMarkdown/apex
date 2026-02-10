@@ -2581,6 +2581,7 @@ apex_options apex_options_default(void) {
     /* Custom cmark initialization */
     opts.cmark_init_callback = NULL;
     opts.cmark_done_callback = NULL;
+    opts.cmark_callback_user_data = NULL;
 
     return opts;
 }
@@ -4957,7 +4958,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     apex_register_extensions(parser, options);
 
     if (options->cmark_init_callback) {
-        options->cmark_init_callback(parser, options, cmark_opts);
+        options->cmark_init_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
     }
 
     /* Feed normalized text to parser */
@@ -4976,7 +4977,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     if (!document) {
         if (options->cmark_done_callback) {
-            options->cmark_done_callback(parser, options, cmark_opts);
+            options->cmark_done_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
         }
         cmark_parser_free(parser);
         free(working_text);
@@ -4991,7 +4992,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         if (!filtered && options->ast_filter_strict) {
             cmark_node_free(document);
             if (options->cmark_done_callback) {
-                options->cmark_done_callback(parser, options, cmark_opts);
+                options->cmark_done_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
             }
             cmark_parser_free(parser);
             free(working_text);
@@ -5524,7 +5525,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Clean up */
     cmark_node_free(document);
     if (options->cmark_done_callback) {
-        options->cmark_done_callback(parser, options, cmark_opts);
+        options->cmark_done_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
     }
     cmark_parser_free(parser);
     free(working_text);

@@ -41,16 +41,18 @@ typedef struct apex_options apex_options;
  * @param parser cmark parser
  * @param options apex options
  * @param cmark_opts cmark initialization options
+ * @param user_data custom user data
  */
-typedef void (*cmark_init_callback)(void *parser, const apex_options *options, int cmark_opts);
+typedef void (*cmark_init_callback)(void *parser, const apex_options *options, int cmark_opts, void *user_data);
 
 /**
  * Callback called before release the cmark parser, allow to free custom resources.
  * @param parser cmark parser
  * @param options apex options
  * @param cmark_opts cmark initialization options
+ * @param user_data custom user data
  */
-typedef void (*cmark_done_callback)(void *parser, const apex_options *options, int cmark_opts);
+typedef void (*cmark_done_callback)(void *parser, const apex_options *options, int cmark_opts, void *user_data);
 
 /**
  * Configuration options for the parser and renderer
@@ -224,6 +226,7 @@ struct apex_options {
      * Custom cmark finalize callback, called before release the parser.
      */
     cmark_done_callback cmark_done_callback;
+    void *cmark_callback_user_data;  /* User data passed to cmark init/done callback */
 };
 
 /**
