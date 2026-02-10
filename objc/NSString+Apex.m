@@ -329,4 +329,8 @@ NSString *const ApexModeUnified = @"unified";
   return [NSString convertWithApex:self mode:mode];
 }
 
++ (NSString *)apexVersionString; {
+    return [NSString stringWithCString:apex_version_string() encoding: kCFStringEncodingUTF8];
+}
+
 @end

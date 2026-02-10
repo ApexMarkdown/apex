@@ -111,6 +111,11 @@ extern NSString * const ApexModeUnified;
  */
 - (NSString *)apexHTMLWithMode:(NSString *)mode;
 
+/**
+ * Get the Apex version number.
+ */
++ (NSString *)apexVersionString;
+
 @end
 
 NS_ASSUME_NONNULL_END
