@@ -316,6 +316,37 @@ NSString *const ApexModeUnified = @"unified";
 }
 
 /**
+ * Convert Markdown to HTML using Apex with custom raw options.
+ * @param inputString The markdown text to convert
+ * @param raw_options Apex options
+ * @return HTML string
+ */
++ (NSString *) convertWithApex:(NSString *)inputString raw_options:(apex_options)options {
+    if (!inputString || [inputString length] == 0) {
+      return @"";
+    }
+
+    /* Convert to C string */
+    const char *markdown = [inputString UTF8String];
+    if (!markdown) {
+      return @"";
+    }
+
+    /* Convert to HTML */
+    char *html_c = apex_markdown_to_html(markdown, strlen(markdown), &options);
+
+    if (!html_c) {
+      return @"";
+    }
+
+    /* Convert back to NSString */
+    NSString *html = [NSString stringWithUTF8String:html_c];
+    apex_free_string(html_c);
+
+    return html ? html : @"";
+}
+
+/**
  * Convert this string (as Markdown) to HTML using Apex in unified mode
  */
 - (NSString *)apexHTML {
@@ -329,8 +360,20 @@ NSString *const ApexModeUnified = @"unified";
   return [NSString convertWithApex:self mode:mode];
 }
 
+/**
+ * Get the Apex version number
+ * @return Version string
+ */
 + (NSString *)apexVersionString; {
     return [NSString stringWithCString:apex_version_string() encoding: kCFStringEncodingUTF8];
+}
+
+/**
+ * Get the default Apex options.
+ */
++ (apex_options)getApexDefaultOptions
+{
+    return apex_options_default();
 }
 
 @end
