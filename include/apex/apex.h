@@ -248,6 +248,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
  * @param content HTML content to wrap
  * @param title Document title (NULL for default)
  * @param stylesheet_paths NULL-terminated array of CSS file paths to link in head
+ * @param stylesheet_count Number of CSS files on the stylesheet_paths array.
+ * @param code_highlighter Highlighter engine.
  * @param html_header Raw HTML to insert in <head> section (NULL for none)
  * @param html_footer Raw HTML to append before </body> (NULL for none)
  * @param language Language code for <html lang> attribute (NULL for "en")
