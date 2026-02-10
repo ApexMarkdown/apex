@@ -219,11 +219,11 @@ struct apex_options {
     /**
      * Custom cmark initialization and finalize callback, called after parse initialization and extension registration.
      */
-    void (*cmark_init_callback)(void *parser, const apex_options *options, int cmark_opts);
+    cmark_init_callback cmark_init_callback;
     /**
      * Custom cmark finalize callback, called before release the parser.
      */
-    void (*cmark_done_callback)(void *parser, const apex_options *options, int cmark_opts);
+    cmark_done_callback cmark_done_callback;
 };
 
 /**
