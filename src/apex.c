@@ -1,12 +1,9 @@
 #include "apex/apex.h"
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <libgen.h>
-#include <time.h>
 #include <sys/time.h>
 
 /* cmark-gfm headers */
@@ -42,7 +39,6 @@
 #include "extensions/fenced_divs.h"
 #include "extensions/syntax_highlight.h"
 #include "plugins.h"
-#include "ast_json.h"
 #include "filters_ast.h"
 
 /* Custom renderer */

@@ -7,7 +7,6 @@
 #include "apex/apex.h"
 
 #include <string.h>
-#include <stddef.h>
 #include <signal.h>
 #include <stdlib.h>
 
