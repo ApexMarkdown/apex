@@ -2582,6 +2582,10 @@ apex_options apex_options_default(void) {
     opts.progress_callback = NULL;
     opts.progress_user_data = NULL;
 
+    /* Custom cmark initialization */
+    opts.cmark_init_callback = NULL;
+    opts.cmark_done_callback = NULL;
+
     return opts;
 }
 
@@ -4956,6 +4960,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Register extensions based on mode and options */
     apex_register_extensions(parser, options);
 
+    if (options->cmark_init_callback) {
+        options->cmark_init_callback(parser, options, cmark_opts);
+    }
+
     /* Feed normalized text to parser */
     if (getenv("APEX_DEBUG_PIPELINE")) {
         fprintf(stderr, "[APEX_DEBUG] markdown to parse (len=%zu): %.350s%s\n",
@@ -4971,6 +4979,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     if (!document) {
+        if (options->cmark_done_callback) {
+            options->cmark_done_callback(parser, options, cmark_opts);
+        }
         cmark_parser_free(parser);
         free(working_text);
         apex_free_metadata(metadata);
@@ -4983,6 +4994,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         cmark_node *filtered = apex_run_ast_filters(document, options, "html");
         if (!filtered && options->ast_filter_strict) {
             cmark_node_free(document);
+            if (options->cmark_done_callback) {
+                options->cmark_done_callback(parser, options, cmark_opts);
+            }
             cmark_parser_free(parser);
             free(working_text);
             apex_free_metadata(metadata);
@@ -5513,6 +5527,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Clean up */
     cmark_node_free(document);
+    if (options->cmark_done_callback) {
+        options->cmark_done_callback(parser, options, cmark_opts);
+    }
     cmark_parser_free(parser);
     free(working_text);
     if (ial_preprocessed) free(ial_preprocessed);

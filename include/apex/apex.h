@@ -34,10 +34,28 @@ typedef enum {
 } apex_mode_t;
 #endif
 
+typedef struct apex_options apex_options;
+
+/**
+ * Callback called after the cmark parser is initialized and the standard extensions are registered.
+ * @param parser cmark parser
+ * @param options apex options
+ * @param cmark_opts cmark initialization options
+ */
+typedef void (*cmark_init_callback)(void *parser, const apex_options *options, int cmark_opts);
+
+/**
+ * Callback called before release the cmark parser, allow to free custom resources.
+ * @param parser cmark parser
+ * @param options apex options
+ * @param cmark_opts cmark initialization options
+ */
+typedef void (*cmark_done_callback)(void *parser, const apex_options *options, int cmark_opts);
+
 /**
  * Configuration options for the parser and renderer
  */
-typedef struct {
+struct apex_options {
     apex_mode_t mode;
 
     /* Feature flags */
@@ -197,7 +215,16 @@ typedef struct {
      */
     void (*progress_callback)(const char *stage, int percent, void *user_data);
     void *progress_user_data;  /* User data passed to progress callback */
-} apex_options;
+
+    /**
+     * Custom cmark initialization and finalize callback, called after parse initialization and extension registration.
+     */
+    void (*cmark_init_callback)(void *parser, const apex_options *options, int cmark_opts);
+    /**
+     * Custom cmark finalize callback, called before release the parser.
+     */
+    void (*cmark_done_callback)(void *parser, const apex_options *options, int cmark_opts);
+};
 
 /**
  * Get default options for a specific mode
