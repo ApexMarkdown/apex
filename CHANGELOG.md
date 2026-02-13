@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.78] - 2026-02-13
+
+### New
+
+- Test added to verify autolinking does not run inside indented code blocks.
+
+### Fixed
+
+- Autolink preprocessor now skips indented code blocks (4+ spaces or tab at line start) so URLs inside them are not converted to links.
+
 ## [0.1.77] - 2026-02-09
 
 ### Fixed
@@ -2410,6 +2420,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.78]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.78
 [0.1.77]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.77
 [0.1.76]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.76
 [0.1.75]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.75
