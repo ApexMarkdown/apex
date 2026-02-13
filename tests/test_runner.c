@@ -7,7 +7,6 @@
 #include "apex/apex.h"
 
 #include <string.h>
-#include <stddef.h>
 #include <signal.h>
 #include <stdlib.h>
 
@@ -75,6 +74,7 @@ void test_aria_labels(void);
 void test_marked_integration_features(void);
 void test_plugins_integration(void);
 void test_ast_json_parser(void);
+void test_cmark_callback(void);
 
 /**
  * Test suite registry
@@ -142,6 +142,7 @@ static test_suite suites[] = {
     { "marked",                        test_marked_integration_features },
     { "plugins_integration",           test_plugins_integration },
     { "ast_json",                      test_ast_json_parser },
+    { "test_cmark_callback",           test_cmark_callback },
 };
 
 static const size_t suite_count = sizeof(suites) / sizeof(suites[0]);
