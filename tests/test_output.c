@@ -813,6 +813,16 @@ void test_citations(void) {
     assert_contains(html, "mailto:", "Email autolinking still works");
     apex_free_string(html);
 
+    /* Test that autolink does not run inside indented code blocks */
+    const char *indented_code =
+        "    x-marked://extract?url=https://example.com\n";
+    html = apex_markdown_to_html(indented_code, strlen(indented_code), &opts_autolink);
+    assert_not_contains(html, "[https://example.com](https://example.com)",
+                        "Indented code block URL is not autolinked");
+    assert_contains(html, "x-marked://extract?url=https://example.com",
+                    "Indented code block content is preserved");
+    apex_free_string(html);
+
     /* Test that @ in citations doesn't become mailto */
     const char *cite_with_at = "See [@doe99] for details.";
     html = apex_markdown_to_html(cite_with_at, strlen(cite_with_at), &opts);

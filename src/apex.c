@@ -528,9 +528,36 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
             continue;
         }
 
-        /* Check if we're at the start of a reference link definition: [id]: URL */
+        /* At start of line: handle reference definitions and indented code blocks */
         if (r == text || r[-1] == '\n') {
             const char *line_start = r;
+
+            /* First: skip indented code blocks (4+ spaces or a leading tab) entirely */
+            int indent_spaces = 0;
+            while (*line_start == ' ' && indent_spaces < 4) {
+                line_start++;
+                indent_spaces++;
+            }
+            if (indent_spaces == 4 || *line_start == '\t') {
+                const char *line_end = strchr(r, '\n');
+                if (!line_end) line_end = r + strlen(r);
+                size_t line_len = line_end - r;
+                if ((size_t)(w - out) + line_len + 1 > cap) {
+                    size_t used = (size_t)(w - out);
+                    cap = (used + line_len + 1) * 2;
+                    char *new_out = realloc(out, cap);
+                    if (!new_out) { free(out); return NULL; }
+                    out = new_out;
+                    w = out + used;
+                }
+                memcpy(w, r, line_len);
+                w += line_len;
+                r = line_end;
+                continue;
+            }
+
+            /* Then: check for reference link definitions: [id]: URL */
+            line_start = r;
             /* Skip leading whitespace */
             while (*line_start == ' ' || *line_start == '\t') {
                 line_start++;
