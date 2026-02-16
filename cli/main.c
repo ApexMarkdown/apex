@@ -512,6 +512,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
+    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
@@ -562,6 +563,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)\n");
     fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n");
     fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
+    fprintf(stderr, "  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
@@ -1343,6 +1345,42 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: Unknown mode '%s'\n", argv[i]);
                 return 1;
             }
+        } else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--to") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --to requires an argument\n");
+                return 1;
+            }
+            if (strcmp(argv[i], "html") == 0) {
+                options.output_format = APEX_OUTPUT_HTML;
+            } else if (strcmp(argv[i], "json") == 0) {
+                options.output_format = APEX_OUTPUT_JSON;
+            } else if (strcmp(argv[i], "json-filtered") == 0 || strcmp(argv[i], "ast-json") == 0 || strcmp(argv[i], "ast") == 0) {
+                options.output_format = APEX_OUTPUT_JSON_FILTERED;
+            } else if (strcmp(argv[i], "markdown") == 0 || strcmp(argv[i], "md") == 0) {
+                options.output_format = APEX_OUTPUT_MARKDOWN;
+            } else if (strcmp(argv[i], "mmd") == 0) {
+                options.output_format = APEX_OUTPUT_MMD;
+            } else if (strcmp(argv[i], "commonmark") == 0 || strcmp(argv[i], "cmark") == 0) {
+                options.output_format = APEX_OUTPUT_COMMONMARK;
+            } else if (strcmp(argv[i], "kramdown") == 0) {
+                options.output_format = APEX_OUTPUT_KRAMDOWN;
+            } else if (strcmp(argv[i], "gfm") == 0) {
+                options.output_format = APEX_OUTPUT_GFM;
+            } else if (strcmp(argv[i], "terminal") == 0 || strcmp(argv[i], "cli") == 0) {
+                options.output_format = APEX_OUTPUT_TERMINAL;
+            } else if (strcmp(argv[i], "terminal256") == 0) {
+                options.output_format = APEX_OUTPUT_TERMINAL256;
+            } else {
+                fprintf(stderr, "Error: Unknown output format '%s'\n", argv[i]);
+                fprintf(stderr, "Supported formats: html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--theme") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --theme requires a name argument\n");
+                return 1;
+            }
+            options.theme_name = argv[i];
         } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --output requires an argument\n");

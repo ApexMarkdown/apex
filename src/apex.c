@@ -43,6 +43,8 @@
 #include "extensions/syntax_highlight.h"
 #include "plugins.h"
 #include "ast_json.h"
+#include "apex/ast_markdown.h"
+#include "apex/ast_terminal.h"
 #include "filters_ast.h"
 
 /* Custom renderer */
@@ -2503,6 +2505,7 @@ apex_options apex_options_default(void) {
     opts.base_directory = NULL;
 
     /* Output options */
+    opts.output_format = APEX_OUTPUT_HTML;  /* Default: HTML output */
     opts.unsafe = true;
     opts.validate_utf8 = true;
     opts.github_pre_lang = true;
@@ -2608,6 +2611,9 @@ apex_options apex_options_default(void) {
     /* Progress reporting */
     opts.progress_callback = NULL;
     opts.progress_user_data = NULL;
+
+    /* Terminal theme (for -t terminal/terminal256) */
+    opts.theme_name = NULL;
 
     return opts;
 }
@@ -5004,10 +5010,37 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         return NULL;
     }
 
+    /* If output format is JSON, emit JSON right after parsing (before AST filters) */
+    if (options->output_format == APEX_OUTPUT_JSON) {
+        char *json = apex_cmark_to_pandoc_json(document, options);
+        cmark_node_free(document);
+        cmark_parser_free(parser);
+        free(working_text);
+        apex_free_metadata(metadata);
+        /* Note: Preprocessing buffers are conditionally allocated and may not be in scope here.
+         * This is acceptable as JSON output is typically used for debugging/inspection. */
+        return json;
+    }
+
     /* Run AST-level filters (Pandoc-style JSON filters) before any */
     /* AST post-processing or rendering. */
     if (options->ast_filter_commands && options->ast_filter_count > 0) {
-        cmark_node *filtered = apex_run_ast_filters(document, options, "html");
+        /* Determine target format string for filters based on output format */
+        const char *target_format = "html";
+        if (options->output_format == APEX_OUTPUT_JSON ||
+            options->output_format == APEX_OUTPUT_JSON_FILTERED) {
+            target_format = "json";
+        } else if (options->output_format == APEX_OUTPUT_MARKDOWN ||
+                   options->output_format == APEX_OUTPUT_MMD ||
+                   options->output_format == APEX_OUTPUT_COMMONMARK ||
+                   options->output_format == APEX_OUTPUT_KRAMDOWN ||
+                   options->output_format == APEX_OUTPUT_GFM) {
+            target_format = "markdown";
+        } else if (options->output_format == APEX_OUTPUT_TERMINAL ||
+                   options->output_format == APEX_OUTPUT_TERMINAL256) {
+            target_format = "terminal";
+        }
+        cmark_node *filtered = apex_run_ast_filters(document, options, target_format);
         if (!filtered && options->ast_filter_strict) {
             cmark_node_free(document);
             cmark_parser_free(parser);
@@ -5080,6 +5113,46 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     /* Note: Critic Markup is now handled via preprocessing (before parsing) */
+
+    /* If output format is JSON (after filters), serialize AST to JSON and return */
+    if (options->output_format == APEX_OUTPUT_JSON_FILTERED) {
+        char *json = apex_cmark_to_pandoc_json(document, options);
+        /* Note: Cleanup happens at end of function - document and other resources
+         * will be freed there. We return the JSON string here. */
+        return json;
+    }
+
+    /* If output format is Markdown, serialize AST to Markdown and return */
+    if (options->output_format == APEX_OUTPUT_MARKDOWN ||
+        options->output_format == APEX_OUTPUT_MMD ||
+        options->output_format == APEX_OUTPUT_COMMONMARK ||
+        options->output_format == APEX_OUTPUT_KRAMDOWN ||
+        options->output_format == APEX_OUTPUT_GFM) {
+        apex_markdown_dialect_t dialect;
+        if (options->output_format == APEX_OUTPUT_MARKDOWN) {
+            dialect = APEX_MD_DIALECT_UNIFIED;
+        } else if (options->output_format == APEX_OUTPUT_MMD) {
+            dialect = APEX_MD_DIALECT_MMD;
+        } else if (options->output_format == APEX_OUTPUT_COMMONMARK) {
+            dialect = APEX_MD_DIALECT_COMMONMARK;
+        } else if (options->output_format == APEX_OUTPUT_KRAMDOWN) {
+            dialect = APEX_MD_DIALECT_KRAMDOWN;
+        } else { /* APEX_OUTPUT_GFM */
+            dialect = APEX_MD_DIALECT_GFM;
+        }
+        char *markdown = apex_cmark_to_markdown(document, options, dialect);
+        /* Note: Cleanup happens at end of function - document and other resources
+         * will be freed there. We return the markdown string here. */
+        return markdown;
+    }
+
+    /* If output format is terminal/terminal256, serialize AST to ANSI terminal and return */
+    if (options->output_format == APEX_OUTPUT_TERMINAL ||
+        options->output_format == APEX_OUTPUT_TERMINAL256) {
+        bool use_256 = (options->output_format == APEX_OUTPUT_TERMINAL256);
+        char *tty = apex_cmark_to_terminal(document, options, use_256);
+        return tty;
+    }
 
     /* Render to HTML
      * Use custom renderer when we have attributes (IAL, ALDs, or image attributes)

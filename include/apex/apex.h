@@ -35,6 +35,22 @@ typedef enum {
 #endif
 
 /**
+ * Output format options
+ */
+typedef enum {
+    APEX_OUTPUT_HTML = 0,          /* HTML output (default) */
+    APEX_OUTPUT_JSON = 1,           /* Pandoc-style JSON AST (before filters) */
+    APEX_OUTPUT_JSON_FILTERED = 2, /* Pandoc-style JSON AST (after filters/postprocessing) */
+    APEX_OUTPUT_MARKDOWN = 3,       /* Unified-mode compatible Markdown */
+    APEX_OUTPUT_MMD = 4,            /* MultiMarkdown-compatible Markdown */
+    APEX_OUTPUT_COMMONMARK = 5,     /* CommonMark-compatible Markdown */
+    APEX_OUTPUT_KRAMDOWN = 6,       /* Kramdown-compatible Markdown */
+    APEX_OUTPUT_GFM = 7,            /* GitHub Flavored Markdown */
+    APEX_OUTPUT_TERMINAL = 8,       /* ANSI terminal output (8/16-color) */
+    APEX_OUTPUT_TERMINAL256 = 9     /* ANSI terminal output (256-color) */
+} apex_output_format_t;
+
+/**
  * Configuration options for the parser and renderer
  */
 typedef struct {
@@ -70,6 +86,7 @@ typedef struct {
     const char *base_directory;
 
     /* Output options */
+    apex_output_format_t output_format;  /* Output format (HTML, JSON, Markdown variants) */
     bool unsafe;  /* Allow raw HTML */
     bool validate_utf8;
     bool github_pre_lang;  /* Use GitHub code block language format */
@@ -78,6 +95,9 @@ typedef struct {
     const char **stylesheet_paths;  /* NULL-terminated array of CSS file paths to link in head */
     size_t stylesheet_count;        /* Number of stylesheets */
     const char *document_title;   /* Title for HTML document */
+
+    /* Terminal / CLI rendering options */
+    const char *theme_name;      /* Optional terminal theme name (for -t terminal/terminal256) */
 
     /* Line break handling */
     bool hardbreaks;  /* Treat newlines as hard breaks (GFM style) */
