@@ -13,7 +13,8 @@
  */
 
 #include "apex/ast_terminal.h"
-#include "table.h"  /* For CMARK_NODE_TABLE, CMARK_NODE_TABLE_ROW, CMARK_NODE_TABLE_CELL */
+#include "table.h"          /* For CMARK_NODE_TABLE, CMARK_NODE_TABLE_ROW, CMARK_NODE_TABLE_CELL */
+#include "extensions/emoji.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -692,20 +693,31 @@ static void serialize_inline(terminal_buffer *buf,
                              const apex_options *options,
                              const terminal_theme *theme,
                              bool use_256_color) {
-    (void)options;
-
     cmark_node_type type = cmark_node_get_type(node);
     const char *literal = cmark_node_get_literal(node);
 
     switch (type) {
         case CMARK_NODE_TEXT:
             if (literal) {
+                /* Optionally replace :emoji: with Unicode for terminal output
+                 * when in GFM or unified mode, matching HTML behavior. */
+                const char *text_src = literal;
+                char *emoji_replaced = NULL;
+                if (options &&
+                    (options->mode == APEX_MODE_GFM ||
+                     options->mode == APEX_MODE_UNIFIED)) {
+                    emoji_replaced = apex_replace_emoji_text(literal);
+                    if (emoji_replaced) {
+                        text_src = emoji_replaced;
+                    }
+                }
+
                 /* Replace APEXLTLT placeholder (from escaped \<<) with << */
                 const char *apexltlt = "APEXLTLT";
-                const char *found = strstr(literal, apexltlt);
+                const char *found = strstr(text_src, apexltlt);
                 if (found) {
                     /* Replace all occurrences */
-                    const char *p = literal;
+                    const char *p = text_src;
                     while ((found = strstr(p, apexltlt)) != NULL) {
                         /* Append text before the placeholder */
                         if (found > p) {
@@ -727,7 +739,11 @@ static void serialize_inline(terminal_buffer *buf,
                         buffer_append_str(buf, p);
                     }
                 } else {
-                    buffer_append_str(buf, literal);
+                    buffer_append_str(buf, text_src);
+                }
+
+                if (emoji_replaced) {
+                    free(emoji_replaced);
                 }
             }
             break;
