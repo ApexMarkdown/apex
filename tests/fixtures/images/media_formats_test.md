@@ -53,3 +53,10 @@ variants (2x, 3x, webp, avif for images; webm, ogg, mp4, mov, m4v for videos)
 and generates appropriate picture/video elements.
 
 ![Profile menu](img/app-pass-1-profile-menu.jpg auto)
+
+## Wildcard extension (*) - same as auto
+
+Using `*` as the extension (e.g. `![](image.*)`) is equivalent to `![](image.png auto)`.
+Apex scans for jpg, png, gif, webp, avif (1x, 2x, 3x) for images and mp4, webm, ogg, mov, m4v for videos.
+
+![Profile menu wildcard](img/app-pass-1-profile-menu.*)

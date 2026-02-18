@@ -462,6 +462,28 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* * extension: equivalent to auto, discovers formats from base filename */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.base_directory = "tests/fixtures/images";
+        const char *wildcard_md = "![Profile menu](img/app-pass-1-profile-menu.*)";
+        char *html = apex_markdown_to_html(wildcard_md, strlen(wildcard_md), &opts);
+        assert_contains(html, "<picture>", "wildcard: picture element");
+        assert_contains(html, "type=\"image/avif\"", "wildcard: avif source");
+        assert_contains(html, "type=\"image/webp\"", "wildcard: webp source");
+        assert_contains(html, "app-pass-1-profile-menu.jpg", "wildcard: jpg fallback");
+        apex_free_string(html);
+    }
+
+    /* * extension: emits data-apex-replace-auto marker when no base_directory */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *wildcard_md = "![Hero](img/hero.*)";
+        char *html = apex_markdown_to_html(wildcard_md, strlen(wildcard_md), &opts);
+        assert_contains(html, "data-apex-replace-auto=1", "wildcard: emits replace marker");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
 }

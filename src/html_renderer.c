@@ -3202,6 +3202,29 @@ static char *url_with_3x_suffix_auto(const char *url) {
 }
 
 /**
+ * Check if URL ends with .* (wildcard extension for auto-discover).
+ */
+static bool url_ends_with_wildcard(const char *url) {
+    if (!url || !*url) return false;
+    size_t len = strlen(url);
+    return (len >= 2 && url[len - 2] == '.' && url[len - 1] == '*');
+}
+
+/**
+ * For URL ending in .*, get base path (everything before .*). Caller must free.
+ */
+static char *base_from_wildcard_url(const char *url) {
+    if (!url || !*url) return NULL;
+    size_t len = strlen(url);
+    if (len < 2 || url[len - 2] != '.' || url[len - 1] != '*') return NULL;
+    char *base = malloc(len - 1);
+    if (!base) return NULL;
+    memcpy(base, url, len - 2);
+    base[len - 2] = '\0';
+    return base;
+}
+
+/**
  * Check if URL has video extension (mp4, mov, webm, ogg, ogv, m4v).
  */
 static bool is_video_url_auto(const char *url) {
@@ -3285,8 +3308,64 @@ char *apex_expand_auto_media(const char *html, const char *base_directory) {
             char *replacement = NULL;
             size_t repl_len = 0;
 
-            char *resolved = resolve_path_for_check(base_directory, src);
+            /* When src ends with .*, discover first existing file to use as fallback */
+            char *effective_src = strdup(src ? src : "");
+            char *resolved = resolve_path_for_check(base_directory, effective_src);
+            if (url_ends_with_wildcard(src)) {
+                char *base = base_from_wildcard_url(src);
+                if (base) {
+                    /* Check video extensions first, then image extensions.
+                     * url_with_extension(src, ext) works: "image.*" -> "image.jpg" */
+                    static const char *video_exts[] = {"mp4", "webm", "ogg", "ogv", "mov", "m4v", NULL};
+                    static const char *image_exts[] = {"jpg", "jpeg", "png", "gif", "webp", "avif", NULL};
+                    bool found = false;
+                    for (int i = 0; video_exts[i] && !found; i++) {
+                        char *candidate = url_with_extension(src, video_exts[i]);
+                        if (candidate) {
+                            char *cpath = resolve_path_for_check(base_directory, candidate);
+                            if (cpath && file_exists(cpath)) {
+                                free(effective_src);
+                                effective_src = candidate;
+                                free(resolved);
+                                resolved = cpath;
+                                found = true;
+                            } else {
+                                free(cpath);
+                                free(candidate);
+                            }
+                        }
+                    }
+                    for (int i = 0; image_exts[i] && !found; i++) {
+                        char *candidate = url_with_extension(src, image_exts[i]);
+                        if (candidate) {
+                            char *cpath = resolve_path_for_check(base_directory, candidate);
+                            if (cpath && file_exists(cpath)) {
+                                free(effective_src);
+                                effective_src = candidate;
+                                free(resolved);
+                                resolved = cpath;
+                                found = true;
+                            } else {
+                                free(cpath);
+                                free(candidate);
+                            }
+                        }
+                    }
+                    free(base);
+                    if (!found) {
+                        free(resolved);
+                        resolved = NULL;
+                    }
+                }
+            } else if (resolved && !file_exists(resolved)) {
+                free(resolved);
+                resolved = NULL;
+            }
+
             if (resolved && file_exists(resolved)) {
+                /* Use effective_src (may differ from src when wildcard was resolved) */
+                free(src);
+                src = effective_src;
                 if (is_video_url_auto(src)) {
                     /* Video: discover alternative formats that exist */
                     static const char *video_exts[] = {"webm", "ogg", "mp4", "mov", "m4v", NULL};
@@ -3508,6 +3587,7 @@ char *apex_expand_auto_media(const char *html, const char *base_directory) {
             }
 
             free(replacement);
+            if (effective_src != src) free(effective_src);
             free(src);
             free(alt);
             free(title);

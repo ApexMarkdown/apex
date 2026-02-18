@@ -2674,12 +2674,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         while (after_space < paren_end && (*after_space == ' ' || *after_space == '\t')) after_space++;
 
                         if (after_space < paren_end) {
-                            /* Space + key= or bare @2x/@3x: always split so we don't encode into URL */
-                            if (looks_like_attr_key_equals(after_space, paren_end)) {
-                                attr_start = after_space;
-                                url_end = p;
-                                break;
-                            }
+                            /* @2x/@3x: always split so we don't encode into URL */
                             if ((size_t)(paren_end - after_space) >= 3 &&
                                 after_space[0] == '@' &&
                                 ((after_space[1] == '2' && after_space[2] == 'x') ||
@@ -2702,6 +2697,25 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 if (*after_space == '(') {
                                     url_end = p;  /* Let cmark handle the title */
                                     break;
+                                }
+
+                                /* For quoted titles only (no other attributes),
+                                 * let cmark handle the title so it appears on the
+                                 * img tag for caption logic and tooltips.
+                                 * Must check BEFORE looks_like_attr_key_equals,
+                                 * which returns true for '"' and would treat
+                                 * the title as attributes.
+                                 */
+                                if (*after_space == '"' || *after_space == '\'') {
+                                    char qc = *after_space;
+                                    const char *tail = after_space + 1;
+                                    while (tail < paren_end && *tail != qc) tail++;
+                                    if (tail < paren_end) tail++; /* skip closing quote */
+                                    while (tail < paren_end && (*tail == ' ' || *tail == '\t')) tail++;
+                                    if (tail == paren_end) {
+                                        url_end = p;  /* Let cmark handle the title */
+                                        break;
+                                    }
                                 }
 
                                 /* For everything else, treat the tail as an
@@ -2824,13 +2838,20 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             }
                         }
 
+                        /* URL ending in .* means auto-discover formats (same as auto attribute) */
+                        bool url_is_wildcard = (url_len >= 2 && url[url_len - 2] == '.' && url[url_len - 1] == '*');
+                        if (url_is_wildcard && do_image_attrs) {
+                            if (!attrs) attrs = create_attributes();
+                            if (attrs) add_attribute(attrs, "data-apex-auto", "1");
+                        }
+
                         /* URL encode the URL only when enabled and URL has no known protocol (http/https/file/x-marked) */
                         bool skip_encode = has_protocol(url);
                         char *encoded_url = (do_url_encoding && !skip_encode) ? url_encode(url) : strdup(url);
                         if (encoded_url) {
-                            /* Store attributes with URL - create entry when we have attrs, or when URL is a video (needs replacement) */
+                            /* Store attributes with URL - create entry when we have attrs, or when URL is a video (needs replacement), or when URL is wildcard (.*) */
                             image_attr_entry *entry = NULL;
-                            if (attrs || is_video_url(url)) {
+                            if (attrs || is_video_url(url) || url_is_wildcard) {
                                 /* Use the running image_index so attributes are
                                  * bound to the correct inline image position,
                                  * even when some images have no attributes.

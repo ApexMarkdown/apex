@@ -6,6 +6,7 @@ All notable changes to Apex will be documented in this file.
 
 ### New
 
+- Image/video URL with `*` as extension (e.g. `![](image.*)` or `![](video.*)`) is equivalent to `auto`: scans for jpg, png, gif, webp, avif (1x, 2x, 3x) for images and mp4, webm, ogg, mov, m4v for videos, generating `<picture>` or `<video>` with discovered variants.
 - Image attribute `webp` (e.g. `![alt](url webp)`) emits `<picture>` with `<source type="image/webp" srcset="...">`; combines with `@2x` for retina (e.g. `![alt](url webp @2x)` → `img.webp 1x, img@2x.webp 2x`).
 - Image attribute `avif` (e.g. `![alt](url avif)`) emits `<picture>` with `<source type="image/avif" srcset="...">`; same 2x/3x support as webp.
 - Video URLs (mp4, mov, webm, ogg, ogv, m4v) in image syntax emit `<video>` instead of `<img>`; e.g. `![Demo](media/demo.mp4)` → `<video><source src="media/demo.mp4" type="video/mp4"></video>`.
