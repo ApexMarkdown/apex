@@ -5240,6 +5240,21 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Expand auto media (discover formats from filesystem for img with auto attribute).
+     * Use base_directory when set (e.g. from file path or metadata); otherwise use "."
+     * so auto expansion runs when piping stdin (images resolved relative to cwd). */
+    if (html && strstr(html, "data-apex-replace-auto=1")) {
+        PROFILE_START(expand_auto_media);
+        const char *base = options->base_directory && options->base_directory[0]
+            ? options->base_directory : ".";
+        char *expanded = apex_expand_auto_media(html, base);
+        PROFILE_END(expand_auto_media);
+        if (expanded) {
+            free(html);
+            html = expanded;
+        }
+    }
+
     /* Convert images to figures with captions (caption="..." always wraps; otherwise when enable_image_captions) */
     if (html) {
         PROFILE_START(image_captions);

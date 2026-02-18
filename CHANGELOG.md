@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [Unreleased]
+
+### New
+
+- Image attribute `webp` (e.g. `![alt](url webp)`) emits `<picture>` with `<source type="image/webp" srcset="...">`; combines with `@2x` for retina (e.g. `![alt](url webp @2x)` → `img.webp 1x, img@2x.webp 2x`).
+- Image attribute `avif` (e.g. `![alt](url avif)`) emits `<picture>` with `<source type="image/avif" srcset="...">`; same 2x/3x support as webp.
+- Video URLs (mp4, mov, webm, ogg, ogv, m4v) in image syntax emit `<video>` instead of `<img>`; e.g. `![Demo](media/demo.mp4)` → `<video><source src="media/demo.mp4" type="video/mp4"></video>`.
+- Video format attributes (`webm`, `ogg`, `mp4`, `mov`, `m4v`) on video URLs add `<source>` elements for alternative formats; e.g. `![Demo](media/demo.mp4 webm)` adds webm source before the primary fallback.
+- Image attribute `auto` (e.g. `![alt](url auto)`) discovers formats from the filesystem when `base_directory` is set: checks for 2x, 3x, webp, avif variants (images) and webm, ogg, mp4, mov, m4v (videos), generating `<picture>` or `<video>` with only the variants that exist on disk.
+
 ## [0.1.72] - 2026-02-02
 
 ### Changed

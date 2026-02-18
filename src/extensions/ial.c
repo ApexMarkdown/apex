@@ -6,6 +6,7 @@
 #include "table.h"  /* For CMARK_NODE_TABLE */
 #include "apex/apex.h"  /* For apex_mode_t */
 #include <string.h>
+#include <strings.h>  /* For strcasecmp */
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -211,6 +212,52 @@ apex_attributes *parse_ial_content(const char *content, int len) {
         if (p > key_start && (size_t)(p - key_start) == 3 &&
             key_start[0] == '@' && key_start[1] == '3' && key_start[2] == 'x') {
             add_attribute(attrs, "data-srcset-3x", "1");
+            continue;
+        }
+
+        /* Check for bare webp/avif (picture srcset format markers) */
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'w' && key_start[1] == 'e' && key_start[2] == 'b' && key_start[3] == 'p') {
+            add_attribute(attrs, "data-srcset-webp", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'a' && key_start[1] == 'v' && key_start[2] == 'i' && key_start[3] == 'f') {
+            add_attribute(attrs, "data-srcset-avif", "1");
+            continue;
+        }
+
+        /* Check for bare video format markers (webm, ogg, mp4, mov, m4v) */
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'w' && key_start[1] == 'e' && key_start[2] == 'b' && key_start[3] == 'm') {
+            add_attribute(attrs, "data-video-webm", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'o' && key_start[1] == 'g' && key_start[2] == 'g') {
+            add_attribute(attrs, "data-video-ogg", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'm' && key_start[1] == 'p' && key_start[2] == '4') {
+            add_attribute(attrs, "data-video-mp4", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'm' && key_start[1] == 'o' && key_start[2] == 'v') {
+            add_attribute(attrs, "data-video-mov", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'm' && key_start[1] == '4' && key_start[2] == 'v') {
+            add_attribute(attrs, "data-video-m4v", "1");
+            continue;
+        }
+
+        /* Check for bare auto (discover formats from filesystem) */
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'a' && key_start[1] == 'u' && key_start[2] == 't' && key_start[3] == 'o') {
+            add_attribute(attrs, "data-apex-auto", "1");
             continue;
         }
 
@@ -711,6 +758,17 @@ char *attributes_to_html(apex_attributes *attrs) {
         /* Skip internal @2x/@3x markers - used by attributes_to_html_for_image to emit srcset */
         if (strcmp(key, "data-srcset-2x") == 0 ||
             strcmp(key, "data-srcset-3x") == 0) {
+            continue;
+        }
+        /* Skip picture/video format markers - used for picture/video element generation */
+        if (strcmp(key, "data-srcset-webp") == 0 ||
+            strcmp(key, "data-srcset-avif") == 0 ||
+            strcmp(key, "data-video-webm") == 0 ||
+            strcmp(key, "data-video-ogg") == 0 ||
+            strcmp(key, "data-video-mp4") == 0 ||
+            strcmp(key, "data-video-mov") == 0 ||
+            strcmp(key, "data-video-m4v") == 0 ||
+            strcmp(key, "data-apex-auto") == 0) {
             continue;
         }
 
@@ -1783,6 +1841,52 @@ static apex_attributes *parse_image_attributes(const char *attr_str, int len) {
             continue;
         }
 
+        /* Check for bare webp/avif (picture srcset format markers) */
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'w' && key_start[1] == 'e' && key_start[2] == 'b' && key_start[3] == 'p') {
+            add_attribute(attrs, "data-srcset-webp", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'a' && key_start[1] == 'v' && key_start[2] == 'i' && key_start[3] == 'f') {
+            add_attribute(attrs, "data-srcset-avif", "1");
+            continue;
+        }
+
+        /* Check for bare video format markers (webm, ogg, mp4, mov, m4v) */
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'w' && key_start[1] == 'e' && key_start[2] == 'b' && key_start[3] == 'm') {
+            add_attribute(attrs, "data-video-webm", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'o' && key_start[1] == 'g' && key_start[2] == 'g') {
+            add_attribute(attrs, "data-video-ogg", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'm' && key_start[1] == 'p' && key_start[2] == '4') {
+            add_attribute(attrs, "data-video-mp4", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'm' && key_start[1] == 'o' && key_start[2] == 'v') {
+            add_attribute(attrs, "data-video-mov", "1");
+            continue;
+        }
+        if (p > key_start && (size_t)(p - key_start) == 3 &&
+            key_start[0] == 'm' && key_start[1] == '4' && key_start[2] == 'v') {
+            add_attribute(attrs, "data-video-m4v", "1");
+            continue;
+        }
+
+        /* Check for bare auto (discover formats from filesystem) */
+        if (p > key_start && (size_t)(p - key_start) == 4 &&
+            key_start[0] == 'a' && key_start[1] == 'u' && key_start[2] == 't' && key_start[3] == 'o') {
+            add_attribute(attrs, "data-apex-auto", "1");
+            continue;
+        }
+
         /* Unknown token, skip */
         p++;
     }
@@ -1862,6 +1966,73 @@ static char *url_with_2x_suffix(const char *url) {
 }
 
 /**
+ * Replace the file extension in a URL with a new extension.
+ * Uses same path logic as url_with_2x_suffix. Caller must free.
+ * e.g. url_with_extension("img/icon.png?x=1", "webp") -> "img/icon.webp?x=1"
+ */
+static char *url_with_extension(const char *url, const char *new_ext) {
+    if (!url || !*url || !new_ext) return NULL;
+
+    const char *p = strstr(url, "://");
+    if (p) p += 3;
+    else p = url;
+
+    const char *first_slash = strchr(p, '/');
+    const char *path_start = first_slash ? first_slash : url;
+    const char *qmark = strchr(path_start, '?');
+    const char *hash  = strchr(path_start, '#');
+    const char *path_end = (qmark && hash) ? ((qmark < hash) ? qmark : hash) :
+                           qmark ? qmark : hash ? hash : url + strlen(url);
+
+    const char *last_dot = NULL;
+    for (const char *c = path_start; c < path_end; c++) {
+        if (*c == '.') last_dot = c;
+    }
+    if (!last_dot) return NULL;
+
+    size_t prefix_len = (size_t)(last_dot - url);
+    size_t ext_len = strlen(new_ext);
+    size_t tail_len = strlen(path_end);  /* from ? or # to end, or 0 */
+    char *out = malloc(prefix_len + 1 + ext_len + tail_len + 1);
+    if (!out) return NULL;
+
+    memcpy(out, url, prefix_len);
+    out[prefix_len] = '.';
+    memcpy(out + prefix_len + 1, new_ext, ext_len + 1);
+    if (tail_len > 0) {
+        memcpy(out + prefix_len + 1 + ext_len, path_end, tail_len + 1);
+    }
+    return out;
+}
+
+/**
+ * Check if URL has a video extension (whitelist: mp4, mov, webm, ogg, ogv, m4v)
+ */
+static bool is_video_url(const char *url) {
+    if (!url || !*url) return false;
+    const char *path_end = strchr(url, '?');
+    if (!path_end) path_end = strchr(url, '#');
+    if (!path_end) path_end = url + strlen(url);
+
+    const char *last_dot = NULL;
+    for (const char *c = url; c < path_end; c++) {
+        if (*c == '.') last_dot = c;
+    }
+    if (!last_dot || last_dot <= url) return false;
+    const char *ext = last_dot + 1;
+    size_t ext_len = (size_t)(path_end - ext);
+    if (ext_len == 0) return false;
+
+    if (ext_len == 3 && strncasecmp(ext, "mp4", 3) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "mov", 3) == 0) return true;
+    if (ext_len == 4 && strncasecmp(ext, "webm", 4) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "ogg", 3) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "ogv", 3) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "m4v", 3) == 0) return true;
+    return false;
+}
+
+/**
  * Check if attributes contain the @2x/@3x srcset markers
  */
 static bool attrs_have_srcset_2x(apex_attributes *attrs) {
@@ -1872,6 +2043,23 @@ static bool attrs_have_srcset_2x(apex_attributes *attrs) {
 static bool attrs_have_srcset_3x(apex_attributes *attrs) {
     if (!attrs) return false;
     return find_attribute_index(attrs, "data-srcset-3x") >= 0;
+}
+
+static bool attrs_have_srcset_webp(apex_attributes *attrs) {
+    if (!attrs) return false;
+    return find_attribute_index(attrs, "data-srcset-webp") >= 0;
+}
+
+static bool attrs_have_srcset_avif(apex_attributes *attrs) {
+    if (!attrs) return false;
+    return find_attribute_index(attrs, "data-srcset-avif") >= 0;
+}
+
+static bool attrs_have_video_format(apex_attributes *attrs, const char *fmt) {
+    if (!attrs) return false;
+    char key[32];
+    snprintf(key, sizeof(key), "data-video-%s", fmt);
+    return find_attribute_index(attrs, key) >= 0;
 }
 
 /**
@@ -1935,20 +2123,145 @@ static char *url_with_3x_suffix(const char *url) {
 }
 
 /**
+ * Build picture srcset string for a format (e.g. webp: "base.webp 1x, base@2x.webp 2x").
+ * Uses base url and optional @2x/@3x. Caller must free.
+ */
+static char *build_picture_srcset(const char *url, const char *ext, bool want_2x, bool want_3x) {
+    if (!url) return NULL;
+    char *base = url_with_extension(url, ext);
+    if (!base) return NULL;
+
+    char *url_2x = NULL, *url_3x = NULL;
+    if (want_2x) {
+        char *base_2x = url_with_2x_suffix(url);
+        if (base_2x) {
+            url_2x = url_with_extension(base_2x, ext);
+            free(base_2x);
+        }
+    }
+    if (want_3x) {
+        char *base_3x = url_with_3x_suffix(url);
+        if (base_3x) {
+            url_3x = url_with_extension(base_3x, ext);
+            free(base_3x);
+        }
+    }
+
+    size_t len = strlen(base) + 32;
+    if (url_2x) len += strlen(url_2x) + 16;
+    if (url_3x) len += strlen(url_3x) + 16;
+
+    char *out = malloc(len);
+    if (!out) {
+        free(base);
+        free(url_2x);
+        free(url_3x);
+        return NULL;
+    }
+
+    char *p = out;
+    p += snprintf(p, len, "%s 1x", base);
+    if (url_2x) p += snprintf(p, len - (size_t)(p - out), ", %s 2x", url_2x);
+    if (url_3x) p += snprintf(p, len - (size_t)(p - out), ", %s 3x", url_3x);
+
+    free(base);
+    free(url_2x);
+    free(url_3x);
+    return out;
+}
+
+/**
  * Convert image attributes to HTML string, including srcset when @2x/@3x is present.
  * When data-srcset-2x/data-srcset-3x are in attrs, emits srcset="url 1x, url@2x 2x[, url@3x 3x]"
  * and omits the internal markers from the output attributes.
+ * For video URLs, emits data-apex-replace-video with format markers for renderer replacement.
+ * For webp/avif, emits data-apex-picture-* for renderer to wrap in <picture>.
  * Caller must free the returned string.
  */
 static char *attributes_to_html_for_image(const char *url, apex_attributes *attrs) {
     if (!attrs) return strdup("");
 
+    bool have_auto = (find_attribute_index(attrs, "data-apex-auto") >= 0);
     bool have_2x = attrs_have_srcset_2x(attrs);
     bool have_3x = attrs_have_srcset_3x(attrs);
-
-    /* @3x implies we should also emit a 2x entry, even if @2x was not explicitly set. */
     bool want_2x = have_2x || have_3x;
     bool want_3x = have_3x;
+
+    /* Auto: emit marker for html_renderer to discover formats from filesystem */
+    if (have_auto && url) {
+        char *base = attributes_to_html(attrs);
+        size_t base_len = base && *base ? strlen(base) : 0;
+        size_t need = base_len + 64;
+        char *result = malloc(need);
+        if (result) {
+            char *p = result;
+            if (base_len > 0) {
+                memcpy(p, base, base_len + 1);
+                p += base_len;
+            }
+            p += sprintf(p, " data-apex-replace-auto=1");
+            free(base);
+            return result;
+        }
+        free(base);
+    }
+
+    /* Video URL: emit replacement markers for renderer to output <video> */
+    if (url && is_video_url(url)) {
+        char *base = attributes_to_html(attrs);
+        size_t base_len = base && *base ? strlen(base) : 0;
+        size_t need = base_len + 128;
+        char *result = malloc(need);
+        if (!result) {
+            free(base);
+            return strdup("");
+        }
+        char *p = result;
+        if (base_len > 0) {
+            memcpy(p, base, base_len + 1);
+            p += base_len;
+        }
+        p += sprintf(p, " data-apex-replace-video=1");
+        if (attrs_have_video_format(attrs, "webm")) p += sprintf(p, " data-apex-video-webm=1");
+        if (attrs_have_video_format(attrs, "ogg")) p += sprintf(p, " data-apex-video-ogg=1");
+        if (attrs_have_video_format(attrs, "mp4")) p += sprintf(p, " data-apex-video-mp4=1");
+        if (attrs_have_video_format(attrs, "mov")) p += sprintf(p, " data-apex-video-mov=1");
+        if (attrs_have_video_format(attrs, "m4v")) p += sprintf(p, " data-apex-video-m4v=1");
+        free(base);
+        return result;
+    }
+
+    /* Picture (webp/avif): emit data-apex-picture-* for renderer to wrap in <picture> */
+    bool have_webp = attrs_have_srcset_webp(attrs);
+    bool have_avif = attrs_have_srcset_avif(attrs);
+    if ((have_webp || have_avif) && url) {
+        char *webp_srcset = have_webp ? build_picture_srcset(url, "webp", want_2x, want_3x) : NULL;
+        char *avif_srcset = have_avif ? build_picture_srcset(url, "avif", want_2x, want_3x) : NULL;
+
+        char *base = attributes_to_html(attrs);
+        size_t need = (base ? strlen(base) : 0) + 64;
+        if (webp_srcset) need += strlen(webp_srcset) + 32;
+        if (avif_srcset) need += strlen(avif_srcset) + 32;
+
+        char *result = malloc(need);
+        if (result) {
+            char *p = result;
+            if (base && *base) p += sprintf(p, "%s", base);
+            if (webp_srcset) {
+                p += sprintf(p, " data-apex-replace-picture=1 data-apex-picture-webp=\"%s\"", webp_srcset);
+            }
+            if (avif_srcset) {
+                p += sprintf(p, " data-apex-picture-avif=\"%s\"", avif_srcset);
+            }
+            if (!webp_srcset && avif_srcset) {
+                p += sprintf(p, " data-apex-replace-picture=1");
+            }
+            free(webp_srcset);
+            free(avif_srcset);
+        }
+        free(base);
+        if (result) return result;
+    }
 
     char *url_2x = (want_2x && url) ? url_with_2x_suffix(url) : NULL;
     char *url_3x = (want_3x && url) ? url_with_3x_suffix(url) : NULL;
@@ -2515,15 +2828,15 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         bool skip_encode = has_protocol(url);
                         char *encoded_url = (do_url_encoding && !skip_encode) ? url_encode(url) : strdup(url);
                         if (encoded_url) {
-                            /* Store attributes with URL - create entry whenever we have attrs (from do_image_attrs or known-attribute split) */
+                            /* Store attributes with URL - create entry when we have attrs, or when URL is a video (needs replacement) */
                             image_attr_entry *entry = NULL;
-                            if (attrs) {
+                            if (attrs || is_video_url(url)) {
                                 /* Use the running image_index so attributes are
                                  * bound to the correct inline image position,
                                  * even when some images have no attributes.
                                  */
                                 entry = create_image_attr_entry(&local_img_attrs, encoded_url, image_index);
-                                if (entry) {
+                                if (entry && attrs) {
                                     /* Copy attributes (don't merge) */
                                     for (int i = 0; i < attrs->attr_count; i++) {
                                         add_attribute(entry->attrs, attrs->keys[i], attrs->values[i]);
@@ -3681,31 +3994,28 @@ void apex_apply_image_attributes(cmark_node *document, image_attr_entry *img_att
     cmark_iter *iter = cmark_iter_new(document);
     cmark_event_type event;
 
-    /* For each image node, we:
-     * 1. Prefer a matching inline entry (index >= 0), using each at most once.
-     * 2. If none, fall back to a reference-style entry (index == -1) matching by URL.
-     *
-     * This avoids relying on a separate image_index counter that can drift when
-     * images are expanded/rewrapped, and cleanly distinguishes inline vs ref
-     * attributes without letting one overwrite the other.
-     */
+    /* Preprocessing assigns index 0, 1, 2... to inline images only (ref-style get -1).
+     * Use inline_image_position to match so that same-URL images (e.g. webp vs avif)
+     * get correct attrs, while ref-style images are matched by URL. */
+    int inline_image_position = 0;
+
     while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
         cmark_node *node = cmark_iter_get_node(iter);
         if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_IMAGE) {
             const char *url = cmark_node_get_url(node);
             image_attr_entry *matching = NULL;
 
-            /* First, try to find an unused inline entry for this URL (index >= 0). */
+            /* First, try inline entry with index == inline_image_position and URL match. */
             for (image_attr_entry *e = img_attrs; e; e = e->next) {
-                if (e->index >= 0 && e->url && url && strcmp(e->url, url) == 0 && e->attrs) {
+                if (e->index == inline_image_position && e->url && url && strcmp(e->url, url) == 0 && e->attrs) {
                     matching = e;
-                    /* Consume this inline entry so it is only applied once. */
-                    e->index = -2; /* mark as used inline */
+                    e->index = -2; /* mark as used */
+                    inline_image_position++;
                     break;
                 }
             }
 
-            /* If no inline entry found, try reference-style entries (index == -1) by URL. */
+            /* If no inline match, try reference-style entries (index == -1) by URL. */
             if (!matching && url) {
                 for (image_attr_entry *e = img_attrs; e; e = e->next) {
                     if (e->index == -1 && e->url && strcmp(e->url, url) == 0 && e->attrs) {

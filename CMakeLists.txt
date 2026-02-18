@@ -347,8 +347,9 @@ add_executable(apex_test_runner
 target_link_libraries(apex_test_runner apex_static)
 target_compile_definitions(apex_test_runner PRIVATE TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/includes")
 
-# Add test
+# Add test (run from source dir so fixture paths like tests/fixtures/... resolve)
 add_test(NAME apex_tests COMMAND apex_test_runner)
+set_tests_properties(apex_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # Documentation
 option(BUILD_DOCS "Build documentation" OFF)

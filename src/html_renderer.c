@@ -7,10 +7,12 @@
 #include "table.h"  /* For CMARK_NODE_TABLE */
 #include "extensions/header_ids.h"
 #include <string.h>
+#include <strings.h>  /* For strncasecmp */
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <sys/stat.h>
 
 /**
  * Inject attributes into HTML opening tags
@@ -154,6 +156,125 @@ static char *extract_ial_from_table_attrs(const char *attrs) {
     return result;
 }
 
+/**
+ * Extract value of an attribute from an HTML tag.
+ * Returns newly allocated string or NULL. Caller must free.
+ */
+static char *extract_attr_from_tag(const char *tag_start, const char *tag_end, const char *attr_name) {
+    size_t attr_len = strlen(attr_name);
+    const char *p = tag_start;
+    while (p < tag_end) {
+        if ((p == tag_start || isspace((unsigned char)p[-1])) &&
+            strncasecmp(p, attr_name, attr_len) == 0 && p[attr_len] == '=') {
+            p += attr_len + 1;
+            if (p >= tag_end) return NULL;
+            char q = *p;
+            if (q != '"' && q != '\'') return NULL;
+            p++;
+            const char *val_start = p;
+            while (p < tag_end && *p != q) {
+                if (*p == '\\' && p + 1 < tag_end) p++;
+                p++;
+            }
+            if (p >= tag_end) return NULL;
+            size_t len = (size_t)(p - val_start);
+            char *out = malloc(len + 1);
+            if (out) {
+                memcpy(out, val_start, len);
+                out[len] = '\0';
+            }
+            return out;
+        }
+        p++;
+    }
+    return NULL;
+}
+
+/**
+ * Replace extension in URL path. Caller must free. Returns NULL if no extension.
+ */
+static char *url_with_extension(const char *url, const char *new_ext) {
+    if (!url || !new_ext) return NULL;
+    const char *last_dot = strrchr(url, '.');
+    const char *path_end = strchr(url, '?');
+    if (!path_end) path_end = strchr(url, '#');
+    if (!path_end) path_end = url + strlen(url);
+    if (!last_dot || last_dot >= path_end) return NULL;
+
+    size_t prefix_len = (size_t)(last_dot - url);
+    size_t ext_len = strlen(new_ext);
+    size_t tail_len = strlen(path_end);
+    char *out = malloc(prefix_len + 1 + ext_len + tail_len + 1);
+    if (!out) return NULL;
+    memcpy(out, url, prefix_len);
+    out[prefix_len] = '.';
+    memcpy(out + prefix_len + 1, new_ext, ext_len + 1);
+    if (tail_len > 0) memcpy(out + prefix_len + 1 + ext_len, path_end, tail_len + 1);
+    return out;
+}
+
+/**
+ * Find end of HTML tag (the >), respecting quoted attribute values.
+ */
+static const char *find_tag_end(const char *tag_start) {
+    const char *p = tag_start;
+    char in_quote = 0;
+    while (*p) {
+        if (in_quote) {
+            if (*p == '\\' && p[1]) p++;
+            else if (*p == in_quote) in_quote = 0;
+        } else if (*p == '"' || *p == '\'') {
+            in_quote = *p;
+        } else if (*p == '>') {
+            return p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
+/**
+ * Get video MIME type from URL extension.
+ */
+static const char *video_type_from_url(const char *url) {
+    if (!url) return "video/mp4";
+    const char *dot = strrchr(url, '.');
+    if (!dot) return "video/mp4";
+    const char *ext = dot + 1;
+    const char *end = strchr(ext, '?');
+    if (!end) end = strchr(ext, '#');
+    if (!end) end = ext + strlen(ext);
+    size_t len = (size_t)(end - ext);
+    if (len >= 3 && strncasecmp(ext, "mp4", 3) == 0) return "video/mp4";
+    if (len >= 4 && strncasecmp(ext, "webm", 4) == 0) return "video/webm";
+    if (len >= 3 && strncasecmp(ext, "ogg", 3) == 0) return "video/ogg";
+    if (len >= 3 && strncasecmp(ext, "ogv", 3) == 0) return "video/ogg";
+    if (len >= 3 && strncasecmp(ext, "mov", 3) == 0) return "video/quicktime";
+    if (len >= 3 && strncasecmp(ext, "m4v", 3) == 0) return "video/mp4";
+    return "video/mp4";
+}
+
+/**
+ * Extract value of data-apex-picture-webp or data-apex-picture-avif from attrs string.
+ * Format: data-apex-picture-webp="value" or data-apex-picture-avif="value"
+ * Caller must free.
+ */
+static char *extract_data_apex_picture_srcset(const char *attrs, const char *format) {
+    char key[64];
+    snprintf(key, sizeof(key), "data-apex-picture-%s=\"", format);
+    const char *p = strstr(attrs, key);
+    if (!p) return NULL;
+    p += strlen(key);
+    const char *end = strchr(p, '"');
+    if (!end) return NULL;
+    size_t len = (size_t)(end - p);
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, p, len);
+    out[len] = '\0';
+    return out;
+}
+
 /* Counters for element indexing */
 typedef struct {
     int para_count;
@@ -229,16 +350,29 @@ static char *get_node_text_fingerprint(cmark_node *node) {
         }
     }
 
-    /* For images, use the URL */
+    /* For images, use URL + alt (from first child) to disambiguate same-src images */
     if (type == CMARK_NODE_IMAGE) {
         const char *url = cmark_node_get_url(node);
         if (url) {
-            size_t len = strlen(url);
-            if (len > 50) len = 50;
-            char *fingerprint = malloc(len + 1);
+            size_t url_len = strlen(url);
+            if (url_len > 50) url_len = 50;
+            cmark_node *child = cmark_node_first_child(node);
+            const char *alt = (child && cmark_node_get_type(child) == CMARK_NODE_TEXT) ?
+                cmark_node_get_literal(child) : NULL;
+            size_t alt_len = alt ? strlen(alt) : 0;
+            if (alt_len > 20) alt_len = 20;
+            size_t total = url_len + (alt_len ? 1 + alt_len : 0);
+            if (total > 50) total = 50;
+            char *fingerprint = malloc(total + 1);
             if (fingerprint) {
-                memcpy(fingerprint, url, len);
-                fingerprint[len] = '\0';
+                memcpy(fingerprint, url, url_len);
+                size_t pos = url_len;
+                if (alt_len && pos + 1 + alt_len <= 50) {
+                    fingerprint[pos++] = '|';
+                    memcpy(fingerprint + pos, alt, alt_len);
+                    pos += alt_len;
+                }
+                fingerprint[pos] = '\0';
                 return fingerprint;
             }
         }
@@ -302,7 +436,8 @@ static void collect_nodes_with_attrs(cmark_node *node, attr_node **list) {
     element_counters counters = {0};
     collect_nodes_with_attrs_recursive(node, list, &counters);
 
-    /* Reverse the list to get document order */
+    /* Reverse the list: prepend builds [last_visited, ..., first_visited];
+     * we need document order [first, ..., last] for matching. */
     attr_node *reversed = NULL;
     while (*list) {
         attr_node *next = (*list)->next;
@@ -499,7 +634,7 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                 int fp_idx = 0;
 
                 if (elem_type == CMARK_NODE_LINK || elem_type == CMARK_NODE_IMAGE) {
-                    /* For links/images, extract the href/src attribute */
+                    /* For links/images, extract href/src and for images also alt (to disambiguate same-src) */
                     const char *url_attr = (elem_type == CMARK_NODE_LINK) ? "href=\"" : "src=\"";
                     const char *url_start = strstr(read, url_attr);
                     if (url_start) {
@@ -509,8 +644,25 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                             size_t url_len = url_end - url_start;
                             if (url_len > 50) url_len = 50;
                             memcpy(html_fingerprint, url_start, url_len);
-                            html_fingerprint[url_len] = '\0';
                             fp_idx = url_len;
+                            if (elem_type == CMARK_NODE_IMAGE && fp_idx < 49) {
+                                const char *alt_attr = "alt=\"";
+                                const char *alt_start = strstr(read, alt_attr);
+                                if (alt_start && alt_start < tag_end) {
+                                    alt_start += strlen(alt_attr);
+                                    const char *alt_end = strchr(alt_start, '"');
+                                    if (alt_end) {
+                                        size_t alt_len = alt_end - alt_start;
+                                        if (alt_len > 20) alt_len = 20;
+                                        if (fp_idx + 1 + alt_len <= 50) {
+                                            html_fingerprint[fp_idx++] = '|';
+                                            memcpy(html_fingerprint + fp_idx, alt_start, alt_len);
+                                            fp_idx += alt_len;
+                                        }
+                                    }
+                                }
+                            }
+                            html_fingerprint[fp_idx] = '\0';
                         }
                     }
                 } else if (elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH || elem_type == CMARK_NODE_CODE) {
@@ -551,6 +703,17 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                             break;
                         }
                     }
+                } else if (elem_type == CMARK_NODE_IMAGE) {
+                    /* Images: match by element_index (document order). */
+                    for (attr_node *a = attr_list; a; a = a->next, idx++) {
+                        if (used[idx]) continue;
+                        if (a->node_type != CMARK_NODE_IMAGE) continue;
+                        if (a->element_index == elem_idx) {
+                            matching = a;
+                            used[idx] = true;
+                            break;
+                        }
+                    }
                 } else {
                     /* For other elements, use the existing matching logic */
                     for (attr_node *a = attr_list; a; a = a->next, idx++) {
@@ -565,7 +728,8 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                         /* Try fingerprint match first (works for both block and inline) */
                         if (a->text_fingerprint && fp_idx > 0 &&
                             strncmp(a->text_fingerprint, html_fingerprint, 50) == 0) {
-                            /* For inline elements, also check element_index to handle duplicates */
+                            /* For inline elements, also check element_index to handle duplicates.
+                             * (Images with same src use sequential matching in the branch above.) */
                             if (elem_type == CMARK_NODE_LINK || elem_type == CMARK_NODE_IMAGE ||
                                 elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH ||
                                 elem_type == CMARK_NODE_CODE) {
@@ -667,6 +831,109 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                         }
                         if (ial_attrs) free(ial_attrs);
                         /* No IAL attributes to inject, but table still needs to be copied - fall through */
+                    } else if (elem_type == CMARK_NODE_IMAGE &&
+                               (strstr(matching->attrs, "data-apex-replace-video") ||
+                                strstr(matching->attrs, "data-apex-replace-picture"))) {
+                        /* Replace img with video or picture element */
+                        const char *img_tag_end = find_tag_end(read);
+                        if (img_tag_end && img_tag_end > read) {
+                            char *src = extract_attr_from_tag(read, img_tag_end + 1, "src");
+                            char *alt = extract_attr_from_tag(read, img_tag_end + 1, "alt");
+                            char *title = extract_attr_from_tag(read, img_tag_end + 1, "title");
+                            /* Fallback: title may be in IAL attrs (cmark may not emit it on img) */
+                            if ((!title || !*title) && matching->attrs) {
+                                size_t alen = strlen(matching->attrs);
+                                char *fake_tag = malloc(alen + 10);
+                                if (fake_tag) {
+                                    snprintf(fake_tag, alen + 10, "<img %s>", matching->attrs);
+                                    char *t = extract_attr_from_tag(fake_tag, fake_tag + strlen(fake_tag) + 1, "title");
+                                    free(fake_tag);
+                                    if (t) { free(title); title = t; }
+                                }
+                            }
+                            if (!src) src = strdup("");
+                            if (!alt) alt = strdup("");
+
+                            char *replacement = NULL;
+                            size_t repl_len = 0;
+
+                            if (strstr(matching->attrs, "data-apex-replace-video")) {
+                                /* Build <video> with <source> elements. Order: webm, ogg, mp4/mov/m4v (primary) */
+                                size_t cap = 256 + (src ? strlen(src) * 4 : 0);
+                                replacement = malloc(cap);
+                                if (replacement) {
+                                    char *w = replacement;
+                                    w += snprintf(w, cap, "<video");
+                                    if (alt && *alt) w += snprintf(w, cap - (size_t)(w - replacement), " title=\"%s\"", alt);
+                                    w += snprintf(w, cap - (size_t)(w - replacement), ">");
+
+                                    if (strstr(matching->attrs, "data-apex-video-webm")) {
+                                        char *u = url_with_extension(src, "webm");
+                                        if (u) { w += snprintf(w, cap - (size_t)(w - replacement), "<source src=\"%s\" type=\"video/webm\">", u); free(u); }
+                                    }
+                                    if (strstr(matching->attrs, "data-apex-video-ogg")) {
+                                        char *u = url_with_extension(src, "ogg");
+                                        if (u) { w += snprintf(w, cap - (size_t)(w - replacement), "<source src=\"%s\" type=\"video/ogg\">", u); free(u); }
+                                    }
+                                    if (strstr(matching->attrs, "data-apex-video-mp4")) {
+                                        char *u = url_with_extension(src, "mp4");
+                                        if (u) { w += snprintf(w, cap - (size_t)(w - replacement), "<source src=\"%s\" type=\"video/mp4\">", u); free(u); }
+                                    }
+                                    if (strstr(matching->attrs, "data-apex-video-mov")) {
+                                        char *u = url_with_extension(src, "mov");
+                                        if (u) { w += snprintf(w, cap - (size_t)(w - replacement), "<source src=\"%s\" type=\"video/quicktime\">", u); free(u); }
+                                    }
+                                    if (strstr(matching->attrs, "data-apex-video-m4v")) {
+                                        char *u = url_with_extension(src, "m4v");
+                                        if (u) { w += snprintf(w, cap - (size_t)(w - replacement), "<source src=\"%s\" type=\"video/mp4\">", u); free(u); }
+                                    }
+                                    /* Primary src as fallback (always include) */
+                                    w += snprintf(w, cap - (size_t)(w - replacement), "<source src=\"%s\" type=\"%s\">", src, video_type_from_url(src));
+                                    w += snprintf(w, cap - (size_t)(w - replacement), "</video>");
+                                    repl_len = (size_t)(w - replacement);
+                                }
+                            } else {
+                                /* Build <picture> with <source> elements and <img> fallback */
+                                char *webp_srcset = extract_data_apex_picture_srcset(matching->attrs, "webp");
+                                char *avif_srcset = extract_data_apex_picture_srcset(matching->attrs, "avif");
+
+                                /* Strip data-apex-* from attrs for the img */
+                                size_t cap = 512 + (src ? strlen(src) * 2 : 0) + (webp_srcset ? strlen(webp_srcset) : 0) + (avif_srcset ? strlen(avif_srcset) : 0);
+                                replacement = malloc(cap);
+                                if (replacement) {
+                                    char *w = replacement;
+                                    w += snprintf(w, cap, "<picture>");
+                                    if (avif_srcset) w += snprintf(w, cap - (size_t)(w - replacement), "<source type=\"image/avif\" srcset=\"%s\">", avif_srcset);
+                                    if (webp_srcset) w += snprintf(w, cap - (size_t)(w - replacement), "<source type=\"image/webp\" srcset=\"%s\">", webp_srcset);
+                                    /* Preserve title on img for caption logic (apex_convert_image_captions) */
+                                    if (title && *title) {
+                                        w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\" title=\"%s\"></picture>", src, alt, title);
+                                    } else {
+                                        w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\"></picture>", src, alt);
+                                    }
+                                    repl_len = (size_t)(w - replacement);
+                                }
+                                free(webp_srcset);
+                                free(avif_srcset);
+                            }
+
+                            if (replacement && repl_len > 0 && repl_len <= remaining) {
+                                memcpy(write, replacement, repl_len);
+                                write += repl_len;
+                                remaining -= repl_len;
+                                read = img_tag_end + 1;
+                                free(replacement);
+                                free(src);
+                                free(alt);
+                                free(title);
+                                continue;
+                            }
+                            free(replacement);
+                            free(src);
+                            free(alt);
+                            free(title);
+                        }
+                        /* Fall through to normal inject if replacement failed */
                     } else {
                         /* Find where to inject attributes */
                         const char *inject_point = NULL;
@@ -2478,6 +2745,72 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
     size_t remaining = capacity;
 
     while (*read) {
+        /* Look for <picture> - wrap in figure when caption from img title/alt */
+        if (*read == '<' && (read[1] == 'p' || read[1] == 'P') &&
+            (read[2] == 'i' || read[2] == 'I') && (read[3] == 'c' || read[3] == 'C') &&
+            (read[4] == 't' || read[4] == 'T') && (read[5] == 'u' || read[5] == 'U') &&
+            (read[6] == 'r' || read[6] == 'R') && (read[7] == 'e' || read[7] == 'E') &&
+            (read[8] == ' ' || read[8] == '>' || read[8] == '\t')) {
+            const char *picture_start = read;
+            const char *picture_end = strstr(read, "</picture>");
+            if (picture_end) {
+                picture_end += 10; /* include </picture> */
+                /* Find <img inside the picture and extract title/alt for caption */
+                const char *img_in = picture_start;
+                char *title_str = NULL, *alt_str = NULL;
+                while ((img_in = strstr(img_in, "<img")) != NULL && img_in < picture_end) {
+                    const char *img_tag_end = strchr(img_in, '>');
+                    if (img_tag_end && img_tag_end < picture_end) {
+                        title_str = extract_attr_from_tag(img_in, img_tag_end + 1, "title");
+                        alt_str = extract_attr_from_tag(img_in, img_tag_end + 1, "alt");
+                        break;
+                    }
+                    img_in += 4;
+                }
+                /* Determine caption from title or alt per options */
+                const char *caption = NULL;
+                size_t caption_len = 0;
+                if (enable_image_captions) {
+                    if (title_captions_only && title_str && *title_str) {
+                        caption = title_str; caption_len = strlen(title_str);
+                    } else if (title_str && *title_str) {
+                        caption = title_str; caption_len = strlen(title_str);
+                    } else if (alt_str && *alt_str) {
+                        caption = alt_str; caption_len = strlen(alt_str);
+                    }
+                }
+                size_t block_len = (size_t)(picture_end - picture_start);
+                if (caption && caption_len > 0) {
+                    size_t extra = 8 + 12 + caption_len + 14 + 9; /* figure + figcaption + close */
+                    if (extra + block_len >= remaining) {
+                        size_t used = write - output;
+                        size_t new_cap = (used + extra + block_len + 1) * 2;
+                        char *new_out = realloc(output, new_cap);
+                        if (!new_out) { free(title_str); free(alt_str); free(output); return NULL; }
+                        output = new_out; write = output + used; remaining = new_cap - used;
+                    }
+                    memcpy(write, "<figure>", 8); write += 8; remaining -= 8;
+                    memcpy(write, picture_start, block_len); write += block_len; remaining -= block_len;
+                    memcpy(write, "<figcaption>", 12); write += 12; remaining -= 12;
+                    memcpy(write, caption, caption_len); write += caption_len; remaining -= caption_len;
+                    memcpy(write, "</figcaption></figure>", 20); write += 20; remaining -= 20;
+                } else {
+                    if (block_len >= remaining) {
+                        size_t used = write - output;
+                        size_t new_cap = (used + block_len + 1) * 2;
+                        char *new_out = realloc(output, new_cap);
+                        if (!new_out) { free(title_str); free(alt_str); free(output); return NULL; }
+                        output = new_out; write = output + used; remaining = new_cap - used;
+                    }
+                    memcpy(write, picture_start, block_len); write += block_len; remaining -= block_len;
+                }
+                free(title_str);
+                free(alt_str);
+                read = picture_end;
+                continue;
+            }
+        }
+
         /* Look for <img tag */
         if (*read == '<' && (read[1] == 'i' || read[1] == 'I') &&
             (read[2] == 'm' || read[2] == 'M') &&
@@ -2526,6 +2859,43 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
             }
 
             const char *tag_end = p; /* Points at '>' */
+
+            /* Skip img inside <picture> - picture's img is the fallback, don't wrap in figure */
+            {
+                bool inside_picture = false;
+                const char *scan = tag_start - 1;
+                while (scan >= html) {
+                    if (*scan == '<') {
+                        if (scan + 8 <= tag_start && strncasecmp(scan, "<picture", 8) == 0 &&
+                            (scan[8] == ' ' || scan[8] == '>' || scan[8] == '\t')) {
+                            inside_picture = true;
+                            break;
+                        }
+                        if (scan + 10 <= tag_start && strncmp(scan, "</picture>", 10) == 0) {
+                            break;  /* Outside - we passed closing tag first */
+                        }
+                        /* Other tags (source, etc.) - keep scanning backwards */
+                    }
+                    scan--;
+                }
+                if (inside_picture) {
+                    size_t tag_len = (size_t)(tag_end - tag_start + 1);
+                    if (tag_len >= remaining) {
+                        size_t used = write - output;
+                        size_t new_cap = (used + tag_len + 1) * 2;
+                        char *new_out = realloc(output, new_cap);
+                        if (!new_out) { free(output); return NULL; }
+                        output = new_out;
+                        write = output + used;
+                        remaining = new_cap - used;
+                    }
+                    memcpy(write, tag_start, tag_len);
+                    write += tag_len;
+                    remaining -= tag_len;
+                    read = tag_end + 1;
+                    continue;
+                }
+            }
 
             /* Parse attributes between <img and > */
             const char *attr_start = tag_start + 4;
@@ -2754,6 +3124,413 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
             free(output);
             return NULL;
         }
+        output = new_out;
+        write = output + used;
+    }
+    *write = '\0';
+    return output;
+}
+
+/**
+ * Check if a local file exists (regular file).
+ */
+static bool file_exists(const char *path) {
+    if (!path || !*path) return false;
+    struct stat st;
+    return (stat(path, &st) == 0 && S_ISREG(st.st_mode));
+}
+
+/**
+ * Resolve relative URL against base directory for filesystem checks.
+ * Returns allocated path or NULL. Skips absolute and remote URLs.
+ */
+static char *resolve_path_for_check(const char *base_dir, const char *url) {
+    if (!base_dir || !*base_dir || !url || !*url) return NULL;
+    if (url[0] == '/') return NULL;  /* Absolute path */
+    if (strstr(url, "://")) return NULL;  /* Remote URL */
+    size_t len = strlen(base_dir) + strlen(url) + 2;
+    char *out = malloc(len);
+    if (!out) return NULL;
+    snprintf(out, len, "%s/%s", base_dir, url);
+    return out;
+}
+
+/**
+ * Insert @2x before extension in URL. Caller must free.
+ */
+static char *url_with_2x_suffix_auto(const char *url) {
+    if (!url || !*url) return NULL;
+    const char *path_end = strchr(url, '?');
+    if (!path_end) path_end = strchr(url, '#');
+    if (!path_end) path_end = url + strlen(url);
+    const char *last_dot = NULL;
+    for (const char *c = url; c < path_end; c++) {
+        if (*c == '.') last_dot = c;
+    }
+    if (!last_dot) return NULL;
+    size_t prefix_len = (size_t)(last_dot - url);
+    size_t suffix_len = strlen(last_dot);
+    char *out = malloc(prefix_len + 4 + suffix_len + 1);
+    if (!out) return NULL;
+    memcpy(out, url, prefix_len);
+    memcpy(out + prefix_len, "@2x", 3);
+    memcpy(out + prefix_len + 3, last_dot, suffix_len + 1);
+    return out;
+}
+
+/**
+ * Insert @3x before extension in URL. Caller must free.
+ */
+static char *url_with_3x_suffix_auto(const char *url) {
+    if (!url || !*url) return NULL;
+    const char *path_end = strchr(url, '?');
+    if (!path_end) path_end = strchr(url, '#');
+    if (!path_end) path_end = url + strlen(url);
+    const char *last_dot = NULL;
+    for (const char *c = url; c < path_end; c++) {
+        if (*c == '.') last_dot = c;
+    }
+    if (!last_dot) return NULL;
+    size_t prefix_len = (size_t)(last_dot - url);
+    size_t suffix_len = strlen(last_dot);
+    char *out = malloc(prefix_len + 4 + suffix_len + 1);
+    if (!out) return NULL;
+    memcpy(out, url, prefix_len);
+    memcpy(out + prefix_len, "@3x", 3);
+    memcpy(out + prefix_len + 3, last_dot, suffix_len + 1);
+    return out;
+}
+
+/**
+ * Check if URL has video extension (mp4, mov, webm, ogg, ogv, m4v).
+ */
+static bool is_video_url_auto(const char *url) {
+    if (!url || !*url) return false;
+    const char *path_end = strchr(url, '?');
+    if (!path_end) path_end = strchr(url, '#');
+    if (!path_end) path_end = url + strlen(url);
+    const char *last_dot = NULL;
+    for (const char *c = url; c < path_end; c++) {
+        if (*c == '.') last_dot = c;
+    }
+    if (!last_dot || last_dot >= path_end - 1) return false;
+    const char *ext = last_dot + 1;
+    size_t ext_len = (size_t)(path_end - ext);
+    if (ext_len == 3 && strncasecmp(ext, "mp4", 3) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "mov", 3) == 0) return true;
+    if (ext_len == 4 && strncasecmp(ext, "webm", 4) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "ogg", 3) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "ogv", 3) == 0) return true;
+    if (ext_len == 3 && strncasecmp(ext, "m4v", 3) == 0) return true;
+    return false;
+}
+
+/**
+ * Expand img tags with data-apex-replace-auto=1 by discovering existing
+ * format variants on disk and generating appropriate <picture> or <video>.
+ * Only processes local (relative) URLs when base_directory is provided.
+ * Caller must free the returned string.
+ */
+char *apex_expand_auto_media(const char *html, const char *base_directory) {
+    if (!html) return NULL;
+    if (!base_directory || !*base_directory) return strdup(html);
+
+    size_t len = strlen(html);
+    size_t capacity = len * 2 + 2048;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        if (*read == '<' && (read[1] == 'i' || read[1] == 'I') &&
+            (read[2] == 'm' || read[2] == 'M') && (read[3] == 'g' || read[3] == 'G') &&
+            (read[4] == ' ' || read[4] == '\t' || read[4] == '>' || read[4] == '/')) {
+
+            const char *tag_start = read;
+            const char *tag_end = find_tag_end(tag_start);
+            if (!tag_end) {
+                *write++ = *read++;
+                remaining--;
+                continue;
+            }
+
+            /* Check for data-apex-replace-auto=1 */
+            if (!strstr(tag_start, "data-apex-replace-auto=1")) {
+                size_t tag_len = (size_t)(tag_end - tag_start + 1);
+                if (tag_len >= remaining) {
+                    size_t used = (size_t)(write - output);
+                    capacity = used + tag_len + 2048;
+                    char *new_out = realloc(output, capacity);
+                    if (!new_out) { free(output); return NULL; }
+                    output = new_out;
+                    write = output + used;
+                    remaining = capacity - used;
+                }
+                memcpy(write, tag_start, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
+                read = tag_end + 1;
+                continue;
+            }
+
+            char *src = extract_attr_from_tag(tag_start, tag_end + 1, "src");
+            char *alt = extract_attr_from_tag(tag_start, tag_end + 1, "alt");
+            char *title = extract_attr_from_tag(tag_start, tag_end + 1, "title");
+            if (!src) src = strdup("");
+            if (!alt) alt = strdup("");
+
+            char *replacement = NULL;
+            size_t repl_len = 0;
+
+            char *resolved = resolve_path_for_check(base_directory, src);
+            if (resolved && file_exists(resolved)) {
+                if (is_video_url_auto(src)) {
+                    /* Video: discover alternative formats that exist */
+                    static const char *video_exts[] = {"webm", "ogg", "mp4", "mov", "m4v", NULL};
+                    size_t cap = 512 + strlen(src) * 6;
+                    replacement = malloc(cap);
+                    if (replacement) {
+                        char *w = replacement;
+                        w += snprintf(w, cap, "<video");
+                        if (alt && *alt) w += snprintf(w, cap - (size_t)(w - replacement), " title=\"%s\"", alt);
+                        w += snprintf(w, cap - (size_t)(w - replacement), ">");
+
+                        for (int i = 0; video_exts[i]; i++) {
+                            char *variant_url = url_with_extension(src, video_exts[i]);
+                            if (variant_url) {
+                                char *variant_path = resolve_path_for_check(base_directory, variant_url);
+                                if (variant_path && file_exists(variant_path)) {
+                                    const char *mime = (strcmp(video_exts[i], "webm") == 0) ? "video/webm" :
+                                        (strcmp(video_exts[i], "ogg") == 0) ? "video/ogg" :
+                                        (strcmp(video_exts[i], "mov") == 0) ? "video/quicktime" : "video/mp4";
+                                    w += snprintf(w, cap - (size_t)(w - replacement),
+                                        "<source src=\"%s\" type=\"%s\">", variant_url, mime);
+                                }
+                                free(variant_path);
+                                free(variant_url);
+                            }
+                        }
+                        w += snprintf(w, cap - (size_t)(w - replacement),
+                            "<source src=\"%s\" type=\"%s\">", src, video_type_from_url(src));
+                        w += snprintf(w, cap - (size_t)(w - replacement), "</video>");
+                        repl_len = (size_t)(w - replacement);
+                    }
+                } else {
+                    /* Image: discover 2x, 3x, webp, avif variants */
+                    bool has_2x = false, has_3x = false;
+                    bool has_webp_1x = false, has_webp_2x = false, has_webp_3x = false;
+                    bool has_avif_1x = false, has_avif_2x = false, has_avif_3x = false;
+
+                    char *url_2x = url_with_2x_suffix_auto(src);
+                    char *url_3x = url_with_3x_suffix_auto(src);
+                    if (url_2x) {
+                        char *p2 = resolve_path_for_check(base_directory, url_2x);
+                        has_2x = (p2 && file_exists(p2));
+                        free(p2);
+                    }
+                    if (url_3x) {
+                        char *p3 = resolve_path_for_check(base_directory, url_3x);
+                        has_3x = (p3 && file_exists(p3));
+                        free(p3);
+                    }
+
+                    char *webp_1x = url_with_extension(src, "webp");
+                    if (webp_1x) {
+                        char *p = resolve_path_for_check(base_directory, webp_1x);
+                        has_webp_1x = (p && file_exists(p));
+                        free(p);
+                    }
+                    if (url_2x && webp_1x) {
+                        char *webp_2x = url_with_extension(url_2x, "webp");
+                        if (webp_2x) {
+                            char *p = resolve_path_for_check(base_directory, webp_2x);
+                            has_webp_2x = (p && file_exists(p));
+                            free(p);
+                            free(webp_2x);
+                        }
+                    }
+                    if (url_3x && webp_1x) {
+                        char *webp_3x = url_with_extension(url_3x, "webp");
+                        if (webp_3x) {
+                            char *p = resolve_path_for_check(base_directory, webp_3x);
+                            has_webp_3x = (p && file_exists(p));
+                            free(p);
+                            free(webp_3x);
+                        }
+                    }
+                    free(webp_1x);
+
+                    char *avif_1x = url_with_extension(src, "avif");
+                    if (avif_1x) {
+                        char *p = resolve_path_for_check(base_directory, avif_1x);
+                        has_avif_1x = (p && file_exists(p));
+                        free(p);
+                    }
+                    if (url_2x && avif_1x) {
+                        char *avif_2x = url_with_extension(url_2x, "avif");
+                        if (avif_2x) {
+                            char *p = resolve_path_for_check(base_directory, avif_2x);
+                            has_avif_2x = (p && file_exists(p));
+                            free(p);
+                            free(avif_2x);
+                        }
+                    }
+                    if (url_3x && avif_1x) {
+                        char *avif_3x = url_with_extension(url_3x, "avif");
+                        if (avif_3x) {
+                            char *p = resolve_path_for_check(base_directory, avif_3x);
+                            has_avif_3x = (p && file_exists(p));
+                            free(p);
+                            free(avif_3x);
+                        }
+                    }
+                    free(avif_1x);
+                    free(url_2x);
+                    free(url_3x);
+
+                    bool need_picture = has_webp_1x || has_webp_2x || has_webp_3x ||
+                        has_avif_1x || has_avif_2x || has_avif_3x;
+                    bool need_srcset = has_2x || has_3x;
+
+                    if (need_picture || need_srcset) {
+                        size_t cap = 1024 + strlen(src) * 8;
+                        replacement = malloc(cap);
+                        if (replacement) {
+                            char *w = replacement;
+                            if (need_picture) w += snprintf(w, cap, "<picture>");
+
+                            /* AVIF first (preferred), then WebP */
+                            if (has_avif_1x || has_avif_2x || has_avif_3x) {
+                                char *av1 = url_with_extension(src, "avif");
+                                char *s2 = url_with_2x_suffix_auto(src);
+                                char *av2 = s2 ? url_with_extension(s2, "avif") : NULL;
+                                free(s2);
+                                char *s3 = url_with_3x_suffix_auto(src);
+                                char *av3 = s3 ? url_with_extension(s3, "avif") : NULL;
+                                free(s3);
+                                char srcset[512] = "";
+                                if (av1) snprintf(srcset, sizeof(srcset), "%s 1x", av1);
+                                if (av2 && has_avif_2x) {
+                                    size_t l = strlen(srcset);
+                                    snprintf(srcset + l, sizeof(srcset) - l, "%s%s 2x", l ? ", " : "", av2);
+                                }
+                                if (av3 && has_avif_3x) {
+                                    size_t l = strlen(srcset);
+                                    snprintf(srcset + l, sizeof(srcset) - l, "%s%s 3x", l ? ", " : "", av3);
+                                }
+                                if (*srcset) w += snprintf(w, cap - (size_t)(w - replacement),
+                                    "<source type=\"image/avif\" srcset=\"%s\">", srcset);
+                                free(av1); free(av2); free(av3);
+                            }
+                            if (has_webp_1x || has_webp_2x || has_webp_3x) {
+                                char *wb1 = url_with_extension(src, "webp");
+                                char *s2 = url_with_2x_suffix_auto(src);
+                                char *wb2 = s2 ? url_with_extension(s2, "webp") : NULL;
+                                free(s2);
+                                char *s3 = url_with_3x_suffix_auto(src);
+                                char *wb3 = s3 ? url_with_extension(s3, "webp") : NULL;
+                                free(s3);
+                                char srcset[512] = "";
+                                if (wb1) snprintf(srcset, sizeof(srcset), "%s 1x", wb1);
+                                if (wb2 && has_webp_2x) {
+                                    size_t l = strlen(srcset);
+                                    snprintf(srcset + l, sizeof(srcset) - l, "%s%s 2x", l ? ", " : "", wb2);
+                                }
+                                if (wb3 && has_webp_3x) {
+                                    size_t l = strlen(srcset);
+                                    snprintf(srcset + l, sizeof(srcset) - l, "%s%s 3x", l ? ", " : "", wb3);
+                                }
+                                if (*srcset) w += snprintf(w, cap - (size_t)(w - replacement),
+                                    "<source type=\"image/webp\" srcset=\"%s\">", srcset);
+                                free(wb1); free(wb2); free(wb3);
+                            }
+
+                            /* Build img with optional srcset for 2x/3x */
+                            char srcset_attr[512] = "";
+                            if (need_srcset) {
+                                char *u2 = url_with_2x_suffix_auto(src);
+                                char *u3 = url_with_3x_suffix_auto(src);
+                                snprintf(srcset_attr, sizeof(srcset_attr), " srcset=\"%s 1x", src);
+                                if (has_2x && u2) {
+                                    size_t l = strlen(srcset_attr);
+                                    snprintf(srcset_attr + l, sizeof(srcset_attr) - l, ", %s 2x", u2);
+                                }
+                                if (has_3x && u3) {
+                                    size_t l = strlen(srcset_attr);
+                                    snprintf(srcset_attr + l, sizeof(srcset_attr) - l, ", %s 3x", u3);
+                                }
+                                strcat(srcset_attr, "\"");
+                                free(u2); free(u3);
+                            }
+                            /* Preserve title on img for caption logic */
+                            if (title && *title) {
+                                w += snprintf(w, cap - (size_t)(w - replacement),
+                                    "<img src=\"%s\" alt=\"%s\" title=\"%s\"%s>%s",
+                                    src, alt && *alt ? alt : "", title, srcset_attr,
+                                    need_picture ? "</picture>" : "");
+                            } else {
+                                w += snprintf(w, cap - (size_t)(w - replacement),
+                                    "<img src=\"%s\" alt=\"%s\"%s>%s",
+                                    src, alt && *alt ? alt : "", srcset_attr,
+                                    need_picture ? "</picture>" : "");
+                            }
+                            repl_len = (size_t)(w - replacement);
+                        }
+                    }
+                }
+                free(resolved);
+            }
+
+            if (replacement && repl_len > 0 && repl_len <= remaining) {
+                memcpy(write, replacement, repl_len);
+                write += repl_len;
+                remaining -= repl_len;
+                read = tag_end + 1;
+            } else {
+                /* Copy original tag */
+                size_t tag_len = (size_t)(tag_end - tag_start + 1);
+                if (tag_len >= remaining) {
+                    size_t used = (size_t)(write - output);
+                    capacity = used + tag_len + 1024;
+                    char *new_out = realloc(output, capacity);
+                    if (!new_out) { free(output); free(replacement); free(src); free(alt); free(title); return NULL; }
+                    output = new_out;
+                    write = output + used;
+                    remaining = capacity - used;
+                }
+                memcpy(write, tag_start, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
+                read = tag_end + 1;
+            }
+
+            free(replacement);
+            free(src);
+            free(alt);
+            free(title);
+            continue;
+        }
+
+        if (remaining < 2) {
+            size_t used = (size_t)(write - output);
+            capacity = used + len + 1024;
+            char *new_out = realloc(output, capacity);
+            if (!new_out) { free(output); return NULL; }
+            output = new_out;
+            write = output + used;
+            remaining = capacity - used;
+        }
+        *write++ = *read++;
+        remaining--;
+    }
+
+    if (remaining < 1) {
+        size_t used = (size_t)(write - output);
+        char *new_out = realloc(output, used + 1);
+        if (!new_out) { free(output); return NULL; }
         output = new_out;
         write = output + used;
     }
