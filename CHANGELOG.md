@@ -13,6 +13,26 @@ All notable changes to Apex will be documented in this file.
 - Video format attributes (`webm`, `ogg`, `mp4`, `mov`, `m4v`) on video URLs add `<source>` elements for alternative formats; e.g. `![Demo](media/demo.mp4 webm)` adds webm source before the primary fallback.
 - Image attribute `auto` (e.g. `![alt](url auto)`) discovers formats from the filesystem when `base_directory` is set: checks for 2x, 3x, webp, avif variants (images) and webm, ogg, mp4, mov, m4v (videos), generating `<picture>` or `<video>` with only the variants that exist on disk.
 
+## [0.1.73] - 2026-02-18
+
+### New
+
+- IAL attributes for picture formats: webp, avif (emit <picture> with srcset), and video formats: webm, ogg, mp4, mov, m4v (emit <video> with <source> elements)
+- IAL attribute "auto" discovers format variants (2x, 3x, webp, avif, video) from filesystem and expands img to picture/video when files exist
+- Video URLs (mp4, webm, ogg, mov, m4v, ogv) automatically render as <video> elements instead of <img>
+- --[no-]image-captions and --[no-]title-captions-only CLI options to control figure/figcaption wrapping (title-captions-only: only add captions for images with title, alt-only images get no caption)
+- Image URL ending in .* (e.g. ![](image.*)) auto-discovers format variants from filesystem, same as auto attribute
+
+### Improved
+
+- Image attribute matching uses URL + alt to disambiguate same-src images when injecting IAL attributes
+- Picture elements with title or alt now get figure/figcaption wrapping when image captions are enabled
+
+### Fixed
+
+- TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
+- Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
+
 ## [0.1.72] - 2026-02-02
 
 ### Changed
@@ -2354,6 +2374,7 @@ Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 z
 
+[0.1.73]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.73
 [0.1.72]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.72
 [0.1.71]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.71
 [0.1.70]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.70

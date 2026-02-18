@@ -1,5 +1,5 @@
 
-[![Version: 0.1.71](https://img.shields.io/badge/Version-0.1.71-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1292/1292](https://img.shields.io/badge/Tests-1292/1292-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.78](https://img.shields.io/badge/Version-0.1.78-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1349/1349](https://img.shields.io/badge/Tests-1349/1349-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.71
+Apex Markdown Processor v0.1.72
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -326,6 +326,8 @@ Options:
                          Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)
   --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)
   --embed-images         Embed local images as base64 data URLs in HTML output
+  --[no-]image-captions  Wrap images with title or alt text in <figure>/<figcaption> (default: on in unified/mmd)
+  --[no-]title-captions-only  Only add captions for images with title; alt-only images get no caption
   --hardbreaks           Treat newlines as hard breaks
   --header-anchors        Generate <a> anchor tags instead of header IDs
   -h, --help             Show this help message
