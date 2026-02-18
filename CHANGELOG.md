@@ -26,6 +26,8 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.80] - 2026-02-18
+
 ## [0.1.79] - 2026-02-18
 
 ### New
@@ -2466,6 +2468,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.80]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.80
 [0.1.79]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.79
 [0.1.78]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.78
 [0.1.77]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.77
