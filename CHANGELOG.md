@@ -2,6 +2,30 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [Unreleased]
+
+### New
+
+- Image/video URL with `*` as extension (e.g. `![](image.*)` or `![](video.*)`) is equivalent to `auto`: scans for jpg, png, gif, webp, avif (1x, 2x, 3x) for images and mp4, webm, ogg, mov, m4v for videos, generating `<picture>` or `<video>` with discovered variants.
+- Image attribute `webp` (e.g. `![alt](url webp)`) emits `<picture>` with `<source type="image/webp" srcset="...">`; combines with `@2x` for retina (e.g. `![alt](url webp @2x)` → `img.webp 1x, img@2x.webp 2x`).
+- Image attribute `avif` (e.g. `![alt](url avif)`) emits `<picture>` with `<source type="image/avif" srcset="...">`; same 2x/3x support as webp.
+- Video URLs (mp4, mov, webm, ogg, ogv, m4v) in image syntax emit `<video>` instead of `<img>`; e.g. `![Demo](media/demo.mp4)` → `<video><source src="media/demo.mp4" type="video/mp4"></video>`.
+- Video format attributes (`webm`, `ogg`, `mp4`, `mov`, `m4v`) on video URLs add `<source>` elements for alternative formats; e.g. `![Demo](media/demo.mp4 webm)` adds webm source before the primary fallback.
+- Image attribute `auto` (e.g. `![alt](url auto)`) discovers formats from the filesystem when `base_directory` is set: checks for 2x, 3x, webp, avif variants (images) and webm, ogg, mp4, mov, m4v (videos), generating `<picture>` or `<video>` with only the variants that exist on disk.
+- IAL attributes for picture formats: webp, avif (emit <picture> with srcset), and video formats: webm, ogg, mp4, mov, m4v (emit <video> with <source> elements)
+- --[no-]image-captions and --[no-]title-captions-only CLI options to control figure/figcaption wrapping (title-captions-only: only add captions for images with title, alt-only images get no caption)
+- Image URL ending in .* (e.g. ![](image.*)) auto-discovers format variants from filesystem, same as auto attribute
+
+### Improved
+
+- Image attribute matching uses URL + alt to disambiguate same-src images when injecting IAL attributes
+- Picture elements with title or alt now get figure/figcaption wrapping when image captions are enabled
+
+### Fixed
+
+- TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
+- Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
+
 ## [0.1.78] - 2026-02-13
 
 ### New
@@ -2418,7 +2442,6 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
-z
 
 [0.1.78]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.78
 [0.1.77]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.77

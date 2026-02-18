@@ -486,6 +486,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)\n");
     fprintf(stderr, "  --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)\n");
     fprintf(stderr, "  --embed-images         Embed local images as base64 data URLs in HTML output\n");
+    fprintf(stderr, "  --[no-]image-captions  Wrap images with title or alt text in <figure>/<figcaption> (default: on in unified/mmd)\n");
+    fprintf(stderr, "  --[no-]title-captions-only  Only add captions for images with title; alt-only images get no caption\n");
     fprintf(stderr, "  --hardbreaks           Treat newlines as hard breaks\n");
     fprintf(stderr, "  --header-anchors        Generate <a> anchor tags instead of header IDs\n");
     fprintf(stderr, "  -h, --help             Show this help message\n");

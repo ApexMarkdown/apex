@@ -7,7 +7,7 @@
 class Apex < Formula
   desc "Unified Markdown processor supporting CommonMark, GFM, MultiMarkdown, and Kramdown"
   homepage "https://github.com/ApexMarkdown/apex"
-  version "0.1.77"
+  version "0.1.78"
   license "MIT"
 
   depends_on "libyaml"

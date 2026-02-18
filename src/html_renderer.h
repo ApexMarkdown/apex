@@ -124,6 +124,15 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
  */
 char *apex_strip_figure_paragraph_wrapper(const char *html);
 
+/**
+ * Expand img tags with data-apex-replace-auto=1 by discovering existing
+ * format variants (2x, 3x, webp, avif, video formats) on disk.
+ * Only processes local relative URLs when base_directory is provided.
+ * @param html The HTML to process
+ * @param base_directory Base path for resolving relative URLs (e.g. document directory)
+ * @return Newly allocated HTML with auto media expanded (must be freed)
+ */
+char *apex_expand_auto_media(const char *html, const char *base_directory);
 #ifdef __cplusplus
 }
 #endif

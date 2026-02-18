@@ -5,6 +5,8 @@
 #include "test_helpers.h"
 #include "apex/apex.h"
 #include "../src/extensions/advanced_footnotes.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void test_math(void) {
@@ -324,6 +326,161 @@ void test_multimarkdown_image_attributes(void) {
         assert_contains(html,
                         "srcset=\"img/hero3.png 1x, img/hero3@2x.png 2x, img/hero3@3x.png 3x\"",
                         "@3x reference: srcset 1x, 2x, 3x");
+        apex_free_string(html);
+    }
+
+    /* webp attribute: ![alt](url webp) emits <picture> with webp source */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *webp_md = "![Hero](img/hero.png webp)";
+        char *html = apex_markdown_to_html(webp_md, strlen(webp_md), &opts);
+        assert_contains(html, "<picture>", "webp: picture element");
+        assert_contains(html, "type=\"image/webp\"", "webp: source type");
+        assert_contains(html, "img/hero.webp 1x", "webp: srcset");
+        assert_contains(html, "<img src=\"img/hero.png\"", "webp: img fallback");
+        assert_contains(html, "</picture>", "webp: picture close");
+        apex_free_string(html);
+    }
+
+    /* avif attribute: ![alt](url avif) emits <picture> with avif source */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *avif_md = "![Hero](img/hero.png avif)";
+        char *html = apex_markdown_to_html(avif_md, strlen(avif_md), &opts);
+        assert_contains(html, "<picture>", "avif: picture element");
+        assert_contains(html, "type=\"image/avif\"", "avif: source type");
+        assert_contains(html, "img/hero.avif 1x", "avif: srcset");
+        assert_contains(html, "<img src=\"img/hero.png\"", "avif: img fallback");
+        apex_free_string(html);
+    }
+
+    /* webp + @2x: srcset includes 1x and 2x for webp */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *webp_2x_md = "![Hero](img/hero.png webp @2x)";
+        char *html = apex_markdown_to_html(webp_2x_md, strlen(webp_2x_md), &opts);
+        assert_contains(html, "img/hero.webp 1x, img/hero@2x.webp 2x", "webp @2x: srcset");
+        apex_free_string(html);
+    }
+
+    /* Video URL: ![alt](video.mp4) emits <video> */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *video_md = "![Demo](media/demo.mp4)";
+        char *html = apex_markdown_to_html(video_md, strlen(video_md), &opts);
+        assert_contains(html, "<video", "video: video element");
+        assert_contains(html, "media/demo.mp4", "video: src");
+        assert_contains(html, "</video>", "video: close");
+        assert_not_contains(html, "<img", "video: no img");
+        apex_free_string(html);
+    }
+
+    /* Video with webm attribute: adds webm source */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *video_webm_md = "![Demo](media/demo.mp4 webm)";
+        char *html = apex_markdown_to_html(video_webm_md, strlen(video_webm_md), &opts);
+        assert_contains(html, "<source src=\"media/demo.webm\" type=\"video/webm\">", "video webm: source");
+        assert_contains(html, "<source src=\"media/demo.mp4\"", "video webm: primary fallback");
+        apex_free_string(html);
+    }
+
+    /* Fixture-based tests: media_formats_test.md */
+    {
+        const char *fixture_path = "tests/fixtures/images/media_formats_test.md";
+        FILE *fp = fopen(fixture_path, "rb");
+        if (fp) {
+            fseek(fp, 0, SEEK_END);
+            long sz = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            char *src = malloc(sz + 1);
+            if (src) {
+                size_t len = fread(src, 1, (size_t)sz, fp);
+                src[len] = '\0';
+                fclose(fp);
+
+                apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+                char *html = apex_markdown_to_html(src, len, &opts);
+
+                /* Images with webp/avif: picture elements */
+                assert_contains(html, "<picture>", "fixture: picture elements");
+                assert_contains(html, "type=\"image/webp\"", "fixture: webp source type");
+                assert_contains(html, "type=\"image/avif\"", "fixture: avif source type");
+                assert_contains(html, "img/hero.webp 1x", "fixture: webp srcset");
+                assert_contains(html, "img/hero.avif 1x", "fixture: avif srcset");
+                assert_contains(html, "img/hero@2x.webp 2x", "fixture: webp @2x");
+                assert_contains(html, "img/hero@2x.avif 2x", "fixture: avif @2x");
+
+                /* Videos: video elements */
+                assert_contains(html, "<video", "fixture: video elements");
+                assert_contains(html, "media/demo.mp4", "fixture: mp4 video");
+                assert_contains(html, "assets/trailer.mov", "fixture: mov video");
+                assert_contains(html, "assets/sample.m4v", "fixture: m4v video");
+
+                /* Video with format alternatives */
+                assert_contains(html, "media/demo.webm", "fixture: video webm source");
+                assert_contains(html, "media/intro.ogg", "fixture: video ogg source");
+                assert_contains(html, "media/clip.mp4", "fixture: webm with mp4 fallback");
+
+                /* Auto attribute (marker present; expansion requires base_directory) */
+                assert_contains(html, "data-apex-replace-auto=1", "fixture: auto marker");
+
+                apex_free_string(html);
+                free(src);
+            } else {
+                fclose(fp);
+                test_result(false, "fixture: malloc failed for media_formats_test.md");
+            }
+        } else {
+            test_result(false, "fixture: could not open media_formats_test.md");
+        }
+    }
+
+    /* auto attribute: emits data-apex-replace-auto (expansion requires base_directory) */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *auto_md = "![Hero](img/hero.png auto)";
+        char *html = apex_markdown_to_html(auto_md, strlen(auto_md), &opts);
+        assert_contains(html, "data-apex-replace-auto=1", "auto: emits replace marker");
+        apex_free_string(html);
+    }
+
+    /* auto with base_directory: discovers img set (jpg, webp, avif, 2x variants), emits picture */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.base_directory = "tests/fixtures/images";
+        const char *auto_md = "![Profile menu](img/app-pass-1-profile-menu.jpg auto)";
+        char *html = apex_markdown_to_html(auto_md, strlen(auto_md), &opts);
+        assert_contains(html, "<picture>", "auto+base: picture element");
+        assert_contains(html, "type=\"image/avif\"", "auto+base: avif source");
+        assert_contains(html, "type=\"image/webp\"", "auto+base: webp source");
+        assert_contains(html, "app-pass-1-profile-menu.avif 1x", "auto+base: avif 1x");
+        assert_contains(html, "app-pass-1-profile-menu@2x.avif 2x", "auto+base: avif 2x");
+        assert_contains(html, "app-pass-1-profile-menu.webp 1x", "auto+base: webp 1x");
+        assert_contains(html, "app-pass-1-profile-menu@2x.webp 2x", "auto+base: webp 2x");
+        assert_contains(html, "<img src=\"img/app-pass-1-profile-menu.jpg\"", "auto+base: img fallback");
+        apex_free_string(html);
+    }
+
+    /* * extension: equivalent to auto, discovers formats from base filename */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.base_directory = "tests/fixtures/images";
+        const char *wildcard_md = "![Profile menu](img/app-pass-1-profile-menu.*)";
+        char *html = apex_markdown_to_html(wildcard_md, strlen(wildcard_md), &opts);
+        assert_contains(html, "<picture>", "wildcard: picture element");
+        assert_contains(html, "type=\"image/avif\"", "wildcard: avif source");
+        assert_contains(html, "type=\"image/webp\"", "wildcard: webp source");
+        assert_contains(html, "app-pass-1-profile-menu.jpg", "wildcard: jpg fallback");
+        apex_free_string(html);
+    }
+
+    /* * extension: emits data-apex-replace-auto marker when no base_directory */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *wildcard_md = "![Hero](img/hero.*)";
+        char *html = apex_markdown_to_html(wildcard_md, strlen(wildcard_md), &opts);
+        assert_contains(html, "data-apex-replace-auto=1", "wildcard: emits replace marker");
         apex_free_string(html);
     }
 

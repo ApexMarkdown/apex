@@ -79,6 +79,7 @@ static header_item *collect_headers(cmark_node *node, header_item **tail) {
 
 /**
  * Generate TOC HTML from headers
+ * Produces valid ul > li > ul nesting (nested lists inside list items)
  */
 static char *generate_toc_html(header_item *headers, int min_level, int max_level) {
     if (!headers) return strdup("");
@@ -90,6 +91,7 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
     char *write = html;
     size_t remaining = capacity;
     int current_level = 0;
+    int last_level = 0;  /* level of last item added (0 = none yet) */
 
     #define APPEND(str) do { \
         size_t len = strlen(str); \
@@ -106,28 +108,46 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
         /* Skip headers outside min/max range */
         if (h->level < min_level || h->level > max_level) continue;
 
-        /* Close lists if going up levels */
+        /* Going up: close </ul></li> for each level (nested ul inside parent li) */
         while (current_level > h->level) {
-            APPEND("</ul>\n");
+            APPEND("</ul>\n</li>\n");
             current_level--;
         }
 
-        /* Open lists if going down levels */
+        /* Going down: open one <ul> inside the previous li before adding child.
+         * At root (current_level 0): only open one ul - never ul > ul.
+         * When going deeper: open exactly one ul per step - never ul > ul. */
         while (current_level < h->level) {
-            APPEND("<ul>\n");
-            current_level++;
+            if (current_level == 0) {
+                APPEND("<ul>\n");
+                current_level = 1;
+                break;
+            }
+            if (last_level > 0) {
+                APPEND("<ul>\n");
+                current_level++;
+                break;
+            } else {
+                break;  /* No parent li - add as direct child of root ul */
+            }
         }
 
-        /* Add list item */
+        /* Close previous li when adding sibling (same or shallower level) */
+        if (last_level > 0 && h->level <= last_level) {
+            APPEND("</li>\n");
+        }
+
+        /* Add list item (leave open - may contain nested ul) */
         char item[1024];
-        snprintf(item, sizeof(item), "<li><a href=\"#%s\">%s</a></li>\n",
+        snprintf(item, sizeof(item), "<li><a href=\"#%s\">%s</a>",
                  h->id, h->text);
         APPEND(item);
+        last_level = h->level;
     }
 
-    /* Close remaining lists */
+    /* Close remaining: </li></ul> for each open level */
     while (current_level > 0) {
-        APPEND("</ul>\n");
+        APPEND("</li>\n</ul>\n");
         current_level--;
     }
 
