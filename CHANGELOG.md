@@ -26,6 +26,30 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.79] - 2026-02-18
+
+### New
+
+- IAL attributes for picture formats: webp, avif (emit <picture> with srcset), and video formats: webm, ogg, mp4, mov, m4v (emit <video> with <source> elements)
+- IAL attribute "auto" discovers format variants (2x, 3x, webp, avif, video) from filesystem and expands img to picture/video when files exist
+- Video URLs (mp4, webm, ogg, mov, m4v, ogv) automatically render as <video> elements instead of <img>
+- --[no-]image-captions and --[no-]title-captions-only CLI options to control figure/figcaption wrapping (title-captions-only: only add captions for images with title, alt-only images get no caption)
+- Image URL ending in .* (e.g. ![](image.*)) auto-discovers format variants from filesystem, same as auto attribute
+
+### Improved
+
+- Image attribute matching uses URL + alt to disambiguate same-src images when injecting IAL attributes
+- Picture elements with title or alt now get figure/figcaption wrapping when image captions are enabled
+
+### Fixed
+
+- TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
+- Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
+- Wildcard image syntax (![](image.*)) now expands correctly when document contains image examples in code blocks (e.g. `![](image.*)` in documentation)
+- Truncated </figure> tag in picture output (memcpy used wrong length for "</figcaption></figure>")
+- Invalid HTML5: strip <p> wrapper around figure, video, and picture elements (p may only contain phrasing content)
+- Auto media expansion when replacement exceeds buffer (grow buffer instead of falling back to original img tag)
+
 ## [0.1.78] - 2026-02-13
 
 ### New
@@ -2442,7 +2466,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
-
+[0.1.79]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.79
 [0.1.78]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.78
 [0.1.77]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.77
 [0.1.76]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.76
