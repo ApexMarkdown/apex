@@ -2781,7 +2781,7 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
                 }
                 size_t block_len = (size_t)(picture_end - picture_start);
                 if (caption && caption_len > 0) {
-                    size_t extra = 8 + 12 + caption_len + 14 + 9; /* figure + figcaption + close */
+                    size_t extra = 8 + 12 + caption_len + 13 + 9; /* figure + figcaption + </figcaption> + </figure> */
                     if (extra + block_len >= remaining) {
                         size_t used = write - output;
                         size_t new_cap = (used + extra + block_len + 1) * 2;
@@ -2793,7 +2793,9 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
                     memcpy(write, picture_start, block_len); write += block_len; remaining -= block_len;
                     memcpy(write, "<figcaption>", 12); write += 12; remaining -= 12;
                     memcpy(write, caption, caption_len); write += caption_len; remaining -= caption_len;
-                    memcpy(write, "</figcaption></figure>", 20); write += 20; remaining -= 20;
+                    memcpy(write, "</figcaption></figure>", sizeof("</figcaption></figure>") - 1);
+                    write += sizeof("</figcaption></figure>") - 1;
+                    remaining -= sizeof("</figcaption></figure>") - 1;
                 } else {
                     if (block_len >= remaining) {
                         size_t used = write - output;
@@ -3314,6 +3316,148 @@ char *apex_strip_figure_paragraph_wrapper(const char *html) {
 }
 
 /**
+ * Find the position of the matching closing tag for a block element.
+ * Given pos pointing at "<figure" (or <video, <picture), returns pointer past "</figure>".
+ * Uses depth counting for nested same-named tags. Returns NULL if not found.
+ */
+static const char *find_block_close(const char *pos, const char *end, const char *tag_name, size_t tag_len) {
+    /* Skip past the opening tag to its '>' */
+    const char *p = pos;
+    while (p < end && *p != '>') {
+        if (*p == '"' || *p == '\'') {
+            char q = *p++;
+            while (p < end && *p != q) p++;
+            if (p < end) p++;
+        } else {
+            p++;
+        }
+    }
+    if (p >= end || *p != '>') return NULL;
+    p++; /* past '>' */
+    int depth = 1;
+    while (p < end && depth > 0) {
+        const char *next = memchr(p, '<', (size_t)(end - p));
+        if (!next) return NULL;
+        p = next;
+        if (p + 1 >= end) return NULL;
+        if (p[1] == '/') {
+            if (p + 2 + tag_len <= end &&
+                strncasecmp(p + 2, tag_name, tag_len) == 0 &&
+                (p[2 + tag_len] == '>' || isspace((unsigned char)p[2 + tag_len]))) {
+                depth--;
+                if (depth == 0) {
+                    const char *close = p + 2 + tag_len;
+                    while (close < end && *close != '>') close++;
+                    return (close < end && *close == '>') ? close + 1 : NULL;
+                }
+            }
+            p++;
+        } else if (p + 1 + tag_len <= end &&
+                   strncasecmp(p + 1, tag_name, tag_len) == 0 &&
+                   (p[1 + tag_len] == '>' || isspace((unsigned char)p[1 + tag_len]))) {
+            depth++;
+            p++;
+        } else {
+            p++;
+        }
+    }
+    return NULL;
+}
+
+/**
+ * Strip <p> that wraps only a single block element (figure, video, picture).
+ * HTML5 invalid: <p> may only contain phrasing content; figure/video/picture are flow content.
+ * Transforms <p><figure>...</figure></p> -> <figure>...</figure>, etc.
+ */
+char *apex_strip_block_paragraph_wrapper(const char *html) {
+    if (!html) return NULL;
+    size_t len = strlen(html);
+    const char *end = html + len;
+    size_t capacity = len + 1;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+    const char *read = html;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        if (*read == '<' && read[1] != '/' &&
+            (strncasecmp(read + 1, "p", 1) == 0) &&
+            (read[2] == '>' || isspace((unsigned char)read[2]))) {
+            const char *p_open_end = read + 1;
+            while (*p_open_end && *p_open_end != '>') p_open_end++;
+            if (!*p_open_end || p_open_end >= end) {
+                *write++ = *read++;
+                remaining--;
+                continue;
+            }
+            p_open_end++; /* past '>' */
+            const char *inner = p_open_end;
+            while (inner < end && (*inner == ' ' || *inner == '\t' || *inner == '\n' || *inner == '\r')) inner++;
+            if (inner >= end || *inner != '<') {
+                *write++ = *read++;
+                remaining--;
+                continue;
+            }
+            const char *tag_start = inner + 1;
+            const char *block_close = NULL;
+            if (inner + 7 <= end && strncasecmp(tag_start, "figure", 6) == 0 &&
+                (tag_start[6] == '>' || isspace((unsigned char)tag_start[6]))) {
+                block_close = find_block_close(inner, end, "figure", 6);
+            } else if (inner + 6 <= end && strncasecmp(tag_start, "video", 5) == 0 &&
+                       (tag_start[5] == '>' || isspace((unsigned char)tag_start[5]))) {
+                block_close = find_block_close(inner, end, "video", 5);
+            } else if (inner + 8 <= end && strncasecmp(tag_start, "picture", 7) == 0 &&
+                       (tag_start[7] == '>' || isspace((unsigned char)tag_start[7]))) {
+                block_close = find_block_close(inner, end, "picture", 7);
+            }
+            if (block_close) {
+                const char *after_block = block_close;
+                while (after_block < end && (*after_block == ' ' || *after_block == '\t' || *after_block == '\n' || *after_block == '\r')) after_block++;
+                if (after_block + 4 <= end &&
+                    after_block[0] == '<' && after_block[1] == '/' &&
+                    (after_block[2] == 'p' || after_block[2] == 'P') &&
+                    (after_block[3] == '>' || isspace((unsigned char)after_block[3]))) {
+                    const char *p_close = after_block + 3;
+                    while (*p_close && *p_close != '>') p_close++;
+                    if (*p_close == '>') {
+                        p_close++;
+                        size_t block_size = (size_t)(block_close - inner);
+                        if (block_size >= remaining) {
+                            size_t used = (size_t)(write - output);
+                            capacity = used + block_size + 1024;
+                            char *n = realloc(output, capacity);
+                            if (!n) { free(output); return NULL; }
+                            output = n;
+                            write = output + used;
+                            remaining = capacity - used;
+                        }
+                        memcpy(write, inner, block_size);
+                        write += block_size;
+                        remaining -= block_size;
+                        read = p_close;
+                        continue;
+                    }
+                }
+            }
+        }
+        if (remaining < 2) {
+            size_t used = (size_t)(write - output);
+            capacity = (used + len) * 2;
+            char *n = realloc(output, capacity);
+            if (!n) { free(output); return NULL; }
+            output = n;
+            write = output + used;
+            remaining = capacity - used;
+        }
+        *write++ = *read++;
+        remaining--;
+    }
+    *write = '\0';
+    return output;
+}
+
+/**
  * Check if a local file exists (regular file).
  */
 static bool file_exists(const char *path) {
@@ -3745,7 +3889,16 @@ char *apex_expand_auto_media(const char *html, const char *base_directory) {
                 free(resolved);
             }
 
-            if (replacement && repl_len > 0 && repl_len <= remaining) {
+            if (replacement && repl_len > 0) {
+                if (repl_len > remaining) {
+                    size_t used = (size_t)(write - output);
+                    capacity = used + repl_len + 1024;
+                    char *new_out = realloc(output, capacity);
+                    if (!new_out) { free(output); free(replacement); free(src); free(alt); free(title); return NULL; }
+                    output = new_out;
+                    write = output + used;
+                    remaining = capacity - used;
+                }
                 memcpy(write, replacement, repl_len);
                 write += repl_len;
                 remaining -= repl_len;

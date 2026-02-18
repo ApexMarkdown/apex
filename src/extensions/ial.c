@@ -2615,10 +2615,42 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
      * apex_apply_image_attributes.
      */
     int image_index = 0;
+    bool in_code_block = false;
+    bool in_inline_code = false;
+    int code_block_backticks = 0;
 
     while (*read) {
-        /* Look for inline images: ![alt](url attributes) */
-        if (*read == '!' && read[1] == '[') {
+        /* Track code blocks and inline code - don't process images inside them */
+        if (!in_code_block && !in_inline_code && *read == '`') {
+            int backtick_count = 1;
+            const char *p = read + 1;
+            while (*p == '`') {
+                backtick_count++;
+                p++;
+            }
+            if (backtick_count >= 3) {
+                in_code_block = !in_code_block;
+                code_block_backticks = in_code_block ? backtick_count : 0;
+            } else {
+                in_inline_code = !in_inline_code;
+            }
+        } else if (in_code_block && *read == '`') {
+            int backtick_count = 1;
+            const char *p = read + 1;
+            while (*p == '`') {
+                backtick_count++;
+                p++;
+            }
+            if (backtick_count >= code_block_backticks) {
+                in_code_block = false;
+                code_block_backticks = 0;
+            }
+        } else if (in_inline_code && *read == '`') {
+            in_inline_code = false;
+        }
+
+        /* Look for inline images: ![alt](url attributes) - skip when inside code */
+        if (!in_code_block && !in_inline_code && *read == '!' && read[1] == '[') {
             const char *img_start = read;
             const char *check_pos = read + 2; /* After ![ */
 
@@ -2997,8 +3029,8 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
         }
 
         /* Look for reference-style link definitions: [ref]: url attributes */
-        /* Process to URL-encode URLs and extract image attributes if present */
-        if (*read == '[') {
+        /* Process to URL-encode URLs and extract image attributes if present - skip when inside code */
+        if (!in_code_block && !in_inline_code && *read == '[') {
             const char *ref_start = read;
             const char *ref_end = strchr(ref_start, ']');
             if (ref_end && ref_end[1] == ':' && (ref_end[2] == ' ' || ref_end[2] == '\t')) {

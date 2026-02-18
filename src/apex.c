@@ -5326,6 +5326,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Strip <p> that wraps only a single block element (figure, video, picture) - invalid HTML5 */
+    if (html) {
+        char *stripped = apex_strip_block_paragraph_wrapper(html);
+        if (stripped) {
+            free(html);
+            html = stripped;
+        }
+    }
+
     /* Inject header IDs if enabled */
     if (options->generate_header_ids && html) {
         PROFILE_START(header_ids);
