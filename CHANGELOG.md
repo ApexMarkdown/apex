@@ -26,6 +26,21 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.81] - 2026-02-23
+
+### New
+
+- Tests for extended syntax in indented and fenced code blocks, inline code, nested list lines with 4-space indent, and real indented code without list markers
+
+### Improved
+
+- Lines that start with a list marker after 4+ spaces or tab (nested or continuation list lines) are no longer treated as code blocks, so sup/sub and highlight are still applied there
+
+### Fixed
+
+- Superscript (^), subscript (~), underline (~text~), strikethrough (~~), and highlight (==) are no longer processed inside indented code blocks (4+ spaces or tab)
+- Extended syntax remains skipped inside fenced code blocks and inline code as before
+
 ## [0.1.80] - 2026-02-18
 
 ## [0.1.79] - 2026-02-18
@@ -2468,6 +2483,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.81]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.81
 [0.1.80]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.80
 [0.1.79]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.79
 [0.1.78]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.78
