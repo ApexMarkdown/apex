@@ -1959,6 +1959,55 @@ void test_sup_sub(void) {
         test_result(false, "Subscript incorrectly processed in critic markup");
     }
     apex_free_string(html);
+    opts.enable_critic_markup = false;
+
+    /* ===== CODE BLOCKS: extended syntax not processed ===== */
+
+    /* Indented code block: ^ ~ ~~ == must appear literally, not as sup/sub/underline/strikethrough/highlight */
+    const char *indented_with_extended = "Normal text x^2 here.\n\n    code with ~subscript~ and ^caret^\n    and ~~strikethrough~~ and ==highlight==\n\nBack to normal.";
+    html = apex_markdown_to_html(indented_with_extended, strlen(indented_with_extended), &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript processed in normal text");
+    assert_contains(html, "~subscript~", "Subscript not processed in indented code block");
+    assert_contains(html, "^caret^", "Caret not processed as superscript in indented code block");
+    assert_not_contains(html, "<sub>subscript</sub>", "No subscript tag in indented code block");
+    assert_contains(html, "~~strikethrough~~", "Strikethrough not processed in indented code block");
+    assert_contains(html, "==highlight==", "Highlight not processed in indented code block");
+    assert_not_contains(html, "<mark>highlight</mark>", "No mark tag in indented code block");
+    apex_free_string(html);
+
+    /* Fenced code block: same checks */
+    const char *fenced_with_extended = "Normal x^2.\n\n```\ncode with ~subscript~ and ^caret^\nand ~~strikethrough~~ and ==highlight==\n```\n\nBack.";
+    html = apex_markdown_to_html(fenced_with_extended, strlen(fenced_with_extended), &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript processed in normal text");
+    assert_contains(html, "~subscript~", "Subscript not processed in fenced code block");
+    assert_contains(html, "^caret^", "Caret not processed in fenced code block");
+    assert_not_contains(html, "<sub>subscript</sub>", "No subscript tag in fenced code block");
+    assert_contains(html, "~~strikethrough~~", "Strikethrough not processed in fenced code block");
+    assert_contains(html, "==highlight==", "Highlight not processed in fenced code block");
+    apex_free_string(html);
+
+    /* Inline code: ^ and ~ must not be processed */
+    html = apex_markdown_to_html("Use `x^2` and `H~2~O` in code.", 32, &opts);
+    assert_contains(html, "x^2", "Caret preserved in inline code");
+    assert_contains(html, "H~2~O", "Tildes preserved in inline code");
+    assert_not_contains(html, "<sup>2</sup>", "No superscript in inline code");
+    assert_not_contains(html, "<sub>2</sub>", "No subscript in inline code");
+    apex_free_string(html);
+
+    /* Nested list with 4+ spaces: sup/sub and highlight should be processed (list line, not code block) */
+    const char *list_with_extended = "- Outer item\n    - Nested with x^2 and H~2~O\n    - And ==highlight== here";
+    html = apex_markdown_to_html(list_with_extended, strlen(list_with_extended), &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript processed in nested list line");
+    assert_contains(html, "<sub>2</sub>", "Subscript processed in nested list line");
+    assert_contains(html, "<mark>highlight</mark>", "Highlight processed in nested list line");
+    apex_free_string(html);
+
+    /* Indented line that is real code (no list marker): still no processing */
+    const char *real_indented_code = "Paragraph.\n\n    actual code ~subscript~ here\n\nBack.";
+    html = apex_markdown_to_html(real_indented_code, strlen(real_indented_code), &opts);
+    assert_contains(html, "~subscript~", "Subscript not processed in real indented code block");
+    assert_not_contains(html, "<sub>subscript</sub>", "No subscript tag in real indented code block");
+    apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Superscript, Subscript, Underline, Delete, and Highlight Tests", had_failures, false);

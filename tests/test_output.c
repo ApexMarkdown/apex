@@ -343,6 +343,12 @@ void test_header_ids(void) {
     assert_contains(html, "id=\"Émojisupport\"", "MMD format preserves diacritics");
     apex_free_string(html);
 
+    /* Test MMD format removes apostrophes (curly and straight) - they break anchor links */
+    const char *mmd_apostrophe_test = "# What\xE2\x80\x99s Markdown?";  /* curly apostrophe U+2019 */
+    html = apex_markdown_to_html(mmd_apostrophe_test, strlen(mmd_apostrophe_test), &opts);
+    assert_contains(html, "id=\"whatsmarkdown\"", "MMD format removes curly apostrophe from ID");
+    apex_free_string(html);
+
     /* Test --no-ids option */
     opts.generate_header_ids = false;
     html = apex_markdown_to_html("# Emoji Support", 16, &opts);
@@ -512,6 +518,32 @@ void test_header_ids(void) {
     } else {
         test_result(false, "Default mode incorrectly uses anchor tags");
     }
+    apex_free_string(html);
+
+    /* MMD heading [id] edge case: when [id] matches link ref but is last in heading
+     * with other content, treat as heading ID not link */
+    const char *mmd_id_conflict = "# Heading [mermaid]\n\n[mermaid]: https://example.com\n";
+    html = apex_markdown_to_html(mmd_id_conflict, strlen(mmd_id_conflict), &opts);
+    assert_contains(html, "id=\"mermaid\"", "MMD [id] at end of heading with link ref: treated as ID");
+    assert_contains(html, "Heading mermaid", "MMD [id] at end: mermaid rendered as text not link");
+    if (strstr(html, "<a href=\"https://example.com\">mermaid</a>") != NULL) {
+        test_result(false, "MMD [id] at end should not render as link");
+    } else {
+        test_result(true, "MMD [id] at end: mermaid not rendered as link");
+    }
+    apex_free_string(html);
+
+    /* Entire heading is [id]: keep as link to avoid empty heading */
+    const char *mmd_only_link = "# [mermaid]\n\n[mermaid]: https://example.com\n";
+    html = apex_markdown_to_html(mmd_only_link, strlen(mmd_only_link), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Heading only [id] with link ref: remains link");
+    assert_contains(html, ">mermaid</a>", "Heading only [id]: mermaid renders as link text");
+    apex_free_string(html);
+
+    /* [id] in middle of heading: remains link */
+    const char *mmd_link_middle = "# Check out [mermaid] for diagrams\n\n[mermaid]: https://example.com\n";
+    html = apex_markdown_to_html(mmd_link_middle, strlen(mmd_link_middle), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "MMD [id] in middle: remains link");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);

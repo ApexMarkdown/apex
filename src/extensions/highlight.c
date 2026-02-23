@@ -7,6 +7,32 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <ctype.h>
+
+/** True if content at p looks like a list marker (- , * , + , or digit+. ) */
+static bool looks_like_list_marker(const char *p) {
+    if (*p == '-' || *p == '*' || *p == '+')
+        return (p[1] == ' ' || p[1] == '\t');
+    if (isdigit((unsigned char)*p)) {
+        while (isdigit((unsigned char)*p)) p++;
+        return (*p == '.' && (p[1] == ' ' || p[1] == '\t'));
+    }
+    return false;
+}
+
+/** True if we're at the start of a line that is an indented code block (4+ spaces or tab)
+ * and not a list line. List lines (nested or continuation) should still get highlight. */
+static bool line_is_indented_code_block(const char *read) {
+    if (*read == '\t') {
+        return !looks_like_list_marker(read + 1);
+    }
+    if (read[0] != ' ' || read[1] != ' ' || read[2] != ' ' || read[3] != ' ')
+        return false;
+    const char *content = read + 4;
+    while (*content == ' ')
+        content++;
+    return !looks_like_list_marker(content);
+}
 
 /**
  * Process ==highlight== syntax as preprocessing
@@ -26,9 +52,15 @@ char *apex_process_highlights(const char *text) {
 
     bool in_code_block = false;
     bool in_inline_code = false;
+    bool in_indented_code_block = false;
 
     while (*read) {
-        /* Track code blocks (skip highlighting inside them) */
+        /* At line start: indented code block only if 4+ spaces/tab and not a list line */
+        if (read == text || read[-1] == '\n') {
+            in_indented_code_block = line_is_indented_code_block(read);
+        }
+
+        /* Track fenced and inline code (skip highlighting inside them) */
         if (*read == '`') {
             if (read[1] == '`' && read[2] == '`') {
                 in_code_block = !in_code_block;
@@ -57,7 +89,7 @@ char *apex_process_highlights(const char *text) {
                                          read[2] != '\r' && read[2] != ' ' && read[2] != '\t' &&
                                          !preceded_by_equals && !preceded_by_plus && !followed_by_plus);
 
-        if (!in_code_block && !in_inline_code && !is_critic && is_valid_highlight_start) {
+        if (!in_code_block && !in_inline_code && !in_indented_code_block && !is_critic && is_valid_highlight_start) {
 
             /* Find closing == */
             const char *close = read + 2;

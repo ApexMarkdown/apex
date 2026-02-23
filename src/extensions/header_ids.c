@@ -98,6 +98,15 @@ char *apex_generate_header_id(const char *text, apex_id_format_t format) {
             continue;
         }
 
+        /* Check for apostrophes: curly (') U+2019: 0xE2 0x80 0x99, left quote (') U+2018: 0xE2 0x80 0x98 */
+        if (c == 0xE2 && read[1] != '\0' && read[2] != '\0' &&
+            (unsigned char)read[1] == 0x80 &&
+            ((unsigned char)read[2] == 0x99 || (unsigned char)read[2] == 0x98)) {
+            /* Remove apostrophes in all formats - they break anchor links */
+            read += 2;
+            continue;
+        }
+
         if (format == APEX_ID_FORMAT_MMD) {
             /* MMD format: preserve dashes, lowercase alphanumerics, preserve diacritics, skip spaces/punctuation */
             if (c == '-') {
@@ -563,9 +572,39 @@ bool apex_extract_manual_header_id(char **heading_text, char **manual_id_out) {
 }
 
 /**
+ * Extract plain text from a link node (for simple [ref] style).
+ * Returns allocated string or NULL.
+ */
+static char *get_link_label_text(cmark_node *link_node) {
+    if (!link_node || cmark_node_get_type(link_node) != CMARK_NODE_LINK) return NULL;
+    cmark_node *child = cmark_node_first_child(link_node);
+    if (!child || cmark_node_get_type(child) != CMARK_NODE_TEXT) return NULL;
+    const char *literal = cmark_node_get_literal(child);
+    return literal ? strdup(literal) : NULL;
+}
+
+/**
+ * Check if a string is a valid MMD heading ID (no spaces, no metadata %).
+ */
+static bool is_valid_mmd_id(const char *s) {
+    if (!s || !*s) return false;
+    for (; *s; s++) {
+        if (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r' || *s == '%') return false;
+    }
+    return true;
+}
+
+/**
  * Process manual header IDs in a heading node
  * Extracts MMD [id] or Kramdown {#id} syntax and stores ID in user_data
  * Updates the heading text node to remove the manual ID syntax
+ *
+ * Edge case: When [id] matches a link reference and would render as a link,
+ * but [id] is the last element in the heading with other content before it,
+ * treat it as MMD heading ID (not a link). This avoids the conflict where
+ * "# Heading [mermaid]" with "[mermaid]: URL" would wrongly render mermaid as
+ * a link. If the heading is ONLY [id] (e.g. "# [mermaid]"), keep it as a link
+ * to avoid empty headings.
  */
 bool apex_process_manual_header_id(cmark_node *heading_node) {
     if (!heading_node || cmark_node_get_type(heading_node) != CMARK_NODE_HEADING) {
@@ -575,15 +614,15 @@ bool apex_process_manual_header_id(cmark_node *heading_node) {
     /* Get the text node inside the heading */
     cmark_node *text_node = cmark_node_first_child(heading_node);
     if (!text_node || cmark_node_get_type(text_node) != CMARK_NODE_TEXT) {
-        return false;
+        goto try_trailing_link;
     }
 
     const char *text = cmark_node_get_literal(text_node);
-    if (!text) return false;
+    if (!text) goto try_trailing_link;
 
-    /* Extract text and try to find manual ID */
+    /* Extract text and try to find manual ID (MMD [id] or Kramdown {#id} in plain text) */
     char *text_copy = strdup(text);
-    if (!text_copy) return false;
+    if (!text_copy) goto try_trailing_link;
 
     char *manual_id = NULL;
     bool found = apex_extract_manual_header_id(&text_copy, &manual_id);
@@ -621,6 +660,62 @@ bool apex_process_manual_header_id(cmark_node *heading_node) {
 
     free(text_copy);
     if (manual_id) free(manual_id);
-    return false;
+
+try_trailing_link: {
+    /* Edge case: [id] was parsed as a link (ref existed). If it's the last
+     * element and there's other content, treat as MMD heading ID. */
+    cmark_node *last = NULL;
+    cmark_node *child = cmark_node_first_child(heading_node);
+    while (child) {
+        cmark_node_type t = cmark_node_get_type(child);
+        if (t != CMARK_NODE_SOFTBREAK && t != CMARK_NODE_LINEBREAK) {
+            last = child;
+        }
+        child = cmark_node_next(child);
+    }
+
+    if (!last || cmark_node_get_type(last) != CMARK_NODE_LINK) return false;
+
+    /* Must have at least one sibling before the link (avoid empty headings) */
+    cmark_node *prev = cmark_node_previous(last);
+    if (!prev) return false;
+
+    char *link_text = get_link_label_text(last);
+    if (!link_text || !is_valid_mmd_id(link_text)) {
+        free(link_text);
+        return false;
+    }
+
+    /* Replace link with text node, set heading id */
+    cmark_node *text_replacement = cmark_node_new(CMARK_NODE_TEXT);
+    if (!text_replacement) {
+        free(link_text);
+        return false;
+    }
+    cmark_node_set_literal(text_replacement, link_text);
+    cmark_node_insert_before(last, text_replacement);
+    cmark_node_unlink(last);
+    cmark_node_free(last);
+
+    char *id_attr = malloc(strlen(link_text) + 6);
+    if (id_attr) {
+        sprintf(id_attr, "id=\"%s\"", link_text);
+        char *existing = (char *)cmark_node_get_user_data(heading_node);
+        if (existing) {
+            char *combined = malloc(strlen(existing) + strlen(id_attr) + 2);
+            if (combined) {
+                sprintf(combined, "%s %s", existing, id_attr);
+                cmark_node_set_user_data(heading_node, combined);
+                free(id_attr);
+            } else {
+                cmark_node_set_user_data(heading_node, id_attr);
+            }
+        } else {
+            cmark_node_set_user_data(heading_node, id_attr);
+        }
+    }
+    free(link_text);
+    return true;
+} /* try_trailing_link */
 }
 
