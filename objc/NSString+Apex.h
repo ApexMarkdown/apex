@@ -4,6 +4,7 @@
  */
 
 #import <Foundation/Foundation.h>
+#import <apex/apex.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -97,6 +98,14 @@ extern NSString * const ApexModeUnified;
                         pretty:(BOOL)pretty;
 
 /**
+ * Convert Markdown to HTML using Apex with custom raw options.
+ * @param inputString The markdown text to convert
+ * @param raw_options Apex options
+ * @return HTML string
+ */
++ (NSString *) convertWithApex:(NSString *)inputString raw_options:(apex_options)options;
+
+/**
  * Convert this string (as Markdown) to HTML using Apex in unified mode
  * Instance method for convenient usage on NSString objects
  * @return HTML string
@@ -110,6 +119,17 @@ extern NSString * const ApexModeUnified;
  * @return HTML string
  */
 - (NSString *)apexHTMLWithMode:(NSString *)mode;
+
+/**
+ * Get the Apex version number
+ * @return Version string
+ */
++ (NSString *)apexVersionString;
+
+/**
+ * Get the default Apex options.
+ */
++ (apex_options)getApexDefaultOptions;
 
 @end
 

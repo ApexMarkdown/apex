@@ -605,6 +605,11 @@ NSString *html = [NSString convertWithApex:markdown];
 NSString *gfmHtml = [NSString convertWithApex:markdown mode:@"gfm"];
 NSString *mmdHtml = [NSString convertWithApex:markdown mode:@"multimarkdown"];
 
+// Convert with custom options
+apex_options options = [NSString getApexDefaultOptions];
+// customize the options...
+options.standalone = YES;
+NSString *customizedHtml = [NSString convertWithApex:markdown raw_options:options]; 
 ```
 
 ## Performance
