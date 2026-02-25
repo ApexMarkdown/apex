@@ -1,5 +1,5 @@
 
-[![Version: 0.1.80](https://img.shields.io/badge/Version-0.1.80-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1390/1390](https://img.shields.io/badge/Tests-1390/1390-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.81](https://img.shields.io/badge/Version-0.1.81-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1390/1390](https://img.shields.io/badge/Tests-1390/1390-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.80
+Apex Markdown Processor v0.1.81
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -352,6 +352,7 @@ Options:
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
   -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)
+  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support
   --no-ids                Disable automatic header ID generation
@@ -402,6 +403,7 @@ Options:
   --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)
   --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)
   --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)
+  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)
 
 If no file is specified, reads from stdin.
 

@@ -26,6 +26,27 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.82] - 2026-02-25
+
+### New
+
+- Add -t/--to output formats for html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, and terminal256.
+- Add terminal and terminal256 ANSI renderers with theme support and compact list and blockquote formatting for comfortable reading in a TTY.
+- Add --theme option and support for user theme files in ~/.config/apex/terminal/themes/NAME.theme with automatic default.theme selection when no explicit theme is given.
+- Add JSON and AST JSON output points before and after AST filters so external tools can consume either the raw or fully-processed document structure.
+
+### Improved
+
+- Improve MultiMarkdown output so TOC markers and escaping work correctly in -t mmd output without breaking MMD-specific syntax.
+- Improve terminal table rendering with Unicode box drawing, column alignment, captions, footer rules, and advanced colspan/rowspan handling that more closely matches advanced_tables behavior.
+- Terminal output now replaces :emoji: patterns with Unicode emoji when in GFM or unified mode, matching HTML behavior.
+
+### Fixed
+
+- Replace APEXLTLT placeholders with literal << in terminal table cells so escaped \<< renders correctly in CLI output.
+- Integrate external code highlighters (Pygments/Skylighting) into terminal output when --code-highlight is enabled, using readable pastel styles appropriate for 8-color and 256-color modes.
+- Compact list item spacing and blockquote rendering in terminal output so lists, quotes, and callouts read cleanly without stray blank lines.
+
 ## [0.1.81] - 2026-02-23
 
 ### New
@@ -2483,6 +2504,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.82]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.82
 [0.1.81]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.81
 [0.1.80]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.80
 [0.1.79]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.79
