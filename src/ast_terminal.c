@@ -385,6 +385,11 @@ static void apply_style_string(terminal_buffer *buf,
 /* Theme data structure                                                      */
 /* ------------------------------------------------------------------------- */
 
+typedef struct span_class_style {
+    char *class_name;
+    char *style;
+} span_class_style;
+
 typedef struct terminal_theme {
     /* We keep this simple and only store a few high-value styles.
      * The YAML can define more, but we will use at least these keys.
@@ -407,6 +412,10 @@ typedef struct terminal_theme {
 
     /* Table-related styles */
     char *table_border;  /* ANSI style for table borders (box-drawing chars) */
+
+    /* Per-span class styles (for bracketed spans / HTML spans with classes) */
+    span_class_style *span_classes;
+    size_t span_classes_count;
 } terminal_theme;
 
 static void free_theme(terminal_theme *theme) {
@@ -424,6 +433,14 @@ static void free_theme(terminal_theme *theme) {
     free(theme->blockquote_marker);
     free(theme->blockquote_color);
     free(theme->table_border);
+
+    if (theme->span_classes) {
+        for (size_t i = 0; i < theme->span_classes_count; i++) {
+            free(theme->span_classes[i].class_name);
+            free(theme->span_classes[i].style);
+        }
+        free(theme->span_classes);
+    }
     free(theme);
 }
 
@@ -464,13 +481,186 @@ static char *build_theme_path(const char *name) {
     return path;
 }
 
-static terminal_theme *load_theme_from_yaml(const char *path) {
-    (void)path;
+/* Fallback theme parser when libyaml is not available.
+ * Supports a small subset of YAML used by Apex terminal themes:
+ *
+ * h1:
+ *   color: "style tokens"
+ * link:
+ *   text: "style tokens"
+ *   url:  "style tokens"
+ * code_span:
+ *   color: "style tokens"
+ * code_block:
+ *   color: "style tokens"
+ * blockquote:
+ *   marker:
+ *     character: ">"
+ *   color: "style tokens"
+ * table:
+ *   border: "style tokens"
+ * span_classes:
+ *   classname: "style tokens"
+ */
+static char *trim_whitespace(char *s) {
+    if (!s) return s;
+    while (*s && isspace((unsigned char)*s)) s++;
+    if (!*s) return s;
+    char *end = s + strlen(s) - 1;
+    while (end >= s && isspace((unsigned char)*end)) {
+        *end-- = '\0';
+    }
+    return s;
+}
 
-#ifndef APEX_HAVE_LIBYAML
-    /* libyaml not available, no theme support */
-    return NULL;
-#else
+static terminal_theme *load_theme_from_simple_yaml(const char *path) {
+    FILE *fp = fopen(path, "r");
+    if (!fp) {
+        return NULL;
+    }
+
+    terminal_theme *theme = (terminal_theme *)calloc(1, sizeof(terminal_theme));
+    if (!theme) {
+        fclose(fp);
+        return NULL;
+    }
+
+    char line[1024];
+    char current_level1[64] = {0};
+    char current_level2[64] = {0};
+
+    while (fgets(line, sizeof(line), fp)) {
+        char *p = line;
+        /* Strip CR/LF */
+        char *nl = strpbrk(p, "\r\n");
+        if (nl) *nl = '\0';
+
+        /* Skip empty/comments */
+        char *t = p;
+        while (*t && isspace((unsigned char)*t)) t++;
+        if (!*t || *t == '#') {
+            continue;
+        }
+
+        int indent = (int)(t - p);
+        char *key_start = t;
+        char *colon = strchr(t, ':');
+        if (!colon) {
+            continue;
+        }
+        *colon = '\0';
+        char *key = trim_whitespace(key_start);
+        char *val = trim_whitespace(colon + 1);
+
+        if (indent == 0) {
+            /* Top-level key */
+            strncpy(current_level1, key, sizeof(current_level1) - 1);
+            current_level1[sizeof(current_level1) - 1] = '\0';
+            current_level2[0] = '\0';
+            continue;
+        } else {
+            /* Nested key under current_level1 */
+            strncpy(current_level2, key, sizeof(current_level2) - 1);
+            current_level2[sizeof(current_level2) - 1] = '\0';
+        }
+
+        /* Strip surrounding quotes from value, if any */
+        if (val && (*val == '"' || *val == '\'')) {
+            char quote = *val;
+            char *end = strrchr(val + 1, quote);
+            if (end) *end = '\0';
+            val++;
+            val = trim_whitespace(val);
+        }
+
+        const char *l1 = current_level1;
+        const char *l2 = current_level2;
+
+        if (!val || !*val) {
+            continue;
+        }
+
+        if (strcmp(l1, "h1") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->h1_color);
+            theme->h1_color = dup_or_null(val);
+        } else if (strcmp(l1, "h2") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->h2_color);
+            theme->h2_color = dup_or_null(val);
+        } else if (strcmp(l1, "h3") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->h3_color);
+            theme->h3_color = dup_or_null(val);
+        } else if (strcmp(l1, "h4") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->h4_color);
+            theme->h4_color = dup_or_null(val);
+        } else if (strcmp(l1, "h5") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->h5_color);
+            theme->h5_color = dup_or_null(val);
+        } else if (strcmp(l1, "h6") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->h6_color);
+            theme->h6_color = dup_or_null(val);
+        } else if (strcmp(l1, "link") == 0 && strcmp(l2, "text") == 0) {
+            free(theme->link_text);
+            theme->link_text = dup_or_null(val);
+        } else if (strcmp(l1, "link") == 0 && strcmp(l2, "url") == 0) {
+            free(theme->link_url);
+            theme->link_url = dup_or_null(val);
+        } else if (strcmp(l1, "code_span") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->code_span);
+            theme->code_span = dup_or_null(val);
+        } else if (strcmp(l1, "code_block") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->code_block);
+            theme->code_block = dup_or_null(val);
+        } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->blockquote_color);
+            theme->blockquote_color = dup_or_null(val);
+        } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "character") == 0) {
+            free(theme->blockquote_marker);
+            theme->blockquote_marker = dup_or_null(val);
+        } else if (strcmp(l1, "table") == 0 && strcmp(l2, "border") == 0) {
+            free(theme->table_border);
+            theme->table_border = dup_or_null(val);
+        } else if (strcmp(l1, "span_classes") == 0 && l2[0] != '\0') {
+            /* span_classes:
+             *   classname: "style tokens"
+             */
+            const char *class_name = l2;
+            if (class_name && *class_name) {
+                /* Check for existing entry */
+                size_t idx = 0;
+                for (; idx < theme->span_classes_count; idx++) {
+                    if (theme->span_classes[idx].class_name &&
+                        strcmp(theme->span_classes[idx].class_name, class_name) == 0) {
+                        break;
+                    }
+                }
+                if (idx == theme->span_classes_count) {
+                    span_class_style *new_arr = (span_class_style *)realloc(
+                        theme->span_classes,
+                        (theme->span_classes_count + 1) * sizeof(span_class_style));
+                    if (new_arr) {
+                        theme->span_classes = new_arr;
+                        theme->span_classes[idx].class_name = dup_or_null(class_name);
+                        theme->span_classes[idx].style = dup_or_null(val);
+                        theme->span_classes_count++;
+                    }
+                } else {
+                    free(theme->span_classes[idx].style);
+                    theme->span_classes[idx].style = dup_or_null(val);
+                }
+            }
+        }
+    }
+
+    fclose(fp);
+    return theme;
+}
+
+static terminal_theme *load_theme_from_yaml(const char *path) {
+#ifdef APEX_HAVE_LIBYAML
+    /* Full YAML parser using libyaml, limited to the subset needed for
+     * terminal themes. Falls back to the simple line-based parser on
+     * failure so themes still work if parsing is slightly off.
+     */
     FILE *fp = fopen(path, "rb");
     if (!fp) {
         return NULL;
@@ -492,104 +682,154 @@ static terminal_theme *load_theme_from_yaml(const char *path) {
         return NULL;
     }
 
-    /* Very simple YAML walker: track a key path up to two levels:
-     *   h1.color
-     *   link.text
-     *   link.url
-     *   code_span.color
-     *   code_block.color
-     *   blockquote.marker.character
-     *   blockquote.color
-     *   table.border
-     */
-    char current_level1[64] = {0};
-    char current_level2[64] = {0};
+    /* Track keys at depth 1 and 2 and whether the next scalar is a value. */
+    char key1[64] = {0};
+    char key2[64] = {0};
+    bool has_key1 = false;
+    bool has_key2 = false;
+    bool expect_value = false;
     int depth = 0;
-    char *last_key = NULL;
 
     int done = 0;
     while (!done) {
         if (!yaml_parser_parse(&parser, &event)) {
-            break;
+            /* On parse error, fall back to simple parser. */
+            yaml_parser_delete(&parser);
+            fclose(fp);
+            free_theme(theme);
+            return load_theme_from_simple_yaml(path);
         }
 
         switch (event.type) {
             case YAML_MAPPING_START_EVENT:
                 depth++;
+                /* A new mapping value starts; next scalar is a key. */
+                expect_value = false;
+                if (depth == 1) {
+                    has_key1 = false;
+                    key1[0] = '\0';
+                } else if (depth == 2) {
+                    has_key2 = false;
+                    key2[0] = '\0';
+                }
                 break;
+
             case YAML_MAPPING_END_EVENT:
                 if (depth == 2) {
-                    current_level2[0] = '\0';
+                    has_key2 = false;
+                    key2[0] = '\0';
                 } else if (depth == 1) {
-                    current_level1[0] = '\0';
+                    has_key1 = false;
+                    key1[0] = '\0';
                 }
                 depth--;
+                expect_value = false;
                 break;
+
             case YAML_SCALAR_EVENT: {
                 const char *value = (const char *)event.data.scalar.value;
-                if (!last_key) {
-                    /* This scalar is a key */
+
+                if (!expect_value) {
+                    /* This scalar is a key at the current depth. */
                     if (depth == 1) {
-                        strncpy(current_level1, value, sizeof(current_level1) - 1);
-                        current_level1[sizeof(current_level1) - 1] = '\0';
+                        strncpy(key1, value, sizeof(key1) - 1);
+                        key1[sizeof(key1) - 1] = '\0';
+                        has_key1 = true;
+                        /* Reset nested key when starting a new section. */
+                        has_key2 = false;
+                        key2[0] = '\0';
                     } else if (depth == 2) {
-                        strncpy(current_level2, value, sizeof(current_level2) - 1);
-                        current_level2[sizeof(current_level2) - 1] = '\0';
+                        strncpy(key2, value, sizeof(key2) - 1);
+                        key2[sizeof(key2) - 1] = '\0';
+                        has_key2 = true;
                     }
-                    last_key = current_level2[0] ? current_level2 : current_level1;
+                    expect_value = true;
                 } else {
-                    /* This scalar is a value */
-                    const char *l1 = current_level1;
-                    const char *l2 = current_level2;
+                    /* This scalar is a value for the last key. */
+                    const char *l1 = has_key1 ? key1 : "";
+                    const char *l2 = has_key2 ? key2 : "";
+                    const char *val = value;
 
-                    if (strcmp(l1, "h1") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->h1_color);
-                        theme->h1_color = dup_or_null(value);
-                    } else if (strcmp(l1, "h2") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->h2_color);
-                        theme->h2_color = dup_or_null(value);
-                    } else if (strcmp(l1, "h3") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->h3_color);
-                        theme->h3_color = dup_or_null(value);
-                    } else if (strcmp(l1, "h4") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->h4_color);
-                        theme->h4_color = dup_or_null(value);
-                    } else if (strcmp(l1, "h5") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->h5_color);
-                        theme->h5_color = dup_or_null(value);
-                    } else if (strcmp(l1, "h6") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->h6_color);
-                        theme->h6_color = dup_or_null(value);
-                    } else if (strcmp(l1, "link") == 0 && strcmp(last_key, "text") == 0) {
-                        free(theme->link_text);
-                        theme->link_text = dup_or_null(value);
-                    } else if (strcmp(l1, "link") == 0 && strcmp(last_key, "url") == 0) {
-                        free(theme->link_url);
-                        theme->link_url = dup_or_null(value);
-                    } else if (strcmp(l1, "code_span") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->code_span);
-                        theme->code_span = dup_or_null(value);
-                    } else if (strcmp(l1, "code_block") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->code_block);
-                        theme->code_block = dup_or_null(value);
-                    } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "marker") == 0 && strcmp(last_key, "character") == 0) {
-                        free(theme->blockquote_marker);
-                        theme->blockquote_marker = dup_or_null(value);
-                    } else if (strcmp(l1, "blockquote") == 0 && strcmp(last_key, "color") == 0) {
-                        free(theme->blockquote_color);
-                        theme->blockquote_color = dup_or_null(value);
-                    } else if (strcmp(l1, "table") == 0 && strcmp(last_key, "border") == 0) {
-                        free(theme->table_border);
-                        theme->table_border = dup_or_null(value);
+                    if (val && *val) {
+                        if (strcmp(l1, "h1") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->h1_color);
+                            theme->h1_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h2") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->h2_color);
+                            theme->h2_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h3") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->h3_color);
+                            theme->h3_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h4") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->h4_color);
+                            theme->h4_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h5") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->h5_color);
+                            theme->h5_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h6") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->h6_color);
+                            theme->h6_color = dup_or_null(val);
+                        } else if (strcmp(l1, "link") == 0 && strcmp(l2, "text") == 0) {
+                            free(theme->link_text);
+                            theme->link_text = dup_or_null(val);
+                        } else if (strcmp(l1, "link") == 0 && strcmp(l2, "url") == 0) {
+                            free(theme->link_url);
+                            theme->link_url = dup_or_null(val);
+                        } else if (strcmp(l1, "code_span") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->code_span);
+                            theme->code_span = dup_or_null(val);
+                        } else if (strcmp(l1, "code_block") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->code_block);
+                            theme->code_block = dup_or_null(val);
+                        } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "character") == 0) {
+                            free(theme->blockquote_marker);
+                            theme->blockquote_marker = dup_or_null(val);
+                        } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->blockquote_color);
+                            theme->blockquote_color = dup_or_null(val);
+                        } else if (strcmp(l1, "table") == 0 && strcmp(l2, "border") == 0) {
+                            free(theme->table_border);
+                            theme->table_border = dup_or_null(val);
+                        } else if (strcmp(l1, "span_classes") == 0 && has_key2) {
+                            /* span_classes:
+                             *   purple: "b white on_magenta"
+                             */
+                            const char *class_name = key2;
+                            if (class_name && *class_name) {
+                                size_t idx = 0;
+                                for (; idx < theme->span_classes_count; idx++) {
+                                    if (theme->span_classes[idx].class_name &&
+                                        strcmp(theme->span_classes[idx].class_name, class_name) == 0) {
+                                        break;
+                                    }
+                                }
+                                if (idx == theme->span_classes_count) {
+                                    span_class_style *new_arr = (span_class_style *)realloc(
+                                        theme->span_classes,
+                                        (theme->span_classes_count + 1) * sizeof(span_class_style));
+                                    if (new_arr) {
+                                        theme->span_classes = new_arr;
+                                        theme->span_classes[idx].class_name = dup_or_null(class_name);
+                                        theme->span_classes[idx].style = dup_or_null(val);
+                                        theme->span_classes_count++;
+                                    }
+                                } else {
+                                    free(theme->span_classes[idx].style);
+                                    theme->span_classes[idx].style = dup_or_null(val);
+                                }
+                            }
+                        }
                     }
 
-                    last_key = NULL;
+                    expect_value = false;
                 }
                 break;
             }
+
             case YAML_STREAM_END_EVENT:
                 done = 1;
                 break;
+
             default:
                 break;
         }
@@ -599,7 +839,17 @@ static terminal_theme *load_theme_from_yaml(const char *path) {
     yaml_parser_delete(&parser);
     fclose(fp);
 
+    /* If nothing was populated, fall back to the simple parser to
+     * keep behavior consistent with older themes. */
+    if (!theme->h1_color && !theme->code_span && theme->span_classes_count == 0) {
+        free_theme(theme);
+        return load_theme_from_simple_yaml(path);
+    }
+
     return theme;
+#else
+    /* No libyaml: use the simple line-based parser. */
+    return load_theme_from_simple_yaml(path);
 #endif
 }
 
@@ -688,6 +938,117 @@ static void indent_spaces(terminal_buffer *buf, int indent_level) {
     }
 }
 
+/* Look up a style string for a given class attribute value like
+ * "atag other". Returns the first matching class's style or NULL.
+ */
+static const char *theme_style_for_span_classes(const terminal_theme *theme,
+                                                const char *class_attr) {
+    if (!theme || !class_attr || !*class_attr || theme->span_classes_count == 0) {
+        return NULL;
+    }
+
+    const char *p = class_attr;
+    while (*p) {
+        /* Skip leading whitespace */
+        while (*p && isspace((unsigned char)*p)) {
+            p++;
+        }
+        if (!*p) break;
+
+        /* Capture one class token */
+        const char *start = p;
+        while (*p && !isspace((unsigned char)*p)) {
+            p++;
+        }
+        size_t len = (size_t)(p - start);
+
+        /* Compare against known span_classes */
+        for (size_t i = 0; i < theme->span_classes_count; i++) {
+            span_class_style *entry = &theme->span_classes[i];
+            if (!entry->class_name || !entry->style) continue;
+            if (strlen(entry->class_name) == len &&
+                strncmp(entry->class_name, start, len) == 0) {
+                return entry->style;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+/* Extract class list from an attribute string like:
+ *   id="x" class="atag other" data-foo="bar"
+ * and look up the first matching span_classes style.
+ */
+static const char *theme_style_for_node_attrs(const terminal_theme *theme,
+                                              const char *attrs) {
+    if (!theme || !attrs || !*attrs || theme->span_classes_count == 0) {
+        return NULL;
+    }
+
+    const char *class_pos = strstr(attrs, "class=");
+    if (!class_pos) {
+        return NULL;
+    }
+    class_pos += 6; /* skip 'class=' */
+
+    char quote = 0;
+    if (*class_pos == '"' || *class_pos == '\'') {
+        quote = *class_pos;
+        class_pos++;
+    }
+
+    const char *class_end = class_pos;
+    if (quote) {
+        while (*class_end && *class_end != quote) {
+            class_end++;
+        }
+    } else {
+        while (*class_end &&
+               !isspace((unsigned char)*class_end) &&
+               *class_end != '>' &&
+               *class_end != '/') {
+            class_end++;
+        }
+    }
+
+    size_t len = (size_t)(class_end - class_pos);
+    if (len == 0) {
+        return NULL;
+    }
+
+    char buf[256];
+    if (len >= sizeof(buf)) {
+        len = sizeof(buf) - 1;
+    }
+    memcpy(buf, class_pos, len);
+    buf[len] = '\0';
+
+    return theme_style_for_span_classes(theme, buf);
+}
+
+/* Convenience helper: get style for classes attached to a node via IAL.
+ * Attributes are stored as a serialized HTML attribute string in user_data.
+ */
+static const char *theme_style_for_node(const terminal_theme *theme,
+                                        cmark_node *node) {
+    if (!theme || !node || theme->span_classes_count == 0) {
+        return NULL;
+    }
+    const char *attrs = (const char *)cmark_node_get_user_data(node);
+    if (!attrs || !*attrs) {
+        return NULL;
+    }
+    return theme_style_for_node_attrs(theme, attrs);
+}
+
+/* Simple stack of active HTML <span class="..."> styles for RawInline HTML.
+ * This is only used for CMARK_NODE_HTML_INLINE nodes so we don't have to
+ * thread extra state through every serialize_* call.
+ */
+static const char *html_span_style_stack[16];
+static int html_span_style_depth = 0;
+
 static void serialize_inline(terminal_buffer *buf,
                              cmark_node *node,
                              const apex_options *options,
@@ -697,8 +1058,14 @@ static void serialize_inline(terminal_buffer *buf,
     const char *literal = cmark_node_get_literal(node);
 
     switch (type) {
-        case CMARK_NODE_TEXT:
+        case CMARK_NODE_TEXT: {
             if (literal) {
+                const char *class_style = theme_style_for_node(theme, node);
+
+                if (class_style) {
+                    apply_style_string(buf, class_style, use_256_color);
+                }
+
                 /* Optionally replace :emoji: with Unicode for terminal output
                  * when in GFM or unified mode, matching HTML behavior. */
                 const char *text_src = literal;
@@ -745,8 +1112,13 @@ static void serialize_inline(terminal_buffer *buf,
                 if (emoji_replaced) {
                     free(emoji_replaced);
                 }
+
+                if (class_style) {
+                    append_ansi_reset(buf);
+                }
             }
             break;
+        }
         case CMARK_NODE_SOFTBREAK:
             buffer_append_str(buf, "\n");
             break;
@@ -755,7 +1127,10 @@ static void serialize_inline(terminal_buffer *buf,
             break;
         case CMARK_NODE_CODE:
             if (literal) {
-                if (theme && theme->code_span) {
+                const char *class_style = theme_style_for_node(theme, node);
+                if (class_style) {
+                    apply_style_string(buf, class_style, use_256_color);
+                } else if (theme && theme->code_span) {
                     apply_style_string(buf, theme->code_span, use_256_color);
                 } else {
                     apply_style_string(buf, "b white on_intense_black", use_256_color);
@@ -765,22 +1140,37 @@ static void serialize_inline(terminal_buffer *buf,
             }
             break;
         case CMARK_NODE_EMPH:
+        {
+            const char *class_style = theme_style_for_node(theme, node);
+            if (class_style) {
+                apply_style_string(buf, class_style, use_256_color);
+            }
             apply_style_string(buf, "i", use_256_color);
             for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
                 serialize_inline(buf, child, options, theme, use_256_color);
             }
             append_ansi_reset(buf);
             break;
+        }
         case CMARK_NODE_STRONG:
+        {
+            const char *class_style = theme_style_for_node(theme, node);
+            if (class_style) {
+                apply_style_string(buf, class_style, use_256_color);
+            }
             apply_style_string(buf, "b", use_256_color);
             for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
                 serialize_inline(buf, child, options, theme, use_256_color);
             }
             append_ansi_reset(buf);
             break;
+        }
         case CMARK_NODE_LINK: {
             const char *url = cmark_node_get_url(node);
-            if (theme && theme->link_text) {
+            const char *class_style = theme_style_for_node(theme, node);
+            if (class_style) {
+                apply_style_string(buf, class_style, use_256_color);
+            } else if (theme && theme->link_text) {
                 apply_style_string(buf, theme->link_text, use_256_color);
             } else {
                 apply_style_string(buf, "u b blue", use_256_color);
@@ -814,6 +1204,63 @@ static void serialize_inline(terminal_buffer *buf,
                 buffer_append_str(buf, "(");
                 buffer_append_str(buf, url);
                 buffer_append_str(buf, ")");
+            }
+            break;
+        }
+        case CMARK_NODE_HTML_INLINE: {
+            if (literal && *literal) {
+                if (getenv("APEX_DEBUG_THEME")) {
+                    fprintf(stderr, "[APEX_DEBUG_THEME] html_inline literal: %s\n", literal);
+                }
+
+                /* Handle split RawInline spans:
+                 *   <span class="purple">  --> open, apply style
+                 *   </span>                --> close, reset style
+                 */
+                if (strncmp(literal, "<span", 5) == 0 &&
+                    (literal[5] == ' ' || literal[5] == '>' )) {
+                    const char *tag_end = strchr(literal, '>');
+                    if (theme && tag_end) {
+                        const char *attrs = literal + 5; /* after 'span' */
+                        const char *style = theme_style_for_node_attrs(theme, attrs);
+                        if (style) {
+                            if (html_span_style_depth < (int)(sizeof(html_span_style_stack) / sizeof(html_span_style_stack[0]))) {
+                                html_span_style_stack[html_span_style_depth++] = style;
+                            }
+                            apply_style_string(buf, style, use_256_color);
+                        }
+                    }
+                    /* Do not emit tag text itself. */
+                } else if (strncmp(literal, "</span", 6) == 0) {
+                    /* Closing span: reset style. We don't currently try to
+                     * re-apply any outer span styles; nested spans are rare
+                     * in terminal output.
+                     */
+                    if (html_span_style_depth > 0) {
+                        html_span_style_depth--;
+                    }
+                    append_ansi_reset(buf);
+                } else {
+                    /* Fallback: strip generic inline HTML tags, keep text */
+                    const char *p = literal;
+                    bool in_tag = false;
+                    while (*p) {
+                        if (*p == '<') {
+                            in_tag = true;
+                            p++;
+                            continue;
+                        }
+                        if (in_tag) {
+                            if (*p == '>') {
+                                in_tag = false;
+                            }
+                            p++;
+                            continue;
+                        }
+                        buffer_append(buf, p, 1);
+                        p++;
+                    }
+                }
             }
             break;
         }
@@ -1313,6 +1760,16 @@ static void serialize_block(terminal_buffer *buf,
         case CMARK_NODE_PARAGRAPH: {
             indent_spaces(buf, indent_level);
             for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
+                if (getenv("APEX_DEBUG_THEME")) {
+                    cmark_node_type ctype = cmark_node_get_type(child);
+                    const char *lit = cmark_node_get_literal(child);
+                    const char *attrs = (const char *)cmark_node_get_user_data(child);
+                    fprintf(stderr,
+                            "[APEX_DEBUG_THEME] inline node type=%d literal='%s' attrs='%s'\n",
+                            (int)ctype,
+                            lit ? lit : "",
+                            attrs ? attrs : "");
+                }
                 serialize_inline(buf, child, options, theme, use_256_color);
             }
             /* Compact paragraphs inside list items to a single newline */
@@ -1838,7 +2295,18 @@ char *apex_cmark_to_terminal(cmark_node *document,
     terminal_buffer buf;
     buffer_init(&buf);
 
+    /* Reset HTML span style stack at the start of each render. */
+    html_span_style_depth = 0;
+
     terminal_theme *theme = load_theme(options);
+    if (getenv("APEX_DEBUG_THEME")) {
+        const char *tname = (options && options->theme_name) ? options->theme_name : "(null)";
+        fprintf(stderr,
+                "[APEX_DEBUG_THEME] theme_name=%s code_span=%s span_classes_count=%zu\n",
+                tname,
+                (theme && theme->code_span) ? theme->code_span : "(null)",
+                theme ? theme->span_classes_count : 0);
+    }
 
     serialize_block(&buf, document, options, theme, use_256, 0);
 
