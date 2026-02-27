@@ -564,6 +564,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n");
     fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
     fprintf(stderr, "  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)\n");
+    fprintf(stderr, "  --width N               Hard-wrap terminal/terminal256 output at N visible columns\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
@@ -707,6 +708,121 @@ static int add_script_tag(char ***tags, size_t *count, size_t *capacity, const c
     }
     (*count)++;
     return 0;
+}
+
+/* Wrap ANSI-colored output to a fixed column width.
+ * This operates on the final rendered string and counts only visible
+ * characters toward the width, skipping over ANSI CSI sequences.
+ */
+static char *wrap_ansi_to_width(const char *input, int width) {
+    if (!input || width <= 0) {
+        return NULL;
+    }
+
+    size_t in_len = strlen(input);
+    /* Heuristic for output capacity: input length plus space for added newlines. */
+    size_t cap = in_len + (in_len / (size_t)width + 2) * 2 + 1;
+    char *out = malloc(cap);
+    if (!out) {
+        return NULL;
+    }
+
+    size_t oi = 0;
+    int col = 0;
+
+    for (size_t i = 0; i < in_len; ) {
+        char c = input[i];
+
+        /* Newlines reset the column counter. */
+        if (c == '\n') {
+            if (oi + 1 >= cap) {
+                cap *= 2;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            out[oi++] = c;
+            col = 0;
+            i++;
+            continue;
+        }
+
+        /* Simple handling for carriage return: pass through. */
+        if (c == '\r') {
+            if (oi + 1 >= cap) {
+                cap *= 2;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            out[oi++] = c;
+            i++;
+            continue;
+        }
+
+        /* Preserve ANSI CSI sequences without counting them toward width. */
+        if (c == '\x1b' && i + 1 < in_len && input[i + 1] == '[') {
+            size_t start = i;
+            i += 2;
+            while (i < in_len && !((input[i] >= 'A' && input[i] <= 'Z') ||
+                                   (input[i] >= 'a' && input[i] <= 'z'))) {
+                i++;
+            }
+            if (i < in_len) {
+                i++; /* consume final letter */
+            }
+            size_t seq_len = i - start;
+            if (oi + seq_len + 1 >= cap) {
+                cap = cap + seq_len + 16;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            memcpy(out + oi, input + start, seq_len);
+            oi += seq_len;
+            continue;
+        }
+
+        /* Insert a newline before adding another visible char if we've hit width. */
+        if (col >= width) {
+            if (oi + 1 >= cap) {
+                cap *= 2;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            out[oi++] = '\n';
+            col = 0;
+        }
+
+        if (oi + 1 >= cap) {
+            cap *= 2;
+            char *nb = realloc(out, cap);
+            if (!nb) {
+                free(out);
+                return NULL;
+            }
+            out = nb;
+        }
+        out[oi++] = c;
+        col++;
+        i++;
+    }
+
+    out[oi] = '\0';
+    return out;
 }
 
 /**
@@ -1318,6 +1434,9 @@ int main(int argc, char *argv[]) {
     size_t   lua_filter_count = 0;
     size_t   lua_filter_capacity = 4;
 
+    /* Optional fixed-width wrapping for terminal output */
+    int width_override = 0;
+
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -1381,6 +1500,15 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
             options.theme_name = argv[i];
+        } else if (strcmp(argv[i], "--width") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --width requires a column width argument\n");
+                return 1;
+            }
+            width_override = atoi(argv[i]);
+            if (width_override < 0) {
+                width_override = 0;
+            }
         } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --output requires an argument\n");
@@ -3379,7 +3507,7 @@ int main(int argc, char *argv[]) {
         last_stage = NULL;
     }
 
-    /* Convert to HTML */
+    /* Convert to output (HTML, Markdown, terminal, etc.) */
     char *html = apex_markdown_to_html(final_markdown, final_len, &options);
 
     /* Check if we should show delayed progress (in case processing took > 1s but no progress was shown) */
@@ -3404,6 +3532,27 @@ int main(int argc, char *argv[]) {
     if (!html) {
         fprintf(stderr, "Error: Conversion failed\n");
         return 1;
+    }
+
+    /* For terminal output, optionally wrap to a fixed width when requested.
+     * Precedence: CLI --width > metadata/config terminal.width > theme default.
+     * (Theme files are currently not consulted for width.)
+     */
+    if (options.output_format == APEX_OUTPUT_TERMINAL ||
+        options.output_format == APEX_OUTPUT_TERMINAL256) {
+        int effective_width = 0;
+        if (width_override > 0) {
+            effective_width = width_override;
+        } else if (options.terminal_width > 0) {
+            effective_width = options.terminal_width;
+        }
+        if (effective_width > 0) {
+            char *wrapped = wrap_ansi_to_width(html, effective_width);
+            if (wrapped) {
+                apex_free_string(html);
+                html = wrapped;
+            }
+        }
     }
 
     /* Write output */

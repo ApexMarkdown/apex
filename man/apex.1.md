@@ -56,6 +56,14 @@ their contents into `<style>` tags in the document head instead
 of emitting `<link rel="stylesheet">` tags. All specified
 stylesheets are embedded.
 
+**--width** *N*
+:: When using **--to terminal** or **--to terminal256**, hard-wrap ANSI-colored
+output at *N* visible columns. This is especially useful in file manager
+preview panes (such as **lf** or **yazi**) where Apex cannot detect the pane
+width automatically. ANSI escape sequences are preserved and are not counted
+toward the column limit. If not specified, Apex does not add extra wrapping
+and the terminal itself controls line wrapping.
+
 **--code-highlight** *TOOL*
 : Use external tool for syntax highlighting of code blocks.
 *TOOL* must be **pygments** (or **p**, **pyg**) or **skylighting**
@@ -102,6 +110,13 @@ output. When enabled, adds:
 
 This enhances screen reader support and makes the HTML
 output more accessible. Default: disabled.
+
+**-t** *FORMAT*, **--to** *FORMAT*
+:: Output format: **html** (default), **json**, **json-filtered** (or
+**ast-json** / **ast**), **markdown**/**md**, **mmd**, **commonmark**/**cmark**,
+**kramdown**, **gfm**, **terminal**/**cli**, or **terminal256**. When using a
+terminal format, Apex emits ANSI-colored output suitable for TTYs and
+terminal emulators.
 
 ## Feature Flags
 

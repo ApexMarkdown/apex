@@ -2612,8 +2612,9 @@ apex_options apex_options_default(void) {
     opts.progress_callback = NULL;
     opts.progress_user_data = NULL;
 
-    /* Terminal theme (for -t terminal/terminal256) */
+    /* Terminal theme and width (for -t terminal/terminal256) */
     opts.theme_name = NULL;
+    opts.terminal_width = 0;
 
     return opts;
 }

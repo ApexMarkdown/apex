@@ -2803,6 +2803,24 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
         } else if (strcasecmp(key, "wikilink-sanitize") == 0 || strcasecmp(key, "wikilink_sanitize") == 0) {
             options->wikilink_sanitize = (strcasecmp(value, "true") == 0 || strcmp(value, "1") == 0);
         }
+        /* Terminal-specific options from config/metadata.
+         * Keys are typically flattened from YAML mappings, e.g.:
+         * terminal.theme  (from terminal: { theme: brett })
+         * terminal.width  (from terminal: { width: 80 })
+         */
+        else if (strcasecmp(key, "terminal.theme") == 0 ||
+                 strcasecmp(key, "terminal_theme") == 0) {
+            /* Only set theme_name if it wasn't already set by CLI or previous metadata. */
+            if (!options->theme_name || !options->theme_name[0]) {
+                options->theme_name = value;
+            }
+        } else if (strcasecmp(key, "terminal.width") == 0 ||
+                   strcasecmp(key, "terminal_width") == 0) {
+            int w = atoi(value);
+            if (w > 0) {
+                options->terminal_width = w;
+            }
+        }
         /* Syntax highlighting options */
         else if (strcasecmp(key, "code-highlight") == 0 || strcasecmp(key, "code_highlight") == 0) {
             /* Accept full names and abbreviations */

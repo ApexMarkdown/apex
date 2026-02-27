@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -413,6 +414,10 @@ typedef struct terminal_theme {
     /* Table-related styles */
     char *table_border;  /* ANSI style for table borders (box-drawing chars) */
 
+    /* List marker style (bullets and ordered numbers). When NULL, falls back to
+     * the built-in default of bold bright red. */
+    char *list_marker;
+
     /* Per-span class styles (for bracketed spans / HTML spans with classes) */
     span_class_style *span_classes;
     size_t span_classes_count;
@@ -434,6 +439,8 @@ static void free_theme(terminal_theme *theme) {
     free(theme->blockquote_color);
     free(theme->table_border);
 
+    free(theme->list_marker);
+
     if (theme->span_classes) {
         for (size_t i = 0; i < theme->span_classes_count; i++) {
             free(theme->span_classes[i].class_name);
@@ -451,6 +458,39 @@ static char *dup_or_null(const char *s) {
     if (!out) return NULL;
     memcpy(out, s, len + 1);
     return out;
+}
+
+/* Parse a generic YAML-style boolean value ("true", "yes", "1", etc.). */
+static bool parse_bool_value(const char *val) {
+    if (!val) return false;
+    if (strcasecmp(val, "true") == 0 ||
+        strcasecmp(val, "yes") == 0  ||
+        strcasecmp(val, "on") == 0   ||
+        strcmp(val, "1") == 0) {
+        return true;
+    }
+    return false;
+}
+
+/* Ensure that a style string has a bold token prefix. If *style already has a
+ * value, we prepend "b " to it. If it's NULL, we set it to "b". We don't try
+ * to deduplicate multiple bold tokens; emitting "b" more than once is harmless
+ * for ANSI SGR. */
+static void ensure_bold_prefix(char **style) {
+    if (!style) return;
+    if (*style && **style) {
+        size_t old_len = strlen(*style);
+        char *out = (char *)malloc(old_len + 3); /* "b " + old + '\0' */
+        if (!out) return;
+        memcpy(out, "b ", 2);
+        memcpy(out + 2, *style, old_len + 1);
+        free(*style);
+        *style = out;
+    } else {
+        /* No existing style: just set to "b" */
+        free(*style);
+        *style = dup_or_null("b");
+    }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -486,21 +526,29 @@ static char *build_theme_path(const char *name) {
  *
  * h1:
  *   color: "style tokens"
+ *   bold:  true
  * link:
  *   text: "style tokens"
  *   url:  "style tokens"
+ *   bold: true       # applies to link text style
  * code_span:
  *   color: "style tokens"
+ *   bold:  true
  * code_block:
  *   color: "style tokens"
+ *   bold:  true
  * blockquote:
  *   marker:
  *     character: ">"
  *   color: "style tokens"
+ *   bold:  true
  * table:
  *   border: "style tokens"
+ *   bold:   true
  * span_classes:
  *   classname: "style tokens"
+ *
+ * list_marker: "style tokens"
  */
 static char *trim_whitespace(char *s) {
     if (!s) return s;
@@ -557,6 +605,12 @@ static terminal_theme *load_theme_from_simple_yaml(const char *path) {
             strncpy(current_level1, key, sizeof(current_level1) - 1);
             current_level1[sizeof(current_level1) - 1] = '\0';
             current_level2[0] = '\0';
+
+            /* Some keys are allowed to have scalar values at top level. */
+            if (strcmp(current_level1, "list_marker") == 0) {
+                free(theme->list_marker);
+                theme->list_marker = dup_or_null(val);
+            }
             continue;
         } else {
             /* Nested key under current_level1 */
@@ -583,42 +637,87 @@ static terminal_theme *load_theme_from_simple_yaml(const char *path) {
         if (strcmp(l1, "h1") == 0 && strcmp(l2, "color") == 0) {
             free(theme->h1_color);
             theme->h1_color = dup_or_null(val);
+        } else if (strcmp(l1, "h1") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->h1_color);
+            }
         } else if (strcmp(l1, "h2") == 0 && strcmp(l2, "color") == 0) {
             free(theme->h2_color);
             theme->h2_color = dup_or_null(val);
+        } else if (strcmp(l1, "h2") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->h2_color);
+            }
         } else if (strcmp(l1, "h3") == 0 && strcmp(l2, "color") == 0) {
             free(theme->h3_color);
             theme->h3_color = dup_or_null(val);
+        } else if (strcmp(l1, "h3") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->h3_color);
+            }
         } else if (strcmp(l1, "h4") == 0 && strcmp(l2, "color") == 0) {
             free(theme->h4_color);
             theme->h4_color = dup_or_null(val);
+        } else if (strcmp(l1, "h4") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->h4_color);
+            }
         } else if (strcmp(l1, "h5") == 0 && strcmp(l2, "color") == 0) {
             free(theme->h5_color);
             theme->h5_color = dup_or_null(val);
+        } else if (strcmp(l1, "h5") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->h5_color);
+            }
         } else if (strcmp(l1, "h6") == 0 && strcmp(l2, "color") == 0) {
             free(theme->h6_color);
             theme->h6_color = dup_or_null(val);
+        } else if (strcmp(l1, "h6") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->h6_color);
+            }
         } else if (strcmp(l1, "link") == 0 && strcmp(l2, "text") == 0) {
             free(theme->link_text);
             theme->link_text = dup_or_null(val);
         } else if (strcmp(l1, "link") == 0 && strcmp(l2, "url") == 0) {
             free(theme->link_url);
             theme->link_url = dup_or_null(val);
+        } else if (strcmp(l1, "link") == 0 && strcmp(l2, "bold") == 0) {
+            /* Bold link text when link.bold: true */
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->link_text);
+            }
         } else if (strcmp(l1, "code_span") == 0 && strcmp(l2, "color") == 0) {
             free(theme->code_span);
             theme->code_span = dup_or_null(val);
+        } else if (strcmp(l1, "code_span") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->code_span);
+            }
         } else if (strcmp(l1, "code_block") == 0 && strcmp(l2, "color") == 0) {
             free(theme->code_block);
             theme->code_block = dup_or_null(val);
+        } else if (strcmp(l1, "code_block") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->code_block);
+            }
         } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "color") == 0) {
             free(theme->blockquote_color);
             theme->blockquote_color = dup_or_null(val);
+        } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->blockquote_color);
+            }
         } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "character") == 0) {
             free(theme->blockquote_marker);
             theme->blockquote_marker = dup_or_null(val);
         } else if (strcmp(l1, "table") == 0 && strcmp(l2, "border") == 0) {
             free(theme->table_border);
             theme->table_border = dup_or_null(val);
+        } else if (strcmp(l1, "table") == 0 && strcmp(l2, "bold") == 0) {
+            if (parse_bool_value(val)) {
+                ensure_bold_prefix(&theme->table_border);
+            }
         } else if (strcmp(l1, "span_classes") == 0 && l2[0] != '\0') {
             /* span_classes:
              *   classname: "style tokens"
@@ -754,42 +853,91 @@ static terminal_theme *load_theme_from_yaml(const char *path) {
                         if (strcmp(l1, "h1") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->h1_color);
                             theme->h1_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h1") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->h1_color);
+                            }
                         } else if (strcmp(l1, "h2") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->h2_color);
                             theme->h2_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h2") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->h2_color);
+                            }
                         } else if (strcmp(l1, "h3") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->h3_color);
                             theme->h3_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h3") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->h3_color);
+                            }
                         } else if (strcmp(l1, "h4") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->h4_color);
                             theme->h4_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h4") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->h4_color);
+                            }
                         } else if (strcmp(l1, "h5") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->h5_color);
                             theme->h5_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h5") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->h5_color);
+                            }
                         } else if (strcmp(l1, "h6") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->h6_color);
                             theme->h6_color = dup_or_null(val);
+                        } else if (strcmp(l1, "h6") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->h6_color);
+                            }
                         } else if (strcmp(l1, "link") == 0 && strcmp(l2, "text") == 0) {
                             free(theme->link_text);
                             theme->link_text = dup_or_null(val);
                         } else if (strcmp(l1, "link") == 0 && strcmp(l2, "url") == 0) {
                             free(theme->link_url);
                             theme->link_url = dup_or_null(val);
+                        } else if (strcmp(l1, "link") == 0 && strcmp(l2, "bold") == 0) {
+                            /* Bold link text when link.bold: true */
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->link_text);
+                            }
                         } else if (strcmp(l1, "code_span") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->code_span);
                             theme->code_span = dup_or_null(val);
+                        } else if (strcmp(l1, "code_span") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->code_span);
+                            }
                         } else if (strcmp(l1, "code_block") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->code_block);
                             theme->code_block = dup_or_null(val);
+                        } else if (strcmp(l1, "code_block") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->code_block);
+                            }
                         } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "character") == 0) {
                             free(theme->blockquote_marker);
                             theme->blockquote_marker = dup_or_null(val);
                         } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "color") == 0) {
                             free(theme->blockquote_color);
                             theme->blockquote_color = dup_or_null(val);
+                        } else if (strcmp(l1, "blockquote") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->blockquote_color);
+                            }
                         } else if (strcmp(l1, "table") == 0 && strcmp(l2, "border") == 0) {
                             free(theme->table_border);
                             theme->table_border = dup_or_null(val);
+                        } else if (strcmp(l1, "table") == 0 && strcmp(l2, "bold") == 0) {
+                            if (parse_bool_value(val)) {
+                                ensure_bold_prefix(&theme->table_border);
+                            }
+                        } else if (strcmp(l1, "list_marker") == 0 && !has_key2) {
+                            /* Top-level scalar key, e.g. list_marker: "b red" */
+                            free(theme->list_marker);
+                            theme->list_marker = dup_or_null(val);
                         } else if (strcmp(l1, "span_classes") == 0 && has_key2) {
                             /* span_classes:
                              *   purple: "b white on_magenta"
@@ -1823,16 +1971,23 @@ static void serialize_block(terminal_buffer *buf,
             int index = 0;
             for (cmark_node *item = cmark_node_first_child(node); item; item = cmark_node_next(item)) {
                 indent_spaces(buf, indent_level);
-                if (list_type == CMARK_BULLET_LIST) {
-                    apply_style_string(buf, "b intense_red", use_256_color);
-                    buffer_append_str(buf, "* ");
-                    append_ansi_reset(buf);
-                } else {
-                    char num[32];
-                    snprintf(num, sizeof(num), "%d.", start + index);
-                    apply_style_string(buf, "b intense_blue", use_256_color);
-                    buffer_append_str(buf, num);
-                    buffer_append_str(buf, " ");
+                {
+                    const char *marker_style = NULL;
+                    if (theme && theme->list_marker) {
+                        marker_style = theme->list_marker;
+                    } else {
+                        /* Default: bold bright red for both bullet and ordered markers */
+                        marker_style = "b intense_red";
+                    }
+                    apply_style_string(buf, marker_style, use_256_color);
+                    if (list_type == CMARK_BULLET_LIST) {
+                        buffer_append_str(buf, "* ");
+                    } else {
+                        char num[32];
+                        snprintf(num, sizeof(num), "%d.", start + index);
+                        buffer_append_str(buf, num);
+                        buffer_append_str(buf, " ");
+                    }
                     append_ansi_reset(buf);
                 }
                 serialize_block(buf, item, options, theme, use_256_color, indent_level + 1);
