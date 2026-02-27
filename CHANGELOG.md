@@ -26,6 +26,24 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.84] - 2026-02-27
+
+### Changed
+
+- Homebrew formula bumped to 0.1.83 with updated release checksum
+
+### New
+
+- --width flag wraps terminal and terminal256 output to a fixed column width for better integration with terminal file managers and previews
+- Terminal.width metadata and config option lets you set a default wrap width per document instead of relying only on CLI flags
+- Terminal.theme metadata and config option lets documents select a default terminal theme when using -t terminal or -t terminal256
+- Terminal theme list_marker style controls the color and emphasis of bullet and numbered list markers, defaulting to bold bright red when unset
+
+### Improved
+
+- Terminal themes can now mark headings, links, code spans, code blocks, blockquotes, and tables as bold with a bold: true flag in theme YAML instead of encoding bold in the color string
+- Span_classes mappings in terminal themes style inline span classes and attribute list classes consistently in terminal and terminal256 output
+
 ## [0.1.83] - 2026-02-26
 
 ### New
@@ -2515,6 +2533,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.84]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.84
 [0.1.83]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.83
 [0.1.82]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.82
 [0.1.81]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.81

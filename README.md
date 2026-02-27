@@ -1,5 +1,5 @@
 
-[![Version: 0.1.82](https://img.shields.io/badge/Version-0.1.82-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1390/1390](https://img.shields.io/badge/Tests-1390/1390-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.83](https://img.shields.io/badge/Version-0.1.83-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1390/1390](https://img.shields.io/badge/Tests-1390/1390-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.82
+Apex Markdown Processor v0.1.83
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -404,7 +404,7 @@ Options:
   --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)
   --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)
   --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)
-  --width N               Hard-wrap terminal/terminal256 output at N visible columns (useful for lf/yazi previews)
+  --width N               Hard-wrap terminal/terminal256 output at N visible columns
 
 If no file is specified, reads from stdin.
 
@@ -428,55 +428,11 @@ bibliography: references.bib
 title: My Research Paper
 pretty: true
 standalone: true
-terminal:
-  theme: brett        # default terminal theme when using -t terminal/terminal256
-  width: 80           # default wrapping width for terminal/terminal256 output
 ---
 
 ```
 
 This allows you to process multiple files with `apex *.md` and have each file use its own configuration. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
-
-### Terminal Theming
-
-When using `-t terminal` or `-t terminal256`, Apex can load a terminal theme from
-`~/.config/apex/terminal/themes/NAME.theme` (or a `default.theme` if no name is
-given).
-
-Theme files are simple YAML. Common keys include:
-
-- `h1`–`h6`:
-
-  ```yaml
-  h2:
-    color: "bright_blue"
-    bold: true       # makes the heading bold in addition to the color
-  ```
-
-  The `bold: true` flag is supported on all element mappings that have a `color`
-  field (headings, `code_span`, `code_block`, `blockquote`, `table`, etc.) and
-  is equivalent to prepending a `b` style token to the color string.
-
-- **Inline and block code**:
-
-  ```yaml
-  code_span:
-    color: "b white on_intense_black"
-
-  code_block:
-    color: "white on_black"
-    bold: true
-  ```
-
-- **List markers**:
-
-  ```yaml
-  list_marker: "b bright_yellow"
-  ```
-
-  Controls the style used for numbered and bullet list markers (`*`). If `list_marker` is
-  not set, markers default to **bold bright red**, matching the built-in
-  behavior.
 
 ## Documentation
 
