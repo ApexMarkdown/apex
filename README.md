@@ -428,11 +428,28 @@ bibliography: references.bib
 title: My Research Paper
 pretty: true
 standalone: true
+terminal:
+  theme: brett        # default terminal theme when using -t terminal/terminal256
+  width: 80           # default wrapping width for terminal/terminal256 output
 ---
 
 ```
 
-This allows you to process multiple files with `apex *.md` and have each file use its own configuration. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
+This allows you to process multiple files with `apex *.md` and have each file use its own configuration.
+
+### Terminal Theming
+
+When using `-t terminal` or `-t terminal256`, Apex can load a terminal theme from
+`~/.config/apex/terminal/themes/NAME.theme` (or a `default.theme` if no name is
+given).
+
+Theme files are simple YAML. Common keys include:
+
+- **Headings (h1–h6):** Set `color` and optional `bold: true` to make headings bold in addition to the color. The `bold: true` flag is supported on all element mappings that have a `color` field (headings, `code_span`, `code_block`, `blockquote`, `table`, etc.).
+
+- **Inline and block code:** Use `code_span` and `code_block` with a `color` string (e.g. `"b white on_intense_black"`) and optional `bold: true`.
+
+- **List markers:** Set `list_marker` to control the style for bullet and numbered list markers (e.g. `list_marker: "b bright_yellow"`). If `list_marker` is not set, markers default to **bold bright red**. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
 
 ## Documentation
 

@@ -269,6 +269,56 @@ void test_pretty_html(void) {
 }
 
 /**
+ * Test terminal and terminal256 output format: ANSI output, list markers, and terminal_width option.
+ */
+void test_terminal_output(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Terminal Output Tests", false, true);
+
+    apex_options opts = apex_options_default();
+    char *out;
+
+    /* Terminal format produces ANSI and content */
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("# Hello", 7, &opts);
+    assert_contains(out, "\033", "Terminal output contains ANSI escape");
+    assert_contains(out, "Hello", "Terminal output contains heading text");
+    apex_free_string(out);
+
+    /* terminal256 also produces ANSI */
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    out = apex_markdown_to_html("**bold** text", 13, &opts);
+    assert_contains(out, "\033", "Terminal256 output contains ANSI");
+    assert_contains(out, "bold", "Terminal256 output contains bold text");
+    apex_free_string(out);
+
+    /* Bullet list: default list_marker yields bullet and item text */
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("- one\n- two", 11, &opts);
+    assert_contains(out, "* ", "Terminal bullet list contains marker");
+    assert_contains(out, "one", "Terminal list contains first item");
+    assert_contains(out, "two", "Terminal list contains second item");
+    apex_free_string(out);
+
+    /* Ordered list: same list_marker styling, numbered labels */
+    out = apex_markdown_to_html("1. first\n2. second", 18, &opts);
+    assert_contains(out, "1.", "Terminal ordered list contains first number");
+    assert_contains(out, "2.", "Terminal ordered list contains second number");
+    assert_contains(out, "first", "Terminal ordered list contains first item text");
+    assert_contains(out, "second", "Terminal ordered list contains second item text");
+    apex_free_string(out);
+
+    /* terminal_width in options does not break output (wrapping is applied by CLI) */
+    opts.terminal_width = 40;
+    out = apex_markdown_to_html("plain paragraph", 15, &opts);
+    test_result(out != NULL && strstr(out, "plain") != NULL, "terminal_width set still produces terminal output");
+    if (out) apex_free_string(out);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Terminal Output Tests", had_failures, false);
+}
+
+/**
  * Test header ID generation
  */
 
@@ -1277,3 +1327,5 @@ void test_ast_json_parser(void) {
     bool had_failures = suite_end(suite_failures);
     print_suite_title("AST JSON Parser (filter output with RawBlock)", had_failures, false);
 }
+
+

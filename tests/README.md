@@ -85,22 +85,28 @@ Notes:
     - Depth control
     - Nested structure
 
-14. **HTML Markdown Attributes** (9 tests) ✨ NEW
+14. **Terminal Output** (12 tests)
+    - ANSI terminal and terminal256 format
+    - List markers (bullet and ordered, default list_marker styling)
+    - terminal_width option (library)
+    - Optional script: `./tests/terminal_width_test.sh` checks CLI `--width` wrapping
+
+15. **HTML Markdown Attributes** (9 tests) ✨ NEW
     - markdown="1", "block", "span", "0"
     - Nested HTML parsing
 
-15. **Abbreviations** (4 tests) ✨ NEW
+16. **Abbreviations** (4 tests) ✨ NEW
     - Definition syntax (partial support)
 
-16. **Emoji** (10 tests) ✨ NEW
+17. **Emoji** (10 tests) ✨ NEW
     - 350+ GitHub emoji
     - Unknown emoji handling
 
-17. **Special Markers** (7 tests) ✨ NEW
+18. **Special Markers** (7 tests) ✨ NEW
     - Page breaks, pauses
     - End-of-block markers
 
-18. **Advanced Footnotes** (3 tests) ✨ NEW
+19. **Advanced Footnotes** (3 tests) ✨ NEW
     - Basic and inline footnotes
     - Markdown in footnotes
 

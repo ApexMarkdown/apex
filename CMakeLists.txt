@@ -411,7 +411,7 @@ foreach(MAN_PAGE_SPEC ${MAN_PAGES})
         if(PANDOC_EXECUTABLE)
             add_custom_command(
                 OUTPUT ${MAN_OUTPUT}
-                COMMAND ${PANDOC_EXECUTABLE} -s -t man -o ${MAN_OUTPUT} ${MAN_SOURCE}
+                COMMAND ${PANDOC_EXECUTABLE} -f markdown-smart -s -t man -o ${MAN_OUTPUT} ${MAN_SOURCE}
                 DEPENDS ${MAN_SOURCE}
                 COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using pandoc"
             )

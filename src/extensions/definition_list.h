@@ -18,8 +18,10 @@
 extern "C" {
 #endif
 
-/* Custom node types for definition lists */
-/* Note: APEX_NODE_DEFINITION_* are defined as enum values in parser.h, not as variables */
+/* Custom node types for definition lists (assigned when extension is created) */
+extern cmark_node_type APEX_NODE_DEFINITION_LIST;
+extern cmark_node_type APEX_NODE_DEFINITION_TERM;
+extern cmark_node_type APEX_NODE_DEFINITION_DATA;
 
 /**
  * Process definition lists via preprocessing
