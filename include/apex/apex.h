@@ -47,7 +47,9 @@ typedef enum {
     APEX_OUTPUT_KRAMDOWN = 6,       /* Kramdown-compatible Markdown */
     APEX_OUTPUT_GFM = 7,            /* GitHub Flavored Markdown */
     APEX_OUTPUT_TERMINAL = 8,       /* ANSI terminal output (8/16-color) */
-    APEX_OUTPUT_TERMINAL256 = 9     /* ANSI terminal output (256-color) */
+    APEX_OUTPUT_TERMINAL256 = 9,    /* ANSI terminal output (256-color) */
+    APEX_OUTPUT_MAN = 10,           /* roff (man page source) */
+    APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
 } apex_output_format_t;
 
 /**

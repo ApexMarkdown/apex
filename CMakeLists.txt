@@ -111,6 +111,7 @@ set(APEX_LIB_SOURCES
     src/ast_json.c
     src/ast_markdown.c
     src/ast_terminal.c
+    src/ast_man.c
     src/filters_ast.c
     src/plugins_env.c
     src/plugins.c
@@ -407,7 +408,7 @@ foreach(MAN_PAGE_SPEC ${MAN_PAGES})
         )
         set(MAN_AVAILABLE TRUE)
     else()
-        # Try to generate man page from Markdown source
+        # Prefer apex -t man (roff) when building apex_cli; fall back to pandoc/go-md2man
         if(PANDOC_EXECUTABLE)
             add_custom_command(
                 OUTPUT ${MAN_OUTPUT}
@@ -416,15 +417,13 @@ foreach(MAN_PAGE_SPEC ${MAN_PAGES})
                 COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using pandoc"
             )
             set(MAN_AVAILABLE TRUE)
-        elseif(GO_MD2MAN_EXECUTABLE)
-            add_custom_command(
-                OUTPUT ${MAN_OUTPUT}
-                COMMAND ${GO_MD2MAN_EXECUTABLE} -in=${MAN_SOURCE} -out=${MAN_OUTPUT}
-                DEPENDS ${MAN_SOURCE}
-                COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using go-md2man"
-            )
-            set(MAN_AVAILABLE TRUE)
-        endif()
+        add_custom_command(
+            OUTPUT ${MAN_OUTPUT}
+            COMMAND $<TARGET_FILE:apex_cli> -t man ${MAN_SOURCE} > ${MAN_OUTPUT}
+            DEPENDS ${MAN_SOURCE} apex_cli
+            COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using apex -t man"
+        )
+        set(MAN_AVAILABLE TRUE)
     endif()
 
     # Install man page
@@ -438,16 +437,11 @@ endforeach()
 
 # Create a target that depends on all man pages
 if(MAN_AVAILABLE)
-    if(PANDOC_EXECUTABLE OR GO_MD2MAN_EXECUTABLE)
-        add_custom_target(man_pages ALL DEPENDS ${MAN_OUTPUTS})
-        message(STATUS "Man pages: Will be generated from Markdown sources")
-    else()
-        add_custom_target(man_pages_copy ALL DEPENDS ${MAN_OUTPUTS})
-        message(STATUS "Man pages: Using pre-generated man pages")
-    endif()
+    add_custom_target(man_pages ALL DEPENDS ${MAN_OUTPUTS})
+    message(STATUS "Man pages: Will be built from Markdown (apex -t man) or copied if pre-generated")
 else()
-    message(WARNING "Pre-generated man pages not found and neither pandoc nor go-md2man available.")
-    message(STATUS "  Man pages will not be installed. Generate them with 'make man' before building.")
+    message(WARNING "Man page sources or pre-generated pages not found.")
+    message(STATUS "  Man pages will not be installed.")
 endif()
 
 # Print configuration

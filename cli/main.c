@@ -512,7 +512,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
-    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256\n");
+    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
@@ -1489,9 +1489,13 @@ int main(int argc, char *argv[]) {
                 options.output_format = APEX_OUTPUT_TERMINAL;
             } else if (strcmp(argv[i], "terminal256") == 0) {
                 options.output_format = APEX_OUTPUT_TERMINAL256;
+            } else if (strcmp(argv[i], "man") == 0) {
+                options.output_format = APEX_OUTPUT_MAN;
+            } else if (strcmp(argv[i], "man-html") == 0) {
+                options.output_format = APEX_OUTPUT_MAN_HTML;
             } else {
                 fprintf(stderr, "Error: Unknown output format '%s'\n", argv[i]);
-                fprintf(stderr, "Supported formats: html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256\n");
+                fprintf(stderr, "Supported formats: html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "--theme") == 0) {
