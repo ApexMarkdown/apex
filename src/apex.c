@@ -4026,6 +4026,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                 len, text_ptr, len > 200 ? "..." : "");
     }
 
+    /* Create deflist debug log as soon as conversion starts (so it exists even if we exit early or deflists are disabled) */
+    apex_deflist_debug_touch(options->enable_definition_lists);
+
     if (options->mode == APEX_MODE_MULTIMARKDOWN ||
         options->mode == APEX_MODE_KRAMDOWN ||
         options->mode == APEX_MODE_UNIFIED) {
