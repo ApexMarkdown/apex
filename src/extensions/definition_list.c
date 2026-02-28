@@ -28,6 +28,36 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+/* DEBUG: write to a file so output is visible even when stderr is piped/merged.
+ * Uses APEX_DEBUG_DEFLIST_FILE if set, otherwise apex_deflist_debug.log in cwd (avoids /tmp issues). */
+static FILE *deflist_debug_file(void) {
+    static FILE *fp;
+    if (!getenv("APEX_DEBUG_DEFLIST"))
+        return NULL;
+    if (!fp) {
+        const char *path = getenv("APEX_DEBUG_DEFLIST_FILE");
+        fp = fopen(path ? path : "apex_deflist_debug.log", "a");
+        if (fp)
+            setvbuf(fp, NULL, _IONBF, 0);
+    }
+    return fp;
+}
+
+/**
+ * Create debug log and write one line as soon as conversion starts (when APEX_DEBUG_DEFLIST is set).
+ * Call from apex_markdown_to_html so the file exists even if we never reach the deflist preprocessor
+ * (e.g. early return, or enable_definition_lists false). Logs enable_definition_lists for diagnosis.
+ */
+void apex_deflist_debug_touch(int enable_definition_lists) {
+    if (!getenv("APEX_DEBUG_DEFLIST"))
+        return;
+    FILE *dbg = deflist_debug_file();
+    if (dbg) {
+        fprintf(dbg, "[deflist] conversion pipeline started; enable_definition_lists=%d\n", enable_definition_lists);
+        fflush(dbg);
+    }
+}
+
 /* Node type IDs */
 cmark_node_type APEX_NODE_DEFINITION_LIST;
 cmark_node_type APEX_NODE_DEFINITION_TERM;
@@ -48,12 +78,18 @@ static bool is_definition_line(const unsigned char *input, int len, int *indent)
 
     if (spaces >= len) return false;
 
-    /* Must start with : */
+    /* Must start with : or :: */
     if (input[spaces] != ':') return false;
 
+    int colon_offset = 1;
+    if (spaces + 2 <= len && input[spaces + 1] == ':') {
+        /* Kramdown-style :: */
+        colon_offset = 2;
+    }
+
     /* Must be followed by space or tab */
-    if (spaces + 1 >= len) return false;
-    if (input[spaces + 1] != ' ' && input[spaces + 1] != '\t') return false;
+    if (spaces + colon_offset >= len) return false;
+    if (input[spaces + colon_offset] != ' ' && input[spaces + colon_offset] != '\t') return false;
 
     *indent = spaces;
     return true;
@@ -340,7 +376,6 @@ static cmark_node *open_block(cmark_syntax_extension *ext,
                               cmark_node *parent_container,
                               unsigned char *input,
                               int len) {
-    (void)ext;
     if (indented > 3) {
         return NULL; /* Too indented */
     }
@@ -357,6 +392,14 @@ static cmark_node *open_block(cmark_syntax_extension *ext,
     int def_indent;
     if (!is_definition_line(input, len, &def_indent)) {
         return NULL;
+    }
+    /* DEBUG: confirm we recognized a definition line */
+    if (getenv("APEX_DEBUG_DEFLIST")) {
+        FILE *dbg = deflist_debug_file();
+        if (dbg) {
+            fprintf(dbg, "[deflist open_block] definition line recognized len=%d\n", len);
+            fflush(dbg);
+        }
     }
 
     /* Check if the line contains an IAL (Inline Attribute List) like {#id .class} */
@@ -418,9 +461,31 @@ static cmark_node *open_block(cmark_syntax_extension *ext,
         return NULL;
     }
 
+    /* DEBUG: remove after finding why term is empty */
+    if (getenv("APEX_DEBUG_DEFLIST")) {
+        FILE *dbg = deflist_debug_file();
+        fprintf(stderr, "[deflist open_block] prev=%p type=%u content.size=%zu parser->current=%p\n",
+                (void *)prev, (unsigned)cmark_node_get_type(prev),
+                (size_t)prev->content.size, (void *)parser->current);
+        if (dbg)
+            fprintf(dbg, "[deflist open_block] prev=%p type=%u content.size=%zu parser->current=%p\n",
+                    (void *)prev, (unsigned)cmark_node_get_type(prev),
+                    (size_t)prev->content.size, (void *)parser->current);
+        if (prev->content.size > 0 && prev->content.size <= 200) {
+            fprintf(stderr, "[deflist open_block] content: %.*s\n", (int)prev->content.size, prev->content.ptr);
+            if (dbg)
+                fprintf(dbg, "[deflist open_block] content: %.*s\n", (int)prev->content.size, prev->content.ptr);
+        }
+        fflush(stderr);
+        if (dbg)
+            fflush(dbg);
+    }
+
     /* Create definition list container */
     cmark_node *def_list = cmark_node_new_with_mem(APEX_NODE_DEFINITION_LIST, parser->mem);
     if (!def_list) return NULL;
+    def_list->flags |= CMARK_NODE__OPEN;  /* required: finalize() asserts OPEN on blocks it closes */
+    cmark_node_set_syntax_extension(def_list, ext);  /* so HTML renderer dispatches to our html_render */
 
     /* Convert previous paragraph to term */
     cmark_node *term = cmark_node_new_with_mem(APEX_NODE_DEFINITION_TERM, parser->mem);
@@ -428,6 +493,8 @@ static cmark_node *open_block(cmark_syntax_extension *ext,
         cmark_node_free(def_list);
         return NULL;
     }
+    term->flags |= CMARK_NODE__OPEN;
+    cmark_node_set_syntax_extension(term, ext);
 
     /* Move paragraph children to term - but DON'T unlink prev itself */
     /* Unlinking prev during parsing causes segfaults because the parser is still using it */
@@ -438,6 +505,12 @@ static cmark_node *open_block(cmark_syntax_extension *ext,
     }
 
     cmark_node_append_child(def_list, term);
+
+    /* Insert def_list into the tree so the parser can use it (after the paragraph) */
+    if (!cmark_node_insert_after(prev, def_list)) {
+        cmark_node_free(def_list);
+        return NULL;
+    }
     return def_list;
 }
 
@@ -472,14 +545,24 @@ static int match_block(cmark_syntax_extension *ext,
 }
 
 /**
- * Can contain - definition data can contain block-level content
+ * Can contain - definition list contains term/dd; term and dd can contain inlines; definition data can contain block-level content
  */
 static int can_contain(cmark_syntax_extension *ext,
                       cmark_node *node,
                       cmark_node_type child_type) {
     (void)ext;
+    if (cmark_node_get_type(node) == APEX_NODE_DEFINITION_LIST) {
+        return child_type == APEX_NODE_DEFINITION_TERM ||
+               child_type == APEX_NODE_DEFINITION_DATA;
+    }
+    if (cmark_node_get_type(node) == APEX_NODE_DEFINITION_TERM ||
+        cmark_node_get_type(node) == APEX_NODE_DEFINITION_DATA) {
+        /* Term and dd can contain inline content (TEXT, STRONG, EMPH, etc.) */
+        if (child_type & CMARK_NODE_TYPE_INLINE)
+            return 1;
+    }
     if (cmark_node_get_type(node) == APEX_NODE_DEFINITION_DATA) {
-        /* Definition data can contain any block-level content */
+        /* Definition data can also contain block-level content */
         return child_type == CMARK_NODE_PARAGRAPH ||
                child_type == CMARK_NODE_CODE_BLOCK ||
                child_type == CMARK_NODE_BLOCK_QUOTE ||
@@ -496,6 +579,15 @@ static int can_contain(cmark_syntax_extension *ext,
  */
 char *apex_process_definition_lists(const char *text, bool unsafe) {
     if (!text) return NULL;
+
+    /* DEBUG: ensure log file exists when env is set (preprocessor runs before extension) */
+    if (getenv("APEX_DEBUG_DEFLIST")) {
+        FILE *dbg = deflist_debug_file();
+        if (dbg) {
+            fprintf(dbg, "[deflist] apex_process_definition_lists (preprocessor) entered\n");
+            fflush(dbg);
+        }
+    }
 
     size_t text_len = strlen(text);
 
@@ -1605,14 +1697,262 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 }
 
 /**
- * Post-process - no longer needed with preprocessing approach
+ * Return true if the term has no meaningful inline content (no children, or only softbreak/linebreak).
+ */
+static bool term_is_effectively_empty(cmark_node *term) {
+    if (!term)
+        return true;
+    for (cmark_node *c = cmark_node_first_child(term); c; c = cmark_node_next(c)) {
+        cmark_node_type t = cmark_node_get_type(c);
+        if (t != CMARK_NODE_SOFTBREAK && t != CMARK_NODE_LINEBREAK)
+            return false;
+    }
+    return true;
+}
+
+/**
+ * If node has no children but has block content, create a TEXT node from that content and append it.
+ * Uses mem for allocation; content is copied and null-terminated for set_literal.
+ */
+static void ensure_node_has_content_from_block(cmark_node *node, cmark_mem *mem) {
+    if (!node || cmark_node_first_child(node))
+        return;
+    size_t len = (size_t)cmark_strbuf_len(&node->content);
+    if (len == 0)
+        return;
+    char *buf = (char *)mem->calloc(1, len + 1);
+    if (!buf)
+        return;
+    memcpy(buf, node->content.ptr, len);
+    buf[len] = '\0';
+    cmark_node *text = cmark_node_new_with_mem(CMARK_NODE_TEXT, mem);
+    if (text) {
+        cmark_node_set_literal(text, buf);
+        cmark_node_append_child(node, text);
+    }
+    mem->free(buf);
+}
+
+/**
+ * Move all children from para into term, then unlink and free para.
+ * If para had no inline children, use its block content to create a TEXT node in term.
+ */
+static void move_paragraph_inlines_to_term(cmark_node *term, cmark_node *para) {
+    if (!term || !para)
+        return;
+    cmark_node *child;
+    while ((child = cmark_node_first_child(para))) {
+        cmark_node_unlink(child);
+        cmark_node_append_child(term, child);
+    }
+    cmark_mem *mem = term->content.mem;
+    if (mem && !cmark_node_first_child(term)) {
+        ensure_node_has_content_from_block(para, mem);
+        /* ensure_node_has_content_from_block appends a TEXT node to para; move it to term */
+        while ((child = cmark_node_first_child(para))) {
+            cmark_node_unlink(child);
+            cmark_node_append_child(term, child);
+        }
+    }
+    cmark_node_unlink(para);
+    cmark_node_free(para);
+}
+
+/**
+ * If the first child of dd is a TEXT node whose literal starts with ":: ",
+ * trim that prefix (and optional following spaces) so the definition renders without it.
+ */
+static void strip_def_prefix_from_dd(cmark_node *dd) {
+    cmark_node *first = cmark_node_first_child(dd);
+    if (!first || cmark_node_get_type(first) != CMARK_NODE_TEXT)
+        return;
+    const char *lit = cmark_node_get_literal(first);
+    if (!lit || strncmp(lit, ":: ", 3) != 0)
+        return;
+    const char *rest = lit + 3;
+    while (*rest == ' ')
+        rest++;
+    cmark_node_set_literal(first, rest);
+}
+
+/**
+ * Return true if this paragraph is the ":: definition" line (starts with ":: ").
+ * Check block content first; if empty (e.g. after process_inlines), check first text child's literal.
+ */
+static bool paragraph_is_def_line(cmark_node *para) {
+    if (!para || cmark_node_get_type(para) != CMARK_NODE_PARAGRAPH)
+        return false;
+    size_t len = (size_t)cmark_strbuf_len(&para->content);
+    if (len >= 3 && memcmp(para->content.ptr, ":: ", 3) == 0)
+        return true;
+    cmark_node *first = cmark_node_first_child(para);
+    if (first && cmark_node_get_type(first) == CMARK_NODE_TEXT) {
+        const char *lit = cmark_node_get_literal(first);
+        if (lit && strncmp(lit, ":: ", 3) == 0)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * Create a dd from a ":: definition" paragraph and append it to def_list.
+ * If para is a child of def_list, insert after term; if para is a sibling of def_list, append to def_list.
+ */
+static void create_dd_from_paragraph(cmark_syntax_extension *ext,
+                                     cmark_parser *parser,
+                                     cmark_node *def_list,
+                                     cmark_node *term,
+                                     cmark_node *para) {
+    if (!paragraph_is_def_line(para))
+        return;
+    cmark_node *dd = cmark_node_new_with_mem(APEX_NODE_DEFINITION_DATA, parser->mem);
+    if (!dd)
+        return;
+    cmark_node_set_syntax_extension(dd, ext);
+
+    cmark_node *child;
+    while ((child = cmark_node_first_child(para))) {
+        cmark_node_unlink(child);
+        cmark_node_append_child(dd, child);
+    }
+    strip_def_prefix_from_dd(dd);
+    /* If dd is still empty, use paragraph block content (strip ":: " prefix) */
+    if (!cmark_node_first_child(dd)) {
+        size_t len = (size_t)cmark_strbuf_len(&para->content);
+        if (len >= 3 && memcmp(para->content.ptr, ":: ", 3) == 0) {
+            const unsigned char *start = para->content.ptr + 3;
+            size_t rest = len - 3;
+            while (rest > 0 && *start == ' ')
+                start++, rest--;
+            if (rest > 0) {
+                char *buf = (char *)parser->mem->calloc(1, rest + 1);
+                if (buf) {
+                    memcpy(buf, start, rest);
+                    buf[rest] = '\0';
+                    cmark_node *text = cmark_node_new_with_mem(CMARK_NODE_TEXT, parser->mem);
+                    if (text) {
+                        cmark_node_set_literal(text, buf);
+                        cmark_node_append_child(dd, text);
+                    }
+                    parser->mem->free(buf);
+                }
+            }
+        }
+    }
+    if (term)
+        cmark_node_insert_after(term, dd);
+    else
+        cmark_node_append_child(def_list, dd);
+    cmark_node_unlink(para);
+    cmark_node_free(para);
+}
+
+/**
+ * Convert the paragraph that was added as def_list's second child (content ":: ...")
+ * into a DEFINITION_DATA (dd) node.
+ */
+static void convert_def_line_paragraph_to_dd(cmark_syntax_extension *ext,
+                                            cmark_parser *parser,
+                                            cmark_node *def_list) {
+    cmark_node *term = cmark_node_first_child(def_list);
+    cmark_node *para = term ? cmark_node_next(term) : NULL;
+    if (para)
+        create_dd_from_paragraph(ext, parser, def_list, term, para);
+}
+
+/**
+ * Post-process: when the definition list term is empty (inlines were not moved in open_block
+ * because they are created later), take them from the adjacent paragraph (prev or next sibling).
  */
 static cmark_node *postprocess(cmark_syntax_extension *ext,
                                cmark_parser *parser,
                                cmark_node *root) {
     (void)ext;
     (void)parser;
-    /* Definition lists are now handled via preprocessing */
+
+    /* DEBUG: remove after finding why term is empty */
+    if (getenv("APEX_DEBUG_DEFLIST")) {
+        FILE *dbg = deflist_debug_file();
+        fprintf(stderr, "[deflist postprocess] entered root=%p root.type=%u first_child=%p\n",
+                (void *)root, (unsigned)cmark_node_get_type(root), (void *)cmark_node_first_child(root));
+        if (dbg)
+            fprintf(dbg, "[deflist postprocess] entered root=%p root.type=%u first_child=%p\n",
+                    (void *)root, (unsigned)cmark_node_get_type(root), (void *)cmark_node_first_child(root));
+        for (cmark_node *n = cmark_node_first_child(root); n; n = cmark_node_next(n)) {
+            fprintf(stderr, "  block=%p type=%u\n", (void *)n, (unsigned)cmark_node_get_type(n));
+            if (dbg)
+                fprintf(dbg, "  block=%p type=%u\n", (void *)n, (unsigned)cmark_node_get_type(n));
+        }
+        fflush(stderr);
+        if (dbg)
+            fflush(dbg);
+    }
+
+    cmark_node *cur = cmark_node_first_child(root);
+    while (cur) {
+        if (cmark_node_get_type(cur) == APEX_NODE_DEFINITION_LIST) {
+            cmark_node *term = cmark_node_first_child(cur);
+            cmark_node *prev_sib = cmark_node_previous(cur);
+            cmark_node *next_sib = cmark_node_next(cur);
+
+            if (!term) {
+                /* def_list has no children (parser finalized it before adding the :: line).
+                 * Build term and dd from adjacent paragraphs: prev = term line, next = ":: def" line. */
+                if (prev_sib && cmark_node_get_type(prev_sib) == CMARK_NODE_PARAGRAPH &&
+                    next_sib && cmark_node_get_type(next_sib) == CMARK_NODE_PARAGRAPH &&
+                    paragraph_is_def_line(next_sib)) {
+                    term = cmark_node_new_with_mem(APEX_NODE_DEFINITION_TERM, parser->mem);
+                    if (term) {
+                        cmark_node_set_syntax_extension(term, ext);
+                        move_paragraph_inlines_to_term(term, prev_sib);
+                        cmark_node_prepend_child(cur, term);
+                    }
+                    create_dd_from_paragraph(ext, parser, cur, term, next_sib);
+                }
+            } else {
+                if (term_is_effectively_empty(term)) {
+                    /* Prefer prev_sib (term line); if it has no inlines yet, move still runs block-content fallback */
+                    if (prev_sib && cmark_node_get_type(prev_sib) == CMARK_NODE_PARAGRAPH &&
+                        !paragraph_is_def_line(prev_sib)) {
+                        move_paragraph_inlines_to_term(term, prev_sib);
+                    } else if (next_sib && cmark_node_get_type(next_sib) == CMARK_NODE_PARAGRAPH &&
+                               cmark_node_first_child(next_sib) &&
+                               !paragraph_is_def_line(next_sib)) {
+                        move_paragraph_inlines_to_term(term, next_sib);
+                    }
+                }
+                /* Convert ":: def" paragraph: as second child of def_list, or as next sibling */
+                convert_def_line_paragraph_to_dd(ext, parser, cur);
+                if (next_sib && cmark_node_get_type(next_sib) == CMARK_NODE_PARAGRAPH &&
+                    paragraph_is_def_line(next_sib)) {
+                    create_dd_from_paragraph(ext, parser, cur, term, next_sib);
+                }
+            }
+            if (getenv("APEX_DEBUG_DEFLIST")) {
+                FILE *dbg = deflist_debug_file();
+                cmark_node *term_para = term ? cmark_node_first_child(term) : NULL;
+                cmark_node *next_sib = cmark_node_next(cur);
+                fprintf(stderr, "[deflist postprocess] def_list=%p term=%p term_para=%p term_para.first_child=%p next_sib=%p next_sib.type=%u next_sib.first_child=%p\n",
+                        (void *)cur, (void *)term, (void *)term_para,
+                        term_para ? (void *)cmark_node_first_child(term_para) : NULL,
+                        (void *)next_sib,
+                        next_sib ? (unsigned)cmark_node_get_type(next_sib) : 0,
+                        next_sib ? (void *)cmark_node_first_child(next_sib) : NULL);
+                if (dbg)
+                    fprintf(dbg, "[deflist postprocess] def_list=%p term=%p term_para=%p term_para.first_child=%p next_sib=%p next_sib.type=%u next_sib.first_child=%p\n",
+                            (void *)cur, (void *)term, (void *)term_para,
+                            term_para ? (void *)cmark_node_first_child(term_para) : NULL,
+                            (void *)next_sib,
+                            next_sib ? (unsigned)cmark_node_get_type(next_sib) : 0,
+                            next_sib ? (void *)cmark_node_first_child(next_sib) : NULL);
+                fflush(stderr);
+                if (dbg)
+                    fflush(dbg);
+            }
+        }
+        cur = cmark_node_next(cur);
+    }
+
     return root;
 }
 

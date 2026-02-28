@@ -4,6 +4,7 @@
  */
 
 #include "apex/ast_man.h"
+#include "extensions/definition_list.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,27 +46,191 @@ static void man_buf_append_str(man_buffer *b, const char *str) {
     if (str) man_buf_append(b, str, strlen(str));
 }
 
-/* Append text escaped for roff: \ -> \e, leading . or ' on a line -> \&. or \&' */
+/* Append text escaped for roff: \ -> \e, - -> \-, en-dash -> \-\-, leading . or ' -> \&. or \&' */
 static void man_buf_append_roff_safe(man_buffer *b, const char *str, size_t len) {
     if (!str || len == 0) return;
     bool at_line_start = (b->len == 0 || (b->len > 0 && b->buf[b->len - 1] == '\n'));
-    for (size_t i = 0; i < len; i++) {
+    for (size_t i = 0; i < len; ) {
         unsigned char c = (unsigned char)str[i];
         if (c == '\\') {
             man_buf_append_str(b, "\\e");
+            i++;
             at_line_start = false;
         } else if (c == '\n') {
             man_buf_append(b, "\n", 1);
+            i++;
             at_line_start = true;
         } else if (at_line_start && (c == '.' || c == '\'')) {
             man_buf_append_str(b, "\\&");
             man_buf_append(b, (const char *)&c, 1);
+            i++;
+            at_line_start = false;
+        } else if (c == 0x2D) {
+            /* hyphen-minus: use \- so man doesn't break line on it; keeps -- visible */
+            man_buf_append_str(b, "\\-");
+            i++;
+            at_line_start = false;
+        } else if (c == 0xE2 && i + 2 <= len && (unsigned char)str[i+1] == 0x80 && (unsigned char)str[i+2] == 0x93) {
+            /* UTF-8 en-dash (U+2013): often from smart typography -- ; show as two hyphens */
+            man_buf_append_str(b, "\\-\\-");
+            i += 3;
+            at_line_start = false;
+        } else if (c == 0xE2 && i + 2 <= len && (unsigned char)str[i+1] == 0x80 && (unsigned char)str[i+2] == 0x94) {
+            /* UTF-8 em-dash (U+2014) */
+            man_buf_append_str(b, "\\[em]");
+            i += 3;
             at_line_start = false;
         } else {
             man_buf_append(b, (const char *)&c, 1);
+            i++;
             at_line_start = false;
         }
     }
+}
+
+/* ------------------------------------------------------------------------- */
+/* HTML <dl>/<dt>/<dd> from definition-list preprocessor -> roff             */
+/* ------------------------------------------------------------------------- */
+
+/* Find next '>' from str+pos; return offset of '>' or len if not found. */
+static size_t find_gt(const char *str, size_t len, size_t pos) {
+    for (; pos < len && str[pos] != '>'; pos++) {}
+    return pos;
+}
+
+/* Decode one entity at str (e.g. &lt; &gt; &amp;) and append to buf; return number of chars consumed. */
+static size_t decode_entity(man_buffer *buf, const char *str, size_t len) {
+    if (len < 3 || str[0] != '&') return 0;
+    if (str[1] == 'l' && str[2] == 't' && len >= 4 && str[3] == ';') {
+        man_buf_append_str(buf, "<");
+        return 4;
+    }
+    if (str[1] == 'g' && str[2] == 't' && len >= 4 && str[3] == ';') {
+        man_buf_append_str(buf, ">");
+        return 4;
+    }
+    if (str[1] == 'a' && str[2] == 'm' && str[3] == 'p' && len >= 5 && str[4] == ';') {
+        man_buf_append_str(buf, "&");
+        return 5;
+    }
+    if (str[1] == 'q' && str[2] == 'u' && str[3] == 'o' && str[4] == 't' && len >= 6 && str[5] == ';') {
+        man_buf_append_str(buf, "\"");
+        return 6;
+    }
+    if (str[1] == '#' && len >= 4 && str[2] == '3' && str[3] == '9' && len >= 5 && str[4] == ';') {
+        man_buf_append_str(buf, "'");
+        return 5;
+    }
+    return 0;
+}
+
+/* Append HTML fragment (dt/dd content) as roff: handle <strong>, <em>, <code>, entities; strip other tags. */
+static void append_html_fragment_roff(man_buffer *buf, const char *str, size_t len) {
+    size_t i = 0;
+    while (i < len) {
+        if (str[i] == '<') {
+            size_t end = find_gt(str, len, i);
+            if (end < len) {
+                /* tag from i to end (inclusive) */
+                size_t tag_len = end - i + 1;
+                if (tag_len == 8 && strncmp(str + i, "<strong>", 8) == 0)
+                    man_buf_append_str(buf, "\\f[B]");
+                else if (tag_len == 9 && strncmp(str + i, "</strong>", 9) == 0)
+                    man_buf_append_str(buf, "\\f[]");
+                else if (tag_len == 5 && strncmp(str + i, "<em>", 5) == 0)
+                    man_buf_append_str(buf, "\\f[I]");
+                else if (tag_len == 6 && strncmp(str + i, "</em>", 6) == 0)
+                    man_buf_append_str(buf, "\\f[]");
+                else if (tag_len == 6 && strncmp(str + i, "<code>", 6) == 0)
+                    man_buf_append_str(buf, "\\fR");
+                else if (tag_len == 7 && strncmp(str + i, "</code>", 7) == 0)
+                    man_buf_append_str(buf, "\\f[]");
+                i = end + 1;
+                continue;
+            }
+        }
+        if (str[i] == '&') {
+            size_t consumed = decode_entity(buf, str + i, len - i);
+            if (consumed > 0) {
+                i += consumed;
+                continue;
+            }
+        }
+        /* plain text run */
+        size_t start = i;
+        while (i < len && str[i] != '<' && str[i] != '&') i++;
+        if (i > start)
+            man_buf_append_roff_safe(buf, str + start, i - start);
+    }
+}
+
+/* Return true if str starts with <dl> (optional whitespace). */
+static bool is_dl_block(const char *str, size_t len) {
+    while (len > 0 && (*str == ' ' || *str == '\n' || *str == '\t')) { str++; len--; }
+    return len >= 4 && str[0] == '<' && str[1] == 'd' && str[2] == 'l' && (str[3] == '>' || (len > 4 && str[3] == ' '));
+}
+
+/* Find content of first <dt>...</dt>: set *start and *content_len (inner text only). Return true if found. */
+static bool find_dt(const char *str, size_t len, size_t *start, size_t *content_len) {
+    const char *p = str;
+    size_t rem = len;
+    while (rem >= 4 && (p[0] != '<' || p[1] != 'd' || p[2] != 't')) {
+        p++; rem--;
+    }
+    if (rem < 4) return false;
+    p += 3; rem -= 3; /* skip <dt */
+    while (rem > 0 && *p != '>') { p++; rem--; }
+    if (rem == 0) return false;
+    p++; rem--; /* skip '>' */
+    while (rem > 0 && (*p == ' ' || *p == '\n')) { p++; rem--; }
+    const char *inner_start = p;
+    while (rem >= 6) {
+        if (p[0] == '<' && p[1] == '/' && p[2] == 'd' && p[3] == 't' && p[4] == '>') {
+            *start = (size_t)(inner_start - str);
+            *content_len = (size_t)(p - inner_start);
+            return true;
+        }
+        p++; rem--;
+    }
+    return false;
+}
+
+static bool find_dd(const char *str, size_t len, size_t *start, size_t *content_len) {
+    const char *p = str;
+    size_t rem = len;
+    while (rem >= 4 && (p[0] != '<' || p[1] != 'd' || p[2] != 'd')) {
+        p++; rem--;
+    }
+    if (rem < 4) return false;
+    p += 3; rem -= 3; /* skip <dd */
+    while (rem > 0 && *p != '>') { p++; rem--; }
+    if (rem == 0) return false;
+    p++; rem--; /* skip '>' */
+    while (rem > 0 && (*p == ' ' || *p == '\n')) { p++; rem--; }
+    const char *inner_start = p;
+    while (rem >= 6) {
+        if (p[0] == '<' && p[1] == '/' && p[2] == 'd' && p[3] == 'd' && p[4] == '>') {
+            *start = (size_t)(inner_start - str);
+            *content_len = (size_t)(p - inner_start);
+            return true;
+        }
+        p++; rem--;
+    }
+    return false;
+}
+
+/* If literal is a <dl><dt>...</dt><dd>...</dd></dl> block, emit roff and return true. */
+static bool render_dl_html_block_as_roff(man_buffer *buf, const char *lit, size_t lit_len) {
+    if (!lit || !is_dl_block(lit, lit_len)) return false;
+    size_t dt_start, dt_len, dd_start, dd_len;
+    if (!find_dt(lit, lit_len, &dt_start, &dt_len)) return false;
+    if (!find_dd(lit, lit_len, &dd_start, &dd_len)) return false;
+    man_buf_append_str(buf, "\n.TP\n");
+    append_html_fragment_roff(buf, lit + dt_start, dt_len);
+    man_buf_append_str(buf, "\n");
+    append_html_fragment_roff(buf, lit + dd_start, dd_len);
+    man_buf_append_str(buf, "\n");
+    return true;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -121,7 +286,8 @@ static void render_inline_roff(man_buffer *buf, cmark_node *node) {
             break;
         }
         case CMARK_NODE_CODE: {
-            man_buf_append_str(buf, "\\f[C]");
+            /* Use roman (\fR) for code; \f[C] causes "cannot select font 'C'" on some groff devices */
+            man_buf_append_str(buf, "\\fR");
             const char *lit = cmark_node_get_literal(node);
             if (lit) man_buf_append_roff_safe(buf, lit, strlen(lit));
             man_buf_append_str(buf, "\\f[]");
@@ -172,6 +338,9 @@ static void render_inline_roff(man_buffer *buf, cmark_node *node) {
 
 static void render_block_roff(man_buffer *buf, cmark_node *node);
 
+/* True after we emitted a <dl> block so the next paragraph is definition continuation (no .PP). */
+static bool roff_last_was_dl_dd = false;
+
 static void render_block_roff(man_buffer *buf, cmark_node *node) {
     if (!node) return;
     cmark_node_type t = cmark_node_get_type(node);
@@ -181,6 +350,7 @@ static void render_block_roff(man_buffer *buf, cmark_node *node) {
                 render_block_roff(buf, cur);
             break;
         case CMARK_NODE_HEADING: {
+            roff_last_was_dl_dd = false;
             int level = cmark_node_get_heading_level(node);
             man_buf_append_str(buf, level == 1 ? "\n.SH " : "\n.SS ");
             for (cmark_node *c = cmark_node_first_child(node); c; c = cmark_node_next(c))
@@ -190,16 +360,31 @@ static void render_block_roff(man_buffer *buf, cmark_node *node) {
         }
         case CMARK_NODE_PARAGRAPH: {
             cmark_node *parent = cmark_node_parent(node);
-            bool in_item = (parent && cmark_node_get_type(parent) == CMARK_NODE_ITEM && !cmark_node_previous(node));
-            if (!in_item) {
+            cmark_node_type pt = parent ? cmark_node_get_type(parent) : (cmark_node_type)0;
+            bool in_item = (pt == CMARK_NODE_ITEM);
+            bool in_def_data_first = (pt == APEX_NODE_DEFINITION_DATA && !cmark_node_previous(node));
+            bool in_def_term = (pt == APEX_NODE_DEFINITION_TERM);
+            bool continue_after_dd = roff_last_was_dl_dd;
+            bool para_has_content = (cmark_node_first_child(node) != NULL);
+            if (continue_after_dd) {
+                if (para_has_content)
+                    roff_last_was_dl_dd = false;
+                /* else leave flag set so next block (e.g. code block) is treated as continuation */
+            }
+            if (!in_item && !in_def_data_first && !in_def_term && !continue_after_dd) {
                 man_buf_append_str(buf, "\n.PP\n");
             }
+            /* After a dd continuation, join with a space so we don't get a stray line break */
+            if (continue_after_dd && para_has_content && buf->len > 0 && buf->buf[buf->len - 1] != '\n')
+                man_buf_append_str(buf, " ");
             for (cmark_node *c = cmark_node_first_child(node); c; c = cmark_node_next(c))
                 render_inline_roff(buf, c);
-            man_buf_append_str(buf, "\n");
+            if (para_has_content)
+                man_buf_append_str(buf, "\n");
             break;
         }
         case CMARK_NODE_LIST:
+            roff_last_was_dl_dd = false;
             for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                 render_block_roff(buf, cur);
             break;
@@ -218,25 +403,85 @@ static void render_block_roff(man_buffer *buf, cmark_node *node) {
             break;
         }
         case CMARK_NODE_CODE_BLOCK: {
-            man_buf_append_str(buf, "\n.PP\n.nf\n\\f[C]\n");
             const char *lit = cmark_node_get_literal(node);
-            if (lit) man_buf_append_roff_safe(buf, lit, strlen(lit));
+            cmark_node *parent = cmark_node_parent(node);
+            cmark_node_type pt = parent ? cmark_node_get_type(parent) : (cmark_node_type)0;
+            bool in_item = (pt == CMARK_NODE_ITEM);
+            /* Continuation: after <dl> dd, or inside list item (indented line in source) - no .PP/.nf/.fi */
+            if (roff_last_was_dl_dd || in_item) {
+                if (roff_last_was_dl_dd)
+                    roff_last_was_dl_dd = false;
+                if (buf->len > 0 && buf->buf[buf->len - 1] != '\n')
+                    man_buf_append_str(buf, " ");
+                if (lit) man_buf_append_roff_safe(buf, lit, strlen(lit));
+                man_buf_append_str(buf, "\n");
+                break;
+            }
+            roff_last_was_dl_dd = false;
+            /* \fR not \f[C] to avoid "cannot select font 'C'" on some groff devices */
+            man_buf_append_str(buf, "\n.PP\n.nf\n\\fR\n");
+            if (lit) {
+                /* Collapse runs of newlines to one so indented "lists" don't get extra blank lines */
+                size_t lit_len = strlen(lit);
+                for (size_t i = 0; i < lit_len; ) {
+                    size_t run = 0;
+                    while (i + run < lit_len && lit[i + run] == '\n') run++;
+                    if (run > 0) {
+                        man_buf_append_str(buf, "\n");
+                        i += run;
+                    } else {
+                        size_t text = 0;
+                        while (i + text < lit_len && lit[i + text] != '\n') text++;
+                        if (text > 0) {
+                            man_buf_append_roff_safe(buf, lit + i, text);
+                            i += text;
+                        } else {
+                            i++;
+                        }
+                    }
+                }
+            }
             man_buf_append_str(buf, "\n\\f[]\n.fi\n");
             break;
         }
         case CMARK_NODE_BLOCK_QUOTE:
+            roff_last_was_dl_dd = false;
             man_buf_append_str(buf, "\n.RS\n");
             for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                 render_block_roff(buf, cur);
             man_buf_append_str(buf, "\n.RE\n");
             break;
         case CMARK_NODE_THEMATIC_BREAK:
+            roff_last_was_dl_dd = false;
             man_buf_append_str(buf, "\n.PP\n  *  *  *  *  *\n");
             break;
-        case CMARK_NODE_HTML_BLOCK:
-            /* skip */
+        case CMARK_NODE_HTML_BLOCK: {
+            const char *lit = cmark_node_get_literal(node);
+            size_t lit_len = lit ? strlen(lit) : 0;
+            if (lit_len > 0 && render_dl_html_block_as_roff(buf, lit, lit_len))
+                roff_last_was_dl_dd = true;
             break;
+        }
         default:
+            roff_last_was_dl_dd = false;
+            /* Definition list (Apex extension): term = .TP + bold term, data = body */
+            if (t == APEX_NODE_DEFINITION_LIST) {
+                for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
+                    render_block_roff(buf, cur);
+                break;
+            }
+            if (t == APEX_NODE_DEFINITION_TERM) {
+                man_buf_append_str(buf, "\n.TP\n");
+                /* Term can contain a paragraph or direct inlines; recurse so paragraph content is emitted without .PP */
+                for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
+                    render_block_roff(buf, cur);
+                break;
+            }
+            if (t == APEX_NODE_DEFINITION_DATA) {
+                for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
+                    render_block_roff(buf, cur);
+                break;
+            }
             for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                 render_block_roff(buf, cur);
             break;
@@ -451,8 +696,13 @@ static void render_block_man_html(man_buffer *buf, cmark_node *node) {
         case CMARK_NODE_THEMATIC_BREAK:
             man_buf_append_str(buf, "\n<hr>\n");
             break;
-        case CMARK_NODE_HTML_BLOCK:
+        case CMARK_NODE_HTML_BLOCK: {
+            const char *lit = cmark_node_get_literal(node);
+            size_t lit_len = lit ? strlen(lit) : 0;
+            if (lit_len > 0 && is_dl_block(lit, lit_len))
+                man_buf_append(buf, lit, lit_len);
             break;
+        }
         default:
             for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                 render_block_man_html(buf, cur);

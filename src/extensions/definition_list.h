@@ -18,8 +18,10 @@
 extern "C" {
 #endif
 
-/* Custom node types for definition lists */
-/* Note: APEX_NODE_DEFINITION_* are defined as enum values in parser.h, not as variables */
+/* Custom node types for definition lists (assigned when extension is created) */
+extern cmark_node_type APEX_NODE_DEFINITION_LIST;
+extern cmark_node_type APEX_NODE_DEFINITION_TERM;
+extern cmark_node_type APEX_NODE_DEFINITION_DATA;
 
 /**
  * Process definition lists via preprocessing
@@ -28,6 +30,12 @@ extern "C" {
  * @param unsafe If true, allow raw HTML in output (pass CMARK_OPT_UNSAFE)
  */
 char *apex_process_definition_lists(const char *text, bool unsafe);
+
+/**
+ * When APEX_DEBUG_DEFLIST is set, create the debug log and write one line (conversion started).
+ * Call early in apex_markdown_to_html so the file exists even if the deflist preprocessor is never reached.
+ */
+void apex_deflist_debug_touch(int enable_definition_lists);
 
 /**
  * Create and return the definition list extension

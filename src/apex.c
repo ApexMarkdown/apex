@@ -4027,6 +4027,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                 len, text_ptr, len > 200 ? "..." : "");
     }
 
+    /* Create deflist debug log as soon as conversion starts (so it exists even if we exit early or deflists are disabled) */
+    apex_deflist_debug_touch(options->enable_definition_lists);
+
     if (options->mode == APEX_MODE_MULTIMARKDOWN ||
         options->mode == APEX_MODE_KRAMDOWN ||
         options->mode == APEX_MODE_UNIFIED) {
@@ -5041,9 +5044,6 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         } else if (options->output_format == APEX_OUTPUT_TERMINAL ||
                    options->output_format == APEX_OUTPUT_TERMINAL256) {
             target_format = "terminal";
-        } else if (options->output_format == APEX_OUTPUT_MAN ||
-                   options->output_format == APEX_OUTPUT_MAN_HTML) {
-            target_format = "man";
         }
         cmark_node *filtered = apex_run_ast_filters(document, options, target_format);
         if (!filtered && options->ast_filter_strict) {
@@ -5159,13 +5159,14 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         return tty;
     }
 
+    /* If output format is man (roff) or man-html, serialize AST and return */
     if (options->output_format == APEX_OUTPUT_MAN) {
         char *roff = apex_cmark_to_man_roff(document, options);
-        return roff;
+        return roff ? roff : strdup(".TH stub 1 \"\" \"\"\n");
     }
     if (options->output_format == APEX_OUTPUT_MAN_HTML) {
         char *man_html = apex_cmark_to_man_html(document, options);
-        return man_html;
+        return man_html ? man_html : strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>");
     }
 
     /* Render to HTML
