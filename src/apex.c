@@ -45,6 +45,7 @@
 #include "ast_json.h"
 #include "apex/ast_markdown.h"
 #include "apex/ast_terminal.h"
+#include "apex/ast_man.h"
 #include "filters_ast.h"
 
 /* Custom renderer */
@@ -5040,6 +5041,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         } else if (options->output_format == APEX_OUTPUT_TERMINAL ||
                    options->output_format == APEX_OUTPUT_TERMINAL256) {
             target_format = "terminal";
+        } else if (options->output_format == APEX_OUTPUT_MAN ||
+                   options->output_format == APEX_OUTPUT_MAN_HTML) {
+            target_format = "man";
         }
         cmark_node *filtered = apex_run_ast_filters(document, options, target_format);
         if (!filtered && options->ast_filter_strict) {
@@ -5153,6 +5157,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         bool use_256 = (options->output_format == APEX_OUTPUT_TERMINAL256);
         char *tty = apex_cmark_to_terminal(document, options, use_256);
         return tty;
+    }
+
+    if (options->output_format == APEX_OUTPUT_MAN) {
+        char *roff = apex_cmark_to_man_roff(document, options);
+        return roff;
+    }
+    if (options->output_format == APEX_OUTPUT_MAN_HTML) {
+        char *man_html = apex_cmark_to_man_html(document, options);
+        return man_html;
     }
 
     /* Render to HTML

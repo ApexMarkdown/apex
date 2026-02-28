@@ -111,6 +111,7 @@ set(APEX_LIB_SOURCES
     src/ast_json.c
     src/ast_markdown.c
     src/ast_terminal.c
+    src/ast_man.c
     src/filters_ast.c
     src/plugins_env.c
     src/plugins.c
