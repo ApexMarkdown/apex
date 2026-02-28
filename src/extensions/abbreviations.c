@@ -116,6 +116,9 @@ abbr_item *apex_extract_abbreviations(char **text_ptr) {
         free(processed);
     }
 
+    /* Tail must point to last node's next so reference-style defs append, not overwrite */
+    while (*tail) tail = &((*tail)->next);
+
     char *line_start = text;
     char *line_end;
     char *output = malloc(strlen(text) + 1);

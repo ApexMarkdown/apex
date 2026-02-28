@@ -1358,6 +1358,13 @@ void test_abbreviations(void) {
     assert_contains(html, "New Style", "New syntax in mixed");
     apex_free_string(html);
 
+    /* Test inline and reference-style in same document (both must be wrapped) */
+    const char *inline_and_ref = "This is HTML. And more [>(ABBR) abbreviation syntax].\n\n[>HTML]: Hypertext Markup Language";
+    html = apex_markdown_to_html(inline_and_ref, strlen(inline_and_ref), &opts);
+    assert_contains(html, "<abbr title=\"Hypertext Markup Language\">HTML</abbr>", "Reference abbr when mixed");
+    assert_contains(html, "<abbr title=\"abbreviation syntax\">ABBR</abbr>", "Inline abbr when mixed");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Abbreviations Tests", had_failures, false);
 }

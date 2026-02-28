@@ -48,12 +48,18 @@ static bool is_definition_line(const unsigned char *input, int len, int *indent)
 
     if (spaces >= len) return false;
 
-    /* Must start with : */
+    /* Must start with : or :: */
     if (input[spaces] != ':') return false;
 
+    int colon_offset = 1;
+    if (spaces + 2 <= len && input[spaces + 1] == ':') {
+        /* Kramdown-style :: */
+        colon_offset = 2;
+    }
+
     /* Must be followed by space or tab */
-    if (spaces + 1 >= len) return false;
-    if (input[spaces + 1] != ' ' && input[spaces + 1] != '\t') return false;
+    if (spaces + colon_offset >= len) return false;
+    if (input[spaces + colon_offset] != ' ' && input[spaces + colon_offset] != '\t') return false;
 
     *indent = spaces;
     return true;
