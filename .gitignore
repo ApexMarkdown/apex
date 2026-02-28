@@ -69,3 +69,6 @@ documentation/transform_for_app.md
 /build-test/apex_test_runner
 /build-test/apex
 .beads
+
+# Git worktrees
+.worktrees/
