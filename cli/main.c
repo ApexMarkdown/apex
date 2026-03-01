@@ -475,7 +475,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)\n");
     fprintf(stderr, "  --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times\n");
     fprintf(stderr, "  --captions POSITION    Table caption position: above or below (default: below)\n");
-    fprintf(stderr, "  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, or abbreviations p, s)\n");
+    fprintf(stderr, "  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, shiki, or abbreviations p, s, sh)\n");
     fprintf(stderr, "  --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)\n");
     fprintf(stderr, "  --highlight-language-only  Only highlight code blocks that have a language specified (requires --code-highlight)\n");
     fprintf(stderr, "  --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream\n");
@@ -1851,7 +1851,7 @@ int main(int argc, char *argv[]) {
             }
         } else if (strcmp(argv[i], "--code-highlight") == 0) {
             if (++i >= argc) {
-                fprintf(stderr, "Error: --code-highlight requires a tool name (pygments, skylighting, or abbreviations p, s)\n");
+                fprintf(stderr, "Error: --code-highlight requires a tool name (pygments, skylighting, shiki, or abbreviations p, s, sh)\n");
                 return 1;
             }
             /* Accept full names and abbreviations */
@@ -1859,8 +1859,10 @@ int main(int argc, char *argv[]) {
                 options.code_highlighter = "pygments";
             } else if (strcmp(argv[i], "skylighting") == 0 || strcmp(argv[i], "s") == 0 || strcmp(argv[i], "sky") == 0) {
                 options.code_highlighter = "skylighting";
+            } else if (strcmp(argv[i], "shiki") == 0 || strcmp(argv[i], "sh") == 0) {
+                options.code_highlighter = "shiki";
             } else {
-                fprintf(stderr, "Error: --code-highlight tool must be 'pygments' (p) or 'skylighting' (s)\n");
+                fprintf(stderr, "Error: --code-highlight tool must be 'pygments' (p), 'skylighting' (s), or 'shiki' (sh)\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "--code-line-numbers") == 0) {

@@ -42,7 +42,7 @@ one tool.
 - **Smart typography**: Automatic conversion of quotes, dashes, ellipses, and more
 - **Math support**: LaTeX math expressions with `$...$` (inline) and `$$...$$` (display)
 
-- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments or Skylighting with `--code-highlight` flag.
+- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments, Skylighting, or Shiki with `--code-highlight` flag.
 
   Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
 
@@ -119,7 +119,7 @@ one tool.
 - **Flexible output**: Compact HTML fragments, pretty-printed HTML, or complete standalone documents
 - **Standalone documents**: Generate complete HTML5 documents with `<html>`, `<head>`, `<body>` tags
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
-- **Syntax highlighting**: External syntax highlighting via Pygments or Skylighting with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
+- **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
 - **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# 😄 Support` → `id="smile-support"`), matching Pandoc's GFM behavior
@@ -292,7 +292,7 @@ apex input.md --mode kramdown
 
 `--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
 
-`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg` or `skylighting`/`s`/`sky`). Automatically includes GitHub-style CSS in standalone mode
+`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg`, `skylighting`/`s`/`sky`, or `shiki`/`sh`). Uses HTML or ANSI output based on destination format. Automatically includes GitHub-style CSS in standalone mode
 
 `--code-line-numbers` - Include line numbers in syntax-highlighted code blocks (requires `--code-highlight`)
 

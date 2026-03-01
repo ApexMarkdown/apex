@@ -5497,7 +5497,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Apply external syntax highlighting if requested */
     if (options->code_highlighter && html) {
         PROFILE_START(syntax_highlight);
-        char *highlighted = apex_apply_syntax_highlighting(html, options->code_highlighter, options->code_line_numbers, options->highlight_language_only);
+        bool ansi_out = (options->output_format == APEX_OUTPUT_TERMINAL || options->output_format == APEX_OUTPUT_TERMINAL256);
+        char *highlighted = apex_apply_syntax_highlighting(html, options->code_highlighter, options->code_line_numbers, options->highlight_language_only, ansi_out);
         PROFILE_END(syntax_highlight);
         if (highlighted && highlighted != html) {
             free(html);

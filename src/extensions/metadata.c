@@ -2833,6 +2833,8 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
                     options->code_highlighter = "pygments";
                 } else if (strcmp(lower, "skylighting") == 0 || strcmp(lower, "s") == 0 || strcmp(lower, "sky") == 0) {
                     options->code_highlighter = "skylighting";
+                } else if (strcmp(lower, "shiki") == 0 || strcmp(lower, "sh") == 0) {
+                    options->code_highlighter = "shiki";
                 } else if (is_false_value(lower) || strcmp(lower, "none") == 0) {
                     options->code_highlighter = NULL;
                 }

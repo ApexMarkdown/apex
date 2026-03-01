@@ -187,7 +187,7 @@ void test_syntax_highlight_integration(void) {
     {
         const char *html_in =
             "<pre><code class=\"language-python\">print(&quot;hi&quot;)\n</code></pre>";
-        char *out = apex_apply_syntax_highlighting(html_in, "pygments", false, false);
+        char *out = apex_apply_syntax_highlighting(html_in, "pygments", false, false, false);
         assert_contains(out, "class=\"highlight\"", "direct: class=language-... triggers highlighting");
         free(out);
     }

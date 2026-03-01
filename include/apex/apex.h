@@ -181,7 +181,7 @@ typedef struct {
     bool enable_emoji_autocorrect;  /* Enable emoji name autocorrect (enabled by default in unified mode) */
 
     /* Syntax highlighting options */
-    const char *code_highlighter;   /* External tool: "pygments", "skylighting", or NULL for no highlighting */
+    const char *code_highlighter;   /* External tool: "pygments", "skylighting", "shiki", or NULL for no highlighting */
     bool code_line_numbers;         /* Enable line numbers in syntax-highlighted code blocks */
     bool highlight_language_only;   /* Only highlight code blocks that have a language specified */
 

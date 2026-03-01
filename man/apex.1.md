@@ -66,16 +66,19 @@ and the terminal itself controls line wrapping.
 
 **--code-highlight** *TOOL*
 : Use external tool for syntax highlighting of code blocks.
-*TOOL* must be **pygments** (or **p**, **pyg**) or **skylighting**
-(or **s**, **sky**). Code blocks are sent to the external tool
-with their language specifier (if present) or with
-auto-detection enabled. The highlighted HTML output replaces the
-original code block in the document.
+*TOOL* must be **pygments** (or **p**, **pyg**), **skylighting**
+(or **s**, **sky**), or **shiki** (or **sh**). Code blocks are sent
+to the external tool with their language specifier (if present) or
+with auto-detection enabled. Output format is HTML or ANSI
+depending on destination (e.g. **--to terminal**). Shiki requires
+a language when it cannot auto-detect; on error, the block is
+left as plain text.
 
 **--code-line-numbers**
 : Include line numbers in syntax-highlighted code blocks.
 Requires **--code-highlight**. When used with Pygments, adds
 `linenos=1` option. When used with Skylighting, adds `-n` flag.
+Shiki does not support line numbers in CLI mode.
 
 **--highlight-language-only**
 : Only apply syntax highlighting to code blocks that have a language
@@ -128,16 +131,18 @@ terminal emulators.
 
 **--code-highlight** *TOOL*
 : Use external tool for syntax highlighting of code blocks.
-*TOOL* must be **pygments** (or abbreviations **p**, **pyg**) or
-**skylighting** (or abbreviations **s**, **sky**). Code blocks
-are sent to the external tool with their language specifier (if
-present) or with auto-detection enabled. The highlighted HTML
-output replaces the original code block in the document.
+*TOOL* must be **pygments** (or **p**, **pyg**), **skylighting**
+(or **s**, **sky**), or **shiki** (or **sh**). Code blocks are sent
+to the external tool with their language specifier (if present) or
+with auto-detection enabled. Output format is HTML or ANSI
+depending on destination. Shiki falls back to plain text when
+language cannot be determined.
 
 **--code-line-numbers**
 : Include line numbers in syntax-highlighted code blocks.
 Requires **--code-highlight**. When used with Pygments, adds
 `linenos=1` option. When used with Skylighting, adds `-n` flag.
+Shiki does not support line numbers in CLI mode.
 
 **--highlight-language-only**
 : Only apply syntax highlighting to code blocks that have a language

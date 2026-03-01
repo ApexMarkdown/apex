@@ -25,6 +25,8 @@ static const char *get_tool_binary(const char *tool) {
         return "pygmentize";
     } else if (strcmp(tool, "skylighting") == 0) {
         return "skylighting";
+    } else if (strcmp(tool, "shiki") == 0) {
+        return "shiki";
     }
     return NULL;
 }
@@ -189,10 +191,10 @@ static char *run_command(const char *cmd, const char *input) {
 
 /**
  * Highlight a single code block using the specified tool.
- * Returns newly allocated HTML, or NULL on failure.
+ * Returns newly allocated HTML (or ANSI when ansi_output is true), or NULL on failure.
  */
 static char *highlight_code_block(const char *code, const char *language,
-                                  const char *tool, bool line_numbers) {
+                                  const char *tool, bool line_numbers, bool ansi_output) {
     char cmd[512];
     const char *binary = get_tool_binary(tool);
     if (!binary) return NULL;
@@ -230,6 +232,17 @@ static char *highlight_code_block(const char *code, const char *language,
                 snprintf(cmd, sizeof(cmd), "%s -f html -r", binary);
             }
         }
+    } else if (strcmp(tool, "shiki") == 0) {
+        /* Shiki CLI: shiki [--lang LANG] --format html|ansi
+         * Reads code from stdin. Exits non-zero if lang is missing and cannot be auto-detected;
+         * we capture that and fall back to plain text. */
+        const char *fmt = ansi_output ? "ansi" : "html";
+        if (language && *language) {
+            snprintf(cmd, sizeof(cmd), "%s --lang %s --format %s", binary, language, fmt);
+        } else {
+            /* No language: Shiki may fail (non-zero exit); run_command returns NULL → we use original block */
+            snprintf(cmd, sizeof(cmd), "%s --format %s", binary, fmt);
+        }
     } else {
         return NULL;
     }
@@ -240,7 +253,7 @@ static char *highlight_code_block(const char *code, const char *language,
 /**
  * Apply syntax highlighting to code blocks in HTML.
  */
-char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool line_numbers, bool language_only) {
+char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool line_numbers, bool language_only, bool ansi_output) {
     if (!html || !tool) return html ? strdup(html) : NULL;
 
     /* Check if tool is available */
@@ -399,7 +412,7 @@ char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool li
             }
 
             /* Run syntax highlighter */
-            char *highlighted = highlight_code_block(code, language, tool, line_numbers);
+            char *highlighted = highlight_code_block(code, language, tool, line_numbers, ansi_output);
             free(code);
 
             if (highlighted && *highlighted) {

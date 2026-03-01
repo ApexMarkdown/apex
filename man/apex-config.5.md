@@ -226,7 +226,7 @@ String keys take a free-form string value (sometimes with a constrained set of o
 - `quoteslanguage` / `Quotes Language`
   - Human-readable language name used for quote styling (e.g. `english`, `french`, `german`)
 - `code-highlight`
-  - External syntax highlighting tool: `pygments` (or `p`/`pyg`), `skylighting` (or `s`/`sky`), or `false`/`none` to disable
+  - External syntax highlighting tool: `pygments` (or `p`/`pyg`), `skylighting` (or `s`/`sky`), `shiki` (or `sh`), or `false`/`none` to disable
 
 You can also use arbitrary keys for your own templates and transforms; Apex simply passes them through to the metadata system so they can be referenced via `[%key]` and `[%key:transform]`.
 
