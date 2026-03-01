@@ -482,8 +482,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "                         When a SUMMARY.md file is provided, treat it as a GitBook index and combine\n");
     fprintf(stderr, "                         the linked files in order. Output is raw Markdown suitable for piping back into Apex.\n");
     fprintf(stderr, "  --csl FILE              Citation style file (CSL format)\n");
-    fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file(s) in document head (requires --standalone, overrides CSS metadata)\n");
-    fprintf(stderr, "                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)\n");
+    fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file(s) in document head. With HTML: requires -s/--standalone.\n");
+    fprintf(stderr, "                         With -t man-html -s: include custom CSS in the man page. Can be used multiple times or comma-separated (e.g., --css style.css)\n");
     fprintf(stderr, "  --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)\n");
     fprintf(stderr, "  --embed-images         Embed local images as base64 data URLs in HTML output\n");
     fprintf(stderr, "  --[no-]image-captions  Wrap images with title or alt text in <figure>/<figcaption> (default: on in unified/mmd)\n");
@@ -542,7 +542,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).\n");
     fprintf(stderr, "                          VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.\n");
     fprintf(stderr, "  --show-tooltips         Show tooltips on citations\n");
-    fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
+    fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>). For -t man-html, -s adds nav sidebar and full page; without -s, output is snippet only.\n");
     fprintf(stderr, "  --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
     fprintf(stderr, "  --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing\n");
     fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");

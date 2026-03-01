@@ -5,6 +5,7 @@
 
 #include "apex/ast_man.h"
 #include "extensions/definition_list.h"
+#include "extensions/syntax_highlight.h"
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -268,6 +269,61 @@ static char *get_first_h1_text(cmark_node *document) {
         }
     }
     return NULL;
+}
+
+/* Caller frees. Returns plain text of first paragraph after NAME heading, or NULL. */
+static char *get_name_section_paragraph_text(cmark_node *document) {
+    if (!document || cmark_node_get_type(document) != CMARK_NODE_DOCUMENT) return NULL;
+    cmark_node *name_heading = NULL;
+    for (cmark_node *cur = cmark_node_first_child(document); cur; cur = cmark_node_next(cur)) {
+        if (cmark_node_get_type(cur) == CMARK_NODE_HEADING && cmark_node_get_heading_level(cur) == 1) {
+            man_buffer b;
+            man_buf_init(&b);
+            collect_plain_text(cur, &b);
+            if (b.len > 0 && b.buf) {
+                if (strcmp(b.buf, "NAME") == 0) {
+                    name_heading = cur;
+                    free(b.buf);
+                    break;
+                }
+                free(b.buf);
+            }
+        }
+    }
+    if (!name_heading) return NULL;
+    for (cmark_node *cur = cmark_node_next(name_heading); cur; cur = cmark_node_next(cur)) {
+        if (cmark_node_get_type(cur) == CMARK_NODE_PARAGRAPH) {
+            man_buffer b;
+            man_buf_init(&b);
+            collect_plain_text(cur, &b);
+            if (b.len > 0 && b.buf) {
+                char *s = strdup(b.buf);
+                free(b.buf);
+                return s;
+            }
+            if (b.buf) free(b.buf);
+            return NULL;
+        }
+        if (cmark_node_get_type(cur) == CMARK_NODE_HEADING) break;
+    }
+    return NULL;
+}
+
+/* Normalize s: trim, collapse runs of whitespace (including newlines) to single space. Modifies s. */
+static void normalize_whitespace(char *s) {
+    if (!s || !*s) return;
+    char *r = s, *w = s;
+    while (*r == ' ' || *r == '\t' || *r == '\n' || *r == '\r') r++;
+    while (*r) {
+        if (*r == ' ' || *r == '\t' || *r == '\n' || *r == '\r') {
+            *w++ = ' ';
+            do r++; while (*r == ' ' || *r == '\t' || *r == '\n' || *r == '\r');
+        } else {
+            *w++ = *r++;
+        }
+    }
+    while (w > s && (w[-1] == ' ' || w[-1] == '\t')) w--;
+    *w = '\0';
 }
 
 /* ------------------------------------------------------------------------- */
@@ -547,15 +603,23 @@ static void man_buf_append_html_escaped(man_buffer *b, const char *str, size_t l
 }
 
 static const char *man_html_css =
-    "body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 65em; margin: 1em auto; padding: 0 1em; line-height: 1.4; }\n"
-    ".man-title { font-weight: bold; margin-bottom: 0.5em; }\n"
+    "body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 65em; margin: 1em auto; padding: 0 1em; line-height: 1.4; color: #333; }\n"
+    "body.man-standalone { margin: 0; }\n"
+    ".man-headline { font-size: 1.75rem; font-weight: bold; margin: 0.5em 0 0.75em; border-bottom: none; color: #a02172; }\n"
+    ".man-nav { position: fixed; left: 0; top: 0; width: 14em; height: 100vh; overflow-y: auto; padding: 1.25em 1.5em; border-right: 1px solid #e0ddd6; background: #f5f4f0; font-size: 0.9rem; }\n"
+    ".man-nav ul { list-style: none; padding: 0; margin: 0; }\n"
+    ".man-nav li { margin: 0.35em 0; }\n"
+    ".man-nav a { color: #444; text-decoration: none; display: block; padding: 0.2em 0; }\n"
+    ".man-nav a:hover { color: #2376b1; background: rgba(0,0,0,0.03); }\n"
+    ".man-main { margin-left: 16em; padding: 1.5em 2em; max-width: 65em; }\n"
     ".man-section { font-weight: bold; margin-top: 1em; margin-bottom: 0.25em; }\n"
-    ".man-section h2 { font-size: 1em; margin: 0; }\n"
+    ".man-section h2, .man-section h3, .man-section h4 { font-size: 1em; margin: 0; color: #3f789b; }\n"
     "p { margin: 0.5em 0; }\n"
+    "strong, .man-option { color: #a02172; font-weight: bold; }\n"
     "code, .man-option { font-family: monospace; background: #f5f5f5; padding: 0 0.2em; }\n"
     "pre { background: #f5f5f5; padding: 0.75em; overflow-x: auto; }\n"
     "ul, ol { margin: 0.5em 0; padding-left: 1.5em; }\n"
-    "a { color: #0066cc; }\n";
+    "a { color: #2376b1; }\n";
 
 static void render_inline_man_html(man_buffer *buf, cmark_node *node);
 static void render_block_man_html(man_buffer *buf, cmark_node *node);
@@ -629,6 +693,40 @@ static void section_id_from_heading(cmark_node *node, man_buffer *buf) {
         }
         section_id_from_heading(c, buf);
     }
+}
+
+#define MAN_HTML_MAX_SECTIONS 48
+typedef struct { char id[72]; char label[72]; } man_section_entry;
+
+static size_t collect_man_sections(cmark_node *document, man_section_entry *out) {
+    size_t n = 0;
+    if (!document || cmark_node_get_type(document) != CMARK_NODE_DOCUMENT) return 0;
+    for (cmark_node *cur = cmark_node_first_child(document); cur && n < MAN_HTML_MAX_SECTIONS; cur = cmark_node_next(cur)) {
+        if (cmark_node_get_type(cur) != CMARK_NODE_HEADING || cmark_node_get_heading_level(cur) != 1) continue;
+        man_buffer id_buf, label_buf;
+        man_buf_init(&id_buf);
+        man_buf_init(&label_buf);
+        section_id_from_heading(cur, &id_buf);
+        collect_plain_text(cur, &label_buf);
+        if (id_buf.len > 0 && id_buf.buf) {
+            size_t id_len = id_buf.len < 71 ? id_buf.len : 71;
+            memcpy(out[n].id, id_buf.buf, id_len);
+            out[n].id[id_len] = '\0';
+        } else {
+            out[n].id[0] = '\0';
+        }
+        if (label_buf.len > 0 && label_buf.buf) {
+            size_t lab_len = label_buf.len < 71 ? label_buf.len : 71;
+            memcpy(out[n].label, label_buf.buf, lab_len);
+            out[n].label[lab_len] = '\0';
+        } else {
+            out[n].label[0] = '\0';
+        }
+        if (id_buf.buf) free(id_buf.buf);
+        if (label_buf.buf) free(label_buf.buf);
+        n++;
+    }
+    return n;
 }
 
 static void render_block_man_html(man_buffer *buf, cmark_node *node) {
@@ -712,26 +810,112 @@ static void render_block_man_html(man_buffer *buf, cmark_node *node) {
 
 char *apex_cmark_to_man_html(cmark_node *document, const apex_options *options)
 {
-    (void)options;
     if (!document) return strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>");
 
-    const char *title = "Document";
-    char *first_h1 = get_first_h1_text(document);
-    if (first_h1 && first_h1[0]) title = first_h1;
+    bool standalone = options && options->standalone;
+
+    if (!standalone) {
+        man_buffer buf;
+        man_buf_init(&buf);
+        render_block_man_html(&buf, document);
+        if (!buf.buf) return strdup("");
+        char *out = buf.buf;
+        if (options && options->code_highlighter && options->code_highlighter[0]) {
+            char *hl = apex_apply_syntax_highlighting(out, options->code_highlighter, false, false);
+            if (hl) {
+                free(out);
+                out = hl;
+            }
+        }
+        return out;
+    }
+
+    char *headline_cmd = NULL;
+    char *headline_desc = NULL;
+    char *name_line = get_name_section_paragraph_text(document);
+    if (name_line && name_line[0]) {
+        const char *sep = strstr(name_line, " - ");
+        if (sep) {
+            size_t cmd_len = (size_t)(sep - name_line);
+            headline_cmd = (char *)malloc(cmd_len + 1);
+            if (headline_cmd) {
+                memcpy(headline_cmd, name_line, cmd_len);
+                headline_cmd[cmd_len] = '\0';
+                normalize_whitespace(headline_cmd);
+            }
+            headline_desc = strdup(sep + 3);
+            if (headline_desc) normalize_whitespace(headline_desc);
+        } else {
+            headline_cmd = strdup(name_line);
+            if (headline_cmd) normalize_whitespace(headline_cmd);
+            headline_desc = strdup("manual page");
+        }
+        free(name_line);
+    }
+    if (!headline_cmd) headline_cmd = strdup("Document");
+    if (!headline_desc) headline_desc = strdup("manual page");
+    if (options->document_title && options->document_title[0]) {
+        const char *dt = options->document_title;
+        if (strchr(dt, '(') && strchr(dt, ')')) {
+            free(headline_cmd);
+            headline_cmd = strdup(dt);
+        }
+    }
+
+    man_section_entry sections[MAN_HTML_MAX_SECTIONS];
+    size_t n_sections = collect_man_sections(document, sections);
 
     man_buffer buf;
     man_buf_init(&buf);
     man_buf_append_str(&buf, "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<title>");
-    man_buf_append_html_escaped(&buf, title, strlen(title));
+    man_buf_append_html_escaped(&buf, headline_cmd, strlen(headline_cmd));
+    man_buf_append_str(&buf, " — ");
+    man_buf_append_html_escaped(&buf, headline_desc, strlen(headline_desc));
     man_buf_append_str(&buf, "</title>\n<style>\n");
     man_buf_append_str(&buf, man_html_css);
-    man_buf_append_str(&buf, "</style>\n</head>\n<body>\n<div class=\"man-title\">");
-    man_buf_append_html_escaped(&buf, title, strlen(title));
-    man_buf_append_str(&buf, "</div>\n");
-    render_block_man_html(&buf, document);
-    man_buf_append_str(&buf, "\n</body>\n</html>");
+    man_buf_append_str(&buf, "</style>\n");
+    if (options->stylesheet_paths && options->stylesheet_count > 0) {
+        for (size_t i = 0; i < options->stylesheet_count && options->stylesheet_paths[i]; i++) {
+            man_buf_append_str(&buf, "<link rel=\"stylesheet\" href=\"");
+            man_buf_append_html_escaped(&buf, options->stylesheet_paths[i], strlen(options->stylesheet_paths[i]));
+            man_buf_append_str(&buf, "\">\n");
+        }
+    }
+    man_buf_append_str(&buf, "</head>\n<body class=\"man-standalone\">\n");
 
-    if (first_h1) free(first_h1);
+    if (n_sections > 0) {
+        man_buf_append_str(&buf, "<nav class=\"man-nav\"><ul>\n");
+        for (size_t i = 0; i < n_sections; i++) {
+            if (sections[i].id[0]) {
+                man_buf_append_str(&buf, "<li><a href=\"#");
+                man_buf_append_html_escaped(&buf, sections[i].id, strlen(sections[i].id));
+                man_buf_append_str(&buf, "\">");
+                man_buf_append_html_escaped(&buf, sections[i].label, strlen(sections[i].label));
+                man_buf_append_str(&buf, "</a></li>\n");
+            }
+        }
+        man_buf_append_str(&buf, "</ul></nav>\n");
+    }
+
+    man_buf_append_str(&buf, "<main class=\"man-main\">\n<h1 class=\"man-headline\">");
+    man_buf_append_html_escaped(&buf, headline_cmd, strlen(headline_cmd));
+    man_buf_append_str(&buf, " — ");
+    man_buf_append_html_escaped(&buf, headline_desc, strlen(headline_desc));
+    man_buf_append_str(&buf, "</h1>\n");
+    if (headline_cmd) free(headline_cmd);
+    if (headline_desc) free(headline_desc);
+    render_block_man_html(&buf, document);
+    man_buf_append_str(&buf, "\n</main>\n</body>\n</html>");
+
     if (!buf.buf) return strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>");
-    return buf.buf;
+
+    char *out = buf.buf;
+    if (options->code_highlighter && options->code_highlighter[0]) {
+        char *hl = apex_apply_syntax_highlighting(out, options->code_highlighter, false, false);
+        if (hl) {
+            free(out);
+            out = hl;
+        }
+    }
+    return out;
 }
