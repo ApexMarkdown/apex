@@ -57,6 +57,28 @@ void test_toc(void) {
     assert_contains(html, "H2", "Includes H2");
     apex_free_string(html);
 
+    /* TOC inside inline code (backticks) must not be rendered */
+    const char *toc_inline_code = "# Title\n\nUse `{{TOC}}` in your template.\n\n## Section";
+    html = apex_markdown_to_html(toc_inline_code, strlen(toc_inline_code), &opts);
+    assert_contains(html, "<code>{{TOC}}</code>", "TOC in inline code is literal");
+    assert_contains(html, "Section", "Headers still in document");
+    apex_free_string(html);
+
+    /* TOC inside fenced code block must not be rendered */
+    const char *toc_code_block = "# Title\n\n```\n{{TOC}}\n```\n\n## Section";
+    html = apex_markdown_to_html(toc_code_block, strlen(toc_code_block), &opts);
+    assert_contains(html, "{{TOC}}", "TOC in code block is literal");
+    assert_contains(html, "<pre>", "Code block present");
+    apex_free_string(html);
+
+    /* First valid TOC (not in code) is used when one is in code and one is not */
+    const char *toc_then_real = "# Title\n\n`{{TOC}}`\n\n<!--TOC-->\n\n## Section";
+    html = apex_markdown_to_html(toc_then_real, strlen(toc_then_real), &opts);
+    assert_contains(html, "<code>{{TOC}}</code>", "TOC in code stays literal");
+    assert_contains(html, "<nav class=\"toc\">", "Real TOC marker is rendered");
+    assert_contains(html, "Section", "TOC includes section");
+    apex_free_string(html);
+
     /* Test document without TOC marker */
     const char *no_toc = "# Header\n\nContent";
     html = apex_markdown_to_html(no_toc, strlen(no_toc), &opts);

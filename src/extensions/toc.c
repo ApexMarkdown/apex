@@ -160,6 +160,62 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
 }
 
 /**
+ * Return true if position 'pos' in 'html' is inside a <code> or <pre> element.
+ * Used to skip TOC markers that appear in code blocks or inline code.
+ */
+static int is_inside_code_or_pre(const char *html, size_t pos) {
+    int in_code = 0;
+    int in_pre = 0;
+    size_t i = 0;
+    size_t len = pos;
+
+    while (i < len) {
+        if (html[i] == '<') {
+            if (i + 5 <= len && (html[i+1] == 'c' || html[i+1] == 'C') &&
+                (html[i+2] == 'o' || html[i+2] == 'O') &&
+                (html[i+3] == 'd' || html[i+3] == 'D') &&
+                (html[i+4] == 'e' || html[i+4] == 'E')) {
+                char next = (i + 5 < len) ? html[i + 5] : '\0';
+                if (next == '>' || next == ' ' || next == '\t' || next == '\n') {
+                    in_code++;
+                    i += 5;
+                    continue;
+                }
+            }
+            if (i + 4 <= len && (html[i+1] == 'p' || html[i+1] == 'P') &&
+                (html[i+2] == 'r' || html[i+2] == 'R') &&
+                (html[i+3] == 'e' || html[i+3] == 'E')) {
+                char next = (i + 4 < len) ? html[i + 4] : '\0';
+                if (next == '>' || next == ' ' || next == '\t' || next == '\n') {
+                    in_pre++;
+                    i += 4;
+                    continue;
+                }
+            }
+            if (i + 7 <= len && html[i+1] == '/' &&
+                (html[i+2] == 'c' || html[i+2] == 'C') &&
+                (html[i+3] == 'o' || html[i+3] == 'O') &&
+                (html[i+4] == 'd' || html[i+4] == 'D') &&
+                (html[i+5] == 'e' || html[i+5] == 'E') && html[i+6] == '>') {
+                if (in_code > 0) in_code--;
+                i += 7;
+                continue;
+            }
+            if (i + 6 <= len && html[i+1] == '/' &&
+                (html[i+2] == 'p' || html[i+2] == 'P') &&
+                (html[i+3] == 'r' || html[i+3] == 'R') &&
+                (html[i+4] == 'e' || html[i+4] == 'E') && html[i+5] == '>') {
+                if (in_pre > 0) in_pre--;
+                i += 6;
+                continue;
+            }
+        }
+        i++;
+    }
+    return (in_code > 0 || in_pre > 0);
+}
+
+/**
  * Parse TOC marker for min/max levels
  */
 static void parse_toc_marker(const char *marker, int *min_level, int *max_level) {
@@ -201,17 +257,56 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level)
 }
 
 /**
+ * Find the first TOC marker (<!--TOC or {{TOC) that is not inside <code> or <pre>.
+ * Returns pointer to the marker, or NULL if none valid. *is_html_comment is set
+ * to 1 for <!--TOC, 0 for {{TOC.
+ */
+static const char *find_toc_marker_not_in_code(const char *html, int *is_html_comment) {
+    const char *p = html;
+    *is_html_comment = 0;
+
+    while (1) {
+        const char *next_comment = strstr(p, "<!--TOC");
+        const char *next_mmd = strstr(p, "{{TOC");
+
+        /* No more markers */
+        if (!next_comment && !next_mmd) return NULL;
+
+        /* Pick the earlier of the two */
+        const char *cand = NULL;
+        if (next_comment && next_mmd) {
+            cand = (next_comment < next_mmd) ? next_comment : next_mmd;
+        } else {
+            cand = next_comment ? next_comment : next_mmd;
+        }
+
+        if (!is_inside_code_or_pre(html, (size_t)(cand - html))) {
+            *is_html_comment = (cand == next_comment);
+            return cand;
+        }
+
+        /* This occurrence is inside code; skip past it and search again */
+        if (cand == next_comment) {
+            const char *end = strstr(cand, "-->");
+            p = end ? end + 3 : cand + 1;
+        } else {
+            const char *end = strstr(cand, "}}");
+            p = end ? end + 2 : cand + 1;
+        }
+    }
+}
+
+/**
  * Process TOC markers in HTML
  */
 char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
     if (!html || !document) return html ? strdup(html) : NULL;
 
-    /* Check if there are any TOC markers */
-    const char *toc_marker = strstr(html, "<!--TOC");
-    const char *toc_mmd = strstr(html, "{{TOC");
+    int is_html_comment = 0;
+    const char *marker = find_toc_marker_not_in_code(html, &is_html_comment);
 
-    if (!toc_marker && !toc_mmd) {
-        return strdup(html);  /* No TOC markers, return as-is */
+    if (!marker) {
+        return strdup(html);  /* No valid TOC marker (or all are in code), return as-is */
     }
 
     /* Collect headers from document */
@@ -224,8 +319,7 @@ char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
         h->id = apex_generate_header_id(h->text, (apex_id_format_t)id_format);
     }
 
-    /* Find the marker and parse it */
-    const char *marker = toc_marker ? toc_marker : toc_mmd;
+    /* Parse the marker for min/max levels */
     int min_level, max_level;
     parse_toc_marker(marker, &min_level, &max_level);
 
@@ -247,10 +341,10 @@ char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
 
     /* Find end of marker */
     const char *marker_end = NULL;
-    if (toc_marker) {
+    if (is_html_comment) {
         marker_end = strstr(marker, "-->");
         if (marker_end) marker_end += 3;
-    } else if (toc_mmd) {
+    } else {
         marker_end = strstr(marker, "}}");
         if (marker_end) marker_end += 2;
     }
@@ -262,7 +356,7 @@ char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
     }
 
     /* Build output: before + TOC + after */
-    size_t before_len = marker - html;
+    size_t before_len = (size_t)(marker - html);
     size_t after_len = strlen(marker_end);
 
     memcpy(output, html, before_len);
