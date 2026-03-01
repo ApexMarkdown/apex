@@ -78,7 +78,7 @@ help:
 	@echo "  make bump-major             - Bump major version (0.1.0 -> 1.0.0)"
 	@echo ""
 	@echo "Documentation:"
-	@echo "  make man                    - Generate man page from Markdown (requires pandoc or go-md2man)"
+	@echo "  make man                    - Generate man pages from Markdown (using apex -t man; runs build if needed)"
 	@echo ""
 	@echo "Release builds:"
 	@echo "  make release                - Build release binary for current platform"
@@ -130,29 +130,12 @@ install: build
 	@cmake --install build
 	@echo "Installation complete!"
 
-# Man page generation
-man:
-	@echo "Generating man pages..."
-	@if command -v pandoc >/dev/null 2>&1; then \
-		pandoc -f markdown-smart -s -t man -o man/apex.1 man/apex.1.md && \
-		echo "Man page generated: man/apex.1 (using pandoc)"; \
-		pandoc -f markdown-smart -s -t man -o man/apex-config.5 man/apex-config.5.md && \
-		echo "Man page generated: man/apex-config.5 (using pandoc)"; \
-		pandoc -f markdown-smart -s -t man -o man/apex-plugins.7 man/apex-plugins.7.md && \
-		echo "Man page generated: man/apex-plugins.7 (using pandoc)"; \
-	elif command -v go-md2man >/dev/null 2>&1; then \
-		go-md2man -in=man/apex.1.md -out=man/apex.1 && \
-		echo "Man page generated: man/apex.1 (using go-md2man)"; \
-		go-md2man -in=man/apex-config.5.md -out=man/apex-config.5 && \
-		echo "Man page generated: man/apex-config.5 (using go-md2man)"; \
-		go-md2man -in=man/apex-plugins.7.md -out=man/apex-plugins.7 && \
-		echo "Man page generated: man/apex-plugins.7 (using go-md2man)"; \
-	else \
-		echo "Error: Neither pandoc nor go-md2man found."; \
-		echo "  Install pandoc: brew install pandoc"; \
-		echo "  Or install go-md2man: brew install go-md2man"; \
-		exit 1; \
-	fi
+# Man page generation (uses built apex with -t man)
+man: build
+	@echo "Generating man pages with apex -t man..."
+	@./build/apex -t man man/apex.1.md > man/apex.1 && echo "Man page generated: man/apex.1"
+	@if [ -f man/apex-config.5.md ]; then ./build/apex -t man man/apex-config.5.md > man/apex-config.5 && echo "Man page generated: man/apex-config.5"; fi
+	@if [ -f man/apex-plugins.7.md ]; then ./build/apex -t man man/apex-plugins.7.md > man/apex-plugins.7 && echo "Man page generated: man/apex-plugins.7"; fi
 
 # Release build targets
 release: clean-release

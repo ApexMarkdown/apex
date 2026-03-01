@@ -408,15 +408,7 @@ foreach(MAN_PAGE_SPEC ${MAN_PAGES})
         )
         set(MAN_AVAILABLE TRUE)
     else()
-        # Prefer apex -t man (roff) when building apex_cli; fall back to pandoc/go-md2man
-        if(PANDOC_EXECUTABLE)
-            add_custom_command(
-                OUTPUT ${MAN_OUTPUT}
-                COMMAND ${PANDOC_EXECUTABLE} -f markdown-smart -s -t man -o ${MAN_OUTPUT} ${MAN_SOURCE}
-                DEPENDS ${MAN_SOURCE}
-                COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using pandoc"
-            )
-            set(MAN_AVAILABLE TRUE)
+        # Generate with apex -t man (roff); we build apex_cli in this tree
         add_custom_command(
             OUTPUT ${MAN_OUTPUT}
             COMMAND $<TARGET_FILE:apex_cli> -t man ${MAN_SOURCE} > ${MAN_OUTPUT}
