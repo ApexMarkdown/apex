@@ -26,6 +26,34 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.85] - 2026-03-01
+
+### Changed
+
+- Makefile "make man" now generates man pages with the built apex binary (apex -t man) after running "make build"; pandoc and go-md2man are no longer required.
+- When both a TOC marker in code and a TOC marker in normal flow exist, only the first marker that is not inside <code> or <pre> is replaced with the generated table of contents.
+
+### New
+
+- Definition list terms may use Kramdown-style double colon :: as well as single : before the definition (e.g. "term:: definition").
+- Man page creation
+- Man-html without -s/--standalone outputs content snippet only (no wrapper, no nav); with -s outputs full document with sidebar and headline.
+- Man-html standalone: fixed left sidebar nav (TOC) for top-level sections only (NAME, SYNOPSIS, etc.), large headline from NAME section (command and description), document_title metadata used when present (e.g. APEX(1)).
+- Man-html standalone: custom CSS via --css/--style emitted as <link rel="stylesheet"> after embedded style; optional syntax highlighting via --code-highlight (pygmentize/skylighting) for code blocks in both snippet and standalone output.
+
+### Improved
+
+- CMake man page generation uses only apex_cli -t man when pre-generated pages are missing; removed duplicate/broken pandoc branch from merge and fixed invalid add_custom_command structure.
+- Man-html CSS: bold and headline color #a02172, links #2376b1, section headings #3f789b, sidebar background #f5f4f0 and border #e0ddd6.
+- CLI help: --css/--style describes use with man-html and -s; -s/--standalone describes man-html behavior (with -s: nav sidebar and full page; without -s: snippet only).
+
+### Fixed
+
+- Man pages generated from Markdown no longer convert option hyphens to em dashes; pandoc is invoked with -f markdown-smart so -- stays as literal ASCII double hyphen in roff output.
+- When both MMD inline abbreviations [>(abbr) expansion] and reference-style definitions [>abbr]: expansion appear in the same document, all abbreviations are now wrapped in <abbr> tags instead of only the reference-style ones (inline entries were previously overwritten in the list).
+- Definition list terms and definitions now render with correct content when using "**term**" followed by ":: definition" (previously produced empty <dt></dt><dd></dd>).
+- TOC markers ({{TOC}}, <!--TOC--> and variants) inside inline code (backticks) or inside code blocks (fenced or indented) are no longer expanded; they are left as literal text in the output.
+
 ## [0.1.84] - 2026-02-27
 
 ### Changed
@@ -2533,6 +2561,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.85]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.85
 [0.1.84]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.84
 [0.1.83]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.83
 [0.1.82]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.82

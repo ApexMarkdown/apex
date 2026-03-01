@@ -1,5 +1,5 @@
 
-[![Version: 0.1.83](https://img.shields.io/badge/Version-0.1.83-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1390/1390](https://img.shields.io/badge/Tests-1390/1390-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.84](https://img.shields.io/badge/Version-0.1.84-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1411/1411](https://img.shields.io/badge/Tests-1411/1411-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.83
+Apex Markdown Processor v0.1.84
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -322,8 +322,8 @@ Options:
                          When a SUMMARY.md file is provided, treat it as a GitBook index and combine
                          the linked files in order. Output is raw Markdown suitable for piping back into Apex.
   --csl FILE              Citation style file (CSL format)
-  --css FILE, --style FILE  Link to CSS file(s) in document head (requires --standalone, overrides CSS metadata)
-                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)
+  --css FILE, --style FILE  Link to CSS file(s) in document head. With HTML: requires -s/--standalone.
+                         With -t man-html -s: include custom CSS in the man page. Can be used multiple times or comma-separated (e.g., --css style.css)
   --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)
   --embed-images         Embed local images as base64 data URLs in HTML output
   --[no-]image-captions  Wrap images with title or alt text in <figure>/<figcaption> (default: on in unified/mmd)
@@ -352,7 +352,7 @@ Options:
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
   -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)
-  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256
+  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support
   --no-ids                Disable automatic header ID generation
@@ -382,7 +382,7 @@ Options:
   --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).
                           VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.
   --show-tooltips         Show tooltips on citations
-  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)
+  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>). For -t man-html, -s adds nav sidebar and full page; without -s, output is snippet only.
   --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax
   --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing
   --title TITLE          Document title (requires --standalone, default: "Document")
@@ -428,28 +428,11 @@ bibliography: references.bib
 title: My Research Paper
 pretty: true
 standalone: true
-terminal:
-  theme: brett        # default terminal theme when using -t terminal/terminal256
-  width: 80           # default wrapping width for terminal/terminal256 output
 ---
 
 ```
 
-This allows you to process multiple files with `apex *.md` and have each file use its own configuration.
-
-### Terminal Theming
-
-When using `-t terminal` or `-t terminal256`, Apex can load a terminal theme from
-`~/.config/apex/terminal/themes/NAME.theme` (or a `default.theme` if no name is
-given).
-
-Theme files are simple YAML. Common keys include:
-
-- **Headings (h1–h6):** Set `color` and optional `bold: true` to make headings bold in addition to the color. The `bold: true` flag is supported on all element mappings that have a `color` field (headings, `code_span`, `code_block`, `blockquote`, `table`, etc.).
-
-- **Inline and block code:** Use `code_span` and `code_block` with a `color` string (e.g. `"b white on_intense_black"`) and optional `bold: true`.
-
-- **List markers:** Set `list_marker` to control the style for bullet and numbered list markers (e.g. `list_marker: "b bright_yellow"`). If `list_marker` is not set, markers default to **bold bright red**. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
+This allows you to process multiple files with `apex *.md` and have each file use its own configuration. You can also use `--meta-file` to specify a shared configuration file that applies to all processed files.
 
 ## Documentation
 
