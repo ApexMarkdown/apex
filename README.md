@@ -1,5 +1,5 @@
 
-[![Version: 0.1.84](https://img.shields.io/badge/Version-0.1.84-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1411/1411](https://img.shields.io/badge/Tests-1411/1411-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.85](https://img.shields.io/badge/Version-0.1.85-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1413/1413](https://img.shields.io/badge/Tests-1413/1413-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -42,7 +42,7 @@ one tool.
 - **Smart typography**: Automatic conversion of quotes, dashes, ellipses, and more
 - **Math support**: LaTeX math expressions with `$...$` (inline) and `$$...$$` (display)
 
-- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments or Skylighting with `--code-highlight` flag.
+- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments, Skylighting, or Shiki with `--code-highlight` flag.
 
   Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
 
@@ -119,7 +119,7 @@ one tool.
 - **Flexible output**: Compact HTML fragments, pretty-printed HTML, or complete standalone documents
 - **Standalone documents**: Generate complete HTML5 documents with `<html>`, `<head>`, `<body>` tags
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
-- **Syntax highlighting**: External syntax highlighting via Pygments or Skylighting with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
+- **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
 - **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# ???? Support` ??? `id="smile-support"`), matching Pandoc's GFM behavior
@@ -292,14 +292,14 @@ apex input.md --mode kramdown
 
 `--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
 
-`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg` or `skylighting`/`s`/`sky`). Automatically includes GitHub-style CSS in standalone mode
+`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg`, `skylighting`/`s`/`sky`, or `shiki`/`sh`). Uses HTML or ANSI output based on destination format. Automatically includes GitHub-style CSS in standalone mode
 
 `--code-line-numbers` - Include line numbers in syntax-highlighted code blocks (requires `--code-highlight`)
 
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.84
+Apex Markdown Processor v0.1.85
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -315,7 +315,9 @@ Options:
   --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)
   --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times
   --captions POSITION    Table caption position: above or below (default: below)
-  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, or abbreviations p, s)
+  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, shiki, or abbreviations p, s, sh)
+  --code-highlight-theme THEME  Theme/style name for external syntax highlighters (tool-specific)
+  --list-themes          List available syntax highlighting themes for pygments, skylighting, and Shiki
   --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)
   --highlight-language-only  Only highlight code blocks that have a language specified (requires --code-highlight)
   --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream
@@ -405,6 +407,7 @@ Options:
   --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)
   --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)
   --width N               Hard-wrap terminal/terminal256 output at N visible columns
+  -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)
 
 If no file is specified, reads from stdin.
 

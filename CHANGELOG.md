@@ -26,6 +26,32 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.86] - 2026-03-02
+
+### Changed
+
+- Syntax highlighter chooses HTML or ANSI output based on destination format (--format html vs --format ansi for Shiki when output is terminal).
+- Apex_apply_syntax_highlighting() now takes a fifth parameter ansi_output (bool); pass false for HTML output, true for terminal/ANSI. All internal call sites updated; direct callers (e.g. Swift/SPM) must be updated.
+- Pygments highlighting now respects code-highlight-theme for both HTML and terminal/terminal256 output (maps to style=THEME).
+- Skylighting highlighting now respects code-highlight-theme for both HTML and ANSI terminal output (maps to --style THEME) and chooses --color-level=16/256 based on terminal vs terminal256.
+- Shiki highlighting now uses --theme THEME for both HTML and ANSI output and chooses --format html/ansi based on destination format.
+
+### New
+
+- Support --code-highlight shiki (and abbreviation sh) on the command line; uses the shiki CLI (@shikijs/cli) when available.
+- Support code-highlight: shiki and code-highlight: sh in metadata and config (front matter, meta-file, config.yml).
+- Add --list-themes CLI command to print available Pygments and Skylighting themes in columns and point to bundled Shiki themes.
+- Add -p/--paginate flag to page terminal/cli/terminal256 output through a user-configurable pager instead of writing directly to stdout.
+- Add paginate: true config option (and terminal.paginate) to enable pagination by default for terminal-style output while still allowing per-run overrides.
+
+### Improved
+
+- When Shiki exits with an error (e.g. language not specified and cannot be auto-detected), the code block is left as plain text instead of failing.
+
+### Fixed
+
+- Prevent segfault when external code highlighting is enabled without an explicit theme by initializing the code highlight theme option safely in the default configuration.
+
 ## [0.1.85] - 2026-03-01
 
 ### Changed
@@ -2561,6 +2587,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.86]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.86
 [0.1.85]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.85
 [0.1.84]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.84
 [0.1.83]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.83
