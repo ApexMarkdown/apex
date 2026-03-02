@@ -2585,9 +2585,10 @@ apex_options apex_options_default(void) {
     opts.enable_emoji_autocorrect = true;  /* Enabled by default in unified mode */
 
     /* Syntax highlighting options */
-    opts.code_highlighter = NULL;   /* Default: no external syntax highlighting */
-    opts.code_line_numbers = false; /* Default: no line numbers */
-    opts.highlight_language_only = false; /* Default: highlight all code blocks */
+    opts.code_highlighter = NULL;          /* Default: no external syntax highlighting */
+    opts.code_line_numbers = false;        /* Default: no line numbers */
+    opts.highlight_language_only = false;  /* Default: highlight all code blocks */
+    opts.code_highlight_theme = NULL;      /* Default: no explicit theme */
 
     /* Marked / integration-specific options (unified defaults) */
     opts.enable_widont = false;
