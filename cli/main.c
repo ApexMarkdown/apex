@@ -16,6 +16,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
     /* Remote plugin directory helpers (from plugins_remote.c) */
 typedef struct apex_remote_plugin apex_remote_plugin;
