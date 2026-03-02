@@ -101,6 +101,7 @@ typedef struct {
     /* Terminal / CLI rendering options */
     const char *theme_name;      /* Optional terminal theme name (for -t terminal/terminal256) */
     int terminal_width;          /* Optional fixed wrapping width for terminal output (0 = auto / none) */
+    bool paginate;               /* When true and output_format is terminal/terminal256, page output via pager */
 
     /* Line break handling */
     bool hardbreaks;  /* Treat newlines as hard breaks (GFM style) */

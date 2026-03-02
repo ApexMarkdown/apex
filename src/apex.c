@@ -2616,6 +2616,7 @@ apex_options apex_options_default(void) {
     /* Terminal theme and width (for -t terminal/terminal256) */
     opts.theme_name = NULL;
     opts.terminal_width = 0;
+    opts.paginate = false;
 
     return opts;
 }

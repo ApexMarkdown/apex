@@ -2820,6 +2820,14 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             if (w > 0) {
                 options->terminal_width = w;
             }
+        } else if (strcasecmp(key, "paginate") == 0 ||
+                   strcasecmp(key, "terminal.paginate") == 0 ||
+                   strcasecmp(key, "terminal_paginate") == 0) {
+            if (is_true_value(value)) {
+                options->paginate = true;
+            } else if (is_false_value(value)) {
+                options->paginate = false;
+            }
         }
         /* Syntax highlighting options */
         else if (strcasecmp(key, "code-highlight") == 0 || strcasecmp(key, "code_highlight") == 0) {

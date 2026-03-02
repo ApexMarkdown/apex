@@ -64,6 +64,19 @@ width automatically. ANSI escape sequences are preserved and are not counted
 toward the column limit. If not specified, Apex does not add extra wrapping
 and the terminal itself controls line wrapping.
 
+**-p**, **--paginate**
+:: When using **--to terminal**, **--to cli**, or **--to terminal256**, send
+the rendered terminal output through a pager instead of writing directly to
+stdout. The pager command is chosen in this order:
+
+- If `$APEX_PAGER` is set and non-empty, Apex uses its value as the pager.
+- Otherwise, if `$PAGER` is set and non-empty, Apex uses that.
+- Otherwise, Apex falls back to `less -R`.
+
+Pagination is ignored when the output format is not a terminal format or when
+`-o/--output` is used to write to a file. You can also enable pagination via
+metadata or config by setting `paginate: true`.
+
 **--code-highlight** *TOOL*
 : Use external tool for syntax highlighting of code blocks.
 *TOOL* must be **pygments** (or **p**, **pyg**), **skylighting**

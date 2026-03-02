@@ -704,6 +704,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
     fprintf(stderr, "  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)\n");
     fprintf(stderr, "  --width N               Hard-wrap terminal/terminal256 output at N visible columns\n");
+    fprintf(stderr, "  -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
@@ -1577,6 +1578,9 @@ int main(int argc, char *argv[]) {
     /* Optional fixed-width wrapping for terminal output */
     int width_override = 0;
 
+    /* Pagination for terminal/terminal256 output */
+    bool paginate_cli = false;
+
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -1653,6 +1657,8 @@ int main(int argc, char *argv[]) {
             if (width_override < 0) {
                 width_override = 0;
             }
+        } else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--paginate") == 0) {
+            paginate_cli = true;
         } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --output requires an argument\n");
@@ -3716,9 +3722,40 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Write output */
+    /* Determine whether to paginate terminal output.
+     * Pagination is only applied for terminal/terminal256 output when writing to stdout.
+     * Precedence: CLI -p/--paginate OR config/metadata paginate:true.
+     */
+    bool paginate_effective = false;
+    if (!output_file &&
+        (options.output_format == APEX_OUTPUT_TERMINAL ||
+         options.output_format == APEX_OUTPUT_TERMINAL256)) {
+        if (paginate_cli || options.paginate) {
+            paginate_effective = true;
+        }
+    }
+
+    /* Write output (optionally via pager) */
     PROFILE_START(file_write);
-    if (output_file) {
+    if (paginate_effective) {
+        const char *pager_cmd = getenv("APEX_PAGER");
+        if (!pager_cmd || !*pager_cmd) {
+            pager_cmd = getenv("PAGER");
+        }
+        if (!pager_cmd || !*pager_cmd) {
+            pager_cmd = "less -R";
+        }
+
+        FILE *pager = popen(pager_cmd, "w");
+        size_t html_len = strlen(html);
+        if (!pager) {
+            /* Fall back to direct stdout if pager cannot be started */
+            fwrite(html, 1, html_len, stdout);
+        } else {
+            fwrite(html, 1, html_len, pager);
+            pclose(pager);
+        }
+    } else if (output_file) {
         FILE *fp = fopen(output_file, "w");
         if (!fp) {
             fprintf(stderr, "Error: Cannot open output file '%s'\n", output_file);
