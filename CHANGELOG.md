@@ -26,6 +26,23 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.88] - 2026-03-02
+
+### Changed
+
+- Formula/apex.rb: version 0.1.87, update macOS universal tarball sha256
+
+### Improved
+
+- Definition lists: support indented continuation lines (4+ spaces) so multi-line definitions stay within a single dd element instead of splitting into separate paragraphs
+
+### Fixed
+
+- Disable smart typography for man and man-html output so option names like --to and --standalone render as literal double hyphen instead of en-dash
+- Prevent metadata from overwriting -t man-html when document sets mode or other options in front matter
+- Force disable smart typography for man and man-html output in apex_markdown_to_html so option names stay as literal --
+- Man-html: Replace UTF-8 en-dash (U+2013) with "--" in rendered text and definition list HTML blocks so options like --standalone display correctly even when smart typography slips through
+
 ## [0.1.87] - 2026-03-02
 
 ### Changed
@@ -2597,6 +2614,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.88]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.88
 [0.1.87]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.87
 [0.1.86]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.86
 [0.1.85]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.85
