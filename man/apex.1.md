@@ -74,6 +74,16 @@ depending on destination (e.g. **--to terminal**). Shiki requires
 a language when it cannot auto-detect; on error, the block is
 left as plain text.
 
+**--code-highlight-theme** *THEME*
+:: Theme/style name for external syntax highlighters.
+When using **pygments**, this maps to the Pygments style name in
+both HTML and terminal output (e.g. `style=THEME`). When using
+**skylighting**, it maps to the Skylighting style name via
+`--style THEME` for both HTML and ANSI terminal output. When using
+**shiki**, it maps to the Shiki theme via `--theme THEME` for
+both HTML and terminal/ANSI output. See **--list-themes** for
+available theme names for each tool.
+
 **--code-line-numbers**
 : Include line numbers in syntax-highlighted code blocks.
 Requires **--code-highlight**. When used with Pygments, adds

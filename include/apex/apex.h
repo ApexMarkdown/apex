@@ -184,6 +184,7 @@ typedef struct {
     const char *code_highlighter;   /* External tool: "pygments", "skylighting", "shiki", or NULL for no highlighting */
     bool code_line_numbers;         /* Enable line numbers in syntax-highlighted code blocks */
     bool highlight_language_only;   /* Only highlight code blocks that have a language specified */
+    const char *code_highlight_theme; /* Theme/style name for external syntax highlighters (tool-specific) */
 
     /* Marked / integration-specific options */
     bool enable_widont;                 /* Apply widont to headings (prevent short widows) */

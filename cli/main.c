@@ -37,6 +37,143 @@ char *apex_remote_fetch_json(const char *url);
 char *apex_remote_extract_string(const char *obj, const char *key);
 
 /* ------------------------------------------------------------------------- */
+/* Syntax highlighting theme listing                                         */
+/* ------------------------------------------------------------------------- */
+
+static int apex_cli_terminal_width(void) {
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) {
+        return (int)ws.ws_col;
+    }
+    const char *cols_env = getenv("COLUMNS");
+    if (cols_env && *cols_env) {
+        long v = strtol(cols_env, NULL, 10);
+        if (v > 0 && v < INT_MAX) {
+            return (int)v;
+        }
+    }
+    return 80;
+}
+
+static void apex_cli_print_theme_section(const char *title,
+                                         const char *const *items,
+                                         size_t count) {
+    fprintf(stdout, "%s\n", title);
+    fprintf(stdout, "----------------------------------------\n");
+    if (count == 0) {
+        fprintf(stdout, "(no themes)\n\n");
+        return;
+    }
+
+    size_t max_len = 0;
+    for (size_t i = 0; i < count; i++) {
+        size_t len = strlen(items[i]);
+        if (len > max_len) max_len = len;
+    }
+
+    int term_width = apex_cli_terminal_width();
+    int col_width = (int)max_len + 2;
+    if (col_width <= 0) col_width = 16;
+    int max_cols = term_width > 0 ? term_width / col_width : 1;
+    if (max_cols < 1) max_cols = 1;
+    if (max_cols > 4) max_cols = 4;
+    int cols = max_cols;
+    int rows = (int)((count + (size_t)cols - 1) / (size_t)cols);
+    if (rows < 1) rows = 1;
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            size_t idx = (size_t)r + (size_t)rows * (size_t)c;
+            if (idx >= count) {
+                continue;
+            }
+            const char *name = items[idx];
+            int pad = col_width - (int)strlen(name);
+            if (pad < 1) pad = 1;
+            fprintf(stdout, "%s", name);
+            for (int p = 0; p < pad; p++) fputc(' ', stdout);
+        }
+        fputc('\n', stdout);
+    }
+    fputc('\n', stdout);
+}
+
+static void apex_cli_print_highlight_themes(void) {
+    static const char *const pygments_themes[] = {
+        "abap",
+        "algol",
+        "algol_nu",
+        "arduino",
+        "autumn",
+        "bw",
+        "borland",
+        "coffee",
+        "colorful",
+        "default",
+        "dracula",
+        "emacs",
+        "friendly_grayscale",
+        "friendly",
+        "fruity",
+        "github-dark",
+        "gruvbox-dark",
+        "gruvbox-light",
+        "igor",
+        "inkpot",
+        "lightbulb",
+        "lilypond",
+        "lovelace",
+        "manni",
+        "material",
+        "monokai",
+        "murphy",
+        "native",
+        "nord-darker",
+        "nord",
+        "one-dark",
+        "paraiso-dark",
+        "paraiso-light",
+        "pastie",
+        "perldoc",
+        "rainbow_dash",
+        "rrt",
+        "sas",
+        "solarized-dark",
+        "solarized-light",
+        "staroffice",
+        "stata-dark",
+        "stata-light",
+        "tango",
+        "trac",
+        "vim",
+        "vs",
+        "xcode",
+        "zenburn"
+    };
+    static const char *const skylighting_themes[] = {
+        "kate",
+        "breezeDark",
+        "pygments",
+        "espresso",
+        "tango",
+        "haddock",
+        "monochrome",
+        "zenburn"
+    };
+    static const char *const shiki_themes[] = {
+        "Bundled themes: see https://shiki.style/themes",
+        "Special theme: none (disables highlighting)"
+    };
+
+    apex_cli_print_theme_section("Pygments themes", pygments_themes,
+                                 sizeof(pygments_themes) / sizeof(pygments_themes[0]));
+    apex_cli_print_theme_section("Skylighting themes", skylighting_themes,
+                                 sizeof(skylighting_themes) / sizeof(skylighting_themes[0]));
+    apex_cli_print_theme_section("Shiki themes", shiki_themes,
+                                 sizeof(shiki_themes) / sizeof(shiki_themes[0]));
+}
+
+/* ------------------------------------------------------------------------- */
 /* Git helpers (mirrored from src/plugins.c for CLI-only use)               */
 /*                                                                           */
 /* Best-effort detection of the Git repository root for the current         */
@@ -476,6 +613,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times\n");
     fprintf(stderr, "  --captions POSITION    Table caption position: above or below (default: below)\n");
     fprintf(stderr, "  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, shiki, or abbreviations p, s, sh)\n");
+    fprintf(stderr, "  --code-highlight-theme THEME  Theme/style name for external syntax highlighters (tool-specific)\n");
+    fprintf(stderr, "  --list-themes          List available syntax highlighting themes for pygments, skylighting, and Shiki\n");
     fprintf(stderr, "  --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)\n");
     fprintf(stderr, "  --highlight-language-only  Only highlight code blocks that have a language specified (requires --code-highlight)\n");
     fprintf(stderr, "  --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream\n");
@@ -1381,6 +1520,7 @@ int main(int argc, char *argv[]) {
     bool plugins_cli_override = false;
     bool plugins_cli_value = false;
     bool list_plugins = false;
+    bool list_themes = false;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
     bool list_filters = false;
@@ -1529,6 +1669,8 @@ int main(int argc, char *argv[]) {
             plugins_cli_value = false;
         } else if (strcmp(argv[i], "--list-plugins") == 0) {
             list_plugins = true;
+        } else if (strcmp(argv[i], "--list-themes") == 0) {
+            list_themes = true;
         } else if (strcmp(argv[i], "--install-plugin") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --install-plugin requires an id argument\n");
@@ -1865,6 +2007,13 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --code-highlight tool must be 'pygments' (p), 'skylighting' (s), or 'shiki' (sh)\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "--code-highlight-theme") == 0 ||
+                   strcmp(argv[i], "--code-hilight-theme") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --code-highlight-theme requires a theme name\n");
+                return 1;
+            }
+            options.code_highlight_theme = argv[i];
         } else if (strcmp(argv[i], "--code-line-numbers") == 0) {
             options.code_line_numbers = true;
         } else if (strcmp(argv[i], "--highlight-language-only") == 0) {
@@ -2119,6 +2268,12 @@ int main(int argc, char *argv[]) {
     if (combine_mode && mmd_merge_mode) {
         fprintf(stderr, "Error: --combine and --mmd-merge cannot be used together\n");
         return 1;
+    }
+
+    /* Handle theme listing before normal conversion */
+    if (list_themes) {
+        apex_cli_print_highlight_themes();
+        return 0;
     }
 
     /* Handle plugin listing/installation/uninstallation commands before normal conversion */

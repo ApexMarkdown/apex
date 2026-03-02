@@ -2852,6 +2852,9 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->highlight_language_only = false;
             }
+        } else if (strcasecmp(key, "code-highlight-theme") == 0 || strcasecmp(key, "code_highlight_theme") == 0) {
+            /* Theme name for external highlighters (tool-specific). */
+            options->code_highlight_theme = value;
         }
 
         item = item->next;

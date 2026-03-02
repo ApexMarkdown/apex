@@ -2079,8 +2079,15 @@ static void serialize_block(terminal_buffer *buf,
             if (options && options->code_highlighter && literal && *literal) {
                 const char *tool = options->code_highlighter;
                 const char *binary = NULL;
+                bool use_pygments = false;
+                bool use_skylighting = false;
+
                 if (strcmp(tool, "pygments") == 0) {
                     binary = "pygmentize";
+                    use_pygments = true;
+                } else if (strcmp(tool, "skylighting") == 0) {
+                    binary = "skylighting";
+                    use_skylighting = true;
                 }
 
                 if (binary) {
@@ -2095,17 +2102,47 @@ static void serialize_block(terminal_buffer *buf,
                         *w = '\0';
                     }
 
+                    const char *theme_name = options->code_highlight_theme;
                     char cmd[512];
-                    if (strcmp(tool, "pygments") == 0) {
-                        /* Pygments: terminal / terminal256 output with pastel style */
+
+                    if (use_pygments) {
+                        /* Pygments: terminal / terminal256 output, with optional style */
                         const char *format = use_256_color ? "terminal256" : "terminal";
-                        const char *style  = use_256_color ? "paraiso-dark" : "pastie";
+                        const char *style  = theme_name && *theme_name
+                                             ? theme_name
+                                             : (use_256_color ? "paraiso-dark" : "pastie");
+
                         if (lang[0]) {
                             snprintf(cmd, sizeof(cmd), "%s -l %s -f %s -O style=%s",
                                      binary, lang, format, style);
                         } else {
                             snprintf(cmd, sizeof(cmd), "%s -g -f %s -O style=%s",
                                      binary, format, style);
+                        }
+                    } else if (use_skylighting) {
+                        /* Skylighting: ANSI output via -f ansi, with explicit color level.
+                         * Map Apex's terminal/terminal256 to --color-level=16/256 so that
+                         * skylighting does not have to auto-detect capabilities.
+                         * When a code-highlight-theme is provided, pass it through as --style. */
+                        const char *format = "ansi";
+                        const char *color_level = use_256_color ? "256" : "16";
+                        const char *style = (theme_name && *theme_name) ? theme_name : NULL;
+                        if (lang[0]) {
+                            if (style) {
+                                snprintf(cmd, sizeof(cmd), "%s --syntax %s --color-level=%s --style %s -f %s",
+                                         binary, lang, color_level, style, format);
+                            } else {
+                                snprintf(cmd, sizeof(cmd), "%s --syntax %s --color-level=%s -f %s",
+                                         binary, lang, color_level, format);
+                            }
+                        } else {
+                            if (style) {
+                                snprintf(cmd, sizeof(cmd), "%s --color-level=%s --style %s -f %s",
+                                         binary, color_level, style, format);
+                            } else {
+                                snprintf(cmd, sizeof(cmd), "%s --color-level=%s -f %s",
+                                         binary, color_level, format);
+                            }
                         }
                     } else {
                         cmd[0] = '\0';

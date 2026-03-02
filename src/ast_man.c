@@ -821,7 +821,12 @@ char *apex_cmark_to_man_html(cmark_node *document, const apex_options *options)
         if (!buf.buf) return strdup("");
         char *out = buf.buf;
         if (options && options->code_highlighter && options->code_highlighter[0]) {
-            char *hl = apex_apply_syntax_highlighting(out, options->code_highlighter, false, false, false);
+            char *hl = apex_apply_syntax_highlighting(out,
+                                                      options->code_highlighter,
+                                                      false,
+                                                      false,
+                                                      false,
+                                                      options->code_highlight_theme);
             if (hl) {
                 free(out);
                 out = hl;
@@ -911,7 +916,12 @@ char *apex_cmark_to_man_html(cmark_node *document, const apex_options *options)
 
     char *out = buf.buf;
     if (options->code_highlighter && options->code_highlighter[0]) {
-        char *hl = apex_apply_syntax_highlighting(out, options->code_highlighter, false, false, false);
+        char *hl = apex_apply_syntax_highlighting(out,
+                                                  options->code_highlighter,
+                                                  false,
+                                                  false,
+                                                  false,
+                                                  options->code_highlight_theme);
         if (hl) {
             free(out);
             out = hl;
