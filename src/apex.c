@@ -3978,6 +3978,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Use local_opts for rest of function (mutable) - shadow the const parameter */
     #define options (&local_opts)
 
+    /* Man/man-html output: force disable smart typography so option names (e.g. --to) stay as literal -- */
+    if (options->output_format == APEX_OUTPUT_MAN || options->output_format == APEX_OUTPUT_MAN_HTML) {
+        local_opts.enable_smart_typography = false;
+    }
+
     /* Extract metadata if enabled (preprocessing step) */
     /* Safety check: ensure len doesn't exceed actual string length */
     size_t actual_len = strlen(markdown);

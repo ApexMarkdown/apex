@@ -3405,9 +3405,11 @@ int main(int argc, char *argv[]) {
 
     /* Apply metadata to options - allows per-document control of command-line options */
     /* Note: Bibliography file loading from metadata will be handled in citations extension */
+    apex_output_format_t saved_output_format = options.output_format;
     if (merged_metadata) {
         apex_apply_metadata_to_options(merged_metadata, &options);
-        /* Restore bibliography files if they were lost (e.g., if mode was set in metadata) */
+        /* Restore explicit CLI choices that metadata mode reset */
+        options.output_format = saved_output_format;
         if (saved_bibliography_files && !options.bibliography_files) {
             options.bibliography_files = saved_bibliography_files;
         }

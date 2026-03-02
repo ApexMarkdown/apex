@@ -41,31 +41,31 @@ compatibility.
 
 **-s**, **--standalone**
 : Generate complete HTML document with `<html>`, `<head>`,
-and `<body>` tags.
+    and `<body>` tags.
 
 **--style** *FILE*, **--css** *FILE*
 : Link to CSS file(s) in document head (requires
-**--standalone**). Can be used multiple times or accept
-comma-separated list (e.g., `--css style.css --css syntax.css`
-or `--css style.css,syntax.css`). Overrides CSS metadata if
-specified.
+    **--standalone**). Can be used multiple times or accept
+    comma-separated list (e.g., `--css style.css --css syntax.css`
+    or `--css style.css,syntax.css`). Overrides CSS metadata if
+    specified.
 
 **--embed-css**
 :   When used with **--css FILE**, read the CSS file(s) and embed
-their contents into `<style>` tags in the document head instead
-of emitting `<link rel="stylesheet">` tags. All specified
-stylesheets are embedded.
+    their contents into `<style>` tags in the document head instead
+    of emitting `<link rel="stylesheet">` tags. All specified
+    stylesheets are embedded.
 
 **--width** *N*
-:: When using **--to terminal** or **--to terminal256**, hard-wrap ANSI-colored
-output at *N* visible columns. This is especially useful in file manager
-preview panes (such as **lf** or **yazi**) where Apex cannot detect the pane
-width automatically. ANSI escape sequences are preserved and are not counted
-toward the column limit. If not specified, Apex does not add extra wrapping
-and the terminal itself controls line wrapping.
+: When using **--to terminal** or **--to terminal256**, hard-wrap ANSI-colored
+    output at *N* visible columns. This is especially useful in file manager
+    preview panes (such as **lf** or **yazi**) where Apex cannot detect the pane
+    width automatically. ANSI escape sequences are preserved and are not counted
+    toward the column limit. If not specified, Apex does not add extra wrapping
+    and the terminal itself controls line wrapping.
 
 **-p**, **--paginate**
-:: When using **--to terminal**, **--to cli**, or **--to terminal256**, send
+: When using **--to terminal**, **--to cli**, or **--to terminal256**, send
 the rendered terminal output through a pager instead of writing directly to
 stdout. The pager command is chosen in this order:
 
@@ -88,7 +88,7 @@ a language when it cannot auto-detect; on error, the block is
 left as plain text.
 
 **--code-highlight-theme** *THEME*
-:: Theme/style name for external syntax highlighters.
+: Theme/style name for external syntax highlighters.
 When using **pygments**, this maps to the Pygments style name in
 both HTML and terminal output (e.g. `style=THEME`). When using
 **skylighting**, it maps to the Skylighting style name via
@@ -138,7 +138,7 @@ This enhances screen reader support and makes the HTML
 output more accessible. Default: disabled.
 
 **-t** *FORMAT*, **--to** *FORMAT*
-:: Output format. One of:
+: Output format. One of:
 
 - **html** (default) - Rendered HTML
 - **json**, **json-filtered**, **ast-json**, **ast** - JSON output (before or after filters)
@@ -179,11 +179,10 @@ specified (via ` ```language ` or IAL). Code blocks without a language
 will be left unhighlighted. Requires **--code-highlight**.
 
 **--includes**, **--no-includes**
-: Enable or disable file inclusion. Enabled by default in
-unified mode.
+: Enable or disable file inclusion. Enabled by default in unified mode.
 
 **--transforms**, **--no-transforms**
-:: Enable or disable metadata variable transforms
+: Enable or disable metadata variable transforms
 (`[%key:transform]`). When enabled, metadata values can be
 transformed (case conversion, string manipulation, regex
 replacement, date formatting, etc.) when inserted into the
@@ -280,35 +279,35 @@ first item).
 
 **--per-cell-alignment**, **--no-per-cell-alignment**
 : Enable per-cell alignment markers in tables. When enabled, cells
-starting with a colon (`:`) are left-aligned, ending with a colon
-(`:`) are right-aligned, or both (`:content:`) are center-aligned.
-The colons are stripped from the output and replaced with
-`style="text-align: ..."` attributes. Default: enabled in unified
-mode, disabled in commonmark, gfm, mmd, and kramdown modes.
+    starting with a colon (`:`) are left-aligned, ending with a colon
+    (`:`) are right-aligned, or both (`:content:`) are center-aligned.
+    The colons are stripped from the output and replaced with
+    `style="text-align: ..."` attributes. Default: enabled in unified
+    mode, disabled in commonmark, gfm, mmd, and kramdown modes.
 
 **--captions** *POSITION*
 : Table caption position: **above** or **below** (default:
-**below**). Controls where table captions appear relative to
-the table.
+    **below**). Controls where table captions appear relative to
+    the table.
 
 ## HTML and Links
 
 **--unsafe**, **--no-unsafe**
 : Allow raw HTML in output. Default: true for
-unified/mmd/kramdown modes, false for commonmark/gfm modes.
+    unified/mmd/kramdown modes, false for commonmark/gfm modes.
 
 **--autolink**, **--no-autolink**
 : Enable autolinking of URLs and email addresses. Default:
-enabled in GFM, MultiMarkdown, Kramdown, and unified modes;
-disabled in CommonMark mode.
+    enabled in GFM, MultiMarkdown, Kramdown, and unified modes;
+    disabled in CommonMark mode.
 
 **--obfuscate-emails**
 : Obfuscate email links and text using HTML entities
-(hex-encoded).
+    (hex-encoded).
 
 **--wikilink-space** *MODE*
-:: Control how spaces in wiki link page names are handled in
-the generated URL. **MODE** must be one of:
+: Control how spaces in wiki link page names are handled in
+    the generated URL. **MODE** must be one of:
 
 `dash` - Convert spaces to dashes: `[[Home Page]]` → `href="Home-Page"`
 
@@ -321,7 +320,10 @@ the generated URL. **MODE** must be one of:
     Default: `dash`.
 
 **--wikilink-extension** *EXT*
-::   Add a file extension to wiki link URLs. The extension is automatically prefixed with a dot if not provided. For example, `--wikilink-extension html` creates `href="Page.html"` and `--wikilink-extension .html` also creates `href="Page.html"`.
+:   Add a file extension to wiki link URLs. The extension is automatically
+    prefixed with a dot if not provided. For example, `--wikilink-extension html`
+    creates `href="Page.html"` and `--wikilink-extension .html` also creates
+    `href="Page.html"`.
 
 **--wikilink-sanitize**, **--no-wikilink-sanitize**
 :   Sanitize wiki link URLs for cleaner, more compatible links. When enabled:
@@ -380,7 +382,7 @@ relative paths.
 :   Enable or disable GFM-style strikethrough processing (`~~text~~`). When enabled, `~~text~~` renders as `<del>text</del>`. Default: enabled in GFM and unified modes; disabled in commonmark, mmd, and kramdown modes.
 
 **--divs**, **--no-divs**
-:   Enable or disable Pandoc fenced divs syntax (`::::: {#id .class} ... :::::`). Fenced divs allow you to create HTML block elements with attributes using a special fence syntax. By default, fenced divs create `<div>` elements, but you can specify different block types using the `>blocktype` syntax (e.g., `::: >aside {.sidebar} ... :::` creates an `<aside>` element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
+:   Enable or disable Pandoc fenced divs syntax (`:::: {#id .class} ... :::::`). Fenced divs allow you to create HTML block elements with attributes using a special fence syntax. By default, fenced divs create `<div>` elements, but you can specify different block types using the `>blocktype` syntax (e.g., `:: >aside {.sidebar} ... :::` creates an `<aside>` element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
 
 **--spans**, **--no-spans**
 :   Enable or disable Pandoc-style bracketed spans syntax (`[text]{#id .class key="val"}`). Bracketed spans allow you to create HTML `<span>` elements with attributes. The text inside the brackets is processed as markdown. If the bracketed text matches a reference link definition, it will be treated as a link instead of a span. Default: enabled in unified mode only.
@@ -428,22 +430,20 @@ found.
 
 **--indices**
 : Enable index processing. Supports both mmark and TextIndex
-syntax. Default: enabled in MultiMarkdown and unified modes.
+    syntax. Default: enabled in MultiMarkdown and unified modes.
 
 **--no-indices**
 :   Disable index processing.
 
 **--no-index**
 : Suppress index generation at the end of the document.
-Index markers are still created in the document, but the
-index section is not generated.
+    Index markers are still created in the document, but the
+    index section is not generated.
 
 Index syntax is supported in MultiMarkdown and unified
 modes:
 
-- **mmark syntax**: `(!item)`, `(!item, subitem)`, `(!!item,
-
-  subitem)` for primary entries
+- **mmark syntax**: `(!item)`, `(!item, subitem)`, `(!!item, subitem)` for primary entries
 
 - **TextIndex syntax**: `word{^}`, `[term]{^}`, `{^params}`
 
@@ -456,58 +456,58 @@ letter.
 
 **--filter** *NAME*
 : Run a single AST filter from the user filters directory
-  (`$XDG_CONFIG_HOME/apex/filters` or `~/.config/apex/filters`). *NAME* is
-  the basename of an executable that reads Pandoc JSON from stdin and writes
-  Pandoc JSON to stdout.
+    (`$XDG_CONFIG_HOME/apex/filters` or `~/.config/apex/filters`). *NAME* is
+    the basename of an executable that reads Pandoc JSON from stdin and writes
+    Pandoc JSON to stdout.
 
 **--filters**
 : Run all executable files in the user filters directory, in sorted
-  filename order. Directory filters run first if **--filter** is also used.
+    filename order. Directory filters run first if **--filter** is also used.
 
 **--lua-filter** *FILE*
 : Run a Lua script as an AST filter. Apex invokes the system **lua**
-  interpreter with *FILE*. The script reads a Pandoc JSON document from
-  stdin and must write a Pandoc JSON document to stdout. A JSON library
-  (e.g. dkjson) is required; see the Filters documentation for details.
+    interpreter with *FILE*. The script reads a Pandoc JSON document from
+    stdin and must write a Pandoc JSON document to stdout. A JSON library
+    (e.g. dkjson) is required; see the Filters documentation for details.
 
 **--no-strict-filters**
 : Do not abort when a filter fails or returns invalid JSON; log a
-  warning and continue with the previous AST. Default: abort on error.
+    warning and continue with the previous AST. Default: abort on error.
 
 **--list-filters**
 : List installed filters and available filters from the central
-  apex-filters directory. Shows filter IDs; available filters show
-  title, author, description, and homepage.
+    apex-filters directory. Shows filter IDs; available filters show
+    title, author, description, and homepage.
 
 **--install-filter** *ID-or-URL*
 : Install an AST filter into the user filters directory. *ID-or-URL*
-  may be a filter ID from the central apex-filters directory (e.g.
-  **unwrap**) or a Git URL / GitHub shorthand. When installing from a URL,
-  Apex may prompt for confirmation.
+    may be a filter ID from the central apex-filters directory (e.g.
+    **unwrap**) or a Git URL / GitHub shorthand. When installing from a URL,
+    Apex may prompt for confirmation.
 
 **--uninstall-filter** *ID*
 : Uninstall a filter by ID. Removes the filter (file or directory)
-  from the user filters directory. Apex prompts for confirmation.
+    from the user filters directory. Apex prompts for confirmation.
 
 ## Plugins
 
 **--plugins**, **--no-plugins**
 : Enable or disable external/plugin processing. Plugins
-extend Apex with custom processing capabilities.
+    extend Apex with custom processing capabilities.
 
 **--list-plugins**
 : List installed plugins and available plugins from the
-remote directory. Shows both locally installed plugins and
-plugins available for installation from the Apex plugin
-directory.
+    remote directory. Shows both locally installed plugins and
+    plugins available for installation from the Apex plugin
+    directory.
 
 **--install-plugin** *ID*
 :   Install a plugin by ID from the remote directory, or by Git URL/GitHub shorthand (user/repo). Plugins are installed to `$XDG_CONFIG_HOME/apex/plugins` (or `~/.config/apex/plugins` when `XDG_CONFIG_HOME` is not set). When installing from a URL or GitHub shorthand, Apex will prompt for confirmation since plugins execute unverified code.
 
 **--uninstall-plugin** *ID*
 : Uninstall a plugin by ID. Removes the plugin directory
-from the plugins folder. Apex will prompt for confirmation
-before removing the plugin.
+    from the plugins folder. Apex will prompt for confirmation
+    before removing the plugin.
 
 ## General Options
 
@@ -524,16 +524,15 @@ before removing the plugin.
 
 **--combine** *files...*
 : Concatenate one or more Markdown files into a single
-Markdown stream, expanding all supported include syntaxes.
-When a `SUMMARY.md` file is provided, Apex treats it as a
-GitBook-style index and combines the linked files in order.
-Output is raw Markdown suitable for piping back into Apex.
+    Markdown stream, expanding all supported include syntaxes.
+    When a `SUMMARY.md` file is provided, Apex treats it as a
+    GitBook-style index and combines the linked files in order.
+    Output is raw Markdown suitable for piping back into Apex.
 
 **--mmd-merge** *index files...*
-:   Merge files from one or more MultiMarkdown `mmd_merge`-style index files into a single Markdown stream. Each non-empty, non-comment line in an index file specifies a document to include. Lines whose first non-whitespace character is `#` are treated as comments and ignored. Indentation (tabs or groups of four spaces) before the filename increases the header level of the included document (each indent level shifts all Markdown headings in that file down one level). Output is raw Markdown suitable for piping into Apex, for example:
+:   Merge files from one or more MultiMarkdown `mmd_merge`-style index files into a  single Markdown stream. Each non-empty, non-comment line in an index file specifies a document to include. Lines whose first non-whitespace character is `#` are treated as comments and ignored. Indentation (tabs or groups of four spaces) before the filename increases the header level of the included document (each indent level shifts all Markdown headings in that file down one level). Output is raw Markdown suitable for piping into Apex, for example:
 
-apex --mmd-merge index.txt | apex --mode mmd --standalone -o
-book.html
+    apex --mmd-merge index.txt | apex --mode mmd --standalone -o book.html
 
 # EXAMPLES
 
@@ -579,20 +578,20 @@ Process from stdin:
 
 **commonmark**
 : Pure CommonMark specification. Minimal features, maximum
-compatibility.
+    compatibility.
 
 **gfm**
 : GitHub Flavored Markdown. Includes tables, strikethrough,
-task lists, autolinks, and more.
+    task lists, autolinks, and more.
 
 **mmd**, **multimarkdown**
 : MultiMarkdown compatibility. Includes metadata, definition
-lists, footnotes, and more.
+    lists, footnotes, and more.
 
 **kramdown**
 : Kramdown compatibility. Includes relaxed tables, IAL
-(Inline Attribute Lists) for adding HTML attributes to
-elements, and more.
+    (Inline Attribute Lists) for adding HTML attributes to
+    elements, and more.
 
 **unified** (default)
 :   All features enabled. Combines features from all modes.
@@ -695,15 +694,12 @@ in unified mode only.
   rows (Kramdown-style)
 
 - **Inline Tables from CSV/TSV**: Convert inline CSV/TSV
-
   text to tables using ```table fences or `<!--TABLE-->`
   markers
 
 **Superscript/Subscript**: MultiMarkdown-style superscript (`^text`) and subscript (`~text~` within words) syntax. Subscript uses paired tildes within word boundaries (e.g., `H~2~O`), while tildes at word boundaries create underline
 
-- **Image Embedding**: Embed local images as base64 data
-
-  URLs with `--embed-images` flag
+- **Image Embedding**: Embed local images as base64 data URLs with `--embed-images` flag
 
 **Inline Attribute Lists (IAL)**: Kramdown-style syntax for adding HTML attributes (IDs, classes, key-value pairs) to block-level and inline elements. Supports Attribute List Definitions (ALDs) for reusable attribute sets. Available in kramdown and unified modes. See [Inline Attribute Lists](https://github.com/ttscoff/apex/wiki/Inline-Attribute-Lists) for complete documentation
 

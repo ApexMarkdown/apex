@@ -588,12 +588,16 @@ char *apex_cmark_to_man_roff(cmark_node *document, const apex_options *options)
 /* Man-HTML: styled HTML man page                                            */
 /* ------------------------------------------------------------------------- */
 
-/* Append string with HTML entities escaped: & < > " ' */
+/* Append string with HTML entities escaped: & < > " '. Replace UTF-8 en-dash (U+2013)
+ * with "--" so option names like –standalone render as --standalone. */
 static void man_buf_append_html_escaped(man_buffer *b, const char *str, size_t len) {
     if (!str || len == 0) return;
     for (size_t i = 0; i < len; i++) {
         unsigned char c = (unsigned char)str[i];
-        if (c == '&') man_buf_append_str(b, "&amp;");
+        if (i + 2 < len && c == 0xE2 && (unsigned char)str[i + 1] == 0x80 && (unsigned char)str[i + 2] == 0x93) {
+            man_buf_append_str(b, "--");
+            i += 2; /* skip the other two bytes of en-dash */
+        } else if (c == '&') man_buf_append_str(b, "&amp;");
         else if (c == '<') man_buf_append_str(b, "&lt;");
         else if (c == '>') man_buf_append_str(b, "&gt;");
         else if (c == '"') man_buf_append_str(b, "&quot;");
@@ -797,8 +801,18 @@ static void render_block_man_html(man_buffer *buf, cmark_node *node) {
         case CMARK_NODE_HTML_BLOCK: {
             const char *lit = cmark_node_get_literal(node);
             size_t lit_len = lit ? strlen(lit) : 0;
-            if (lit_len > 0 && is_dl_block(lit, lit_len))
-                man_buf_append(buf, lit, lit_len);
+            if (lit_len > 0 && is_dl_block(lit, lit_len)) {
+                /* Append with en-dash (U+2013) replaced by -- so option names render correctly */
+                for (size_t i = 0; i < lit_len; i++) {
+                    if (i + 2 < lit_len && (unsigned char)lit[i] == 0xE2
+                        && (unsigned char)lit[i + 1] == 0x80 && (unsigned char)lit[i + 2] == 0x93) {
+                        man_buf_append_str(buf, "--");
+                        i += 2;
+                    } else {
+                        man_buf_append(buf, lit + i, 1);
+                    }
+                }
+            }
             break;
         }
         default:

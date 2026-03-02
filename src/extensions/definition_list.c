@@ -674,6 +674,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     } while(0)
 
     bool in_def_list = false;
+    bool dd_content_open = false;  /* True when <dd>content written but </dd> not yet output (allows continuation) */
     bool in_blockquote_context = false;  /* Track if we're processing blockquote-prefixed definition lists */
     int blockquote_depth = 0;  /* Track nesting depth of blockquotes (number of > characters) */
     char term_buffer[4096];
@@ -750,6 +751,15 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 /* If we're entering a code block, clear any pending definition list state */
                 if (in_code_block && !was_in_code_block) {
                     if (in_def_list) {
+                        if (dd_content_open) {
+                            const char *dd_end = "</dd>\n";
+                            size_t de_len = strlen(dd_end);
+                            ENSURE_SPACE(de_len + 1);
+                            memcpy(write, dd_end, de_len);
+                            write += de_len;
+                            remaining -= de_len;
+                            dd_content_open = false;
+                        }
                         /* Close any open definition list */
                         const char *dl_end = "</dl>\n";
                         size_t dl_end_len = strlen(dl_end);
@@ -767,6 +777,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 /* If we're exiting a code block, clear any pending definition list state */
                 if (!in_code_block && was_in_code_block) {
                     in_def_list = false;
+                    dd_content_open = false;
                     term_len = 0;
                     term_has_blockquote = false;
                     term_blockquote_depth = 0;
@@ -950,6 +961,16 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
         if (is_def_line) {
             /* Definition line */
+            /* If we had an open dd from previous definition, close it before this new one */
+            if (dd_content_open) {
+                const char *dd_close = "</dd>\n";
+                size_t dc_len = strlen(dd_close);
+                ENSURE_SPACE(dc_len + 1);
+                memcpy(write, dd_close, dc_len);
+                write += dc_len;
+                remaining -= dc_len;
+                dd_content_open = false;
+            }
             if (!in_def_list) {
                 found_any_def_list = true;  /* We're creating a definition list */
                 /* Check if this definition list is in a blockquote context */
@@ -1337,19 +1358,13 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 remaining -= def_text_len;
             }
 
-            const char *dd_end = "</dd>\n";
-            size_t dd_end_len = strlen(dd_end);
-            /* Need dd_end_len + 1 for null terminator */
-            ENSURE_SPACE(dd_end_len + 1);
-            memcpy(write, dd_end, dd_end_len);
-            write += dd_end_len;
-            remaining -= dd_end_len;
+            /* Don't output </dd> yet - allows indented continuation lines to extend this definition */
+            dd_content_open = true;
         } else if (line_length == 0 || (line_length == 1 && *line_start == '\r')) {
             /* Blank line */
             if (in_def_list) {
-                /* Allow blank lines within definition lists - skip them to keep HTML block continuous */
-                /* Don't close the list - it will continue if next line is a definition */
-                /* Blank lines in HTML are mostly ignored anyway, so skipping is safe */
+                /* Skip blank lines within definition lists (preserves existing behavior; next line may be def or term) */
+                /* Don't close the list - it will continue if next line is a definition or continuation */
             } else {
                 /* Not in a definition list - check if we have a buffered term */
                 if (term_len > 0) {
@@ -1383,8 +1398,69 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 continue;
             }
             if (in_def_list) {
-                /* This could be a new term */
-                /* End current list first */
+                /* Check if this is an indented continuation line (4+ spaces or tab) - extends current dd */
+                int cont_spaces = 0;
+                const char *cont_check = line_start;
+                while (cont_check < line_end && cont_spaces < 8 && (*cont_check == ' ' || *cont_check == '\t')) {
+                    if (*cont_check == ' ') cont_spaces++;
+                    else cont_spaces += 4; /* tab = 4 spaces for indent check */
+                    cont_check++;
+                }
+                if (dd_content_open && cont_spaces >= 4 && cont_check < line_end) {
+                    /* Continuation line: parse as markdown and append to current dd */
+                    size_t cont_len = (size_t)(line_end - cont_check);
+                    char *cont_text = malloc(cont_len + 1);
+                    if (cont_text) {
+                        memcpy(cont_text, cont_check, cont_len);
+                        cont_text[cont_len] = '\0';
+                        int parser_opts = CMARK_OPT_DEFAULT | CMARK_OPT_SMART;
+                        int render_opts = CMARK_OPT_DEFAULT;
+                        if (unsafe) {
+                            parser_opts |= CMARK_OPT_UNSAFE | CMARK_OPT_LIBERAL_HTML_TAG;
+                            render_opts |= CMARK_OPT_UNSAFE;
+                        }
+                        cmark_parser *cp = cmark_parser_new(parser_opts);
+                        if (cp) {
+                            cmark_parser_feed(cp, cont_text, (int)cont_len);
+                            cmark_node *doc = cmark_parser_finish(cp);
+                            if (doc) {
+                                char *html = cmark_render_html(doc, render_opts, NULL);
+                                if (html) {
+                                    char *content = html;
+                                    if (strncmp(content, "<p>", 3) == 0) content += 3;
+                                    size_t html_len = strlen(content);
+                                    if (html_len > 5 && strcmp(content + html_len - 5, "</p>\n") == 0)
+                                        html_len -= 5;
+                                    ENSURE_SPACE(2 + html_len + 1);
+                                    *write++ = ' ';
+                                    remaining--;
+                                    memcpy(write, content, html_len);
+                                    write += html_len;
+                                    remaining -= html_len;
+                                    *write++ = '\n';
+                                    remaining--;
+                                    free(html);
+                                }
+                                cmark_node_free(doc);
+                            }
+                            cmark_parser_free(cp);
+                        }
+                        free(cont_text);
+                    }
+                    read = line_end;
+                    if (*read == '\n') read++;
+                    continue;
+                }
+                /* This is a new term - close current dd and list first */
+                if (dd_content_open) {
+                    const char *dd_close = "</dd>\n";
+                    size_t dc_len = strlen(dd_close);
+                    ENSURE_SPACE(dc_len + 1);
+                    memcpy(write, dd_close, dc_len);
+                    write += dc_len;
+                    remaining -= dc_len;
+                    dd_content_open = false;
+                }
                 const char *dl_end = "</dl>\n\n";
                 size_t dl_end_len = strlen(dl_end);
                     if (in_blockquote_context) {
@@ -1610,6 +1686,14 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
     /* Close any open definition list */
     if (in_def_list) {
+        if (dd_content_open) {
+            const char *dd_close = "</dd>\n";
+            size_t dc_len = strlen(dd_close);
+            ENSURE_SPACE(dc_len + 1);
+            memcpy(write, dd_close, dc_len);
+            write += dc_len;
+            remaining -= dc_len;
+        }
         const char *dl_end = "</dl>\n";
         size_t dl_end_len = strlen(dl_end);
         if (in_blockquote_context) {
