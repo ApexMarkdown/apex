@@ -3675,6 +3675,11 @@ int main(int argc, char *argv[]) {
         last_stage = NULL;
     }
 
+    /* Man page output must keep -- as literal double hyphen; option names must not become en-dash */
+    if (options.output_format == APEX_OUTPUT_MAN || options.output_format == APEX_OUTPUT_MAN_HTML) {
+        options.enable_smart_typography = false;
+    }
+
     /* Convert to output (HTML, Markdown, terminal, etc.) */
     char *html = apex_markdown_to_html(final_markdown, final_len, &options);
 

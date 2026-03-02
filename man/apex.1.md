@@ -138,10 +138,16 @@ This enhances screen reader support and makes the HTML
 output more accessible. Default: disabled.
 
 **-t** *FORMAT*, **--to** *FORMAT*
-:: Output format: **html** (default), **json**, **json-filtered** (or
-**ast-json** / **ast**), **markdown**/**md**, **mmd**, **commonmark**/**cmark**,
-**kramdown**, **gfm**, **terminal**/**cli**, or **terminal256**. When using a
-terminal format, Apex emits ANSI-colored output suitable for TTYs and
+:: Output format. One of:
+
+- **html** (default) - Rendered HTML
+- **json**, **json-filtered**, **ast-json**, **ast** - JSON output (before or after filters)
+- **markdown**, **md**, **mmd**, **commonmark**, **cmark**, **kramdown**, **gfm** - Markdown variants
+- **terminal**, **cli**, **terminal256** - ANSI-colored output for TTYs and terminal emulators
+- **man** - Man page roff source (.TH, .SH, etc.)
+- **man-html** - Styled HTML man page (use **--standalone** for full page with nav sidebar)
+
+When using a terminal format, Apex emits ANSI-colored output suitable for TTYs and
 terminal emulators.
 
 ## Feature Flags
