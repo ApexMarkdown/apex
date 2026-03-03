@@ -786,6 +786,27 @@ void test_definition_lists(void) {
     assert_contains(html, "<dd>definition 2</dd>", "Second definition");
     apex_free_string(html);
 
+    /* Test all four definition list formats */
+    html = apex_markdown_to_html("term\n: definition", 17, &opts);
+    assert_contains(html, "<dt>term</dt>", "Kramdown format: term + : definition");
+    assert_contains(html, "<dd>definition</dd>", "Kramdown format dd");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("term\n:: definition", 18, &opts);
+    assert_contains(html, "<dt>term</dt>", "Kramdown format: term + :: definition");
+    assert_contains(html, "<dd>definition</dd>", "Kramdown :: format dd");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("term::definition", 16, &opts);
+    assert_contains(html, "<dt>term</dt>", "One-line format: term::definition");
+    assert_contains(html, "<dd>definition</dd>", "One-line format dd");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("term :: definition", 18, &opts);
+    assert_contains(html, "<dt>term</dt>", "One-line format: term :: definition");
+    assert_contains(html, "<dd>definition</dd>", "One-line format with spaces dd");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }

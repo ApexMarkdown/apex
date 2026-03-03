@@ -2580,6 +2580,12 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->enable_footnotes = false;
             }
+        } else if (strcasecmp(key, "one-line-definitions") == 0 || strcasecmp(key, "one_line_definitions") == 0) {
+            if (is_true_value(value)) {
+                options->enable_definition_lists = true;
+            } else if (is_false_value(value)) {
+                options->enable_definition_lists = false;
+            }
         } else if (strcasecmp(key, "smart") == 0 || strcasecmp(key, "smart-typography") == 0) {
             if (is_true_value(value)) {
                 options->enable_smart_typography = true;

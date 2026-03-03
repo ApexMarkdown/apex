@@ -1325,19 +1325,49 @@ static char *apex_preprocess_table_captions(const char *text) {
                     }
                     table_check++;
                 }
-                /* Check for : Caption format (Pandoc-style, only after tables) */
-                /* Skip up to 3 leading spaces (matching definition list rules) */
+                /* Check for : Caption format (Pandoc-style, only in table context)
+                 * Require prev_line_was_table_row or in_table_section - NOT prev_line_was_blank alone.
+                 * prev_line_was_blank alone would wrongly convert "Term\n\n: definition 1" (def list) to caption. */
+                if ((prev_line_was_table_row || in_table_section) &&
+                    !is_pandoc_caption_line) {
+                    const char *check = p;
+                    int spaces = 0;
+                    while (spaces < 3 && check < line_end && *check == ' ') {
+                        spaces++;
+                        check++;
+                    }
+                    if (check < line_end && *check == ':' &&
+                        (check + 1) < line_end &&
+                        (check[1] == ' ' || check[1] == '\t')) {
+                        is_colon_caption_line = true;
+                    }
+                }
+            } else {
+                /* Check for : Caption BEFORE table (next non-blank line is a table row) */
                 const char *check = p;
                 int spaces = 0;
                 while (spaces < 3 && check < line_end && *check == ' ') {
                     spaces++;
                     check++;
                 }
-                /* Must start with : followed by space or tab */
                 if (check < line_end && *check == ':' &&
                     (check + 1) < line_end &&
                     (check[1] == ' ' || check[1] == '\t')) {
-                    is_colon_caption_line = true;
+                    /* Peek ahead: is next non-blank line a table row? */
+                    const char *next = line_end;
+                    if (next < text + len && *next == '\n') next++;
+                    if (next < text + len && *next == '\r') next++;
+                    while (next < text + len && (*next == '\n' || *next == '\r' || *next == ' ' || *next == '\t')) {
+                        if (*next == '\n' || *next == '\r') {
+                            next++;
+                            if (next < text + len && next[-1] == '\r' && *next == '\n') next++;
+                        } else {
+                            next++;
+                        }
+                    }
+                    if (next < text + len && *next == '|') {
+                        is_colon_caption_line = true;
+                    }
                 }
             }
         }
@@ -1459,10 +1489,9 @@ static char *apex_preprocess_table_captions(const char *text) {
                     *write++ = '\n';
                 }
             }
-        } else if (!in_code_block &&
-                   prev_line_was_table_row &&
-                   is_colon_caption_line) {
-            /* Case 3: Pandoc-style ': Caption {#id .class}' -> convert to '[Caption {#id .class}]' */
+        } else if (!in_code_block && is_colon_caption_line) {
+            /* Case 3: Pandoc-style ': Caption {#id .class}' -> convert to '[Caption {#id .class}]'
+             * Handles both: (a) after table, (b) before table (next line is | table row) */
             /* Skip leading whitespace (up to 3 spaces) */
             const char *caption_start = p;
             int spaces = 0;
@@ -2904,13 +2933,7 @@ static void apex_register_extensions(cmark_parser *parser, const apex_options *o
         }
     }
 
-    /* Definition lists (Kramdown/PHP Extra style) */
-    if (options->enable_definition_lists) {
-        cmark_syntax_extension *deflist_ext = create_definition_list_extension();
-        if (deflist_ext) {
-            cmark_parser_attach_syntax_extension(parser, deflist_ext);
-        }
-    }
+    /* Definition lists (one-line format: Term :: Definition) - handled by preprocessing only */
 
     /* Advanced footnotes (block-level content support) */
     if (options->enable_footnotes) {

@@ -665,6 +665,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-smart             Disable smart typography\n");
     fprintf(stderr, "  --no-sup-sub           Disable superscript/subscript syntax\n");
     fprintf(stderr, "  --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)\n");
+    fprintf(stderr, "  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)\n");
     fprintf(stderr, "  --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
@@ -2045,6 +2046,10 @@ int main(int argc, char *argv[]) {
             options.enable_divs = true;
         } else if (strcmp(argv[i], "--no-divs") == 0) {
             options.enable_divs = false;
+        } else if (strcmp(argv[i], "--one-line-definitions") == 0) {
+            options.enable_definition_lists = true;
+        } else if (strcmp(argv[i], "--no-one-line-definitions") == 0) {
+            options.enable_definition_lists = false;
         } else if (strcmp(argv[i], "--spans") == 0) {
             options.enable_spans = true;
         } else if (strcmp(argv[i], "--no-spans") == 0) {
