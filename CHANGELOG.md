@@ -26,6 +26,23 @@ All notable changes to Apex will be documented in this file.
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 
+## [0.1.89] - 2026-03-03
+
+### Changed
+
+- Definition lists rewritten as preprocessing (no cmark extension): supports Kramdown "term" + ": definition" or ":: definition", plus one-line "term::definition" and "term :: definition" using last :: to avoid splitting URLs
+
+### New
+
+- CLI flags --one-line-definitions and --no-one-line-definitions to enable or disable definition list processing
+- Metadata keys one-line-definitions and one_line_definitions for front-matter control of definition lists
+
+### Fixed
+
+- Table caption ": Caption" no longer misparses Kramdown definition lines (e.g. "Term\n\n: definition 1") by requiring prev_line_was_table_row or in_table_section instead of prev_line_was_blank alone
+- Table captions before tables: ": Caption" now recognized when the next non-blank line is a table row
+- Table caption paragraphs removed from output so captions appear only in figcaption, not duplicated as standalone paragraphs
+
 ## [0.1.88] - 2026-03-02
 
 ### Changed
@@ -2614,6 +2631,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.89]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.89
 [0.1.88]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.88
 [0.1.87]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.87
 [0.1.86]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.86

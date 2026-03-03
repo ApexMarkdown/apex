@@ -1,5 +1,5 @@
 
-[![Version: 0.1.87](https://img.shields.io/badge/Version-0.1.87-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1413/1413](https://img.shields.io/badge/Tests-1413/1413-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.88](https://img.shields.io/badge/Version-0.1.88-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1421/1421](https://img.shields.io/badge/Tests-1421/1421-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.87
+Apex Markdown Processor v0.1.88
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -367,6 +367,7 @@ Options:
   --no-smart             Disable smart typography
   --no-sup-sub           Disable superscript/subscript syntax
   --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)
+  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)
   --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)
   --no-tables            Disable table support
   --no-transforms        Disable metadata variable transforms
