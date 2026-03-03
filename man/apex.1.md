@@ -652,56 +652,44 @@ Apex supports a wide range of Markdown extensions:
 - **Strikethrough**: GFM-style `~~text~~` (controlled by **--strikethrough**)
 - **Footnotes**: Reference-style footnotes
 - **Math**: Inline (`$...$`) and display (`$$...$$`) math
-
   with LaTeX
-
 - **Wiki Links**: `[[Page]]`, `[[Page|Display]]`,
-
   `[[Page#Section]]`
-
 - **Critic Markup**: All 5 types ({++add++}, {--del--},
-
   {~~sub~~}, {==mark==}, {>>comment<<})
-
 - **Smart Typography**: Smart quotes, dashes, ellipsis
 - **Definition Lists**: MultiMarkdown-style definition lists
 - **Task Lists**: GFM-style task lists
 - **Metadata**: YAML front matter, MultiMarkdown metadata,
-
   Pandoc title blocks
-
 - **Metadata Transforms**: Transform metadata values with
-
   `[%key:transform]` syntax (case conversion, string
   manipulation, regex replacement, date formatting, etc.)
-
 - **Metadata Control of Options**: Control command-line
-
   options via metadata for per-document configuration
-
 - **Header IDs**: Automatic or manual header IDs with
-
   multiple format options
-
 - **Relaxed Tables**: Support for tables without separator
-rows (Kramdown-style). Enabled by default in unified and
-Kramdown modes.
-
+  rows (Kramdown-style). Enabled by default in unified and
+  Kramdown modes.
 - **Per-Cell Alignment**: Support for alignment markers using
-colons at the start and/or end of table cells. Enabled by default
-in unified mode only.
-
-  rows (Kramdown-style)
-
+  colons at the start and/or end of table cells. Enabled by default
+  in unified mode only.
 - **Inline Tables from CSV/TSV**: Convert inline CSV/TSV
   text to tables using ```table fences or `<!--TABLE-->`
   markers
-
-**Superscript/Subscript**: MultiMarkdown-style superscript (`^text`) and subscript (`~text~` within words) syntax. Subscript uses paired tildes within word boundaries (e.g., `H~2~O`), while tildes at word boundaries create underline
-
+- **Superscript/Subscript**: MultiMarkdown-style superscript (`^text`) and
+  subscript (`~text~` within words) syntax. Subscript uses paired tildes within
+  word boundaries (e.g., `H~2~O`), while tildes at word boundaries create
+  underline
 - **Image Embedding**: Embed local images as base64 data URLs with `--embed-images` flag
+- **Inline Attribute Lists (IAL)**: Kramdown-style syntax for adding HTML
+  attributes (IDs, classes, key-value pairs) to block-level and inline elements.
+  Supports Attribute List Definitions (ALDs) for reusable attribute sets. Available in
+  kramdown and unified modes. See
+  [Inline Attribute Lists](https://github.com/ttscoff/apex/wiki/Inline-Attribute-Lists)
+  for complete documentation
 
-**Inline Attribute Lists (IAL)**: Kramdown-style syntax for adding HTML attributes (IDs, classes, key-value pairs) to block-level and inline elements. Supports Attribute List Definitions (ALDs) for reusable attribute sets. Available in kramdown and unified modes. See [Inline Attribute Lists](https://github.com/ttscoff/apex/wiki/Inline-Attribute-Lists) for complete documentation
 
 # SEE ALSO
 
