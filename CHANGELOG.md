@@ -2,6 +2,21 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.90] - 2026-03-04
+
+### New
+
+- Apex_options.cmark_init callback: register custom cmark-gfm syntax extensions before parsing; call cmark_parser_attach_syntax_extension() in your callback (include cmark-gfm.h and cmark-gfm-extension_api.h when implementing) Resolves [#10](https://github.com/ApexMarkdown/apex/issues/10)
+- Apex_version_string() exposed in ObjC/Swift via [NSString apexVersion] and Apex.version
+
+### Improved
+
+- CSV/TSV inline tables (```table fences, <!--TABLE-->, includes) now accept Markdown-style alignment specs in the second row. Cells containing only colons and dashes (e.g. :--, --:, :--:) are parsed by colon position: leading = left, trailing = right, both = center, neither = auto. Keywords (left, right, center, auto) continue to work unchanged. Resolves [#14](https://github.com/ApexMarkdown/apex/issues/14)
+
+### Fixed
+
+- Include paths now support percent encoding (e.g. <<[with%20space.txt], {{file%20name}}, /path%20to%2Ffile) so paths with spaces and special characters resolve correctly to files on disk. Resolves [#12](https://github.com/ApexMarkdown/apex/issues/12)
+
 ## [0.1.89] - 2026-03-04
 
 ### Improved
@@ -2605,6 +2620,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.90]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.90
 [0.1.89]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.89
 [0.1.88]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.88
 [0.1.87]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.87
