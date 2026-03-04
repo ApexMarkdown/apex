@@ -1077,30 +1077,32 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
         return html ? strdup(html) : NULL;
     }
 
-    /* Collect all headers from AST with their IDs */
+    /* Collect all headers from AST with their IDs (level + text for matching) */
     typedef struct header_id_map {
+        int level;
         char *text;
         char *id;
         int index;
+        bool used;
         struct header_id_map *next;
     } header_id_map;
 
     header_id_map *header_map = NULL;
     int header_count = 0;
 
-    /* Walk AST to collect headers */
+    /* Walk AST to collect headers (only markdown HEADING nodes, not raw HTML) */
     cmark_iter *iter = cmark_iter_new(document);
     cmark_event_type event;
     while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
         cmark_node *node = cmark_iter_get_node(iter);
         if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_HEADING) {
+            int level = cmark_node_get_heading_level(node);
             char *text = apex_extract_heading_text(node);
             char *id = NULL;
 
             /* Check if ID already exists from IAL or manual ID (stored in user_data) */
             char *user_data = (char *)cmark_node_get_user_data(node);
             if (user_data) {
-                /* Look for id="..." in user_data */
                 const char *id_attr = strstr(user_data, "id=\"");
                 if (id_attr) {
                     const char *id_start = id_attr + 4;
@@ -1116,16 +1118,17 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                 }
             }
 
-            /* If no manual/IAL ID, generate one automatically */
             if (!id) {
                 id = apex_generate_header_id(text, (apex_id_format_t)id_format);
             }
 
             header_id_map *entry = malloc(sizeof(header_id_map));
             if (entry) {
+                entry->level = level;
                 entry->text = text;
                 entry->id = id;
                 entry->index = header_count++;
+                entry->used = false;
                 entry->next = header_map;
                 header_map = entry;
             } else {
@@ -1169,7 +1172,6 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
     const char *read = html;
     char *write = output;
     size_t remaining = capacity;  /* Reserve 1 byte for null terminator */
-    int current_header_idx = 0;
 
     while (*read) {
         /* Look for header opening tags: <h1>, <h2>, etc. */
@@ -1192,6 +1194,58 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                 continue;
             }
 
+            /* Extract header content from HTML (between > and </hN>) for matching */
+            int html_level = tag_start[2] - '0';
+            const char *content_start = tag_end + 1;
+            const char *closing = strstr(content_start, "</h");
+            const char *content_end = content_start;
+            if (closing && closing[2] >= '1' && closing[2] <= '6' && closing[3] == '>') {
+                content_end = closing;
+            }
+            char content_buf[512];
+            size_t content_len = content_end > content_start ? (size_t)(content_end - content_start) : 0;
+            if (content_len >= sizeof(content_buf)) content_len = sizeof(content_buf) - 1;
+            memcpy(content_buf, content_start, content_len);
+            content_buf[content_len] = '\0';
+            /* Decode &amp; to & and strip tags for comparison with AST text */
+            {
+                char *r = content_buf, *w = content_buf;
+                while (*r) {
+                    if (strncmp(r, "&amp;", 5) == 0) { *w++ = '&'; r += 5; }
+                    else if (strncmp(r, "&lt;", 4) == 0) { *w++ = '<'; r += 4; }
+                    else if (strncmp(r, "&gt;", 4) == 0) { *w++ = '>'; r += 4; }
+                    else if (*r == '<') { while (*r && *r != '>') r++; if (*r == '>') r++; }
+                    else { *w++ = *r++; }
+                }
+                *w = '\0';
+            }
+            /* Trim whitespace and newlines for comparison with AST text */
+            char *trim_start = content_buf;
+            while (*trim_start == ' ' || *trim_start == '\t' || *trim_start == '\n' || *trim_start == '\r') trim_start++;
+            size_t trim_len = strlen(trim_start);
+            while (trim_len > 0 && (trim_start[trim_len - 1] == ' ' || trim_start[trim_len - 1] == '\t' || trim_start[trim_len - 1] == '\n' || trim_start[trim_len - 1] == '\r'))
+                trim_start[--trim_len] = '\0';
+
+            /* Find matching AST header: first by (level, text), else first unused with same level */
+            header_id_map *header = NULL;
+            for (header_id_map *p = header_map; p; p = p->next) {
+                if (!p->used && p->level == html_level && p->text && strcmp(p->text, trim_start) == 0) {
+                    header = p;
+                    p->used = true;
+                    break;
+                }
+            }
+            if (!header) {
+                /* Fallback: first unused with same level (handles text extraction differences) */
+                for (header_id_map *p = header_map; p; p = p->next) {
+                    if (!p->used && p->level == html_level) {
+                        header = p;
+                        p->used = true;
+                        break;
+                    }
+                }
+            }
+
             /* Check if ID already exists in the tag */
             bool has_id = false;
             const char *id_attr = strstr(tag_start, "id=");
@@ -1199,23 +1253,13 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
             const char *id_end = NULL;
             if (id_attr && id_attr < tag_end) {
                 has_id = true;
-                /* Find the ID value boundaries for replacement */
-                id_start = id_attr + 3; /* After 'id=' */
+                id_start = id_attr + 3;
                 while (id_start < tag_end && (*id_start == ' ' || *id_start == '"' || *id_start == '\'')) {
                     id_start++;
                 }
                 id_end = id_start;
                 while (id_end < tag_end && *id_end != '"' && *id_end != '\'' && *id_end != ' ' && *id_end != '>') {
                     id_end++;
-                }
-            }
-
-            /* Get the header ID - always get it so we can replace existing IDs */
-            header_id_map *header = NULL;
-            if (current_header_idx < header_count) {
-                header = header_map;
-                for (int i = 0; i < current_header_idx && header; i++) {
-                    header = header->next;
                 }
             }
 
@@ -1240,7 +1284,6 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                     write += anchor_len;
                     remaining -= anchor_len;
                 }
-                current_header_idx++;
             } else if (!use_anchors && header && header->id) {
                 /* For header IDs: replace existing ID or inject new one */
                 if (has_id && id_attr) {
@@ -1294,11 +1337,10 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                             *write++ = *read++;
                             remaining--;
                         } else {
-                            read++;
-                        }
+                    read++;
                     }
-                    current_header_idx++;
-                } else {
+                }
+            } else {
                     /* No existing ID: copy tag up to '>', inject id attribute, then copy '>' */
                     const char *after_tag_name = tag_start + 3;
                     while (*after_tag_name && *after_tag_name != '>' && !isspace((unsigned char)*after_tag_name)) {
@@ -1356,7 +1398,6 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                         }
                     }
                 }
-                current_header_idx++;
             } else {
                 /* No ID to inject, just copy the tag */
                 size_t tag_len = tag_end - tag_start + 1;
@@ -1366,9 +1407,6 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                     remaining -= tag_len;
                 }
                 read = tag_end + 1;
-                if (!has_id) {
-                    current_header_idx++;
-                }
             }
         } else {
             /* Copy character */

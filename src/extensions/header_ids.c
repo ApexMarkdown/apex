@@ -599,6 +599,9 @@ static bool is_valid_mmd_id(const char *s) {
  * Extracts MMD [id] or Kramdown {#id} syntax and stores ID in user_data
  * Updates the heading text node to remove the manual ID syntax
  *
+ * Walks ALL text children (not just first) so headings split by "&" etc.
+ * (e.g. TEXT + HTML_INLINE + TEXT) are handled - the IAL may be in a later child.
+ *
  * Edge case: When [id] matches a link reference and would render as a link,
  * but [id] is the last element in the heading with other content before it,
  * treat it as MMD heading ID (not a link). This avoids the conflict where
@@ -611,33 +614,48 @@ bool apex_process_manual_header_id(cmark_node *heading_node) {
         return false;
     }
 
-    /* Get the text node inside the heading */
-    cmark_node *text_node = cmark_node_first_child(heading_node);
-    if (!text_node || cmark_node_get_type(text_node) != CMARK_NODE_TEXT) {
-        goto try_trailing_link;
+    /* Check each TEXT child for manual ID - "&" etc. can split content across nodes.
+       Prefer the rightmost (last) match to align with IAL behavior. */
+    cmark_node *match_node = NULL;
+    char *match_text = NULL;
+    char *match_id = NULL;
+
+    for (cmark_node *child = cmark_node_first_child(heading_node); child;
+         child = cmark_node_next(child)) {
+        if (cmark_node_get_type(child) != CMARK_NODE_TEXT) continue;
+
+        const char *literal = cmark_node_get_literal(child);
+        if (!literal) continue;
+
+        char *text_copy = strdup(literal);
+        if (!text_copy) continue;
+
+        char *manual_id = NULL;
+        bool found = apex_extract_manual_header_id(&text_copy, &manual_id);
+
+        if (found && manual_id) {
+            /* Discard previous match - we want the rightmost */
+            free(match_text);
+            free(match_id);
+            match_node = child;
+            match_text = text_copy;
+            match_id = manual_id;
+        } else {
+            free(text_copy);
+            if (manual_id) free(manual_id);
+        }
     }
 
-    const char *text = cmark_node_get_literal(text_node);
-    if (!text) goto try_trailing_link;
-
-    /* Extract text and try to find manual ID (MMD [id] or Kramdown {#id} in plain text) */
-    char *text_copy = strdup(text);
-    if (!text_copy) goto try_trailing_link;
-
-    char *manual_id = NULL;
-    bool found = apex_extract_manual_header_id(&text_copy, &manual_id);
-
-    if (found && manual_id) {
+    if (match_node && match_id) {
         /* Store ID in user_data as id="..." */
-        char *id_attr = malloc(strlen(manual_id) + 6);  /* id="" + null */
+        char *id_attr = malloc(strlen(match_id) + 6);  /* id="" + null */
         if (id_attr) {
-            sprintf(id_attr, "id=\"%s\"", manual_id);
+            sprintf(id_attr, "id=\"%s\"", match_id);
 
-            /* Merge with existing user_data if present */
+            /* Merge with existing user_data if present (e.g. from IAL) */
             char *existing = (char *)cmark_node_get_user_data(heading_node);
             if (existing) {
-                /* Append to existing */
-                char *combined = malloc(strlen(existing) + strlen(id_attr) + 2);  /* + space + null */
+                char *combined = malloc(strlen(existing) + strlen(id_attr) + 2);
                 if (combined) {
                     sprintf(combined, "%s %s", existing, id_attr);
                     cmark_node_set_user_data(heading_node, combined);
@@ -650,16 +668,11 @@ bool apex_process_manual_header_id(cmark_node *heading_node) {
             }
         }
 
-        /* Update the text node to remove manual ID syntax */
-        cmark_node_set_literal(text_node, text_copy);
-
-        free(manual_id);
-        free(text_copy);
+        cmark_node_set_literal(match_node, match_text);
+        free(match_id);
+        free(match_text);
         return true;
     }
-
-    free(text_copy);
-    if (manual_id) free(manual_id);
 
 try_trailing_link: {
     /* Edge case: [id] was parsed as a link (ref existed). If it's the last

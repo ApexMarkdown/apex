@@ -1241,32 +1241,45 @@ static bool process_span_ial(cmark_node *para, ald_entry *alds) {
 
 /**
  * Extract IAL from heading text (inline syntax: ## Heading {: #id})
+ * Headings may have multiple inline children (e.g. when "&" creates HTML_INLINE),
+ * so we must check all children, not just the first.
  */
 static bool extract_ial_from_heading(cmark_node *heading, apex_attributes **attrs_out, ald_entry *alds) {
     if (cmark_node_get_type(heading) != CMARK_NODE_HEADING) return false;
 
-    /* Get the text node inside the heading */
-    cmark_node *text_node = cmark_node_first_child(heading);
-    if (!text_node || cmark_node_get_type(text_node) != CMARK_NODE_TEXT) return false;
+    /* Find the text node that contains the IAL - walk all children since "&" etc.
+       can split content across multiple nodes (e.g. TEXT + HTML_INLINE + TEXT) */
+    cmark_node *ial_node = NULL;
+    const char *ial_start = NULL;
 
-    const char *text = cmark_node_get_literal(text_node);
+    for (cmark_node *child = cmark_node_first_child(heading); child; child = cmark_node_next(child)) {
+        if (cmark_node_get_type(child) != CMARK_NODE_TEXT) continue;
+
+        const char *text = cmark_node_get_literal(child);
+        if (!text) continue;
+
+        const char *brace = strrchr(text, '{');
+        if (!brace) continue;
+
+        char second_char = brace[1];
+        if (second_char != ':' && second_char != '#' && second_char != '.') continue;
+
+        const char *close = strchr(brace, '}');
+        if (!close) continue;
+
+        const char *after = close + 1;
+        while (*after && isspace((unsigned char)*after)) after++;
+        if (*after) continue;
+
+        /* Found valid IAL - prefer the rightmost (last) one */
+        ial_node = child;
+        ial_start = brace;
+    }
+
+    if (!ial_node || !ial_start) return false;
+
+    const char *text = cmark_node_get_literal(ial_node);
     if (!text) return false;
-
-    /* Look for { at the end - support both {: and {# or {. formats */
-    const char *ial_start = strrchr(text, '{');
-    if (!ial_start) return false;
-    char second_char = ial_start[1];
-    if (second_char != ':' && second_char != '#' && second_char != '.') return false;
-
-    /* Find closing } */
-    const char *close = strchr(ial_start, '}');
-    if (!close) return false;
-
-    /* Check nothing after } except whitespace */
-    const char *after = close + 1;
-    while (*after && isspace((unsigned char)*after)) after++;
-    if (*after) return false;
-
 
     /* Extract attributes */
     if (!extract_ial_from_text(ial_start, attrs_out, alds)) {
@@ -1287,12 +1300,11 @@ static bool extract_ial_from_heading(cmark_node *heading, apex_attributes **attr
         char *end = new_text + prefix_len - 1;
         while (end >= new_text && isspace((unsigned char)*end)) *end-- = '\0';
     } else {
-        /* Heading was only IAL - leave empty string */
+        /* This node was only IAL - leave empty string */
         new_text[0] = '\0';
     }
 
-
-    cmark_node_set_literal(text_node, new_text);
+    cmark_node_set_literal(ial_node, new_text);
     free(new_text);
     return true;
 }

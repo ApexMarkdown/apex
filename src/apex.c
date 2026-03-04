@@ -5116,20 +5116,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         apex_process_callouts_in_tree(document);
     }
 
-    /* Process manual header IDs (MMD [id] and Kramdown {#id}) */
-    if (options->generate_header_ids) {
-        cmark_iter *iter = cmark_iter_new(document);
-        cmark_event_type event;
-        while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
-            cmark_node *node = cmark_iter_get_node(iter);
-            if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_HEADING) {
-                apex_process_manual_header_id(node);
-            }
-        }
-        cmark_iter_free(iter);
-    }
-
-    /* Process IAL (Inline Attribute Lists) if in Kramdown or Unified mode */
+    /* Process IAL (Inline Attribute Lists) BEFORE manual header IDs.
+       IAL handles {: #id}, {#id}, and {.class} - running first ensures these
+       are extracted and removed from heading text before manual header ID
+       looks for MMD [id] or Kramdown {#id}. Avoids duplicate handling. */
     if (alds || options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
         /* Fast path: skip AST walk if no IAL markers present */
         /* Check for both Kramdown-style ({:) and Pandoc-style ({# or {.) IALs */
@@ -5140,6 +5130,21 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             apex_process_ial_in_tree(document, alds);
             PROFILE_END(ial);
         }
+    }
+
+    /* Process manual header IDs (MMD [id] and Kramdown {#id}) - after IAL
+       so IAL's {#id} handling doesn't conflict; manual ID handles [id] and
+       any {#id} IAL might have missed (e.g. in multi-child headings) */
+    if (options->generate_header_ids) {
+        cmark_iter *iter = cmark_iter_new(document);
+        cmark_event_type event;
+        while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
+            cmark_node *node = cmark_iter_get_node(iter);
+            if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_HEADING) {
+                apex_process_manual_header_id(node);
+            }
+        }
+        cmark_iter_free(iter);
     }
 
     /* Apply image attributes to image nodes */
