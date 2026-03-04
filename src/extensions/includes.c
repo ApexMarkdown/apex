@@ -196,10 +196,13 @@ static apex_file_type_t apex_detect_file_type(const char *filepath) {
  * - First row is always treated as header.
  * - If the second row cells are all one of: left, right, center, auto (case-insensitive),
  *   it is treated as an alignment row and converted to :---, ---:, :---:, or ---.
+ * - Alternatively, if the second row cells contain only colons and dashes (e.g. :--, --:,
+ *   :--:), they are parsed as Markdown-style alignment specs:
+ *   :-- or :--- (colon at start) = left; --: or ---: (colon at end) = right;
+ *   :--: or :---: (colon both ends) = center; --- (no colon) = auto.
  *   The alignment row itself is NOT emitted as a data row.
  * - Otherwise, a default '---' separator row is generated after the header.
- *   The second row (including rows that contain only '-' and ':' characters) is emitted
- *   as normal data.
+ *   The second row is emitted as normal data.
  */
 char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
     if (!csv_content) return NULL;
@@ -388,6 +391,59 @@ char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
                 align = NULL;
             } else {
                 has_alignment_row = true;
+            }
+        }
+
+        /* If keywords failed, try Markdown-style alignment (:--, --:, :--:) */
+        if (!has_alignment_row && arow->cell_count == col_count) {
+            align = malloc((size_t)col_count * sizeof(*align));
+            if (align) {
+                bool all_colon_dash = true;
+                for (int i = 0; i < col_count && all_colon_dash; i++) {
+                    char *cell = arow->cells[i];
+                    char *start = cell;
+                    while (*start && isspace((unsigned char)*start)) start++;
+                    char *end = start + strlen(start);
+                    while (end > start && isspace((unsigned char)end[-1])) end--;
+                    size_t tlen = (size_t)(end - start);
+
+                    if (tlen == 0) {
+                        all_colon_dash = false;
+                        break;
+                    }
+
+                    bool has_dash = false;
+                    for (size_t j = 0; j < tlen; j++) {
+                        char ch = start[j];
+                        if (ch == '-') has_dash = true;
+                        else if (ch != ':') {
+                            all_colon_dash = false;
+                            break;
+                        }
+                    }
+                    if (!all_colon_dash || !has_dash) {
+                        all_colon_dash = false;
+                        break;
+                    }
+
+                    bool colon_start = (start[0] == ':');
+                    bool colon_end = (end > start && end[-1] == ':');
+                    if (colon_start && colon_end) {
+                        align[i] = ALIGN_CENTER;
+                    } else if (colon_start) {
+                        align[i] = ALIGN_LEFT;
+                    } else if (colon_end) {
+                        align[i] = ALIGN_RIGHT;
+                    } else {
+                        align[i] = ALIGN_AUTO;
+                    }
+                }
+                if (all_colon_dash) {
+                    has_alignment_row = true;
+                } else {
+                    free(align);
+                    align = NULL;
+                }
             }
         }
     }

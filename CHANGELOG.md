@@ -2,48 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
-## [Unreleased]
-
-### New
-
-- `apex_options.cmark_init` callback: register custom cmark-gfm extensions before parsing. Set a function pointer to be called after Apex registers its built-in extensions; use `cmark_parser_attach_syntax_extension()` to add custom syntax. Include cmark-gfm.h and cmark-gfm-extension_api.h when implementing.
-- `apex_version_string()` exposed in ObjC/Swift: `[NSString apexVersion]` and `Apex.version` for version queries.
-
-
-- Image/video URL with `*` as extension (e.g. `![](image.*)` or `![](video.*)`) is equivalent to `auto`: scans for jpg, png, gif, webp, avif (1x, 2x, 3x) for images and mp4, webm, ogg, mov, m4v for videos, generating `<picture>` or `<video>` with discovered variants.
-- Image attribute `webp` (e.g. `![alt](url webp)`) emits `<picture>` with `<source type="image/webp" srcset="...">`; combines with `@2x` for retina (e.g. `![alt](url webp @2x)` → `img.webp 1x, img@2x.webp 2x`).
-- Image attribute `avif` (e.g. `![alt](url avif)`) emits `<picture>` with `<source type="image/avif" srcset="...">`; same 2x/3x support as webp.
-- Video URLs (mp4, mov, webm, ogg, ogv, m4v) in image syntax emit `<video>` instead of `<img>`; e.g. `![Demo](media/demo.mp4)` → `<video><source src="media/demo.mp4" type="video/mp4"></video>`.
-- Video format attributes (`webm`, `ogg`, `mp4`, `mov`, `m4v`) on video URLs add `<source>` elements for alternative formats; e.g. `![Demo](media/demo.mp4 webm)` adds webm source before the primary fallback.
-- Image attribute `auto` (e.g. `![alt](url auto)`) discovers formats from the filesystem when `base_directory` is set: checks for 2x, 3x, webp, avif variants (images) and webm, ogg, mp4, mov, m4v (videos), generating `<picture>` or `<video>` with only the variants that exist on disk.
-- IAL attributes for picture formats: webp, avif (emit <picture> with srcset), and video formats: webm, ogg, mp4, mov, m4v (emit <video> with <source> elements)
-- --[no-]image-captions and --[no-]title-captions-only CLI options to control figure/figcaption wrapping (title-captions-only: only add captions for images with title, alt-only images get no caption)
-- Image URL ending in .* (e.g. ![](image.*)) auto-discovers format variants from filesystem, same as auto attribute
+## [0.1.89] - 2026-03-04
 
 ### Improved
 
-- Image attribute matching uses URL + alt to disambiguate same-src images when injecting IAL attributes
-- Picture elements with title or alt now get figure/figcaption wrapping when image captions are enabled
-
-### Fixed
-
-- Include paths now support percent encoding (e.g. <<[with%20space.txt] resolves to file "with space.txt") for all include syntaxes (<<[file], {{file}}, /file)
-- TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
-- Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
-
-## [0.1.89] - 2026-03-03
+- CSV/TSV inline tables: alignment row may use Markdown-style syntax (`:--`, `--:`, `:--:`) in addition to keywords (left, right, center, auto). Cells containing only colons and dashes are parsed by colon position: leading colon = left, trailing = right, both = center, neither = auto.
 
 ### Changed
 
 - Definition lists rewritten as preprocessing (no cmark extension): supports Kramdown "term" + ": definition" or ":: definition", plus one-line "term::definition" and "term :: definition" using last :: to avoid splitting URLs
-
-### New
-
 - CLI flags --one-line-definitions and --no-one-line-definitions to enable or disable definition list processing
 - Metadata keys one-line-definitions and one_line_definitions for front-matter control of definition lists
-
-### Fixed
-
 - Table caption ": Caption" no longer misparses Kramdown definition lines (e.g. "Term\n\n: definition 1") by requiring prev_line_was_table_row or in_table_section instead of prev_line_was_blank alone
 - Table captions before tables: ": Caption" now recognized when the next non-blank line is a table row
 - Table caption paragraphs removed from output so captions appear only in figcaption, not duplicated as standalone paragraphs
