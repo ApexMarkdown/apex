@@ -675,7 +675,6 @@ bool apex_process_manual_header_id(cmark_node *heading_node) {
         return true;
     }
 
-try_trailing_link: {
     /* Edge case: [id] was parsed as a link (ref existed). If it's the last
      * element and there's other content, treat as MMD heading ID. */
     cmark_node *last = NULL;
@@ -730,6 +729,5 @@ try_trailing_link: {
     }
     free(link_text);
     return true;
-} /* try_trailing_link */
 }
 

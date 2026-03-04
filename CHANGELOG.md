@@ -2,6 +2,21 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.91] - 2026-03-04
+
+### New
+
+- Add test fixtures for percent decoding
+
+### Improved
+
+- Apex_extract_heading_text now recurses into inline containers (EMPH, STRONG, LINK) and includes HTML_INLINE literal content so extracted text matches rendered HTML for reliable (level, text) matching during ID injection
+
+### Fixed
+
+- Headings with inline emphasis (e.g. "### *Processing* modes") now receive IDs correctly instead of being skipped
+- Headings with ampersands (e.g. "## Documentation & resources") now receive IDs correctly by extracting text from HTML_INLINE nodes
+
 ## [0.1.90] - 2026-03-04
 
 ### New
@@ -2620,6 +2635,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.91]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.91
 [0.1.90]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.90
 [0.1.89]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.89
 [0.1.88]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.88
