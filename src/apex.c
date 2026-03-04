@@ -2643,6 +2643,9 @@ apex_options apex_options_default(void) {
     opts.progress_callback = NULL;
     opts.progress_user_data = NULL;
 
+    /* Custom cmark extension callback */
+    opts.cmark_init = NULL;
+
     /* Terminal theme and width (for -t terminal/terminal256) */
     opts.theme_name = NULL;
     opts.terminal_width = 0;
@@ -5023,6 +5026,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Register extensions based on mode and options */
     apex_register_extensions(parser, options);
+
+    if (options->cmark_init) {
+        options->cmark_init(parser, options, cmark_opts);
+    }
 
     /* Feed normalized text to parser */
     if (getenv("APEX_DEBUG_PIPELINE")) {

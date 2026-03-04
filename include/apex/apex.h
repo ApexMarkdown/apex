@@ -52,10 +52,12 @@ typedef enum {
     APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
 } apex_output_format_t;
 
+struct cmark_parser;  /* Opaque; for cmark_init callback. Include cmark-gfm when implementing. */
+
 /**
  * Configuration options for the parser and renderer
  */
-typedef struct {
+typedef struct apex_options {
     apex_mode_t mode;
 
     /* Feature flags */
@@ -222,6 +224,15 @@ typedef struct {
      */
     void (*progress_callback)(const char *stage, int percent, void *user_data);
     void *progress_user_data;  /* User data passed to progress callback */
+
+    /* Custom cmark extension registration callback */
+    /* Called after Apex registers its built-in extensions, before parsing.
+     * Use this to attach custom cmark-gfm syntax extensions via
+     * cmark_parser_attach_syntax_extension(). When implementing, include
+     * cmark-gfm.h and cmark-gfm-extension_api.h.
+     * If NULL, no custom extensions are registered.
+     */
+    void (*cmark_init)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts);
 } apex_options;
 
 /**

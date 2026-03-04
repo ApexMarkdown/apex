@@ -177,6 +177,11 @@ extension String {
 /// Static Apex converter
 /// Provides static methods for conversion
 public struct Apex {
+    /// Apex processor version string (e.g. "0.1.89")
+    public static var version: String {
+        return NSString.apexVersion() as String
+    }
+
     /**
      * Convert Markdown to HTML using Apex in unified mode
      */

@@ -38,6 +38,7 @@ void test_image_embedding(void);
 void test_image_width_height_conversion(void);
 void test_math(void);
 void test_critic_markup(void);
+void test_cmark_init_callback(void);
 void test_processor_modes(void);
 void test_multimarkdown_image_attributes(void);
 void test_file_includes(void);
@@ -103,6 +104,7 @@ static test_suite suites[] = {
     { "wiki_links",                    test_wiki_links },
     { "math",                          test_math },
     { "critic_markup",                 test_critic_markup },
+    { "cmark_init_callback",           test_cmark_init_callback },
     { "multimarkdown_image_attributes",test_multimarkdown_image_attributes },
     { "processor_modes",               test_processor_modes },
     { "file_includes",                 test_file_includes },

@@ -177,6 +177,41 @@ void test_processor_modes(void) {
 }
 
 /**
+ * Test cmark_init callback for custom extension registration
+ */
+static int cmark_init_callback_invoked = 0;
+
+static void test_cmark_init_cb(struct cmark_parser *parser, const struct apex_options *opts, int cmark_opts) {
+    (void)parser;
+    (void)opts;
+    (void)cmark_opts;
+    cmark_init_callback_invoked = 1;
+}
+
+void test_cmark_init_callback(void) {
+    int suite_failures = suite_start();
+    print_suite_title("cmark_init callback Tests", false, true);
+
+    cmark_init_callback_invoked = 0;
+    apex_options opts = apex_options_default();
+    opts.cmark_init = test_cmark_init_cb;
+    char *html = apex_markdown_to_html("# Hi", 4, &opts);
+    test_result(cmark_init_callback_invoked == 1, "cmark_init callback was invoked");
+    assert_contains(html, "<h1", "Basic parsing still works with callback");
+    assert_contains(html, "Hi</h1>", "Header content preserved");
+    apex_free_string(html);
+
+    /* NULL callback: conversion works normally */
+    opts.cmark_init = NULL;
+    html = apex_markdown_to_html("**bold**", 8, &opts);
+    assert_contains(html, "<strong>bold</strong>", "Parsing works with NULL callback");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("cmark_init callback Tests", had_failures, false);
+}
+
+/**
  * Test MultiMarkdown-style image attributes (inline and reference)
  */
 
