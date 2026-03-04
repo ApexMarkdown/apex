@@ -391,6 +391,51 @@ char *apex_generate_header_id(const char *text, apex_id_format_t format) {
 }
 
 /**
+ * Recursively append literal text from node and its descendants to buffer.
+ * Handles TEXT, CODE, and recurses into inline containers (EMPH, STRONG, etc.)
+ * so "### *Processing* modes" yields "Processing modes" matching rendered HTML.
+ */
+static void append_literal(char **text, char **write, size_t *capacity, size_t *remaining,
+                          const char *literal) {
+    if (!literal) return;
+    size_t len = strlen(literal);
+    while (len >= *remaining) {
+        size_t new_cap = *capacity * 2;
+        char *new_text = realloc(*text, new_cap);
+        if (!new_text) return;
+        *write = new_text + (*write - *text);
+        *text = new_text;
+        *capacity = new_cap;
+        *remaining = new_cap - (size_t)(*write - *text);
+    }
+    memcpy(*write, literal, len);
+    *write += len;
+    *remaining -= len;
+}
+
+static void extract_heading_text_recursive(cmark_node *node, char **text, char **write,
+                                           size_t *capacity, size_t *remaining) {
+    cmark_node_type type = cmark_node_get_type(node);
+
+    if (type == CMARK_NODE_TEXT || type == CMARK_NODE_CODE) {
+        append_literal(text, write, capacity, remaining, cmark_node_get_literal(node));
+        return;
+    }
+    /* HTML_INLINE has literal (e.g. "&") - needed for "Documentation & resources" */
+    if (type == CMARK_NODE_HTML_INLINE) {
+        append_literal(text, write, capacity, remaining, cmark_node_get_literal(node));
+        return;
+    }
+
+    /* Recurse into inline containers (EMPH, STRONG, LINK, etc.) */
+    cmark_node *child = cmark_node_first_child(node);
+    while (child) {
+        extract_heading_text_recursive(child, text, write, capacity, remaining);
+        child = cmark_node_next(child);
+    }
+}
+
+/**
  * Extract text content from a heading node
  */
 char *apex_extract_heading_text(cmark_node *heading_node) {
@@ -398,59 +443,15 @@ char *apex_extract_heading_text(cmark_node *heading_node) {
         return strdup("");
     }
 
-    /* Walk children and collect text */
     size_t capacity = 256;
     char *text = malloc(capacity);
     if (!text) return strdup("");
-
     char *write = text;
     size_t remaining = capacity;
 
     cmark_node *child = cmark_node_first_child(heading_node);
     while (child) {
-        cmark_node_type type = cmark_node_get_type(child);
-
-        if (type == CMARK_NODE_TEXT) {
-            const char *literal = cmark_node_get_literal(child);
-            if (literal) {
-                size_t len = strlen(literal);
-                if (len >= remaining) {
-                    size_t new_capacity = capacity * 2;
-                    char *new_text = realloc(text, new_capacity);
-                    if (!new_text) {
-                        free(text);
-                        return strdup("");
-                    }
-                    write = new_text + (write - text);
-                    text = new_text;
-                    remaining = new_capacity - (write - text);
-                }
-                memcpy(write, literal, len);
-                write += len;
-                remaining -= len;
-            }
-        } else if (type == CMARK_NODE_CODE) {
-            const char *literal = cmark_node_get_literal(child);
-            if (literal) {
-                size_t len = strlen(literal);
-                if (len >= remaining) {
-                    size_t new_capacity = capacity * 2;
-                    char *new_text = realloc(text, new_capacity);
-                    if (!new_text) {
-                        free(text);
-                        return strdup("");
-                    }
-                    write = new_text + (write - text);
-                    text = new_text;
-                    remaining = new_capacity - (write - text);
-                }
-                memcpy(write, literal, len);
-                write += len;
-                remaining -= len;
-            }
-        }
-        /* Skip other inline elements for ID generation */
-
+        extract_heading_text_recursive(child, &text, &write, &capacity, &remaining);
         child = cmark_node_next(child);
     }
 

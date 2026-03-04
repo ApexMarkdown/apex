@@ -1226,7 +1226,8 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
             while (trim_len > 0 && (trim_start[trim_len - 1] == ' ' || trim_start[trim_len - 1] == '\t' || trim_start[trim_len - 1] == '\n' || trim_start[trim_len - 1] == '\r'))
                 trim_start[--trim_len] = '\0';
 
-            /* Find matching AST header: first by (level, text), else first unused with same level */
+            /* Match by (level, text); fallback to first unused at level only when text extraction
+               differs (avoids assigning to raw HTML headers which have no AST entry at that level) */
             header_id_map *header = NULL;
             for (header_id_map *p = header_map; p; p = p->next) {
                 if (!p->used && p->level == html_level && p->text && strcmp(p->text, trim_start) == 0) {
@@ -1236,7 +1237,6 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                 }
             }
             if (!header) {
-                /* Fallback: first unused with same level (handles text extraction differences) */
                 for (header_id_map *p = header_map; p; p = p->next) {
                     if (!p->used && p->level == html_level) {
                         header = p;
