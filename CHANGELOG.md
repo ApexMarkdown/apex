@@ -27,6 +27,7 @@ All notable changes to Apex will be documented in this file.
 
 ### Fixed
 
+- Include paths now support percent encoding (e.g. <<[with%20space.txt] resolves to file "with space.txt") for all include syntaxes (<<[file], {{file}}, /file)
 - TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
 - Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
 

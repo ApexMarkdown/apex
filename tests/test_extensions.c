@@ -581,6 +581,11 @@ void test_file_includes(void) {
     assert_contains(html, "Widget", "TSV data in table");
     apex_free_string(html);
 
+    /* Test percent-encoded path in include */
+    html = apex_markdown_to_html("<<[with%20space.txt]", 21, &opts);
+    assert_contains(html, "Percent-decoded", "Percent-encoded path (with%20space.txt) resolves to file with space");
+    apex_free_string(html);
+
     /* Test iA Writer image include */
     html = apex_markdown_to_html("/image.png", 10, &opts);
     assert_contains(html, "<img", "iA Writer image include");

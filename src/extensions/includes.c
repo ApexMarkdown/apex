@@ -49,6 +49,28 @@ static char *read_file_contents(const char *filepath) {
 }
 
 /**
+ * Decode percent-encoded path in place (RFC 3986: %XX -> byte).
+ * Used so include paths like with%20space.txt resolve to files with spaces.
+ */
+static void percent_decode_inplace(char *path) {
+    if (!path) return;
+    char *r = path;
+    char *w = path;
+    while (*r) {
+        if (r[0] == '%' && r[1] && r[2] &&
+            isxdigit((unsigned char)r[1]) && isxdigit((unsigned char)r[2])) {
+            int hi = (r[1] <= '9') ? (r[1] - '0') : ((r[1] & 0x0f) + 9);
+            int lo = (r[2] <= '9') ? (r[2] - '0') : ((r[2] & 0x0f) + 9);
+            *w++ = (char)((hi << 4) | lo);
+            r += 3;
+        } else {
+            *w++ = *r++;
+        }
+    }
+    *w = '\0';
+}
+
+/**
  * Resolve relative path from base directory
  */
 static char *resolve_path(const char *filepath, const char *base_dir) {
@@ -1134,6 +1156,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 size_t filepath_len = filepath_end - filepath_start;
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
+                percent_decode_inplace(filepath);
 
                 /* Resolve and check file exists */
                 char *resolved_path = resolve_path(filepath, effective_base_dir);
@@ -1220,6 +1243,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 char filepath[1024];
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
+                percent_decode_inplace(filepath);
 
                 /* Check for address specification [address] */
                 const char *address_start = filepath_end + 2;
@@ -1364,6 +1388,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 if (filepath_len > 0 && filepath_len < (int)sizeof(filepath)) {
                     memcpy(filepath, filepath_start, filepath_len);
                     filepath[filepath_len] = '\0';
+                    percent_decode_inplace(filepath);
 
                     /* Check for address specification [address] */
                     const char *address_start = filepath_end + 1;
