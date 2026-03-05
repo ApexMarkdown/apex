@@ -850,6 +850,35 @@ void test_definition_lists(void) {
     assert_contains(html, "<dd>definition</dd>", "One-line format with spaces dd");
     apex_free_string(html);
 
+    /* One-line definition NOT converted inside inline code span */
+    html = apex_markdown_to_html("Use `term::definition` for syntax", 32, &opts);
+    assert_contains(html, "<code>term::definition</code>", "One-line def preserved in inline code");
+    assert_not_contains(html, "<dt>term</dt>", "No definition list from content inside backticks");
+    apex_free_string(html);
+
+    /* One-line definition NOT converted inside fenced code block */
+    const char *fenced_def = "```\nfoo::bar\nterm::definition\n```";
+    html = apex_markdown_to_html(fenced_def, strlen(fenced_def), &opts);
+    assert_contains(html, "foo::bar", "One-line def in fenced block preserved");
+    assert_contains(html, "term::definition", "Second one-line def in fenced block preserved");
+    assert_not_contains(html, "<dt>foo</dt>", "No definition list from fenced code content");
+    apex_free_string(html);
+
+    /* One-line definition NOT converted inside indented code block */
+    const char *indented_def = "    key::value\n    term::definition";
+    html = apex_markdown_to_html(indented_def, strlen(indented_def), &opts);
+    assert_contains(html, "key::value", "One-line def in indented block preserved");
+    assert_contains(html, "term::definition", "Second one-line def in indented block preserved");
+    assert_not_contains(html, "<dt>key</dt>", "No definition list from indented code content");
+    apex_free_string(html);
+
+    /* Kramdown : definition NOT converted inside multi-line inline code span */
+    const char *multiline_code = "`term::works\n :more:`";
+    html = apex_markdown_to_html(multiline_code, strlen(multiline_code), &opts);
+    assert_contains(html, "term::works", "One-line def in multi-line inline code preserved");
+    assert_not_contains(html, "<dt>term</dt>", "No definition list from multi-line inline code");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }
@@ -1578,6 +1607,26 @@ void test_emoji(void) {
     assert_contains(html, "⭐", "Star emoji");
     assert_contains(html, "⚠", "Warning emoji");
     assert_contains(html, "👍", "Plus one emoji");
+    apex_free_string(html);
+
+    /* Emoji NOT converted inside inline code span */
+    html = apex_markdown_to_html("Use `:smile:` for emoji syntax", 30, &opts);
+    assert_contains(html, "<code>:smile:</code>", "Emoji preserved as literal in inline code");
+    assert_not_contains(html, "😄", "Emoji character not in code span output");
+    apex_free_string(html);
+
+    /* Emoji NOT converted inside fenced code block */
+    const char *fenced_emoji = "```\n:smile:\n:rocket:\n```";
+    html = apex_markdown_to_html(fenced_emoji, strlen(fenced_emoji), &opts);
+    assert_contains(html, ":smile:", "Emoji pattern preserved in fenced block");
+    assert_contains(html, ":rocket:", "Second emoji preserved in fenced block");
+    apex_free_string(html);
+
+    /* Emoji NOT converted inside indented code block */
+    const char *indented_emoji = "    :smile:\n    :rocket:";
+    html = apex_markdown_to_html(indented_emoji, strlen(indented_emoji), &opts);
+    assert_contains(html, ":smile:", "Emoji pattern preserved in indented block");
+    assert_contains(html, ":rocket:", "Second emoji preserved in indented block");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
