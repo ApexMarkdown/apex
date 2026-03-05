@@ -152,7 +152,7 @@ static int register_extra_extensions(cmark_plugin *plugin) {
     return 1;
 }
 
-static void my_cmark_init_callback(void *parser, __attribute__((unused)) const apex_options *options, __attribute__((unused)) int cmark_opts, __attribute__((unused)) void *user_data) {
+static void my_cmark_init_callback(struct cmark_parser *parser, __attribute__((unused)) const apex_options *options, __attribute__((unused)) int cmark_opts) {
     test_result(true, "Custom cmark init callback called");
     cmark_register_plugin(register_extra_extensions);
 
@@ -165,7 +165,7 @@ static void my_cmark_init_callback(void *parser, __attribute__((unused)) const a
     }
 }
 
-static void my_cmark_done_callback(__attribute__((unused)) void *parser, __attribute__((unused)) const apex_options *options, __attribute__((unused)) int cmark_opts, __attribute__((unused)) void *user_data) {
+static void my_cmark_done_callback(__attribute__((unused)) struct cmark_parser *parser, __attribute__((unused)) const apex_options *options, __attribute__((unused)) int cmark_opts) {
     test_result(true, "Custom cmark done callback called");
 }
 
@@ -174,8 +174,8 @@ void test_cmark_callback(void) {
     print_suite_title("Cmark Callbacks Tests", false, true);
 
     apex_options opts = apex_options_default();
-    opts.cmark_init_callback = my_cmark_init_callback;
-    opts.cmark_done_callback = my_cmark_done_callback;
+    opts.cmark_init = my_cmark_init_callback;
+    opts.cmark_done = my_cmark_done_callback;
 
     char *html;
 

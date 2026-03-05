@@ -5046,7 +5046,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     if (!document) {
         if (options->cmark_done) {
-            options->cmark_done(parser, options, cmark_opts, options->cmark_user_data);
+            options->cmark_done(parser, options, cmark_opts);
         }
         cmark_parser_free(parser);
         free(working_text);
