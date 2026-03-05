@@ -1,9 +1,12 @@
 #include "apex/apex.h"
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <libgen.h>
+#include <time.h>
 #include <sys/time.h>
 
 /* cmark-gfm headers */
@@ -2642,8 +2645,6 @@ apex_options apex_options_default(void) {
 
     /* Custom cmark extension callback */
     opts.cmark_init = NULL;
-    opts.cmark_done = NULL;
-    opts.cmark_user_data = NULL;
 
     /* Terminal theme and width (for -t terminal/terminal256) */
     opts.theme_name = NULL;
@@ -5045,9 +5046,6 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     if (!document) {
-        if (options->cmark_done) {
-            options->cmark_done(parser, options, cmark_opts);
-        }
         cmark_parser_free(parser);
         free(working_text);
         apex_free_metadata(metadata);
@@ -5087,9 +5085,6 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         cmark_node *filtered = apex_run_ast_filters(document, options, target_format);
         if (!filtered && options->ast_filter_strict) {
             cmark_node_free(document);
-            if (options->cmark_done) {
-                options->cmark_done(parser, options, cmark_opts);
-            }
             cmark_parser_free(parser);
             free(working_text);
             apex_free_metadata(metadata);
@@ -5705,9 +5700,6 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Clean up */
     cmark_node_free(document);
-    if (options->cmark_done) {
-        options->cmark_done(parser, options, cmark_opts);
-    }
     cmark_parser_free(parser);
     free(working_text);
     if (ial_preprocessed) free(ial_preprocessed);
