@@ -5,6 +5,7 @@ add_executable(test_runner
     test_helpers.c
     test_runner.c
     test_basic.c
+    test_cmark_callback.c
     test_metadata.c
     test_links.c
     test_tables.c
