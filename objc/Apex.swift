@@ -239,4 +239,12 @@ public struct Apex {
             mode: mode, generateHeaderIDs: generateHeaderIDs, hardBreaks: hardBreaks, pretty: pretty
         )
     }
+    
+    /**
+     * Get the Apex version number
+     */
+    public static func apex_version() -> String
+    {
+        return NSString.apexVersion()
+    }
 }
