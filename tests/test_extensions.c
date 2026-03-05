@@ -181,7 +181,10 @@ void test_processor_modes(void) {
  */
 static int cmark_init_callback_invoked = 0;
 
-static void test_cmark_init_cb(struct cmark_parser *parser, const struct apex_options *opts, int cmark_opts) {
+static void test_cmark_init_cb(struct cmark_parser *parser,
+                               const struct apex_options *opts,
+                               int cmark_opts,
+                               __attribute__((unused)) void *user_data) {
     (void)parser;
     (void)opts;
     (void)cmark_opts;

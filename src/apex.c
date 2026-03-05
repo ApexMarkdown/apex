@@ -5027,7 +5027,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     apex_register_extensions(parser, options);
 
     if (options->cmark_init) {
-        options->cmark_init(parser, options, cmark_opts);
+        options->cmark_init(parser, options, cmark_opts, options->cmark_user_data);
     }
 
     /* Feed normalized text to parser */
@@ -5088,7 +5088,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         if (!filtered && options->ast_filter_strict) {
             cmark_node_free(document);
             if (options->cmark_done) {
-                options->cmark_done(parser, options, cmark_opts);
+                options->cmark_done(parser, options, cmark_opts, options->cmark_user_data);
             }
             cmark_parser_free(parser);
             free(working_text);
@@ -5706,7 +5706,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Clean up */
     cmark_node_free(document);
     if (options->cmark_done) {
-        options->cmark_done(parser, options, cmark_opts);
+        options->cmark_done(parser, options, cmark_opts, options->cmark_user_data);
     }
     cmark_parser_free(parser);
     free(working_text);

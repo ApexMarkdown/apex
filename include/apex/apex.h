@@ -231,12 +231,16 @@ typedef struct apex_options {
      * cmark_parser_attach_syntax_extension(). When implementing, include
      * cmark-gfm.h and cmark-gfm-extension_api.h.
      * If NULL, no custom extensions are registered.
+     *
+     * The user_data parameter receives options->cmark_user_data.
      */
-    void (*cmark_init)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts);
+    void (*cmark_init)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts, void *user_data);
     /**
      * Custom cmark finalize callback, called before release the parser.
+     *
+     * The user_data parameter receives options->cmark_user_data.
      */
-    void (*cmark_done)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts);
+    void (*cmark_done)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts, void *user_data);
     void *cmark_user_data; /* User data passed to cmark init/done callback */
 } apex_options;
 
