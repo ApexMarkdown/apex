@@ -73,3 +73,4 @@ documentation/transform_for_app.md
 # Git worktrees
 .worktrees/
 docs
+build-test

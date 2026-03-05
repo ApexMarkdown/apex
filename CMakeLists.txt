@@ -339,6 +339,7 @@ add_executable(apex_test_runner
     tests/test_helpers.c
     tests/test_runner.c
     tests/test_basic.c
+    tests/test_cmark_callback.c
     tests/test_metadata.c
     tests/test_links.c
     tests/test_tables.c
