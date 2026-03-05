@@ -2,6 +2,24 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.92] - 2026-03-05
+
+### Changed
+
+- Update apex_options cmark_init/cmark_done callback signatures to add a user_data parameter, requiring existing C/Obj-C callback implementations to add a fourth void* argument when upgrading
+
+### Improved
+
+- Ensure custom cmark-gfm init/done callbacks configured via apex_options work consistently so extension-based integrations remain stable across builds
+- Better integration of Apex as library
+
+### Fixed
+
+- Fix cmark_done callback invocation to match the 3-argument apex_options callback signature so builds succeed again
+- Update test cmark callback helper signatures and option fields to use the current cmark_init/cmark_done API and keep the test runner passing
+- Fix cmark_done callback invocation to match the 4-argument apex_options callback signature including user_data so builds succeed again
+- Add new tests and fix missing includes
+
 ## [0.1.91] - 2026-03-04
 
 ### New
@@ -2635,6 +2653,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.92]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.92
 [0.1.91]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.91
 [0.1.90]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.90
 [0.1.89]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.89
