@@ -2,6 +2,25 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.93] - 2026-03-05
+
+### New
+
+- Tests that one-line definition list syntax (term::definition) is not converted inside inline code spans, fenced code blocks, indented code blocks, and multi-line inline code
+- Tests that emoji (:name:) patterns are not converted inside inline code spans, fenced code blocks, and indented code blocks
+
+### Improved
+
+- HTML emoji replacement skips content inside <code> and <pre> elements so code examples display :emoji: patterns as written
+
+### Fixed
+
+- Definition list one-line term::definition no longer converts inside inline code spans (backticks), preserving literal syntax in code examples
+- Definition list processing now skips indented code blocks (4+ spaces or tab), not just fenced blocks
+- Kramdown-style : definition lines inside multi-line inline code spans are no longer incorrectly parsed as definition list items
+- Emoji replacement (:name:) is now skipped inside fenced code blocks, indented code blocks, and inline code spans so patterns remain literal
+- Emoji autocorrect no longer modifies :emoji: patterns inside any code context
+
 ## [0.1.92] - 2026-03-05
 
 ### Changed
@@ -2653,6 +2672,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.93]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.93
 [0.1.92]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.92
 [0.1.91]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.91
 [0.1.90]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.90
