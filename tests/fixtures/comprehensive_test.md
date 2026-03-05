@@ -193,8 +193,6 @@ Use `^^` to merge cells vertically (rowspan):
 
 #### Combined Spans Example
 
-This table combines both rowspan and colspan features, as well as per-cell alignment:
-
 [Employee Performance Q4 2025]
 
 | Department  | Employee | Q1-Q2 Average | Q3  | Q4    | Overall |
@@ -256,6 +254,19 @@ CommonMark
   ```
 
   And more!
+
+**With blank lines:** A term can have blank lines before the first definition and between definitions:
+
+Glossary
+: First meaning of the term.
+
+: Second meaning, after a blank line.
+
+**One-line format:**
+
+key::value
+
+abbrev :: expanded form
 
 ## Critic Markup
 

@@ -98,6 +98,15 @@ char *apex_generate_header_id(const char *text, apex_id_format_t format) {
             continue;
         }
 
+        /* Check for apostrophes: curly (') U+2019: 0xE2 0x80 0x99, left quote (') U+2018: 0xE2 0x80 0x98 */
+        if (c == 0xE2 && read[1] != '\0' && read[2] != '\0' &&
+            (unsigned char)read[1] == 0x80 &&
+            ((unsigned char)read[2] == 0x99 || (unsigned char)read[2] == 0x98)) {
+            /* Remove apostrophes in all formats - they break anchor links */
+            read += 2;
+            continue;
+        }
+
         if (format == APEX_ID_FORMAT_MMD) {
             /* MMD format: preserve dashes, lowercase alphanumerics, preserve diacritics, skip spaces/punctuation */
             if (c == '-') {
@@ -382,6 +391,51 @@ char *apex_generate_header_id(const char *text, apex_id_format_t format) {
 }
 
 /**
+ * Recursively append literal text from node and its descendants to buffer.
+ * Handles TEXT, CODE, and recurses into inline containers (EMPH, STRONG, etc.)
+ * so "### *Processing* modes" yields "Processing modes" matching rendered HTML.
+ */
+static void append_literal(char **text, char **write, size_t *capacity, size_t *remaining,
+                          const char *literal) {
+    if (!literal) return;
+    size_t len = strlen(literal);
+    while (len >= *remaining) {
+        size_t new_cap = *capacity * 2;
+        char *new_text = realloc(*text, new_cap);
+        if (!new_text) return;
+        *write = new_text + (*write - *text);
+        *text = new_text;
+        *capacity = new_cap;
+        *remaining = new_cap - (size_t)(*write - *text);
+    }
+    memcpy(*write, literal, len);
+    *write += len;
+    *remaining -= len;
+}
+
+static void extract_heading_text_recursive(cmark_node *node, char **text, char **write,
+                                           size_t *capacity, size_t *remaining) {
+    cmark_node_type type = cmark_node_get_type(node);
+
+    if (type == CMARK_NODE_TEXT || type == CMARK_NODE_CODE) {
+        append_literal(text, write, capacity, remaining, cmark_node_get_literal(node));
+        return;
+    }
+    /* HTML_INLINE has literal (e.g. "&") - needed for "Documentation & resources" */
+    if (type == CMARK_NODE_HTML_INLINE) {
+        append_literal(text, write, capacity, remaining, cmark_node_get_literal(node));
+        return;
+    }
+
+    /* Recurse into inline containers (EMPH, STRONG, LINK, etc.) */
+    cmark_node *child = cmark_node_first_child(node);
+    while (child) {
+        extract_heading_text_recursive(child, text, write, capacity, remaining);
+        child = cmark_node_next(child);
+    }
+}
+
+/**
  * Extract text content from a heading node
  */
 char *apex_extract_heading_text(cmark_node *heading_node) {
@@ -389,59 +443,15 @@ char *apex_extract_heading_text(cmark_node *heading_node) {
         return strdup("");
     }
 
-    /* Walk children and collect text */
     size_t capacity = 256;
     char *text = malloc(capacity);
     if (!text) return strdup("");
-
     char *write = text;
     size_t remaining = capacity;
 
     cmark_node *child = cmark_node_first_child(heading_node);
     while (child) {
-        cmark_node_type type = cmark_node_get_type(child);
-
-        if (type == CMARK_NODE_TEXT) {
-            const char *literal = cmark_node_get_literal(child);
-            if (literal) {
-                size_t len = strlen(literal);
-                if (len >= remaining) {
-                    size_t new_capacity = capacity * 2;
-                    char *new_text = realloc(text, new_capacity);
-                    if (!new_text) {
-                        free(text);
-                        return strdup("");
-                    }
-                    write = new_text + (write - text);
-                    text = new_text;
-                    remaining = new_capacity - (write - text);
-                }
-                memcpy(write, literal, len);
-                write += len;
-                remaining -= len;
-            }
-        } else if (type == CMARK_NODE_CODE) {
-            const char *literal = cmark_node_get_literal(child);
-            if (literal) {
-                size_t len = strlen(literal);
-                if (len >= remaining) {
-                    size_t new_capacity = capacity * 2;
-                    char *new_text = realloc(text, new_capacity);
-                    if (!new_text) {
-                        free(text);
-                        return strdup("");
-                    }
-                    write = new_text + (write - text);
-                    text = new_text;
-                    remaining = new_capacity - (write - text);
-                }
-                memcpy(write, literal, len);
-                write += len;
-                remaining -= len;
-            }
-        }
-        /* Skip other inline elements for ID generation */
-
+        extract_heading_text_recursive(child, &text, &write, &capacity, &remaining);
         child = cmark_node_next(child);
     }
 
@@ -563,42 +573,90 @@ bool apex_extract_manual_header_id(char **heading_text, char **manual_id_out) {
 }
 
 /**
+ * Extract plain text from a link node (for simple [ref] style).
+ * Returns allocated string or NULL.
+ */
+static char *get_link_label_text(cmark_node *link_node) {
+    if (!link_node || cmark_node_get_type(link_node) != CMARK_NODE_LINK) return NULL;
+    cmark_node *child = cmark_node_first_child(link_node);
+    if (!child || cmark_node_get_type(child) != CMARK_NODE_TEXT) return NULL;
+    const char *literal = cmark_node_get_literal(child);
+    return literal ? strdup(literal) : NULL;
+}
+
+/**
+ * Check if a string is a valid MMD heading ID (no spaces, no metadata %).
+ */
+static bool is_valid_mmd_id(const char *s) {
+    if (!s || !*s) return false;
+    for (; *s; s++) {
+        if (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r' || *s == '%') return false;
+    }
+    return true;
+}
+
+/**
  * Process manual header IDs in a heading node
  * Extracts MMD [id] or Kramdown {#id} syntax and stores ID in user_data
  * Updates the heading text node to remove the manual ID syntax
+ *
+ * Walks ALL text children (not just first) so headings split by "&" etc.
+ * (e.g. TEXT + HTML_INLINE + TEXT) are handled - the IAL may be in a later child.
+ *
+ * Edge case: When [id] matches a link reference and would render as a link,
+ * but [id] is the last element in the heading with other content before it,
+ * treat it as MMD heading ID (not a link). This avoids the conflict where
+ * "# Heading [mermaid]" with "[mermaid]: URL" would wrongly render mermaid as
+ * a link. If the heading is ONLY [id] (e.g. "# [mermaid]"), keep it as a link
+ * to avoid empty headings.
  */
 bool apex_process_manual_header_id(cmark_node *heading_node) {
     if (!heading_node || cmark_node_get_type(heading_node) != CMARK_NODE_HEADING) {
         return false;
     }
 
-    /* Get the text node inside the heading */
-    cmark_node *text_node = cmark_node_first_child(heading_node);
-    if (!text_node || cmark_node_get_type(text_node) != CMARK_NODE_TEXT) {
-        return false;
+    /* Check each TEXT child for manual ID - "&" etc. can split content across nodes.
+       Prefer the rightmost (last) match to align with IAL behavior. */
+    cmark_node *match_node = NULL;
+    char *match_text = NULL;
+    char *match_id = NULL;
+
+    for (cmark_node *child = cmark_node_first_child(heading_node); child;
+         child = cmark_node_next(child)) {
+        if (cmark_node_get_type(child) != CMARK_NODE_TEXT) continue;
+
+        const char *literal = cmark_node_get_literal(child);
+        if (!literal) continue;
+
+        char *text_copy = strdup(literal);
+        if (!text_copy) continue;
+
+        char *manual_id = NULL;
+        bool found = apex_extract_manual_header_id(&text_copy, &manual_id);
+
+        if (found && manual_id) {
+            /* Discard previous match - we want the rightmost */
+            free(match_text);
+            free(match_id);
+            match_node = child;
+            match_text = text_copy;
+            match_id = manual_id;
+        } else {
+            free(text_copy);
+            if (manual_id) free(manual_id);
+        }
     }
 
-    const char *text = cmark_node_get_literal(text_node);
-    if (!text) return false;
-
-    /* Extract text and try to find manual ID */
-    char *text_copy = strdup(text);
-    if (!text_copy) return false;
-
-    char *manual_id = NULL;
-    bool found = apex_extract_manual_header_id(&text_copy, &manual_id);
-
-    if (found && manual_id) {
+    if (match_node && match_id) {
         /* Store ID in user_data as id="..." */
-        char *id_attr = malloc(strlen(manual_id) + 6);  /* id="" + null */
+        char *id_attr = malloc(strlen(match_id) + 6);  /* id="" + null */
         if (id_attr) {
-            sprintf(id_attr, "id=\"%s\"", manual_id);
+            sprintf(id_attr, "id=\"%s\"", match_id);
 
-            /* Merge with existing user_data if present */
+            /* Merge with existing user_data if present (e.g. from IAL) */
             char *existing = (char *)cmark_node_get_user_data(heading_node);
             if (existing) {
-                /* Append to existing */
-                char *combined = malloc(strlen(existing) + strlen(id_attr) + 2);  /* + space + null */
+                char *combined = malloc(strlen(existing) + strlen(id_attr) + 2);
                 if (combined) {
                     sprintf(combined, "%s %s", existing, id_attr);
                     cmark_node_set_user_data(heading_node, combined);
@@ -611,16 +669,65 @@ bool apex_process_manual_header_id(cmark_node *heading_node) {
             }
         }
 
-        /* Update the text node to remove manual ID syntax */
-        cmark_node_set_literal(text_node, text_copy);
-
-        free(manual_id);
-        free(text_copy);
+        cmark_node_set_literal(match_node, match_text);
+        free(match_id);
+        free(match_text);
         return true;
     }
 
-    free(text_copy);
-    if (manual_id) free(manual_id);
-    return false;
+    /* Edge case: [id] was parsed as a link (ref existed). If it's the last
+     * element and there's other content, treat as MMD heading ID. */
+    cmark_node *last = NULL;
+    cmark_node *child = cmark_node_first_child(heading_node);
+    while (child) {
+        cmark_node_type t = cmark_node_get_type(child);
+        if (t != CMARK_NODE_SOFTBREAK && t != CMARK_NODE_LINEBREAK) {
+            last = child;
+        }
+        child = cmark_node_next(child);
+    }
+
+    if (!last || cmark_node_get_type(last) != CMARK_NODE_LINK) return false;
+
+    /* Must have at least one sibling before the link (avoid empty headings) */
+    cmark_node *prev = cmark_node_previous(last);
+    if (!prev) return false;
+
+    char *link_text = get_link_label_text(last);
+    if (!link_text || !is_valid_mmd_id(link_text)) {
+        free(link_text);
+        return false;
+    }
+
+    /* Replace link with text node, set heading id */
+    cmark_node *text_replacement = cmark_node_new(CMARK_NODE_TEXT);
+    if (!text_replacement) {
+        free(link_text);
+        return false;
+    }
+    cmark_node_set_literal(text_replacement, link_text);
+    cmark_node_insert_before(last, text_replacement);
+    cmark_node_unlink(last);
+    cmark_node_free(last);
+
+    char *id_attr = malloc(strlen(link_text) + 6);
+    if (id_attr) {
+        sprintf(id_attr, "id=\"%s\"", link_text);
+        char *existing = (char *)cmark_node_get_user_data(heading_node);
+        if (existing) {
+            char *combined = malloc(strlen(existing) + strlen(id_attr) + 2);
+            if (combined) {
+                sprintf(combined, "%s %s", existing, id_attr);
+                cmark_node_set_user_data(heading_node, combined);
+                free(id_attr);
+            } else {
+                cmark_node_set_user_data(heading_node, id_attr);
+            }
+        } else {
+            cmark_node_set_user_data(heading_node, id_attr);
+        }
+    }
+    free(link_text);
+    return true;
 }
 

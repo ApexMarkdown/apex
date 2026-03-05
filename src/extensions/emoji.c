@@ -438,6 +438,104 @@ char *apex_replace_emoji(const char *html) {
 }
 
 /**
+ * Replace :emoji: patterns in plain text with Unicode emoji only.
+ *
+ * This variant is intended for non-HTML outputs (e.g. terminal rendering)
+ * where we do not want to emit <img> tags. It reuses the same emoji table
+ * but only substitutes entries that have a Unicode representation; image-
+ * only emoji names are left as their original :name: patterns.
+ */
+char *apex_replace_emoji_text(const char *text) {
+    if (!text) return NULL;
+
+    size_t capacity = strlen(text) * 2 + 16;  /* Enough for most unicode expansions */
+    char *output = malloc(capacity);
+    if (!output) return strdup(text);
+
+    const char *read = text;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        if (*read == ':') {
+            /* Look for closing : */
+            const char *end = strchr(read + 1, ':');
+            if (end && (end - read) < 50) {  /* Reasonable emoji name length */
+                /* Extract emoji name */
+                int name_len = (int)(end - (read + 1));
+                const char *name_start = read + 1;
+
+                if (name_len > 0) {
+                    /* Reject names containing whitespace */
+                    int has_space = 0;
+                    for (int i = 0; i < name_len; i++) {
+                        char ch = name_start[i];
+                        if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r') {
+                            has_space = 1;
+                            break;
+                        }
+                    }
+
+                    /* Skip common table alignment patterns like :---: */
+                    if (!has_space && is_table_alignment_pattern(name_start, end)) {
+                        size_t pattern_len = (size_t)(end - read + 1);
+                        if (pattern_len <= remaining) {
+                            memcpy(write, read, pattern_len);
+                            write += pattern_len;
+                            remaining -= pattern_len;
+                        }
+                        read = end + 1;
+                        continue;
+                    }
+
+                    if (!has_space) {
+                        /* Normalize name and look up in emoji table */
+                        char normalized[64];
+                        if ((size_t)name_len >= sizeof(normalized)) {
+                            name_len = (int)sizeof(normalized) - 1;
+                        }
+                        memcpy(normalized, name_start, (size_t)name_len);
+                        normalized[name_len] = '\0';
+                        normalize_emoji_name(normalized);
+                        size_t normalized_len = strlen(normalized);
+
+                        const emoji_entry *entry = find_emoji_entry(normalized, (int)normalized_len);
+                        if (entry && entry->unicode) {
+                            /* Substitute Unicode emoji */
+                            size_t emoji_len = strlen(entry->unicode);
+                            if (emoji_len <= remaining) {
+                                memcpy(write, entry->unicode, emoji_len);
+                                write += emoji_len;
+                                remaining -= emoji_len;
+                                read = end + 1;
+                                continue;
+                            }
+                            /* If not enough space, fall through and copy pattern as-is */
+                        }
+                    }
+                }
+            }
+        }
+
+        /* Default: copy single byte */
+        if (remaining > 0) {
+            *write++ = *read++;
+            remaining--;
+        } else {
+            read++;
+        }
+    }
+
+    if (remaining > 0) {
+        *write = '\0';
+    } else {
+        output[capacity - 1] = '\0';
+    }
+
+    return output;
+}
+
+/**
  * Normalize emoji name: lowercase, hyphens to underscores, remove colons
  */
 static void normalize_emoji_name(char *name) {

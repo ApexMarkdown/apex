@@ -6,7 +6,7 @@ if(POLICY CMP0000)
 endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version" FORCE)
 
-project(apex VERSION 0.1.77 LANGUAGES C)
+project(apex VERSION 0.1.91 LANGUAGES C)
 
 # Set C standard
 set(CMAKE_C_STANDARD 99)
@@ -109,6 +109,9 @@ endif()
 set(APEX_LIB_SOURCES
     src/apex.c
     src/ast_json.c
+    src/ast_markdown.c
+    src/ast_terminal.c
+    src/ast_man.c
     src/filters_ast.c
     src/plugins_env.c
     src/plugins.c
@@ -350,8 +353,9 @@ add_executable(apex_test_runner
 target_link_libraries(apex_test_runner apex_static)
 target_compile_definitions(apex_test_runner PRIVATE TEST_FIXTURES_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/includes")
 
-# Add test
+# Add test (run from source dir so fixture paths like tests/fixtures/... resolve)
 add_test(NAME apex_tests COMMAND apex_test_runner)
+set_tests_properties(apex_tests PROPERTIES WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # Documentation
 option(BUILD_DOCS "Build documentation" OFF)
@@ -405,24 +409,14 @@ foreach(MAN_PAGE_SPEC ${MAN_PAGES})
         )
         set(MAN_AVAILABLE TRUE)
     else()
-        # Try to generate man page from Markdown source
-        if(PANDOC_EXECUTABLE)
-            add_custom_command(
-                OUTPUT ${MAN_OUTPUT}
-                COMMAND ${PANDOC_EXECUTABLE} -s -t man -o ${MAN_OUTPUT} ${MAN_SOURCE}
-                DEPENDS ${MAN_SOURCE}
-                COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using pandoc"
-            )
-            set(MAN_AVAILABLE TRUE)
-        elseif(GO_MD2MAN_EXECUTABLE)
-            add_custom_command(
-                OUTPUT ${MAN_OUTPUT}
-                COMMAND ${GO_MD2MAN_EXECUTABLE} -in=${MAN_SOURCE} -out=${MAN_OUTPUT}
-                DEPENDS ${MAN_SOURCE}
-                COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using go-md2man"
-            )
-            set(MAN_AVAILABLE TRUE)
-        endif()
+        # Generate with apex -t man (roff); we build apex_cli in this tree
+        add_custom_command(
+            OUTPUT ${MAN_OUTPUT}
+            COMMAND $<TARGET_FILE:apex_cli> -t man ${MAN_SOURCE} > ${MAN_OUTPUT}
+            DEPENDS ${MAN_SOURCE} apex_cli
+            COMMENT "Generating man page ${MAN_NAME}.${MAN_SECTION} from Markdown using apex -t man"
+        )
+        set(MAN_AVAILABLE TRUE)
     endif()
 
     # Install man page
@@ -436,16 +430,11 @@ endforeach()
 
 # Create a target that depends on all man pages
 if(MAN_AVAILABLE)
-    if(PANDOC_EXECUTABLE OR GO_MD2MAN_EXECUTABLE)
-        add_custom_target(man_pages ALL DEPENDS ${MAN_OUTPUTS})
-        message(STATUS "Man pages: Will be generated from Markdown sources")
-    else()
-        add_custom_target(man_pages_copy ALL DEPENDS ${MAN_OUTPUTS})
-        message(STATUS "Man pages: Using pre-generated man pages")
-    endif()
+    add_custom_target(man_pages ALL DEPENDS ${MAN_OUTPUTS})
+    message(STATUS "Man pages: Will be built from Markdown (apex -t man) or copied if pre-generated")
 else()
-    message(WARNING "Pre-generated man pages not found and neither pandoc nor go-md2man available.")
-    message(STATUS "  Man pages will not be installed. Generate them with 'make man' before building.")
+    message(WARNING "Man page sources or pre-generated pages not found.")
+    message(STATUS "  Man pages will not be installed.")
 endif()
 
 # Print configuration

@@ -49,6 +49,28 @@ static char *read_file_contents(const char *filepath) {
 }
 
 /**
+ * Decode percent-encoded path in place (RFC 3986: %XX -> byte).
+ * Used so include paths like with%20space.txt resolve to files with spaces.
+ */
+static void percent_decode_inplace(char *path) {
+    if (!path) return;
+    char *r = path;
+    char *w = path;
+    while (*r) {
+        if (r[0] == '%' && r[1] && r[2] &&
+            isxdigit((unsigned char)r[1]) && isxdigit((unsigned char)r[2])) {
+            int hi = (r[1] <= '9') ? (r[1] - '0') : ((r[1] & 0x0f) + 9);
+            int lo = (r[2] <= '9') ? (r[2] - '0') : ((r[2] & 0x0f) + 9);
+            *w++ = (char)((hi << 4) | lo);
+            r += 3;
+        } else {
+            *w++ = *r++;
+        }
+    }
+    *w = '\0';
+}
+
+/**
  * Resolve relative path from base directory
  */
 static char *resolve_path(const char *filepath, const char *base_dir) {
@@ -174,10 +196,13 @@ static apex_file_type_t apex_detect_file_type(const char *filepath) {
  * - First row is always treated as header.
  * - If the second row cells are all one of: left, right, center, auto (case-insensitive),
  *   it is treated as an alignment row and converted to :---, ---:, :---:, or ---.
+ * - Alternatively, if the second row cells contain only colons and dashes (e.g. :--, --:,
+ *   :--:), they are parsed as Markdown-style alignment specs:
+ *   :-- or :--- (colon at start) = left; --: or ---: (colon at end) = right;
+ *   :--: or :---: (colon both ends) = center; --- (no colon) = auto.
  *   The alignment row itself is NOT emitted as a data row.
  * - Otherwise, a default '---' separator row is generated after the header.
- *   The second row (including rows that contain only '-' and ':' characters) is emitted
- *   as normal data.
+ *   The second row is emitted as normal data.
  */
 char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
     if (!csv_content) return NULL;
@@ -366,6 +391,59 @@ char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
                 align = NULL;
             } else {
                 has_alignment_row = true;
+            }
+        }
+
+        /* If keywords failed, try Markdown-style alignment (:--, --:, :--:) */
+        if (!has_alignment_row && arow->cell_count == col_count) {
+            align = malloc((size_t)col_count * sizeof(*align));
+            if (align) {
+                bool all_colon_dash = true;
+                for (int i = 0; i < col_count && all_colon_dash; i++) {
+                    char *cell = arow->cells[i];
+                    char *start = cell;
+                    while (*start && isspace((unsigned char)*start)) start++;
+                    char *end = start + strlen(start);
+                    while (end > start && isspace((unsigned char)end[-1])) end--;
+                    size_t tlen = (size_t)(end - start);
+
+                    if (tlen == 0) {
+                        all_colon_dash = false;
+                        break;
+                    }
+
+                    bool has_dash = false;
+                    for (size_t j = 0; j < tlen; j++) {
+                        char ch = start[j];
+                        if (ch == '-') has_dash = true;
+                        else if (ch != ':') {
+                            all_colon_dash = false;
+                            break;
+                        }
+                    }
+                    if (!all_colon_dash || !has_dash) {
+                        all_colon_dash = false;
+                        break;
+                    }
+
+                    bool colon_start = (start[0] == ':');
+                    bool colon_end = (end > start && end[-1] == ':');
+                    if (colon_start && colon_end) {
+                        align[i] = ALIGN_CENTER;
+                    } else if (colon_start) {
+                        align[i] = ALIGN_LEFT;
+                    } else if (colon_end) {
+                        align[i] = ALIGN_RIGHT;
+                    } else {
+                        align[i] = ALIGN_AUTO;
+                    }
+                }
+                if (all_colon_dash) {
+                    has_alignment_row = true;
+                } else {
+                    free(align);
+                    align = NULL;
+                }
             }
         }
     }
@@ -1134,6 +1212,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 size_t filepath_len = filepath_end - filepath_start;
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
+                percent_decode_inplace(filepath);
 
                 /* Resolve and check file exists */
                 char *resolved_path = resolve_path(filepath, effective_base_dir);
@@ -1220,6 +1299,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 char filepath[1024];
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
+                percent_decode_inplace(filepath);
 
                 /* Check for address specification [address] */
                 const char *address_start = filepath_end + 2;
@@ -1364,6 +1444,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 if (filepath_len > 0 && filepath_len < (int)sizeof(filepath)) {
                     memcpy(filepath, filepath_start, filepath_len);
                     filepath[filepath_len] = '\0';
+                    percent_decode_inplace(filepath);
 
                     /* Check for address specification [address] */
                     const char *address_start = filepath_end + 1;

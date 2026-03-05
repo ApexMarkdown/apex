@@ -20,6 +20,11 @@ extern NSString * const ApexModeUnified;
 @interface NSString (Apex)
 
 /**
+ * Apex processor version string (e.g. "0.1.89")
+ */
++ (NSString *)apexVersion;
+
+/**
  * Convert Markdown to HTML using Apex processor in unified mode
  * @param inputString The markdown text to convert
  * @return HTML string

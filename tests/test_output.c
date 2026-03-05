@@ -57,6 +57,28 @@ void test_toc(void) {
     assert_contains(html, "H2", "Includes H2");
     apex_free_string(html);
 
+    /* TOC inside inline code (backticks) must not be rendered */
+    const char *toc_inline_code = "# Title\n\nUse `{{TOC}}` in your template.\n\n## Section";
+    html = apex_markdown_to_html(toc_inline_code, strlen(toc_inline_code), &opts);
+    assert_contains(html, "<code>{{TOC}}</code>", "TOC in inline code is literal");
+    assert_contains(html, "Section", "Headers still in document");
+    apex_free_string(html);
+
+    /* TOC inside fenced code block must not be rendered */
+    const char *toc_code_block = "# Title\n\n```\n{{TOC}}\n```\n\n## Section";
+    html = apex_markdown_to_html(toc_code_block, strlen(toc_code_block), &opts);
+    assert_contains(html, "{{TOC}}", "TOC in code block is literal");
+    assert_contains(html, "<pre>", "Code block present");
+    apex_free_string(html);
+
+    /* First valid TOC (not in code) is used when one is in code and one is not */
+    const char *toc_then_real = "# Title\n\n`{{TOC}}`\n\n<!--TOC-->\n\n## Section";
+    html = apex_markdown_to_html(toc_then_real, strlen(toc_then_real), &opts);
+    assert_contains(html, "<code>{{TOC}}</code>", "TOC in code stays literal");
+    assert_contains(html, "<nav class=\"toc\">", "Real TOC marker is rendered");
+    assert_contains(html, "Section", "TOC includes section");
+    apex_free_string(html);
+
     /* Test document without TOC marker */
     const char *no_toc = "# Header\n\nContent";
     html = apex_markdown_to_html(no_toc, strlen(no_toc), &opts);
@@ -269,6 +291,56 @@ void test_pretty_html(void) {
 }
 
 /**
+ * Test terminal and terminal256 output format: ANSI output, list markers, and terminal_width option.
+ */
+void test_terminal_output(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Terminal Output Tests", false, true);
+
+    apex_options opts = apex_options_default();
+    char *out;
+
+    /* Terminal format produces ANSI and content */
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("# Hello", 7, &opts);
+    assert_contains(out, "\033", "Terminal output contains ANSI escape");
+    assert_contains(out, "Hello", "Terminal output contains heading text");
+    apex_free_string(out);
+
+    /* terminal256 also produces ANSI */
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    out = apex_markdown_to_html("**bold** text", 13, &opts);
+    assert_contains(out, "\033", "Terminal256 output contains ANSI");
+    assert_contains(out, "bold", "Terminal256 output contains bold text");
+    apex_free_string(out);
+
+    /* Bullet list: default list_marker yields bullet and item text */
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("- one\n- two", 11, &opts);
+    assert_contains(out, "* ", "Terminal bullet list contains marker");
+    assert_contains(out, "one", "Terminal list contains first item");
+    assert_contains(out, "two", "Terminal list contains second item");
+    apex_free_string(out);
+
+    /* Ordered list: same list_marker styling, numbered labels */
+    out = apex_markdown_to_html("1. first\n2. second", 18, &opts);
+    assert_contains(out, "1.", "Terminal ordered list contains first number");
+    assert_contains(out, "2.", "Terminal ordered list contains second number");
+    assert_contains(out, "first", "Terminal ordered list contains first item text");
+    assert_contains(out, "second", "Terminal ordered list contains second item text");
+    apex_free_string(out);
+
+    /* terminal_width in options does not break output (wrapping is applied by CLI) */
+    opts.terminal_width = 40;
+    out = apex_markdown_to_html("plain paragraph", 15, &opts);
+    test_result(out != NULL && strstr(out, "plain") != NULL, "terminal_width set still produces terminal output");
+    if (out) apex_free_string(out);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Terminal Output Tests", had_failures, false);
+}
+
+/**
  * Test header ID generation
  */
 
@@ -341,6 +413,12 @@ void test_header_ids(void) {
     const char *mmd_diacritics_test = "# Émoji Support";
     html = apex_markdown_to_html(mmd_diacritics_test, strlen(mmd_diacritics_test), &opts);
     assert_contains(html, "id=\"Émojisupport\"", "MMD format preserves diacritics");
+    apex_free_string(html);
+
+    /* Test MMD format removes apostrophes (curly and straight) - they break anchor links */
+    const char *mmd_apostrophe_test = "# What\xE2\x80\x99s Markdown?";  /* curly apostrophe U+2019 */
+    html = apex_markdown_to_html(mmd_apostrophe_test, strlen(mmd_apostrophe_test), &opts);
+    assert_contains(html, "id=\"whatsmarkdown\"", "MMD format removes curly apostrophe from ID");
     apex_free_string(html);
 
     /* Test --no-ids option */
@@ -512,6 +590,32 @@ void test_header_ids(void) {
     } else {
         test_result(false, "Default mode incorrectly uses anchor tags");
     }
+    apex_free_string(html);
+
+    /* MMD heading [id] edge case: when [id] matches link ref but is last in heading
+     * with other content, treat as heading ID not link */
+    const char *mmd_id_conflict = "# Heading [mermaid]\n\n[mermaid]: https://example.com\n";
+    html = apex_markdown_to_html(mmd_id_conflict, strlen(mmd_id_conflict), &opts);
+    assert_contains(html, "id=\"mermaid\"", "MMD [id] at end of heading with link ref: treated as ID");
+    assert_contains(html, "Heading mermaid", "MMD [id] at end: mermaid rendered as text not link");
+    if (strstr(html, "<a href=\"https://example.com\">mermaid</a>") != NULL) {
+        test_result(false, "MMD [id] at end should not render as link");
+    } else {
+        test_result(true, "MMD [id] at end: mermaid not rendered as link");
+    }
+    apex_free_string(html);
+
+    /* Entire heading is [id]: keep as link to avoid empty heading */
+    const char *mmd_only_link = "# [mermaid]\n\n[mermaid]: https://example.com\n";
+    html = apex_markdown_to_html(mmd_only_link, strlen(mmd_only_link), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "Heading only [id] with link ref: remains link");
+    assert_contains(html, ">mermaid</a>", "Heading only [id]: mermaid renders as link text");
+    apex_free_string(html);
+
+    /* [id] in middle of heading: remains link */
+    const char *mmd_link_middle = "# Check out [mermaid] for diagrams\n\n[mermaid]: https://example.com\n";
+    html = apex_markdown_to_html(mmd_link_middle, strlen(mmd_link_middle), &opts);
+    assert_contains(html, "<a href=\"https://example.com\"", "MMD [id] in middle: remains link");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -811,6 +915,16 @@ void test_citations(void) {
     const char *no_cite_email = "Contact me at test@example.com";
     html = apex_markdown_to_html(no_cite_email, strlen(no_cite_email), &opts_autolink);
     assert_contains(html, "mailto:", "Email autolinking still works");
+    apex_free_string(html);
+
+    /* Test that autolink does not run inside indented code blocks */
+    const char *indented_code =
+        "    x-marked://extract?url=https://example.com\n";
+    html = apex_markdown_to_html(indented_code, strlen(indented_code), &opts_autolink);
+    assert_not_contains(html, "[https://example.com](https://example.com)",
+                        "Indented code block URL is not autolinked");
+    assert_contains(html, "x-marked://extract?url=https://example.com",
+                    "Indented code block content is preserved");
     apex_free_string(html);
 
     /* Test that @ in citations doesn't become mailto */
@@ -1235,3 +1349,5 @@ void test_ast_json_parser(void) {
     bool had_failures = suite_end(suite_failures);
     print_suite_title("AST JSON Parser (filter output with RawBlock)", had_failures, false);
 }
+
+

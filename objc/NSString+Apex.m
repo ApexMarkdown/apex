@@ -17,6 +17,11 @@ NSString *const ApexModeUnified = @"unified";
 
 @implementation NSString (Apex)
 
++ (NSString *)apexVersion {
+  const char *ver = apex_version_string();
+  return ver ? [NSString stringWithUTF8String:ver] : @"";
+}
+
 /**
  * Convert mode string to apex_mode_t enum
  */

@@ -306,6 +306,47 @@ static bool process_cell_alignment(const char **content_start, const char **cont
 }
 
 /**
+ * Extract [Caption] text from a paragraph node.
+ * Handles both: (1) TEXT node with literal "[Caption]", (2) LINK node where [text] was parsed as link.
+ * Returns allocated string or NULL. Caller must free.
+ */
+static char *get_caption_from_paragraph(cmark_node *para) {
+    if (!para || cmark_node_get_type(para) != CMARK_NODE_PARAGRAPH) return NULL;
+    cmark_node *child = cmark_node_first_child(para);
+    if (!child) return NULL;
+
+    cmark_node_type t = cmark_node_get_type(child);
+    if (t == CMARK_NODE_TEXT) {
+        const char *text = cmark_node_get_literal(child);
+        if (!text || text[0] != '[') return NULL;
+        const char *end = strchr(text + 1, ']');
+        if (!end) return NULL;
+        const char *after = end + 1;
+        while (*after && isspace((unsigned char)*after)) after++;
+        if (*after != '\0') return NULL;
+        size_t len = (size_t)(end - text - 1);
+        if (len == 0 || len >= 512) return NULL;
+        char *caption = malloc(len + 1);
+        if (caption) {
+            memcpy(caption, text + 1, len);
+            caption[len] = '\0';
+        }
+        return caption;
+    }
+    if (t == CMARK_NODE_LINK) {
+        /* [Caption] parsed as link - caption is the link text */
+        cmark_node *link_text = cmark_node_first_child(child);
+        if (!link_text || cmark_node_get_type(link_text) != CMARK_NODE_TEXT) return NULL;
+        const char *text = cmark_node_get_literal(link_text);
+        if (!text) return NULL;
+        /* Only treat as caption if it's the only content (no siblings) */
+        if (cmark_node_next(link_text) != NULL) return NULL;
+        return strdup(text);
+    }
+    return NULL;
+}
+
+/**
  * Get text fingerprint from paragraph node (first 50 chars for matching)
  */
 static char *get_para_text_fingerprint(cmark_node *node) {
@@ -386,35 +427,30 @@ static table_caption *collect_table_captions(cmark_node *document, para_to_remov
                     /* Check previous node for caption */
                     cmark_node *prev = cmark_node_previous(node);
                     if (prev && cmark_node_get_type(prev) == CMARK_NODE_PARAGRAPH) {
-                        /* Check if previous paragraph is a caption */
-                        cmark_node *text_node = cmark_node_first_child(prev);
-                        if (text_node && cmark_node_get_type(text_node) == CMARK_NODE_TEXT) {
-                            const char *text = cmark_node_get_literal(text_node);
-                            if (text && text[0] == '[') {
-                                const char *end = strchr(text + 1, ']');
-                                if (end) {
-                                    const char *after = end + 1;
-                                    while (*after && isspace((unsigned char)*after)) after++;
-                                    if (*after == '\0') {
-                                        /* This is a caption - extract it */
-                                        size_t caption_len = end - text - 1;
-                                        char *caption = malloc(caption_len + 1);
-                                        if (caption) {
-                                            memcpy(caption, text + 1, caption_len);
-                                            caption[caption_len] = '\0';
-                                            table_caption *cap = malloc(sizeof(table_caption));
-                                            if (cap) {
-                                                cap->table_index = table_index;
-                                                cap->caption = caption;
-                                                cap->next = list;
-                                                list = cap;
-                                                caption_found = true;
-                                            } else {
-                                                free(caption);
-                                            }
-                                        }
+                        char *caption = get_caption_from_paragraph(prev);
+                        if (caption) {
+                            table_caption *cap = malloc(sizeof(table_caption));
+                            if (cap) {
+                                cap->table_index = table_index;
+                                cap->caption = caption;
+                                cap->next = list;
+                                list = cap;
+                                caption_found = true;
+                                /* Mark caption paragraph for removal (para_index is prev's index) */
+                                char *fingerprint = get_para_text_fingerprint(prev);
+                                if (fingerprint) {
+                                    para_to_remove *para = malloc(sizeof(para_to_remove));
+                                    if (para) {
+                                        para->para_index = para_index;
+                                        para->text_fingerprint = fingerprint;
+                                        para->next = *paras_to_remove;
+                                        *paras_to_remove = para;
+                                    } else {
+                                        free(fingerprint);
                                     }
                                 }
+                            } else {
+                                free(caption);
                             }
                         }
                     }
@@ -422,33 +458,29 @@ static table_caption *collect_table_captions(cmark_node *document, para_to_remov
                     if (!caption_found) {
                         cmark_node *next = cmark_node_next(node);
                         if (next && cmark_node_get_type(next) == CMARK_NODE_PARAGRAPH) {
-                            cmark_node *text_node = cmark_node_first_child(next);
-                            if (text_node && cmark_node_get_type(text_node) == CMARK_NODE_TEXT) {
-                                const char *text = cmark_node_get_literal(text_node);
-                                if (text && text[0] == '[') {
-                                    const char *end = strchr(text + 1, ']');
-                                    if (end) {
-                                        const char *after = end + 1;
-                                        while (*after && isspace((unsigned char)*after)) after++;
-                                        if (*after == '\0') {
-                                            /* This is a caption - extract it */
-                                            size_t caption_len = end - text - 1;
-                                            char *caption = malloc(caption_len + 1);
-                                            if (caption) {
-                                                memcpy(caption, text + 1, caption_len);
-                                                caption[caption_len] = '\0';
-                                                table_caption *cap = malloc(sizeof(table_caption));
-                                                if (cap) {
-                                                    cap->table_index = table_index;
-                                                    cap->caption = caption;
-                                                    cap->next = list;
-                                                    list = cap;
-                                                } else {
-                                                    free(caption);
-                                                }
-                                            }
+                            char *caption = get_caption_from_paragraph(next);
+                            if (caption) {
+                                table_caption *cap = malloc(sizeof(table_caption));
+                                if (cap) {
+                                    cap->table_index = table_index;
+                                    cap->caption = caption;
+                                    cap->next = list;
+                                    list = cap;
+                                    /* Mark caption paragraph for removal (next's index = para_index + 1) */
+                                    char *fingerprint = get_para_text_fingerprint(next);
+                                    if (fingerprint) {
+                                        para_to_remove *para = malloc(sizeof(para_to_remove));
+                                        if (para) {
+                                            para->para_index = para_index + 1;
+                                            para->text_fingerprint = fingerprint;
+                                            para->next = *paras_to_remove;
+                                            *paras_to_remove = para;
+                                        } else {
+                                            free(fingerprint);
                                         }
                                     }
+                                } else {
+                                    free(caption);
                                 }
                             }
                         }

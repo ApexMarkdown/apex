@@ -5,6 +5,8 @@
 #include "test_helpers.h"
 #include "apex/apex.h"
 #include "../src/extensions/advanced_footnotes.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 void test_math(void) {
@@ -175,6 +177,41 @@ void test_processor_modes(void) {
 }
 
 /**
+ * Test cmark_init callback for custom extension registration
+ */
+static int cmark_init_callback_invoked = 0;
+
+static void test_cmark_init_cb(struct cmark_parser *parser, const struct apex_options *opts, int cmark_opts) {
+    (void)parser;
+    (void)opts;
+    (void)cmark_opts;
+    cmark_init_callback_invoked = 1;
+}
+
+void test_cmark_init_callback(void) {
+    int suite_failures = suite_start();
+    print_suite_title("cmark_init callback Tests", false, true);
+
+    cmark_init_callback_invoked = 0;
+    apex_options opts = apex_options_default();
+    opts.cmark_init = test_cmark_init_cb;
+    char *html = apex_markdown_to_html("# Hi", 4, &opts);
+    test_result(cmark_init_callback_invoked == 1, "cmark_init callback was invoked");
+    assert_contains(html, "<h1", "Basic parsing still works with callback");
+    assert_contains(html, "Hi</h1>", "Header content preserved");
+    apex_free_string(html);
+
+    /* NULL callback: conversion works normally */
+    opts.cmark_init = NULL;
+    html = apex_markdown_to_html("**bold**", 8, &opts);
+    assert_contains(html, "<strong>bold</strong>", "Parsing works with NULL callback");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("cmark_init callback Tests", had_failures, false);
+}
+
+/**
  * Test MultiMarkdown-style image attributes (inline and reference)
  */
 
@@ -327,6 +364,161 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* webp attribute: ![alt](url webp) emits <picture> with webp source */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *webp_md = "![Hero](img/hero.png webp)";
+        char *html = apex_markdown_to_html(webp_md, strlen(webp_md), &opts);
+        assert_contains(html, "<picture>", "webp: picture element");
+        assert_contains(html, "type=\"image/webp\"", "webp: source type");
+        assert_contains(html, "img/hero.webp 1x", "webp: srcset");
+        assert_contains(html, "<img src=\"img/hero.png\"", "webp: img fallback");
+        assert_contains(html, "</picture>", "webp: picture close");
+        apex_free_string(html);
+    }
+
+    /* avif attribute: ![alt](url avif) emits <picture> with avif source */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *avif_md = "![Hero](img/hero.png avif)";
+        char *html = apex_markdown_to_html(avif_md, strlen(avif_md), &opts);
+        assert_contains(html, "<picture>", "avif: picture element");
+        assert_contains(html, "type=\"image/avif\"", "avif: source type");
+        assert_contains(html, "img/hero.avif 1x", "avif: srcset");
+        assert_contains(html, "<img src=\"img/hero.png\"", "avif: img fallback");
+        apex_free_string(html);
+    }
+
+    /* webp + @2x: srcset includes 1x and 2x for webp */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *webp_2x_md = "![Hero](img/hero.png webp @2x)";
+        char *html = apex_markdown_to_html(webp_2x_md, strlen(webp_2x_md), &opts);
+        assert_contains(html, "img/hero.webp 1x, img/hero@2x.webp 2x", "webp @2x: srcset");
+        apex_free_string(html);
+    }
+
+    /* Video URL: ![alt](video.mp4) emits <video> */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *video_md = "![Demo](media/demo.mp4)";
+        char *html = apex_markdown_to_html(video_md, strlen(video_md), &opts);
+        assert_contains(html, "<video", "video: video element");
+        assert_contains(html, "media/demo.mp4", "video: src");
+        assert_contains(html, "</video>", "video: close");
+        assert_not_contains(html, "<img", "video: no img");
+        apex_free_string(html);
+    }
+
+    /* Video with webm attribute: adds webm source */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *video_webm_md = "![Demo](media/demo.mp4 webm)";
+        char *html = apex_markdown_to_html(video_webm_md, strlen(video_webm_md), &opts);
+        assert_contains(html, "<source src=\"media/demo.webm\" type=\"video/webm\">", "video webm: source");
+        assert_contains(html, "<source src=\"media/demo.mp4\"", "video webm: primary fallback");
+        apex_free_string(html);
+    }
+
+    /* Fixture-based tests: media_formats_test.md */
+    {
+        const char *fixture_path = "tests/fixtures/images/media_formats_test.md";
+        FILE *fp = fopen(fixture_path, "rb");
+        if (fp) {
+            fseek(fp, 0, SEEK_END);
+            long sz = ftell(fp);
+            fseek(fp, 0, SEEK_SET);
+            char *src = malloc(sz + 1);
+            if (src) {
+                size_t len = fread(src, 1, (size_t)sz, fp);
+                src[len] = '\0';
+                fclose(fp);
+
+                apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+                char *html = apex_markdown_to_html(src, len, &opts);
+
+                /* Images with webp/avif: picture elements */
+                assert_contains(html, "<picture>", "fixture: picture elements");
+                assert_contains(html, "type=\"image/webp\"", "fixture: webp source type");
+                assert_contains(html, "type=\"image/avif\"", "fixture: avif source type");
+                assert_contains(html, "img/hero.webp 1x", "fixture: webp srcset");
+                assert_contains(html, "img/hero.avif 1x", "fixture: avif srcset");
+                assert_contains(html, "img/hero@2x.webp 2x", "fixture: webp @2x");
+                assert_contains(html, "img/hero@2x.avif 2x", "fixture: avif @2x");
+
+                /* Videos: video elements */
+                assert_contains(html, "<video", "fixture: video elements");
+                assert_contains(html, "media/demo.mp4", "fixture: mp4 video");
+                assert_contains(html, "assets/trailer.mov", "fixture: mov video");
+                assert_contains(html, "assets/sample.m4v", "fixture: m4v video");
+
+                /* Video with format alternatives */
+                assert_contains(html, "media/demo.webm", "fixture: video webm source");
+                assert_contains(html, "media/intro.ogg", "fixture: video ogg source");
+                assert_contains(html, "media/clip.mp4", "fixture: webm with mp4 fallback");
+
+                /* Auto attribute (marker present; expansion requires base_directory) */
+                assert_contains(html, "data-apex-replace-auto=1", "fixture: auto marker");
+
+                apex_free_string(html);
+                free(src);
+            } else {
+                fclose(fp);
+                test_result(false, "fixture: malloc failed for media_formats_test.md");
+            }
+        } else {
+            test_result(false, "fixture: could not open media_formats_test.md");
+        }
+    }
+
+    /* auto attribute: emits data-apex-replace-auto (expansion requires base_directory) */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *auto_md = "![Hero](img/hero.png auto)";
+        char *html = apex_markdown_to_html(auto_md, strlen(auto_md), &opts);
+        assert_contains(html, "data-apex-replace-auto=1", "auto: emits replace marker");
+        apex_free_string(html);
+    }
+
+    /* auto with base_directory: discovers img set (jpg, webp, avif, 2x variants), emits picture */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.base_directory = "tests/fixtures/images";
+        const char *auto_md = "![Profile menu](img/app-pass-1-profile-menu.jpg auto)";
+        char *html = apex_markdown_to_html(auto_md, strlen(auto_md), &opts);
+        assert_contains(html, "<picture>", "auto+base: picture element");
+        assert_contains(html, "type=\"image/avif\"", "auto+base: avif source");
+        assert_contains(html, "type=\"image/webp\"", "auto+base: webp source");
+        assert_contains(html, "app-pass-1-profile-menu.avif 1x", "auto+base: avif 1x");
+        assert_contains(html, "app-pass-1-profile-menu@2x.avif 2x", "auto+base: avif 2x");
+        assert_contains(html, "app-pass-1-profile-menu.webp 1x", "auto+base: webp 1x");
+        assert_contains(html, "app-pass-1-profile-menu@2x.webp 2x", "auto+base: webp 2x");
+        assert_contains(html, "<img src=\"img/app-pass-1-profile-menu.jpg\"", "auto+base: img fallback");
+        apex_free_string(html);
+    }
+
+    /* * extension: equivalent to auto, discovers formats from base filename */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.base_directory = "tests/fixtures/images";
+        const char *wildcard_md = "![Profile menu](img/app-pass-1-profile-menu.*)";
+        char *html = apex_markdown_to_html(wildcard_md, strlen(wildcard_md), &opts);
+        assert_contains(html, "<picture>", "wildcard: picture element");
+        assert_contains(html, "type=\"image/avif\"", "wildcard: avif source");
+        assert_contains(html, "type=\"image/webp\"", "wildcard: webp source");
+        assert_contains(html, "app-pass-1-profile-menu.jpg", "wildcard: jpg fallback");
+        apex_free_string(html);
+    }
+
+    /* * extension: emits data-apex-replace-auto marker when no base_directory */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *wildcard_md = "![Hero](img/hero.*)";
+        char *html = apex_markdown_to_html(wildcard_md, strlen(wildcard_md), &opts);
+        assert_contains(html, "data-apex-replace-auto=1", "wildcard: emits replace marker");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
 }
@@ -387,6 +579,11 @@ void test_file_includes(void) {
     html = apex_markdown_to_html("{{data.tsv}}", 12, &opts);
     assert_contains(html, "<table>", "TSV converts to table");
     assert_contains(html, "Widget", "TSV data in table");
+    apex_free_string(html);
+
+    /* Test percent-encoded path in include */
+    html = apex_markdown_to_html("<<[with%20space.txt]", 21, &opts);
+    assert_contains(html, "Percent-decoded", "Percent-encoded path (with%20space.txt) resolves to file with space");
     apex_free_string(html);
 
     /* Test iA Writer image include */
@@ -627,6 +824,27 @@ void test_definition_lists(void) {
     assert_contains(html, "<dt>Term</dt>", "Term preserved with multiple blank lines");
     assert_contains(html, "<dd>definition 1</dd>", "First definition");
     assert_contains(html, "<dd>definition 2</dd>", "Second definition");
+    apex_free_string(html);
+
+    /* Test all four definition list formats */
+    html = apex_markdown_to_html("term\n: definition", 17, &opts);
+    assert_contains(html, "<dt>term</dt>", "Kramdown format: term + : definition");
+    assert_contains(html, "<dd>definition</dd>", "Kramdown format dd");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("term\n:: definition", 18, &opts);
+    assert_contains(html, "<dt>term</dt>", "Kramdown format: term + :: definition");
+    assert_contains(html, "<dd>definition</dd>", "Kramdown :: format dd");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("term::definition", 16, &opts);
+    assert_contains(html, "<dt>term</dt>", "One-line format: term::definition");
+    assert_contains(html, "<dd>definition</dd>", "One-line format dd");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("term :: definition", 18, &opts);
+    assert_contains(html, "<dt>term</dt>", "One-line format: term :: definition");
+    assert_contains(html, "<dd>definition</dd>", "One-line format with spaces dd");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -1199,6 +1417,13 @@ void test_abbreviations(void) {
     html = apex_markdown_to_html(mixed, strlen(mixed), &opts);
     assert_contains(html, "Old Style", "Old syntax in mixed");
     assert_contains(html, "New Style", "New syntax in mixed");
+    apex_free_string(html);
+
+    /* Test inline and reference-style in same document (both must be wrapped) */
+    const char *inline_and_ref = "This is HTML. And more [>(ABBR) abbreviation syntax].\n\n[>HTML]: Hypertext Markup Language";
+    html = apex_markdown_to_html(inline_and_ref, strlen(inline_and_ref), &opts);
+    assert_contains(html, "<abbr title=\"Hypertext Markup Language\">HTML</abbr>", "Reference abbr when mixed");
+    assert_contains(html, "<abbr title=\"abbreviation syntax\">ABBR</abbr>", "Inline abbr when mixed");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -1801,6 +2026,55 @@ void test_sup_sub(void) {
     } else {
         test_result(false, "Subscript incorrectly processed in critic markup");
     }
+    apex_free_string(html);
+    opts.enable_critic_markup = false;
+
+    /* ===== CODE BLOCKS: extended syntax not processed ===== */
+
+    /* Indented code block: ^ ~ ~~ == must appear literally, not as sup/sub/underline/strikethrough/highlight */
+    const char *indented_with_extended = "Normal text x^2 here.\n\n    code with ~subscript~ and ^caret^\n    and ~~strikethrough~~ and ==highlight==\n\nBack to normal.";
+    html = apex_markdown_to_html(indented_with_extended, strlen(indented_with_extended), &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript processed in normal text");
+    assert_contains(html, "~subscript~", "Subscript not processed in indented code block");
+    assert_contains(html, "^caret^", "Caret not processed as superscript in indented code block");
+    assert_not_contains(html, "<sub>subscript</sub>", "No subscript tag in indented code block");
+    assert_contains(html, "~~strikethrough~~", "Strikethrough not processed in indented code block");
+    assert_contains(html, "==highlight==", "Highlight not processed in indented code block");
+    assert_not_contains(html, "<mark>highlight</mark>", "No mark tag in indented code block");
+    apex_free_string(html);
+
+    /* Fenced code block: same checks */
+    const char *fenced_with_extended = "Normal x^2.\n\n```\ncode with ~subscript~ and ^caret^\nand ~~strikethrough~~ and ==highlight==\n```\n\nBack.";
+    html = apex_markdown_to_html(fenced_with_extended, strlen(fenced_with_extended), &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript processed in normal text");
+    assert_contains(html, "~subscript~", "Subscript not processed in fenced code block");
+    assert_contains(html, "^caret^", "Caret not processed in fenced code block");
+    assert_not_contains(html, "<sub>subscript</sub>", "No subscript tag in fenced code block");
+    assert_contains(html, "~~strikethrough~~", "Strikethrough not processed in fenced code block");
+    assert_contains(html, "==highlight==", "Highlight not processed in fenced code block");
+    apex_free_string(html);
+
+    /* Inline code: ^ and ~ must not be processed */
+    html = apex_markdown_to_html("Use `x^2` and `H~2~O` in code.", 32, &opts);
+    assert_contains(html, "x^2", "Caret preserved in inline code");
+    assert_contains(html, "H~2~O", "Tildes preserved in inline code");
+    assert_not_contains(html, "<sup>2</sup>", "No superscript in inline code");
+    assert_not_contains(html, "<sub>2</sub>", "No subscript in inline code");
+    apex_free_string(html);
+
+    /* Nested list with 4+ spaces: sup/sub and highlight should be processed (list line, not code block) */
+    const char *list_with_extended = "- Outer item\n    - Nested with x^2 and H~2~O\n    - And ==highlight== here";
+    html = apex_markdown_to_html(list_with_extended, strlen(list_with_extended), &opts);
+    assert_contains(html, "<sup>2</sup>", "Superscript processed in nested list line");
+    assert_contains(html, "<sub>2</sub>", "Subscript processed in nested list line");
+    assert_contains(html, "<mark>highlight</mark>", "Highlight processed in nested list line");
+    apex_free_string(html);
+
+    /* Indented line that is real code (no list marker): still no processing */
+    const char *real_indented_code = "Paragraph.\n\n    actual code ~subscript~ here\n\nBack.";
+    html = apex_markdown_to_html(real_indented_code, strlen(real_indented_code), &opts);
+    assert_contains(html, "~subscript~", "Subscript not processed in real indented code block");
+    assert_not_contains(html, "<sub>subscript</sub>", "No subscript tag in real indented code block");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);

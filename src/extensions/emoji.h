@@ -15,6 +15,20 @@ extern "C" {
 char *apex_replace_emoji(const char *html);
 
 /**
+ * Replace :emoji: patterns in plain text with Unicode emoji only.
+ *
+ * This is suitable for non-HTML outputs (e.g. terminal rendering) where
+ * image-based emoji tags are not desired. If an emoji entry has no
+ * Unicode representation (image-only), the original :emoji: pattern is
+ * left unchanged.
+ *
+ * @param text Plain text to process (UTF-8)
+ * @return Newly allocated string with emoji replacements applied, or NULL
+ *         on error. Caller must free the returned string.
+ */
+char *apex_replace_emoji_text(const char *text);
+
+/**
  * Find emoji name from unicode emoji (reverse lookup)
  * @param unicode The unicode emoji string (UTF-8)
  * @param unicode_len Length of the unicode string in bytes

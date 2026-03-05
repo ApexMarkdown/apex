@@ -1,10 +1,8 @@
 /**
- * Definition List Extension for Apex
+ * One-Line Definition List Extension for Apex
  *
- * Supports Kramdown/PHP Markdown Extra style definition lists:
- * Term
- * : Definition 1
- * : Definition 2
+ * Supports: Term :: Definition text  or  Term::Definition text
+ * Multiple consecutive lines create one <dl> with multiple <dt>/<dd> pairs.
  */
 
 #ifndef APEX_DEFINITION_LIST_H
@@ -12,31 +10,31 @@
 
 #include <stdbool.h>
 #include "cmark-gfm.h"
-#include "cmark-gfm-extension_api.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* Custom node types for definition lists */
-/* Note: APEX_NODE_DEFINITION_* are defined as enum values in parser.h, not as variables */
+/* Stub node types for ast_man.c compatibility - one-line format outputs HTML, so these are never used */
+extern cmark_node_type APEX_NODE_DEFINITION_LIST;
+extern cmark_node_type APEX_NODE_DEFINITION_TERM;
+extern cmark_node_type APEX_NODE_DEFINITION_DATA;
 
 /**
- * Process definition lists via preprocessing
- * Converts : syntax to HTML before main parsing
+ * Process one-line definition lists via preprocessing.
+ * Converts "Term :: Definition" lines to <dl><dt>Term</dt><dd>Definition</dd></dl>
  * @param text The markdown text to process
- * @param unsafe If true, allow raw HTML in output (pass CMARK_OPT_UNSAFE)
+ * @param unsafe If true, allow raw HTML in output
  */
 char *apex_process_definition_lists(const char *text, bool unsafe);
 
 /**
- * Create and return the definition list extension
+ * Debug touch - no-op for one-line format
  */
-cmark_syntax_extension *create_definition_list_extension(void);
+void apex_deflist_debug_touch(int enable_definition_lists);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* APEX_DEFINITION_LIST_H */
-

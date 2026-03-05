@@ -1,5 +1,5 @@
 
-[![Version: 0.1.76](https://img.shields.io/badge/Version-0.1.76-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1314/1314](https://img.shields.io/badge/Tests-1314/1314-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.90](https://img.shields.io/badge/Version-0.1.90-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1429/1429](https://img.shields.io/badge/Tests-1429/1429-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -42,7 +42,7 @@ one tool.
 - **Smart typography**: Automatic conversion of quotes, dashes, ellipses, and more
 - **Math support**: LaTeX math expressions with `$...$` (inline) and `$$...$$` (display)
 
-- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments or Skylighting with `--code-highlight` flag.
+- **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments, Skylighting, or Shiki with `--code-highlight` flag.
 
   Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
 
@@ -119,7 +119,7 @@ one tool.
 - **Flexible output**: Compact HTML fragments, pretty-printed HTML, or complete standalone documents
 - **Standalone documents**: Generate complete HTML5 documents with `<html>`, `<head>`, `<body>` tags
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
-- **Syntax highlighting**: External syntax highlighting via Pygments or Skylighting with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
+- **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
 - **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# ???? Support` ??? `id="smile-support"`), matching Pandoc's GFM behavior
@@ -292,14 +292,14 @@ apex input.md --mode kramdown
 
 `--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
 
-`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg` or `skylighting`/`s`/`sky`). Automatically includes GitHub-style CSS in standalone mode
+`--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg`, `skylighting`/`s`/`sky`, or `shiki`/`sh`). Uses HTML or ANSI output based on destination format. Automatically includes GitHub-style CSS in standalone mode
 
 `--code-line-numbers` - Include line numbers in syntax-highlighted code blocks (requires `--code-highlight`)
 
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.75
+Apex Markdown Processor v0.1.90
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -315,17 +315,21 @@ Options:
   --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)
   --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times
   --captions POSITION    Table caption position: above or below (default: below)
-  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, or abbreviations p, s)
+  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, shiki, or abbreviations p, s, sh)
+  --code-highlight-theme THEME  Theme/style name for external syntax highlighters (tool-specific)
+  --list-themes          List available syntax highlighting themes for pygments, skylighting, and Shiki
   --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)
   --highlight-language-only  Only highlight code blocks that have a language specified (requires --code-highlight)
   --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream
                          When a SUMMARY.md file is provided, treat it as a GitBook index and combine
                          the linked files in order. Output is raw Markdown suitable for piping back into Apex.
   --csl FILE              Citation style file (CSL format)
-  --css FILE, --style FILE  Link to CSS file(s) in document head (requires --standalone, overrides CSS metadata)
-                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)
+  --css FILE, --style FILE  Link to CSS file(s) in document head. With HTML: requires -s/--standalone.
+                         With -t man-html -s: include custom CSS in the man page. Can be used multiple times or comma-separated (e.g., --css style.css)
   --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)
   --embed-images         Embed local images as base64 data URLs in HTML output
+  --[no-]image-captions  Wrap images with title or alt text in <figure>/<figcaption> (default: on in unified/mmd)
+  --[no-]title-captions-only  Only add captions for images with title; alt-only images get no caption
   --hardbreaks           Treat newlines as hard breaks
   --header-anchors        Generate <a> anchor tags instead of header IDs
   -h, --help             Show this help message
@@ -350,6 +354,7 @@ Options:
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
   -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)
+  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support
   --no-ids                Disable automatic header ID generation
@@ -362,6 +367,7 @@ Options:
   --no-smart             Disable smart typography
   --no-sup-sub           Disable superscript/subscript syntax
   --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)
+  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)
   --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)
   --no-tables            Disable table support
   --no-transforms        Disable metadata variable transforms
@@ -379,7 +385,7 @@ Options:
   --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).
                           VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.
   --show-tooltips         Show tooltips on citations
-  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)
+  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>). For -t man-html, -s adds nav sidebar and full page; without -s, output is snippet only.
   --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax
   --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing
   --title TITLE          Document title (requires --standalone, default: "Document")
@@ -400,6 +406,9 @@ Options:
   --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)
   --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)
   --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)
+  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)
+  --width N               Hard-wrap terminal/terminal256 output at N visible columns
+  -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)
 
 If no file is specified, reads from stdin.
 

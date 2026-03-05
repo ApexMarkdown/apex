@@ -39,6 +39,10 @@
 #include "extensions/fenced_divs.h"
 #include "extensions/syntax_highlight.h"
 #include "plugins.h"
+#include "ast_json.h"
+#include "apex/ast_markdown.h"
+#include "apex/ast_terminal.h"
+#include "apex/ast_man.h"
 #include "filters_ast.h"
 
 /* Custom renderer */
@@ -524,9 +528,36 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
             continue;
         }
 
-        /* Check if we're at the start of a reference link definition: [id]: URL */
+        /* At start of line: handle reference definitions and indented code blocks */
         if (r == text || r[-1] == '\n') {
             const char *line_start = r;
+
+            /* First: skip indented code blocks (4+ spaces or a leading tab) entirely */
+            int indent_spaces = 0;
+            while (*line_start == ' ' && indent_spaces < 4) {
+                line_start++;
+                indent_spaces++;
+            }
+            if (indent_spaces == 4 || *line_start == '\t') {
+                const char *line_end = strchr(r, '\n');
+                if (!line_end) line_end = r + strlen(r);
+                size_t line_len = line_end - r;
+                if ((size_t)(w - out) + line_len + 1 > cap) {
+                    size_t used = (size_t)(w - out);
+                    cap = (used + line_len + 1) * 2;
+                    char *new_out = realloc(out, cap);
+                    if (!new_out) { free(out); return NULL; }
+                    out = new_out;
+                    w = out + used;
+                }
+                memcpy(w, r, line_len);
+                w += line_len;
+                r = line_end;
+                continue;
+            }
+
+            /* Then: check for reference link definitions: [id]: URL */
+            line_start = r;
             /* Skip leading whitespace */
             while (*line_start == ' ' || *line_start == '\t') {
                 line_start++;
@@ -1291,19 +1322,49 @@ static char *apex_preprocess_table_captions(const char *text) {
                     }
                     table_check++;
                 }
-                /* Check for : Caption format (Pandoc-style, only after tables) */
-                /* Skip up to 3 leading spaces (matching definition list rules) */
+                /* Check for : Caption format (Pandoc-style, only in table context)
+                 * Require prev_line_was_table_row or in_table_section - NOT prev_line_was_blank alone.
+                 * prev_line_was_blank alone would wrongly convert "Term\n\n: definition 1" (def list) to caption. */
+                if ((prev_line_was_table_row || in_table_section) &&
+                    !is_pandoc_caption_line) {
+                    const char *check = p;
+                    int spaces = 0;
+                    while (spaces < 3 && check < line_end && *check == ' ') {
+                        spaces++;
+                        check++;
+                    }
+                    if (check < line_end && *check == ':' &&
+                        (check + 1) < line_end &&
+                        (check[1] == ' ' || check[1] == '\t')) {
+                        is_colon_caption_line = true;
+                    }
+                }
+            } else {
+                /* Check for : Caption BEFORE table (next non-blank line is a table row) */
                 const char *check = p;
                 int spaces = 0;
                 while (spaces < 3 && check < line_end && *check == ' ') {
                     spaces++;
                     check++;
                 }
-                /* Must start with : followed by space or tab */
                 if (check < line_end && *check == ':' &&
                     (check + 1) < line_end &&
                     (check[1] == ' ' || check[1] == '\t')) {
-                    is_colon_caption_line = true;
+                    /* Peek ahead: is next non-blank line a table row? */
+                    const char *next = line_end;
+                    if (next < text + len && *next == '\n') next++;
+                    if (next < text + len && *next == '\r') next++;
+                    while (next < text + len && (*next == '\n' || *next == '\r' || *next == ' ' || *next == '\t')) {
+                        if (*next == '\n' || *next == '\r') {
+                            next++;
+                            if (next < text + len && next[-1] == '\r' && *next == '\n') next++;
+                        } else {
+                            next++;
+                        }
+                    }
+                    if (next < text + len && *next == '|') {
+                        is_colon_caption_line = true;
+                    }
                 }
             }
         }
@@ -1425,10 +1486,9 @@ static char *apex_preprocess_table_captions(const char *text) {
                     *write++ = '\n';
                 }
             }
-        } else if (!in_code_block &&
-                   prev_line_was_table_row &&
-                   is_colon_caption_line) {
-            /* Case 3: Pandoc-style ': Caption {#id .class}' -> convert to '[Caption {#id .class}]' */
+        } else if (!in_code_block && is_colon_caption_line) {
+            /* Case 3: Pandoc-style ': Caption {#id .class}' -> convert to '[Caption {#id .class}]'
+             * Handles both: (a) after table, (b) before table (next line is | table row) */
             /* Skip leading whitespace (up to 3 spaces) */
             const char *caption_start = p;
             int spaces = 0;
@@ -2472,6 +2532,7 @@ apex_options apex_options_default(void) {
     opts.base_directory = NULL;
 
     /* Output options */
+    opts.output_format = APEX_OUTPUT_HTML;  /* Default: HTML output */
     opts.unsafe = true;
     opts.validate_utf8 = true;
     opts.github_pre_lang = true;
@@ -2550,9 +2611,10 @@ apex_options apex_options_default(void) {
     opts.enable_emoji_autocorrect = true;  /* Enabled by default in unified mode */
 
     /* Syntax highlighting options */
-    opts.code_highlighter = NULL;   /* Default: no external syntax highlighting */
-    opts.code_line_numbers = false; /* Default: no line numbers */
-    opts.highlight_language_only = false; /* Default: highlight all code blocks */
+    opts.code_highlighter = NULL;          /* Default: no external syntax highlighting */
+    opts.code_line_numbers = false;        /* Default: no line numbers */
+    opts.highlight_language_only = false;  /* Default: highlight all code blocks */
+    opts.code_highlight_theme = NULL;      /* Default: no explicit theme */
 
     /* Marked / integration-specific options (unified defaults) */
     opts.enable_widont = false;
@@ -2578,10 +2640,15 @@ apex_options apex_options_default(void) {
     opts.progress_callback = NULL;
     opts.progress_user_data = NULL;
 
-    /* Custom cmark initialization */
-    opts.cmark_init_callback = NULL;
-    opts.cmark_done_callback = NULL;
-    opts.cmark_callback_user_data = NULL;
+    /* Custom cmark extension callback */
+    opts.cmark_init = NULL;
+    opts.cmark_done = NULL;
+    opts.cmark_user_data = NULL;
+
+    /* Terminal theme and width (for -t terminal/terminal256) */
+    opts.theme_name = NULL;
+    opts.terminal_width = 0;
+    opts.paginate = false;
 
     return opts;
 }
@@ -2868,13 +2935,7 @@ static void apex_register_extensions(cmark_parser *parser, const apex_options *o
         }
     }
 
-    /* Definition lists (Kramdown/PHP Extra style) */
-    if (options->enable_definition_lists) {
-        cmark_syntax_extension *deflist_ext = create_definition_list_extension();
-        if (deflist_ext) {
-            cmark_parser_attach_syntax_extension(parser, deflist_ext);
-        }
-    }
+    /* Definition lists (one-line format: Term :: Definition) - handled by preprocessing only */
 
     /* Advanced footnotes (block-level content support) */
     if (options->enable_footnotes) {
@@ -3942,6 +4003,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Use local_opts for rest of function (mutable) - shadow the const parameter */
     #define options (&local_opts)
 
+    /* Man/man-html output: force disable smart typography so option names (e.g. --to) stay as literal -- */
+    if (options->output_format == APEX_OUTPUT_MAN || options->output_format == APEX_OUTPUT_MAN_HTML) {
+        local_opts.enable_smart_typography = false;
+    }
+
     /* Extract metadata if enabled (preprocessing step) */
     /* Safety check: ensure len doesn't exceed actual string length */
     size_t actual_len = strlen(markdown);
@@ -3992,6 +4058,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         fprintf(stderr, "[APEX_DEBUG] pipeline start (len=%zu): %.200s%s\n",
                 len, text_ptr, len > 200 ? "..." : "");
     }
+
+    /* Create deflist debug log as soon as conversion starts (so it exists even if we exit early or deflists are disabled) */
+    apex_deflist_debug_touch(options->enable_definition_lists);
 
     if (options->mode == APEX_MODE_MULTIMARKDOWN ||
         options->mode == APEX_MODE_KRAMDOWN ||
@@ -4957,8 +5026,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Register extensions based on mode and options */
     apex_register_extensions(parser, options);
 
-    if (options->cmark_init_callback) {
-        options->cmark_init_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
+    if (options->cmark_init) {
+        options->cmark_init(parser, options, cmark_opts);
     }
 
     /* Feed normalized text to parser */
@@ -4976,8 +5045,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     if (!document) {
-        if (options->cmark_done_callback) {
-            options->cmark_done_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
+        if (options->cmark_done) {
+            options->cmark_done(parser, options, cmark_opts, options->cmark_user_data);
         }
         cmark_parser_free(parser);
         free(working_text);
@@ -4985,14 +5054,41 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         return NULL;
     }
 
+    /* If output format is JSON, emit JSON right after parsing (before AST filters) */
+    if (options->output_format == APEX_OUTPUT_JSON) {
+        char *json = apex_cmark_to_pandoc_json(document, options);
+        cmark_node_free(document);
+        cmark_parser_free(parser);
+        free(working_text);
+        apex_free_metadata(metadata);
+        /* Note: Preprocessing buffers are conditionally allocated and may not be in scope here.
+         * This is acceptable as JSON output is typically used for debugging/inspection. */
+        return json;
+    }
+
     /* Run AST-level filters (Pandoc-style JSON filters) before any */
     /* AST post-processing or rendering. */
     if (options->ast_filter_commands && options->ast_filter_count > 0) {
-        cmark_node *filtered = apex_run_ast_filters(document, options, "html");
+        /* Determine target format string for filters based on output format */
+        const char *target_format = "html";
+        if (options->output_format == APEX_OUTPUT_JSON ||
+            options->output_format == APEX_OUTPUT_JSON_FILTERED) {
+            target_format = "json";
+        } else if (options->output_format == APEX_OUTPUT_MARKDOWN ||
+                   options->output_format == APEX_OUTPUT_MMD ||
+                   options->output_format == APEX_OUTPUT_COMMONMARK ||
+                   options->output_format == APEX_OUTPUT_KRAMDOWN ||
+                   options->output_format == APEX_OUTPUT_GFM) {
+            target_format = "markdown";
+        } else if (options->output_format == APEX_OUTPUT_TERMINAL ||
+                   options->output_format == APEX_OUTPUT_TERMINAL256) {
+            target_format = "terminal";
+        }
+        cmark_node *filtered = apex_run_ast_filters(document, options, target_format);
         if (!filtered && options->ast_filter_strict) {
             cmark_node_free(document);
-            if (options->cmark_done_callback) {
-                options->cmark_done_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
+            if (options->cmark_done) {
+                options->cmark_done(parser, options, cmark_opts);
             }
             cmark_parser_free(parser);
             free(working_text);
@@ -5025,20 +5121,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         apex_process_callouts_in_tree(document);
     }
 
-    /* Process manual header IDs (MMD [id] and Kramdown {#id}) */
-    if (options->generate_header_ids) {
-        cmark_iter *iter = cmark_iter_new(document);
-        cmark_event_type event;
-        while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
-            cmark_node *node = cmark_iter_get_node(iter);
-            if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_HEADING) {
-                apex_process_manual_header_id(node);
-            }
-        }
-        cmark_iter_free(iter);
-    }
-
-    /* Process IAL (Inline Attribute Lists) if in Kramdown or Unified mode */
+    /* Process IAL (Inline Attribute Lists) BEFORE manual header IDs.
+       IAL handles {: #id}, {#id}, and {.class} - running first ensures these
+       are extracted and removed from heading text before manual header ID
+       looks for MMD [id] or Kramdown {#id}. Avoids duplicate handling. */
     if (alds || options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
         /* Fast path: skip AST walk if no IAL markers present */
         /* Check for both Kramdown-style ({:) and Pandoc-style ({# or {.) IALs */
@@ -5049,6 +5135,21 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             apex_process_ial_in_tree(document, alds);
             PROFILE_END(ial);
         }
+    }
+
+    /* Process manual header IDs (MMD [id] and Kramdown {#id}) - after IAL
+       so IAL's {#id} handling doesn't conflict; manual ID handles [id] and
+       any {#id} IAL might have missed (e.g. in multi-child headings) */
+    if (options->generate_header_ids) {
+        cmark_iter *iter = cmark_iter_new(document);
+        cmark_event_type event;
+        while ((event = cmark_iter_next(iter)) != CMARK_EVENT_DONE) {
+            cmark_node *node = cmark_iter_get_node(iter);
+            if (event == CMARK_EVENT_ENTER && cmark_node_get_type(node) == CMARK_NODE_HEADING) {
+                apex_process_manual_header_id(node);
+            }
+        }
+        cmark_iter_free(iter);
     }
 
     /* Apply image attributes to image nodes */
@@ -5064,6 +5165,56 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     /* Note: Critic Markup is now handled via preprocessing (before parsing) */
+
+    /* If output format is JSON (after filters), serialize AST to JSON and return */
+    if (options->output_format == APEX_OUTPUT_JSON_FILTERED) {
+        char *json = apex_cmark_to_pandoc_json(document, options);
+        /* Note: Cleanup happens at end of function - document and other resources
+         * will be freed there. We return the JSON string here. */
+        return json;
+    }
+
+    /* If output format is Markdown, serialize AST to Markdown and return */
+    if (options->output_format == APEX_OUTPUT_MARKDOWN ||
+        options->output_format == APEX_OUTPUT_MMD ||
+        options->output_format == APEX_OUTPUT_COMMONMARK ||
+        options->output_format == APEX_OUTPUT_KRAMDOWN ||
+        options->output_format == APEX_OUTPUT_GFM) {
+        apex_markdown_dialect_t dialect;
+        if (options->output_format == APEX_OUTPUT_MARKDOWN) {
+            dialect = APEX_MD_DIALECT_UNIFIED;
+        } else if (options->output_format == APEX_OUTPUT_MMD) {
+            dialect = APEX_MD_DIALECT_MMD;
+        } else if (options->output_format == APEX_OUTPUT_COMMONMARK) {
+            dialect = APEX_MD_DIALECT_COMMONMARK;
+        } else if (options->output_format == APEX_OUTPUT_KRAMDOWN) {
+            dialect = APEX_MD_DIALECT_KRAMDOWN;
+        } else { /* APEX_OUTPUT_GFM */
+            dialect = APEX_MD_DIALECT_GFM;
+        }
+        char *markdown = apex_cmark_to_markdown(document, options, dialect);
+        /* Note: Cleanup happens at end of function - document and other resources
+         * will be freed there. We return the markdown string here. */
+        return markdown;
+    }
+
+    /* If output format is terminal/terminal256, serialize AST to ANSI terminal and return */
+    if (options->output_format == APEX_OUTPUT_TERMINAL ||
+        options->output_format == APEX_OUTPUT_TERMINAL256) {
+        bool use_256 = (options->output_format == APEX_OUTPUT_TERMINAL256);
+        char *tty = apex_cmark_to_terminal(document, options, use_256);
+        return tty;
+    }
+
+    /* If output format is man (roff) or man-html, serialize AST and return */
+    if (options->output_format == APEX_OUTPUT_MAN) {
+        char *roff = apex_cmark_to_man_roff(document, options);
+        return roff ? roff : strdup(".TH stub 1 \"\" \"\"\n");
+    }
+    if (options->output_format == APEX_OUTPUT_MAN_HTML) {
+        char *man_html = apex_cmark_to_man_html(document, options);
+        return man_html ? man_html : strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>");
+    }
 
     /* Render to HTML
      * Use custom renderer when we have attributes (IAL, ALDs, or image attributes)
@@ -5275,6 +5426,21 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Expand auto media (discover formats from filesystem for img with auto attribute).
+     * Use base_directory when set (e.g. from file path or metadata); otherwise use "."
+     * so auto expansion runs when piping stdin (images resolved relative to cwd). */
+    if (html && strstr(html, "data-apex-replace-auto=1")) {
+        PROFILE_START(expand_auto_media);
+        const char *base = options->base_directory && options->base_directory[0]
+            ? options->base_directory : ".";
+        char *expanded = apex_expand_auto_media(html, base);
+        PROFILE_END(expand_auto_media);
+        if (expanded) {
+            free(html);
+            html = expanded;
+        }
+    }
+
     /* Convert images to figures with captions (caption="..." always wraps; otherwise when enable_image_captions) */
     if (html) {
         PROFILE_START(image_captions);
@@ -5289,6 +5455,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Strip redundant <p> around single <img> inside <figure> (e.g. from ::: >figure with "< ![Image](...)") */
     if (html) {
         char *stripped = apex_strip_figure_paragraph_wrapper(html);
+        if (stripped) {
+            free(html);
+            html = stripped;
+        }
+    }
+
+    /* Strip <p> that wraps only a single block element (figure, video, picture) - invalid HTML5 */
+    if (html) {
+        char *stripped = apex_strip_block_paragraph_wrapper(html);
         if (stripped) {
             free(html);
             html = stripped;
@@ -5369,7 +5544,13 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Apply external syntax highlighting if requested */
     if (options->code_highlighter && html) {
         PROFILE_START(syntax_highlight);
-        char *highlighted = apex_apply_syntax_highlighting(html, options->code_highlighter, options->code_line_numbers, options->highlight_language_only);
+        bool ansi_out = (options->output_format == APEX_OUTPUT_TERMINAL || options->output_format == APEX_OUTPUT_TERMINAL256);
+        char *highlighted = apex_apply_syntax_highlighting(html,
+                                                           options->code_highlighter,
+                                                           options->code_line_numbers,
+                                                           options->highlight_language_only,
+                                                           ansi_out,
+                                                           options->code_highlight_theme);
         PROFILE_END(syntax_highlight);
         if (highlighted && highlighted != html) {
             free(html);
@@ -5524,8 +5705,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Clean up */
     cmark_node_free(document);
-    if (options->cmark_done_callback) {
-        options->cmark_done_callback(parser, options, cmark_opts, options->cmark_callback_user_data);
+    if (options->cmark_done) {
+        options->cmark_done(parser, options, cmark_opts);
     }
     cmark_parser_free(parser);
     free(working_text);

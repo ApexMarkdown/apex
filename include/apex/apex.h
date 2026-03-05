@@ -17,8 +17,8 @@ extern "C" {
 
 #define APEX_VERSION_MAJOR 0
 #define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 77
-#define APEX_VERSION_STRING "0.1.77"
+#define APEX_VERSION_PATCH 91
+#define APEX_VERSION_STRING "0.1.91"
 
 /**
  * Processor compatibility modes
@@ -34,30 +34,30 @@ typedef enum {
 } apex_mode_t;
 #endif
 
-typedef struct apex_options apex_options;
-
 /**
- * Callback called after the cmark parser is initialized and the standard extensions are registered.
- * @param parser cmark parser
- * @param options apex options
- * @param cmark_opts cmark initialization options
- * @param user_data custom user data
+ * Output format options
  */
-typedef void (*cmark_init_callback)(void *parser, const apex_options *options, int cmark_opts, void *user_data);
+typedef enum {
+    APEX_OUTPUT_HTML = 0,          /* HTML output (default) */
+    APEX_OUTPUT_JSON = 1,           /* Pandoc-style JSON AST (before filters) */
+    APEX_OUTPUT_JSON_FILTERED = 2, /* Pandoc-style JSON AST (after filters/postprocessing) */
+    APEX_OUTPUT_MARKDOWN = 3,       /* Unified-mode compatible Markdown */
+    APEX_OUTPUT_MMD = 4,            /* MultiMarkdown-compatible Markdown */
+    APEX_OUTPUT_COMMONMARK = 5,     /* CommonMark-compatible Markdown */
+    APEX_OUTPUT_KRAMDOWN = 6,       /* Kramdown-compatible Markdown */
+    APEX_OUTPUT_GFM = 7,            /* GitHub Flavored Markdown */
+    APEX_OUTPUT_TERMINAL = 8,       /* ANSI terminal output (8/16-color) */
+    APEX_OUTPUT_TERMINAL256 = 9,    /* ANSI terminal output (256-color) */
+    APEX_OUTPUT_MAN = 10,           /* roff (man page source) */
+    APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
+} apex_output_format_t;
 
-/**
- * Callback called before release the cmark parser, allow to free custom resources.
- * @param parser cmark parser
- * @param options apex options
- * @param cmark_opts cmark initialization options
- * @param user_data custom user data
- */
-typedef void (*cmark_done_callback)(void *parser, const apex_options *options, int cmark_opts, void *user_data);
+struct cmark_parser;  /* Opaque; for cmark_init callback. Include cmark-gfm when implementing. */
 
 /**
  * Configuration options for the parser and renderer
  */
-struct apex_options {
+typedef struct apex_options {
     apex_mode_t mode;
 
     /* Feature flags */
@@ -90,6 +90,7 @@ struct apex_options {
     const char *base_directory;
 
     /* Output options */
+    apex_output_format_t output_format;  /* Output format (HTML, JSON, Markdown variants) */
     bool unsafe;  /* Allow raw HTML */
     bool validate_utf8;
     bool github_pre_lang;  /* Use GitHub code block language format */
@@ -98,6 +99,11 @@ struct apex_options {
     const char **stylesheet_paths;  /* NULL-terminated array of CSS file paths to link in head */
     size_t stylesheet_count;        /* Number of stylesheets */
     const char *document_title;   /* Title for HTML document */
+
+    /* Terminal / CLI rendering options */
+    const char *theme_name;      /* Optional terminal theme name (for -t terminal/terminal256) */
+    int terminal_width;          /* Optional fixed wrapping width for terminal output (0 = auto / none) */
+    bool paginate;               /* When true and output_format is terminal/terminal256, page output via pager */
 
     /* Line break handling */
     bool hardbreaks;  /* Treat newlines as hard breaks (GFM style) */
@@ -178,9 +184,10 @@ struct apex_options {
     bool enable_emoji_autocorrect;  /* Enable emoji name autocorrect (enabled by default in unified mode) */
 
     /* Syntax highlighting options */
-    const char *code_highlighter;   /* External tool: "pygments", "skylighting", or NULL for no highlighting */
+    const char *code_highlighter;   /* External tool: "pygments", "skylighting", "shiki", or NULL for no highlighting */
     bool code_line_numbers;         /* Enable line numbers in syntax-highlighted code blocks */
     bool highlight_language_only;   /* Only highlight code blocks that have a language specified */
+    const char *code_highlight_theme; /* Theme/style name for external syntax highlighters (tool-specific) */
 
     /* Marked / integration-specific options */
     bool enable_widont;                 /* Apply widont to headings (prevent short widows) */
@@ -218,16 +225,20 @@ struct apex_options {
     void (*progress_callback)(const char *stage, int percent, void *user_data);
     void *progress_user_data;  /* User data passed to progress callback */
 
-    /**
-     * Custom cmark initialization and finalize callback, called after parse initialization and extension registration.
+    /* Custom cmark extension registration callback */
+    /* Called after Apex registers its built-in extensions, before parsing.
+     * Use this to attach custom cmark-gfm syntax extensions via
+     * cmark_parser_attach_syntax_extension(). When implementing, include
+     * cmark-gfm.h and cmark-gfm-extension_api.h.
+     * If NULL, no custom extensions are registered.
      */
-    cmark_init_callback cmark_init_callback;
+    void (*cmark_init)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts);
     /**
      * Custom cmark finalize callback, called before release the parser.
      */
-    cmark_done_callback cmark_done_callback;
-    void *cmark_callback_user_data;  /* User data passed to cmark init/done callback */
-};
+    void (*cmark_done)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts);
+    void *cmark_user_data; /* User data passed to cmark init/done callback */
+} apex_options;
 
 /**
  * Get default options for a specific mode

@@ -10,6 +10,31 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+/** True if content at p looks like a list marker (- , * , + , or digit+. ) */
+static bool looks_like_list_marker(const char *p) {
+    if (*p == '-' || *p == '*' || *p == '+')
+        return (p[1] == ' ' || p[1] == '\t');
+    if (isdigit((unsigned char)*p)) {
+        while (isdigit((unsigned char)*p)) p++;
+        return (*p == '.' && (p[1] == ' ' || p[1] == '\t'));
+    }
+    return false;
+}
+
+/** True if we're at the start of a line that is an indented code block (4+ spaces or tab)
+ * and not a list line. List lines (nested or continuation) should still get sup/sub. */
+static bool line_is_indented_code_block(const char *read) {
+    if (*read == '\t') {
+        return !looks_like_list_marker(read + 1);
+    }
+    if (read[0] != ' ' || read[1] != ' ' || read[2] != ' ' || read[3] != ' ')
+        return false;
+    const char *content = read + 4;
+    while (*content == ' ')
+        content++;
+    return !looks_like_list_marker(content);
+}
+
 /**
  * Process superscript and subscript syntax as preprocessing
  * Converts to <sup>text</sup> and <sub>text</sub> before parsing
@@ -31,11 +56,17 @@ char *apex_process_sup_sub(const char *text) {
 
     bool in_code_block = false;
     bool in_inline_code = false;
+    bool in_indented_code_block = false;
     bool in_math_inline = false;
     bool in_math_display = false;
     bool in_liquid = false;
 
     while (*read) {
+        /* At line start: indented code block only if 4+ spaces/tab and not a list line */
+        if (read == text || read[-1] == '\n') {
+            in_indented_code_block = line_is_indented_code_block(read);
+        }
+
         /* Track Liquid tags (skip processing inside them) */
         if (!in_liquid && *read == '{' && read[1] == '%') {
             in_liquid = true;
@@ -66,7 +97,7 @@ char *apex_process_sup_sub(const char *text) {
             }
             continue;
         }
-        /* Track code blocks (skip processing inside them) */
+        /* Track fenced code blocks (skip processing inside them) */
         if (*read == '`') {
             if (read[1] == '`' && read[2] == '`') {
                 in_code_block = !in_code_block;
@@ -77,7 +108,7 @@ char *apex_process_sup_sub(const char *text) {
 
         /* Track math spans (skip processing inside them) */
         bool handled_math = false;
-        if (!in_code_block && !in_inline_code) {
+        if (!in_code_block && !in_inline_code && !in_indented_code_block) {
             /* Check for display math: $$...$$ */
             if (*read == '$' && read[1] == '$') {
                 in_math_display = !in_math_display;
@@ -123,7 +154,7 @@ char *apex_process_sup_sub(const char *text) {
         }
 
         /* Skip processing inside code or math */
-        if (handled_math || in_code_block || in_inline_code || in_math_inline || in_math_display) {
+        if (handled_math || in_code_block || in_inline_code || in_indented_code_block || in_math_inline || in_math_display) {
             if (!handled_math && remaining > 0) {
                 *write++ = *read++;
                 remaining--;

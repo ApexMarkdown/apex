@@ -2,6 +2,233 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.91] - 2026-03-04
+
+### New
+
+- Add test fixtures for percent decoding
+
+### Improved
+
+- Apex_extract_heading_text now recurses into inline containers (EMPH, STRONG, LINK) and includes HTML_INLINE literal content so extracted text matches rendered HTML for reliable (level, text) matching during ID injection
+
+### Fixed
+
+- Headings with inline emphasis (e.g. "### *Processing* modes") now receive IDs correctly instead of being skipped
+- Headings with ampersands (e.g. "## Documentation & resources") now receive IDs correctly by extracting text from HTML_INLINE nodes
+
+## [0.1.90] - 2026-03-04
+
+### New
+
+- Apex_options.cmark_init callback: register custom cmark-gfm syntax extensions before parsing; call cmark_parser_attach_syntax_extension() in your callback (include cmark-gfm.h and cmark-gfm-extension_api.h when implementing) Resolves [#10](https://github.com/ApexMarkdown/apex/issues/10)
+- Apex_version_string() exposed in ObjC/Swift via [NSString apexVersion] and Apex.version
+
+### Improved
+
+- CSV/TSV inline tables (```table fences, <!--TABLE-->, includes) now accept Markdown-style alignment specs in the second row. Cells containing only colons and dashes (e.g. :--, --:, :--:) are parsed by colon position: leading = left, trailing = right, both = center, neither = auto. Keywords (left, right, center, auto) continue to work unchanged. Resolves [#14](https://github.com/ApexMarkdown/apex/issues/14)
+
+### Fixed
+
+- Include paths now support percent encoding (e.g. <<[with%20space.txt], {{file%20name}}, /path%20to%2Ffile) so paths with spaces and special characters resolve correctly to files on disk. Resolves [#12](https://github.com/ApexMarkdown/apex/issues/12)
+
+## [0.1.89] - 2026-03-04
+
+### Improved
+
+- CSV/TSV inline tables: alignment row may use Markdown-style syntax (`:--`, `--:`, `:--:`) in addition to keywords (left, right, center, auto). Cells containing only colons and dashes are parsed by colon position: leading colon = left, trailing = right, both = center, neither = auto.
+
+### Changed
+
+- Definition lists rewritten as preprocessing (no cmark extension): supports Kramdown "term" + ": definition" or ":: definition", plus one-line "term::definition" and "term :: definition" using last :: to avoid splitting URLs
+- CLI flags --one-line-definitions and --no-one-line-definitions to enable or disable definition list processing
+- Metadata keys one-line-definitions and one_line_definitions for front-matter control of definition lists
+- Table caption ": Caption" no longer misparses Kramdown definition lines (e.g. "Term\n\n: definition 1") by requiring prev_line_was_table_row or in_table_section instead of prev_line_was_blank alone
+- Table captions before tables: ": Caption" now recognized when the next non-blank line is a table row
+- Table caption paragraphs removed from output so captions appear only in figcaption, not duplicated as standalone paragraphs
+
+## [0.1.88] - 2026-03-02
+
+### Changed
+
+- Formula/apex.rb: version 0.1.87, update macOS universal tarball sha256
+
+### Improved
+
+- Definition lists: support indented continuation lines (4+ spaces) so multi-line definitions stay within a single dd element instead of splitting into separate paragraphs
+
+### Fixed
+
+- Disable smart typography for man and man-html output so option names like --to and --standalone render as literal double hyphen instead of en-dash
+- Prevent metadata from overwriting -t man-html when document sets mode or other options in front matter
+- Force disable smart typography for man and man-html output in apex_markdown_to_html so option names stay as literal --
+- Man-html: Replace UTF-8 en-dash (U+2013) with "--" in rendered text and definition list HTML blocks so options like --standalone display correctly even when smart typography slips through
+
+## [0.1.87] - 2026-03-02
+
+### Changed
+
+- Formula/apex.rb: version 0.1.86, update macOS universal tarball sha256
+
+### Fixed
+
+- Linux release build: add missing limits.h include for INT_MAX in apex_cli_terminal_width
+
+## [0.1.86] - 2026-03-02
+
+### Changed
+
+- Syntax highlighter chooses HTML or ANSI output based on destination format (--format html vs --format ansi for Shiki when output is terminal).
+- Apex_apply_syntax_highlighting() now takes a fifth parameter ansi_output (bool); pass false for HTML output, true for terminal/ANSI. All internal call sites updated; direct callers (e.g. Swift/SPM) must be updated.
+- Pygments highlighting now respects code-highlight-theme for both HTML and terminal/terminal256 output (maps to style=THEME).
+- Skylighting highlighting now respects code-highlight-theme for both HTML and ANSI terminal output (maps to --style THEME) and chooses --color-level=16/256 based on terminal vs terminal256.
+- Shiki highlighting now uses --theme THEME for both HTML and ANSI output and chooses --format html/ansi based on destination format.
+
+### New
+
+- Support --code-highlight shiki (and abbreviation sh) on the command line; uses the shiki CLI (@shikijs/cli) when available.
+- Support code-highlight: shiki and code-highlight: sh in metadata and config (front matter, meta-file, config.yml).
+- Add --list-themes CLI command to print available Pygments and Skylighting themes in columns and point to bundled Shiki themes.
+- Add -p/--paginate flag to page terminal/cli/terminal256 output through a user-configurable pager instead of writing directly to stdout.
+- Add paginate: true config option (and terminal.paginate) to enable pagination by default for terminal-style output while still allowing per-run overrides.
+
+### Improved
+
+- When Shiki exits with an error (e.g. language not specified and cannot be auto-detected), the code block is left as plain text instead of failing.
+
+### Fixed
+
+- Prevent segfault when external code highlighting is enabled without an explicit theme by initializing the code highlight theme option safely in the default configuration.
+
+## [0.1.85] - 2026-03-01
+
+### Changed
+
+- Makefile "make man" now generates man pages with the built apex binary (apex -t man) after running "make build"; pandoc and go-md2man are no longer required.
+- When both a TOC marker in code and a TOC marker in normal flow exist, only the first marker that is not inside <code> or <pre> is replaced with the generated table of contents.
+
+### New
+
+- Definition list terms may use Kramdown-style double colon :: as well as single : before the definition (e.g. "term:: definition").
+- Man page creation
+- Man-html without -s/--standalone outputs content snippet only (no wrapper, no nav); with -s outputs full document with sidebar and headline.
+- Man-html standalone: fixed left sidebar nav (TOC) for top-level sections only (NAME, SYNOPSIS, etc.), large headline from NAME section (command and description), document_title metadata used when present (e.g. APEX(1)).
+- Man-html standalone: custom CSS via --css/--style emitted as <link rel="stylesheet"> after embedded style; optional syntax highlighting via --code-highlight (pygmentize/skylighting) for code blocks in both snippet and standalone output.
+
+### Improved
+
+- CMake man page generation uses only apex_cli -t man when pre-generated pages are missing; removed duplicate/broken pandoc branch from merge and fixed invalid add_custom_command structure.
+- Man-html CSS: bold and headline color #a02172, links #2376b1, section headings #3f789b, sidebar background #f5f4f0 and border #e0ddd6.
+- CLI help: --css/--style describes use with man-html and -s; -s/--standalone describes man-html behavior (with -s: nav sidebar and full page; without -s: snippet only).
+
+### Fixed
+
+- Man pages generated from Markdown no longer convert option hyphens to em dashes; pandoc is invoked with -f markdown-smart so -- stays as literal ASCII double hyphen in roff output.
+- When both MMD inline abbreviations [>(abbr) expansion] and reference-style definitions [>abbr]: expansion appear in the same document, all abbreviations are now wrapped in <abbr> tags instead of only the reference-style ones (inline entries were previously overwritten in the list).
+- Definition list terms and definitions now render with correct content when using "**term**" followed by ":: definition" (previously produced empty <dt></dt><dd></dd>).
+- TOC markers ({{TOC}}, <!--TOC--> and variants) inside inline code (backticks) or inside code blocks (fenced or indented) are no longer expanded; they are left as literal text in the output.
+
+## [0.1.84] - 2026-02-27
+
+### Changed
+
+- Homebrew formula bumped to 0.1.83 with updated release checksum
+
+### New
+
+- --width flag wraps terminal and terminal256 output to a fixed column width for better integration with terminal file managers and previews
+- Terminal.width metadata and config option lets you set a default wrap width per document instead of relying only on CLI flags
+- Terminal.theme metadata and config option lets documents select a default terminal theme when using -t terminal or -t terminal256
+- Terminal theme list_marker style controls the color and emphasis of bullet and numbered list markers, defaulting to bold bright red when unset
+
+### Improved
+
+- Terminal themes can now mark headings, links, code spans, code blocks, blockquotes, and tables as bold with a bold: true flag in theme YAML instead of encoding bold in the color string
+- Span_classes mappings in terminal themes style inline span classes and attribute list classes consistently in terminal and terminal256 output
+
+## [0.1.83] - 2026-02-26
+
+### New
+
+- Span_classes theme mapping lets you define styles for inline span classes in terminal and terminal256 output
+
+### Improved
+
+- Terminal output now respects classes from inline attribute lists and bracketed spans (e.g. *emphasis*{.tag} and [text]{.tag}) including spans generated by plugins
+- Terminal theme YAML parsing is more robust so existing themes continue to work even when libyaml is unavailable
+
+## [0.1.82] - 2026-02-25
+
+### New
+
+- Add -t/--to output formats for html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, and terminal256.
+- Add terminal and terminal256 ANSI renderers with theme support and compact list and blockquote formatting for comfortable reading in a TTY.
+- Add --theme option and support for user theme files in ~/.config/apex/terminal/themes/NAME.theme with automatic default.theme selection when no explicit theme is given.
+- Add JSON and AST JSON output points before and after AST filters so external tools can consume either the raw or fully-processed document structure.
+
+### Improved
+
+- Improve MultiMarkdown output so TOC markers and escaping work correctly in -t mmd output without breaking MMD-specific syntax.
+- Improve terminal table rendering with Unicode box drawing, column alignment, captions, footer rules, and advanced colspan/rowspan handling that more closely matches advanced_tables behavior.
+- Terminal output now replaces :emoji: patterns with Unicode emoji when in GFM or unified mode, matching HTML behavior.
+
+### Fixed
+
+- Replace APEXLTLT placeholders with literal << in terminal table cells so escaped \<< renders correctly in CLI output.
+- Integrate external code highlighters (Pygments/Skylighting) into terminal output when --code-highlight is enabled, using readable pastel styles appropriate for 8-color and 256-color modes.
+- Compact list item spacing and blockquote rendering in terminal output so lists, quotes, and callouts read cleanly without stray blank lines.
+
+## [0.1.81] - 2026-02-23
+
+### New
+
+- Tests for extended syntax in indented and fenced code blocks, inline code, nested list lines with 4-space indent, and real indented code without list markers
+
+### Improved
+
+- Lines that start with a list marker after 4+ spaces or tab (nested or continuation list lines) are no longer treated as code blocks, so sup/sub and highlight are still applied there
+
+### Fixed
+
+- Superscript (^), subscript (~), underline (~text~), strikethrough (~~), and highlight (==) are no longer processed inside indented code blocks (4+ spaces or tab)
+- Extended syntax remains skipped inside fenced code blocks and inline code as before
+
+## [0.1.80] - 2026-02-18
+
+## [0.1.79] - 2026-02-18
+
+### New
+
+- IAL attributes for picture formats: webp, avif (emit <picture> with srcset), and video formats: webm, ogg, mp4, mov, m4v (emit <video> with <source> elements)
+- IAL attribute "auto" discovers format variants (2x, 3x, webp, avif, video) from filesystem and expands img to picture/video when files exist
+- Video URLs (mp4, webm, ogg, mov, m4v, ogv) automatically render as <video> elements instead of <img>
+- --[no-]image-captions and --[no-]title-captions-only CLI options to control figure/figcaption wrapping (title-captions-only: only add captions for images with title, alt-only images get no caption)
+- Image URL ending in .* (e.g. ![](image.*)) auto-discovers format variants from filesystem, same as auto attribute
+
+### Improved
+
+- Image attribute matching uses URL + alt to disambiguate same-src images when injecting IAL attributes
+- Picture elements with title or alt now get figure/figcaption wrapping when image captions are enabled
+
+### Fixed
+
+- TOC HTML structure now produces valid ul > li > ul nesting instead of invalid ul > ul (nested lists inside list items, never ul directly in ul)
+- Image captions from title: ![alt](url "Title caption") now correctly uses the title for figcaption instead of alt text (quoted titles were being stripped by preprocessor before cmark could parse them)
+- Wildcard image syntax (![](image.*)) now expands correctly when document contains image examples in code blocks (e.g. `![](image.*)` in documentation)
+- Truncated </figure> tag in picture output (memcpy used wrong length for "</figcaption></figure>")
+- Invalid HTML5: strip <p> wrapper around figure, video, and picture elements (p may only contain phrasing content)
+- Auto media expansion when replacement exceeds buffer (grow buffer instead of falling back to original img tag)
+
+## [0.1.78] - 2026-02-13
+
+### New
+
+- Test added to verify autolinking does not run inside indented code blocks.
+
+### Fixed
+
+- Autolink preprocessor now skips indented code blocks (4+ spaces or tab at line start) so URLs inside them are not converted to links.
+
 ## [0.1.77] - 2026-02-09
 
 ### Fixed
@@ -2408,8 +2635,20 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
-z
-
+[0.1.91]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.91
+[0.1.90]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.90
+[0.1.89]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.89
+[0.1.88]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.88
+[0.1.87]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.87
+[0.1.86]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.86
+[0.1.85]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.85
+[0.1.84]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.84
+[0.1.83]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.83
+[0.1.82]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.82
+[0.1.81]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.81
+[0.1.80]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.80
+[0.1.79]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.79
+[0.1.78]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.78
 [0.1.77]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.77
 [0.1.76]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.76
 [0.1.75]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.75

@@ -780,6 +780,19 @@ void test_inline_tables(void) {
     assert_contains(html, "a", "CSV table with alignment: data 'a' present");
     apex_free_string(html);
 
+    /* ```table fence with Markdown-style alignment (:--, --:, :--:) */
+    const char *csv_align_colon_dash =
+        "```table\n"
+        "A,B,C\n"
+        ":--,--:,:--:\n"
+        "x,y,z\n"
+        "```\n";
+    html = apex_markdown_to_html(csv_align_colon_dash, strlen(csv_align_colon_dash), &opts);
+    assert_contains(html, "<table>", "CSV table colon-dash alignment: table element");
+    assert_contains(html, "A", "CSV table colon-dash alignment: header A");
+    assert_contains(html, "x", "CSV table colon-dash alignment: data x");
+    apex_free_string(html);
+
     /* ```table fence with no explicit alignment row: should also be headless */
     const char *csv_no_align =
         "```table\n"

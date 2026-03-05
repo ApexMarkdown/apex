@@ -25,6 +25,8 @@ static const char *get_tool_binary(const char *tool) {
         return "pygmentize";
     } else if (strcmp(tool, "skylighting") == 0) {
         return "skylighting";
+    } else if (strcmp(tool, "shiki") == 0) {
+        return "shiki";
     }
     return NULL;
 }
@@ -189,10 +191,11 @@ static char *run_command(const char *cmd, const char *input) {
 
 /**
  * Highlight a single code block using the specified tool.
- * Returns newly allocated HTML, or NULL on failure.
+ * Returns newly allocated HTML (or ANSI when ansi_output is true), or NULL on failure.
  */
 static char *highlight_code_block(const char *code, const char *language,
-                                  const char *tool, bool line_numbers) {
+                                  const char *tool, bool line_numbers, bool ansi_output,
+                                  const char *theme) {
     char cmd[512];
     const char *binary = get_tool_binary(tool);
     if (!binary) return NULL;
@@ -200,15 +203,23 @@ static char *highlight_code_block(const char *code, const char *language,
     if (strcmp(tool, "pygments") == 0) {
         /* Pygments: pygmentize -l LANG -f html [-O linenos=1] */
         if (language && *language) {
-            if (line_numbers) {
+            if (line_numbers && theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s -l %s -f html -O linenos=1,style=%s", binary, language, theme);
+            } else if (line_numbers) {
                 snprintf(cmd, sizeof(cmd), "%s -l %s -f html -O linenos=1", binary, language);
+            } else if (theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s -l %s -f html -O style=%s", binary, language, theme);
             } else {
                 snprintf(cmd, sizeof(cmd), "%s -l %s -f html", binary, language);
             }
         } else {
             /* Use -g for auto-detection when no language specified */
-            if (line_numbers) {
+            if (line_numbers && theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s -g -f html -O linenos=1,style=%s", binary, theme);
+            } else if (line_numbers) {
                 snprintf(cmd, sizeof(cmd), "%s -g -f html -O linenos=1", binary);
+            } else if (theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s -g -f html -O style=%s", binary, theme);
             } else {
                 snprintf(cmd, sizeof(cmd), "%s -g -f html", binary);
             }
@@ -217,17 +228,50 @@ static char *highlight_code_block(const char *code, const char *language,
         /* Skylighting: skylighting --syntax LANG -f html -r [-n]
          * -r = fragment mode (no full HTML document wrapper) */
         if (language && *language) {
-            if (line_numbers) {
-                snprintf(cmd, sizeof(cmd), "%s --syntax %s -f html -r -n", binary, language);
+            if (line_numbers && theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s --syntax %s --style %s -f html -r -n",
+                         binary, language, theme);
+            } else if (line_numbers) {
+                snprintf(cmd, sizeof(cmd), "%s --syntax %s -f html -r -n",
+                         binary, language);
+            } else if (theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s --syntax %s --style %s -f html -r",
+                         binary, language, theme);
             } else {
-                snprintf(cmd, sizeof(cmd), "%s --syntax %s -f html -r", binary, language);
+                snprintf(cmd, sizeof(cmd), "%s --syntax %s -f html -r",
+                         binary, language);
             }
         } else {
             /* Skylighting without syntax tries to auto-detect, but may fail */
-            if (line_numbers) {
+            if (line_numbers && theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s --style %s -f html -r -n",
+                         binary, theme);
+            } else if (line_numbers) {
                 snprintf(cmd, sizeof(cmd), "%s -f html -r -n", binary);
+            } else if (theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s --style %s -f html -r",
+                         binary, theme);
             } else {
                 snprintf(cmd, sizeof(cmd), "%s -f html -r", binary);
+            }
+        }
+    } else if (strcmp(tool, "shiki") == 0) {
+        /* Shiki CLI: shiki [--lang LANG] --format html|ansi
+         * Reads code from stdin. Exits non-zero if lang is missing and cannot be auto-detected;
+         * we capture that and fall back to plain text. */
+        const char *fmt = ansi_output ? "ansi" : "html";
+        if (language && *language) {
+            if (theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s --lang %s --theme %s --format %s", binary, language, theme, fmt);
+            } else {
+                snprintf(cmd, sizeof(cmd), "%s --lang %s --format %s", binary, language, fmt);
+            }
+        } else {
+            /* No language: Shiki may fail (non-zero exit); run_command returns NULL → we use original block */
+            if (theme && *theme) {
+                snprintf(cmd, sizeof(cmd), "%s --theme %s --format %s", binary, theme, fmt);
+            } else {
+                snprintf(cmd, sizeof(cmd), "%s --format %s", binary, fmt);
             }
         }
     } else {
@@ -240,7 +284,8 @@ static char *highlight_code_block(const char *code, const char *language,
 /**
  * Apply syntax highlighting to code blocks in HTML.
  */
-char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool line_numbers, bool language_only) {
+char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool line_numbers,
+                                     bool language_only, bool ansi_output, const char *theme) {
     if (!html || !tool) return html ? strdup(html) : NULL;
 
     /* Check if tool is available */
@@ -399,7 +444,7 @@ char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool li
             }
 
             /* Run syntax highlighter */
-            char *highlighted = highlight_code_block(code, language, tool, line_numbers);
+            char *highlighted = highlight_code_block(code, language, tool, line_numbers, ansi_output, theme);
             free(code);
 
             if (highlighted && *highlighted) {

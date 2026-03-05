@@ -747,6 +747,32 @@ void test_syntax_highlight_options(void) {
     apex_free_metadata(metadata);
     metadata = NULL;
 
+    /* Test code-highlight option: shiki (full name) */
+    opts = apex_options_default();
+    item = malloc(sizeof(apex_metadata_item));
+    item->key = strdup("code-highlight");
+    item->value = strdup("shiki");
+    item->next = NULL;
+    metadata = item;
+
+    apex_apply_metadata_to_options(metadata, &opts);
+    assert_option_string(opts.code_highlighter, "shiki", "code-highlight: shiki sets code_highlighter");
+    apex_free_metadata(metadata);
+    metadata = NULL;
+
+    /* Test code-highlight option: sh (abbreviation for shiki) */
+    opts = apex_options_default();
+    item = malloc(sizeof(apex_metadata_item));
+    item->key = strdup("code-highlight");
+    item->value = strdup("sh");
+    item->next = NULL;
+    metadata = item;
+
+    apex_apply_metadata_to_options(metadata, &opts);
+    assert_option_string(opts.code_highlighter, "shiki", "code-highlight: sh (abbreviation) sets shiki");
+    apex_free_metadata(metadata);
+    metadata = NULL;
+
     /* Test code-highlight option: false disables */
     opts = apex_options_default();
     opts.code_highlighter = "pygments";  /* Start with it enabled */

@@ -16,6 +16,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 
     /* Remote plugin directory helpers (from plugins_remote.c) */
 typedef struct apex_remote_plugin apex_remote_plugin;
@@ -35,6 +36,143 @@ const char *apex_remote_plugin_repo(apex_remote_plugin *p);
 /* Shared JSON helpers used for filters as well */
 char *apex_remote_fetch_json(const char *url);
 char *apex_remote_extract_string(const char *obj, const char *key);
+
+/* ------------------------------------------------------------------------- */
+/* Syntax highlighting theme listing                                         */
+/* ------------------------------------------------------------------------- */
+
+static int apex_cli_terminal_width(void) {
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) {
+        return (int)ws.ws_col;
+    }
+    const char *cols_env = getenv("COLUMNS");
+    if (cols_env && *cols_env) {
+        long v = strtol(cols_env, NULL, 10);
+        if (v > 0 && v < INT_MAX) {
+            return (int)v;
+        }
+    }
+    return 80;
+}
+
+static void apex_cli_print_theme_section(const char *title,
+                                         const char *const *items,
+                                         size_t count) {
+    fprintf(stdout, "%s\n", title);
+    fprintf(stdout, "----------------------------------------\n");
+    if (count == 0) {
+        fprintf(stdout, "(no themes)\n\n");
+        return;
+    }
+
+    size_t max_len = 0;
+    for (size_t i = 0; i < count; i++) {
+        size_t len = strlen(items[i]);
+        if (len > max_len) max_len = len;
+    }
+
+    int term_width = apex_cli_terminal_width();
+    int col_width = (int)max_len + 2;
+    if (col_width <= 0) col_width = 16;
+    int max_cols = term_width > 0 ? term_width / col_width : 1;
+    if (max_cols < 1) max_cols = 1;
+    if (max_cols > 4) max_cols = 4;
+    int cols = max_cols;
+    int rows = (int)((count + (size_t)cols - 1) / (size_t)cols);
+    if (rows < 1) rows = 1;
+
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < cols; c++) {
+            size_t idx = (size_t)r + (size_t)rows * (size_t)c;
+            if (idx >= count) {
+                continue;
+            }
+            const char *name = items[idx];
+            int pad = col_width - (int)strlen(name);
+            if (pad < 1) pad = 1;
+            fprintf(stdout, "%s", name);
+            for (int p = 0; p < pad; p++) fputc(' ', stdout);
+        }
+        fputc('\n', stdout);
+    }
+    fputc('\n', stdout);
+}
+
+static void apex_cli_print_highlight_themes(void) {
+    static const char *const pygments_themes[] = {
+        "abap",
+        "algol",
+        "algol_nu",
+        "arduino",
+        "autumn",
+        "bw",
+        "borland",
+        "coffee",
+        "colorful",
+        "default",
+        "dracula",
+        "emacs",
+        "friendly_grayscale",
+        "friendly",
+        "fruity",
+        "github-dark",
+        "gruvbox-dark",
+        "gruvbox-light",
+        "igor",
+        "inkpot",
+        "lightbulb",
+        "lilypond",
+        "lovelace",
+        "manni",
+        "material",
+        "monokai",
+        "murphy",
+        "native",
+        "nord-darker",
+        "nord",
+        "one-dark",
+        "paraiso-dark",
+        "paraiso-light",
+        "pastie",
+        "perldoc",
+        "rainbow_dash",
+        "rrt",
+        "sas",
+        "solarized-dark",
+        "solarized-light",
+        "staroffice",
+        "stata-dark",
+        "stata-light",
+        "tango",
+        "trac",
+        "vim",
+        "vs",
+        "xcode",
+        "zenburn"
+    };
+    static const char *const skylighting_themes[] = {
+        "kate",
+        "breezeDark",
+        "pygments",
+        "espresso",
+        "tango",
+        "haddock",
+        "monochrome",
+        "zenburn"
+    };
+    static const char *const shiki_themes[] = {
+        "Bundled themes: see https://shiki.style/themes",
+        "Special theme: none (disables highlighting)"
+    };
+
+    apex_cli_print_theme_section("Pygments themes", pygments_themes,
+                                 sizeof(pygments_themes) / sizeof(pygments_themes[0]));
+    apex_cli_print_theme_section("Skylighting themes", skylighting_themes,
+                                 sizeof(skylighting_themes) / sizeof(skylighting_themes[0]));
+    apex_cli_print_theme_section("Shiki themes", shiki_themes,
+                                 sizeof(shiki_themes) / sizeof(shiki_themes[0]));
+}
 
 /* ------------------------------------------------------------------------- */
 /* Git helpers (mirrored from src/plugins.c for CLI-only use)               */
@@ -475,17 +613,21 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --base-dir DIR         Base directory for resolving relative paths (for images, includes, wiki links)\n");
     fprintf(stderr, "  --bibliography FILE     Bibliography file (BibTeX, CSL JSON, or CSL YAML) - can be used multiple times\n");
     fprintf(stderr, "  --captions POSITION    Table caption position: above or below (default: below)\n");
-    fprintf(stderr, "  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, or abbreviations p, s)\n");
+    fprintf(stderr, "  --code-highlight TOOL  Use external tool for syntax highlighting (pygments, skylighting, shiki, or abbreviations p, s, sh)\n");
+    fprintf(stderr, "  --code-highlight-theme THEME  Theme/style name for external syntax highlighters (tool-specific)\n");
+    fprintf(stderr, "  --list-themes          List available syntax highlighting themes for pygments, skylighting, and Shiki\n");
     fprintf(stderr, "  --code-line-numbers    Include line numbers in syntax-highlighted code blocks (requires --code-highlight)\n");
     fprintf(stderr, "  --highlight-language-only  Only highlight code blocks that have a language specified (requires --code-highlight)\n");
     fprintf(stderr, "  --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream\n");
     fprintf(stderr, "                         When a SUMMARY.md file is provided, treat it as a GitBook index and combine\n");
     fprintf(stderr, "                         the linked files in order. Output is raw Markdown suitable for piping back into Apex.\n");
     fprintf(stderr, "  --csl FILE              Citation style file (CSL format)\n");
-    fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file(s) in document head (requires --standalone, overrides CSS metadata)\n");
-    fprintf(stderr, "                         Can be used multiple times or accept comma-separated list (e.g., --css style.css,syntax.css)\n");
+    fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file(s) in document head. With HTML: requires -s/--standalone.\n");
+    fprintf(stderr, "                         With -t man-html -s: include custom CSS in the man page. Can be used multiple times or comma-separated (e.g., --css style.css)\n");
     fprintf(stderr, "  --embed-css            Embed CSS file contents into a <style> tag in the document head (used with --css)\n");
     fprintf(stderr, "  --embed-images         Embed local images as base64 data URLs in HTML output\n");
+    fprintf(stderr, "  --[no-]image-captions  Wrap images with title or alt text in <figure>/<figcaption> (default: on in unified/mmd)\n");
+    fprintf(stderr, "  --[no-]title-captions-only  Only add captions for images with title; alt-only images get no caption\n");
     fprintf(stderr, "  --hardbreaks           Treat newlines as hard breaks\n");
     fprintf(stderr, "  --header-anchors        Generate <a> anchor tags instead of header IDs\n");
     fprintf(stderr, "  -h, --help             Show this help message\n");
@@ -510,6 +652,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
+    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
@@ -522,6 +665,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-smart             Disable smart typography\n");
     fprintf(stderr, "  --no-sup-sub           Disable superscript/subscript syntax\n");
     fprintf(stderr, "  --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)\n");
+    fprintf(stderr, "  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)\n");
     fprintf(stderr, "  --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
@@ -539,7 +683,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).\n");
     fprintf(stderr, "                          VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.\n");
     fprintf(stderr, "  --show-tooltips         Show tooltips on citations\n");
-    fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>)\n");
+    fprintf(stderr, "  -s, --standalone       Generate complete HTML document (with <html>, <head>, <body>). For -t man-html, -s adds nav sidebar and full page; without -s, output is snippet only.\n");
     fprintf(stderr, "  --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
     fprintf(stderr, "  --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing\n");
     fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
@@ -560,6 +704,9 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --wikilink-space MODE  Space replacement for wiki links: dash, none, underscore, space (default: dash)\n");
     fprintf(stderr, "  --wikilink-extension EXT  File extension to append to wiki links (e.g., html, md)\n");
     fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
+    fprintf(stderr, "  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)\n");
+    fprintf(stderr, "  --width N               Hard-wrap terminal/terminal256 output at N visible columns\n");
+    fprintf(stderr, "  -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
@@ -703,6 +850,121 @@ static int add_script_tag(char ***tags, size_t *count, size_t *capacity, const c
     }
     (*count)++;
     return 0;
+}
+
+/* Wrap ANSI-colored output to a fixed column width.
+ * This operates on the final rendered string and counts only visible
+ * characters toward the width, skipping over ANSI CSI sequences.
+ */
+static char *wrap_ansi_to_width(const char *input, int width) {
+    if (!input || width <= 0) {
+        return NULL;
+    }
+
+    size_t in_len = strlen(input);
+    /* Heuristic for output capacity: input length plus space for added newlines. */
+    size_t cap = in_len + (in_len / (size_t)width + 2) * 2 + 1;
+    char *out = malloc(cap);
+    if (!out) {
+        return NULL;
+    }
+
+    size_t oi = 0;
+    int col = 0;
+
+    for (size_t i = 0; i < in_len; ) {
+        char c = input[i];
+
+        /* Newlines reset the column counter. */
+        if (c == '\n') {
+            if (oi + 1 >= cap) {
+                cap *= 2;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            out[oi++] = c;
+            col = 0;
+            i++;
+            continue;
+        }
+
+        /* Simple handling for carriage return: pass through. */
+        if (c == '\r') {
+            if (oi + 1 >= cap) {
+                cap *= 2;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            out[oi++] = c;
+            i++;
+            continue;
+        }
+
+        /* Preserve ANSI CSI sequences without counting them toward width. */
+        if (c == '\x1b' && i + 1 < in_len && input[i + 1] == '[') {
+            size_t start = i;
+            i += 2;
+            while (i < in_len && !((input[i] >= 'A' && input[i] <= 'Z') ||
+                                   (input[i] >= 'a' && input[i] <= 'z'))) {
+                i++;
+            }
+            if (i < in_len) {
+                i++; /* consume final letter */
+            }
+            size_t seq_len = i - start;
+            if (oi + seq_len + 1 >= cap) {
+                cap = cap + seq_len + 16;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            memcpy(out + oi, input + start, seq_len);
+            oi += seq_len;
+            continue;
+        }
+
+        /* Insert a newline before adding another visible char if we've hit width. */
+        if (col >= width) {
+            if (oi + 1 >= cap) {
+                cap *= 2;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            out[oi++] = '\n';
+            col = 0;
+        }
+
+        if (oi + 1 >= cap) {
+            cap *= 2;
+            char *nb = realloc(out, cap);
+            if (!nb) {
+                free(out);
+                return NULL;
+            }
+            out = nb;
+        }
+        out[oi++] = c;
+        col++;
+        i++;
+    }
+
+    out[oi] = '\0';
+    return out;
 }
 
 /**
@@ -1261,6 +1523,7 @@ int main(int argc, char *argv[]) {
     bool plugins_cli_override = false;
     bool plugins_cli_value = false;
     bool list_plugins = false;
+    bool list_themes = false;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
     bool list_filters = false;
@@ -1314,6 +1577,12 @@ int main(int argc, char *argv[]) {
     size_t   lua_filter_count = 0;
     size_t   lua_filter_capacity = 4;
 
+    /* Optional fixed-width wrapping for terminal output */
+    int width_override = 0;
+
+    /* Pagination for terminal/terminal256 output */
+    bool paginate_cli = false;
+
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -1341,6 +1610,57 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: Unknown mode '%s'\n", argv[i]);
                 return 1;
             }
+        } else if (strcmp(argv[i], "-t") == 0 || strcmp(argv[i], "--to") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --to requires an argument\n");
+                return 1;
+            }
+            if (strcmp(argv[i], "html") == 0) {
+                options.output_format = APEX_OUTPUT_HTML;
+            } else if (strcmp(argv[i], "json") == 0) {
+                options.output_format = APEX_OUTPUT_JSON;
+            } else if (strcmp(argv[i], "json-filtered") == 0 || strcmp(argv[i], "ast-json") == 0 || strcmp(argv[i], "ast") == 0) {
+                options.output_format = APEX_OUTPUT_JSON_FILTERED;
+            } else if (strcmp(argv[i], "markdown") == 0 || strcmp(argv[i], "md") == 0) {
+                options.output_format = APEX_OUTPUT_MARKDOWN;
+            } else if (strcmp(argv[i], "mmd") == 0) {
+                options.output_format = APEX_OUTPUT_MMD;
+            } else if (strcmp(argv[i], "commonmark") == 0 || strcmp(argv[i], "cmark") == 0) {
+                options.output_format = APEX_OUTPUT_COMMONMARK;
+            } else if (strcmp(argv[i], "kramdown") == 0) {
+                options.output_format = APEX_OUTPUT_KRAMDOWN;
+            } else if (strcmp(argv[i], "gfm") == 0) {
+                options.output_format = APEX_OUTPUT_GFM;
+            } else if (strcmp(argv[i], "terminal") == 0 || strcmp(argv[i], "cli") == 0) {
+                options.output_format = APEX_OUTPUT_TERMINAL;
+            } else if (strcmp(argv[i], "terminal256") == 0) {
+                options.output_format = APEX_OUTPUT_TERMINAL256;
+            } else if (strcmp(argv[i], "man") == 0) {
+                options.output_format = APEX_OUTPUT_MAN;
+            } else if (strcmp(argv[i], "man-html") == 0) {
+                options.output_format = APEX_OUTPUT_MAN_HTML;
+            } else {
+                fprintf(stderr, "Error: Unknown output format '%s'\n", argv[i]);
+                fprintf(stderr, "Supported formats: html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
+                return 1;
+            }
+        } else if (strcmp(argv[i], "--theme") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --theme requires a name argument\n");
+                return 1;
+            }
+            options.theme_name = argv[i];
+        } else if (strcmp(argv[i], "--width") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --width requires a column width argument\n");
+                return 1;
+            }
+            width_override = atoi(argv[i]);
+            if (width_override < 0) {
+                width_override = 0;
+            }
+        } else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--paginate") == 0) {
+            paginate_cli = true;
         } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --output requires an argument\n");
@@ -1357,6 +1677,8 @@ int main(int argc, char *argv[]) {
             plugins_cli_value = false;
         } else if (strcmp(argv[i], "--list-plugins") == 0) {
             list_plugins = true;
+        } else if (strcmp(argv[i], "--list-themes") == 0) {
+            list_themes = true;
         } else if (strcmp(argv[i], "--install-plugin") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --install-plugin requires an id argument\n");
@@ -1679,7 +2001,7 @@ int main(int argc, char *argv[]) {
             }
         } else if (strcmp(argv[i], "--code-highlight") == 0) {
             if (++i >= argc) {
-                fprintf(stderr, "Error: --code-highlight requires a tool name (pygments, skylighting, or abbreviations p, s)\n");
+                fprintf(stderr, "Error: --code-highlight requires a tool name (pygments, skylighting, shiki, or abbreviations p, s, sh)\n");
                 return 1;
             }
             /* Accept full names and abbreviations */
@@ -1687,10 +2009,19 @@ int main(int argc, char *argv[]) {
                 options.code_highlighter = "pygments";
             } else if (strcmp(argv[i], "skylighting") == 0 || strcmp(argv[i], "s") == 0 || strcmp(argv[i], "sky") == 0) {
                 options.code_highlighter = "skylighting";
+            } else if (strcmp(argv[i], "shiki") == 0 || strcmp(argv[i], "sh") == 0) {
+                options.code_highlighter = "shiki";
             } else {
-                fprintf(stderr, "Error: --code-highlight tool must be 'pygments' (p) or 'skylighting' (s)\n");
+                fprintf(stderr, "Error: --code-highlight tool must be 'pygments' (p), 'skylighting' (s), or 'shiki' (sh)\n");
                 return 1;
             }
+        } else if (strcmp(argv[i], "--code-highlight-theme") == 0 ||
+                   strcmp(argv[i], "--code-hilight-theme") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --code-highlight-theme requires a theme name\n");
+                return 1;
+            }
+            options.code_highlight_theme = argv[i];
         } else if (strcmp(argv[i], "--code-line-numbers") == 0) {
             options.code_line_numbers = true;
         } else if (strcmp(argv[i], "--highlight-language-only") == 0) {
@@ -1715,6 +2046,10 @@ int main(int argc, char *argv[]) {
             options.enable_divs = true;
         } else if (strcmp(argv[i], "--no-divs") == 0) {
             options.enable_divs = false;
+        } else if (strcmp(argv[i], "--one-line-definitions") == 0) {
+            options.enable_definition_lists = true;
+        } else if (strcmp(argv[i], "--no-one-line-definitions") == 0) {
+            options.enable_definition_lists = false;
         } else if (strcmp(argv[i], "--spans") == 0) {
             options.enable_spans = true;
         } else if (strcmp(argv[i], "--no-spans") == 0) {
@@ -1945,6 +2280,12 @@ int main(int argc, char *argv[]) {
     if (combine_mode && mmd_merge_mode) {
         fprintf(stderr, "Error: --combine and --mmd-merge cannot be used together\n");
         return 1;
+    }
+
+    /* Handle theme listing before normal conversion */
+    if (list_themes) {
+        apex_cli_print_highlight_themes();
+        return 0;
     }
 
     /* Handle plugin listing/installation/uninstallation commands before normal conversion */
@@ -3069,9 +3410,11 @@ int main(int argc, char *argv[]) {
 
     /* Apply metadata to options - allows per-document control of command-line options */
     /* Note: Bibliography file loading from metadata will be handled in citations extension */
+    apex_output_format_t saved_output_format = options.output_format;
     if (merged_metadata) {
         apex_apply_metadata_to_options(merged_metadata, &options);
-        /* Restore bibliography files if they were lost (e.g., if mode was set in metadata) */
+        /* Restore explicit CLI choices that metadata mode reset */
+        options.output_format = saved_output_format;
         if (saved_bibliography_files && !options.bibliography_files) {
             options.bibliography_files = saved_bibliography_files;
         }
@@ -3339,7 +3682,12 @@ int main(int argc, char *argv[]) {
         last_stage = NULL;
     }
 
-    /* Convert to HTML */
+    /* Man page output must keep -- as literal double hyphen; option names must not become en-dash */
+    if (options.output_format == APEX_OUTPUT_MAN || options.output_format == APEX_OUTPUT_MAN_HTML) {
+        options.enable_smart_typography = false;
+    }
+
+    /* Convert to output (HTML, Markdown, terminal, etc.) */
     char *html = apex_markdown_to_html(final_markdown, final_len, &options);
 
     /* Check if we should show delayed progress (in case processing took > 1s but no progress was shown) */
@@ -3366,9 +3714,61 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    /* Write output */
+    /* For terminal output, optionally wrap to a fixed width when requested.
+     * Precedence: CLI --width > metadata/config terminal.width > theme default.
+     * (Theme files are currently not consulted for width.)
+     */
+    if (options.output_format == APEX_OUTPUT_TERMINAL ||
+        options.output_format == APEX_OUTPUT_TERMINAL256) {
+        int effective_width = 0;
+        if (width_override > 0) {
+            effective_width = width_override;
+        } else if (options.terminal_width > 0) {
+            effective_width = options.terminal_width;
+        }
+        if (effective_width > 0) {
+            char *wrapped = wrap_ansi_to_width(html, effective_width);
+            if (wrapped) {
+                apex_free_string(html);
+                html = wrapped;
+            }
+        }
+    }
+
+    /* Determine whether to paginate terminal output.
+     * Pagination is only applied for terminal/terminal256 output when writing to stdout.
+     * Precedence: CLI -p/--paginate OR config/metadata paginate:true.
+     */
+    bool paginate_effective = false;
+    if (!output_file &&
+        (options.output_format == APEX_OUTPUT_TERMINAL ||
+         options.output_format == APEX_OUTPUT_TERMINAL256)) {
+        if (paginate_cli || options.paginate) {
+            paginate_effective = true;
+        }
+    }
+
+    /* Write output (optionally via pager) */
     PROFILE_START(file_write);
-    if (output_file) {
+    if (paginate_effective) {
+        const char *pager_cmd = getenv("APEX_PAGER");
+        if (!pager_cmd || !*pager_cmd) {
+            pager_cmd = getenv("PAGER");
+        }
+        if (!pager_cmd || !*pager_cmd) {
+            pager_cmd = "less -R";
+        }
+
+        FILE *pager = popen(pager_cmd, "w");
+        size_t html_len = strlen(html);
+        if (!pager) {
+            /* Fall back to direct stdout if pager cannot be started */
+            fwrite(html, 1, html_len, stdout);
+        } else {
+            fwrite(html, 1, html_len, pager);
+            pclose(pager);
+        }
+    } else if (output_file) {
         FILE *fp = fopen(output_file, "w");
         if (!fp) {
             fprintf(stderr, "Error: Cannot open output file '%s'\n", output_file);

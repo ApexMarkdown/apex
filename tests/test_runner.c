@@ -37,6 +37,7 @@ void test_image_embedding(void);
 void test_image_width_height_conversion(void);
 void test_math(void);
 void test_critic_markup(void);
+void test_cmark_init_callback(void);
 void test_processor_modes(void);
 void test_multimarkdown_image_attributes(void);
 void test_file_includes(void);
@@ -52,6 +53,7 @@ void test_combine_gitbook_like(void);
 void test_callouts(void);
 void test_blockquote_lists(void);
 void test_toc(void);
+void test_terminal_output(void);
 void test_html_markdown_attributes(void);
 void test_fenced_divs(void);
 void test_sup_sub(void);
@@ -102,6 +104,7 @@ static test_suite suites[] = {
     { "wiki_links",                    test_wiki_links },
     { "math",                          test_math },
     { "critic_markup",                 test_critic_markup },
+    { "cmark_init_callback",           test_cmark_init_callback },
     { "multimarkdown_image_attributes",test_multimarkdown_image_attributes },
     { "processor_modes",               test_processor_modes },
     { "file_includes",                 test_file_includes },
@@ -117,6 +120,7 @@ static test_suite suites[] = {
     { "callouts",                      test_callouts },
     { "blockquote_lists",              test_blockquote_lists },
     { "toc",                           test_toc },
+    { "terminal_output",               test_terminal_output },
     { "html_markdown_attributes",      test_html_markdown_attributes },
     { "fenced_divs",                   test_fenced_divs },
     { "sup_sub",                       test_sup_sub },
