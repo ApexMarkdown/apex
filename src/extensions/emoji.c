@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include "emoji_data.h"
 
@@ -14,6 +15,30 @@
 static void normalize_emoji_name(char *name);
 static int is_table_alignment_pattern(const char *start, const char *end);
 static int is_inside_html_attribute(const char *pos, const char *start);
+
+/** True if content at p looks like a list marker (- , * , + , or digit+. ) */
+static int looks_like_list_marker(const char *p) {
+    if (!*p) return 0;
+    if (*p == '-' || *p == '*' || *p == '+')
+        return (p[1] == ' ' || p[1] == '\t');
+    if (isdigit((unsigned char)*p)) {
+        while (isdigit((unsigned char)*p)) p++;
+        return (*p == '.' && (p[1] == ' ' || p[1] == '\t'));
+    }
+    return 0;
+}
+
+/** True if we're at the start of a line that is an indented code block (4+ spaces or tab). */
+static int line_is_indented_code_block(const char *read) {
+    if (!*read) return 0;
+    if (*read == '\t')
+        return !looks_like_list_marker(read + 1);
+    if (read[0] != ' ' || read[1] != ' ' || read[2] != ' ' || read[3] != ' ')
+        return 0;
+    const char *content = read + 4;
+    while (*content == ' ') content++;
+    return *content && !looks_like_list_marker(content);
+}
 
 /**
  * Find emoji entry by name
@@ -234,7 +259,33 @@ char *apex_replace_emoji(const char *html) {
     char *write = output;
     size_t remaining = capacity;
 
+    bool in_code_tag = false;  /* Skip emoji inside <code>...</code> and <pre>...</pre> */
+
     while (*read) {
+        /* Track <code> and <pre> tags - skip emoji replacement inside code */
+        if (*read == '<' && read[1]) {
+            if (read[6] && read[1] == '/' && read[2] == 'c' && read[3] == 'o' && read[4] == 'd' && read[5] == 'e' && read[6] == '>') {
+                in_code_tag = false;
+            } else if (read[5] && read[1] == '/' && read[2] == 'p' && read[3] == 'r' && read[4] == 'e' && read[5] == '>') {
+                in_code_tag = false;
+            } else if (read[5] && read[1] == 'c' && read[2] == 'o' && read[3] == 'd' && read[4] == 'e' &&
+                       (read[5] == '>' || read[5] == ' ' || read[5] == '\t')) {
+                in_code_tag = true;
+            } else if (read[4] && read[1] == 'p' && read[2] == 'r' && read[3] == 'e' &&
+                       (read[4] == '>' || read[4] == ' ' || read[4] == '\t')) {
+                in_code_tag = true;
+            }
+        }
+        if (in_code_tag) {
+            if (remaining > 0) {
+                *write++ = *read++;
+                remaining--;
+            } else {
+                read++;
+            }
+            continue;
+        }
+
         /* Check if we're inside an index placeholder <!--IDX:...--> - if so, skip emoji processing */
         if (read >= html + 7 && strncmp(read - 7, "<!--IDX:", 8) == 0) {
             /* Find the end of the placeholder */
@@ -456,7 +507,36 @@ char *apex_replace_emoji_text(const char *text) {
     char *write = output;
     size_t remaining = capacity;
 
+    bool in_code_block = false;
+    bool in_inline_code = false;
+    bool in_indented_code_block = false;
+
     while (*read) {
+        /* At line start: indented code block only if 4+ spaces/tab and not a list line */
+        if (read == text || read[-1] == '\n') {
+            in_indented_code_block = line_is_indented_code_block(read);
+        }
+
+        /* Track fenced code blocks (```) and inline code (`) */
+        if (*read == '`') {
+            if (read[1] == '`' && read[2] == '`') {
+                in_code_block = !in_code_block;
+            } else if (!in_code_block) {
+                in_inline_code = !in_inline_code;
+            }
+        }
+
+        /* Skip emoji replacement inside any code context */
+        if (in_code_block || in_inline_code || in_indented_code_block) {
+            if (remaining > 0) {
+                *write++ = *read++;
+                remaining--;
+            } else {
+                read++;
+            }
+            continue;
+        }
+
         if (*read == ':') {
             /* Look for closing : */
             const char *end = strchr(read + 1, ':');
@@ -682,7 +762,36 @@ char *apex_autocorrect_emoji_names(const char *text) {
     char *write = output;
     size_t remaining = capacity;
 
+    bool in_code_block = false;
+    bool in_inline_code = false;
+    bool in_indented_code_block = false;
+
     while (*read) {
+        /* At line start: indented code block only if 4+ spaces/tab and not a list line */
+        if (read == text || read[-1] == '\n') {
+            in_indented_code_block = line_is_indented_code_block(read);
+        }
+
+        /* Track fenced code blocks (```) and inline code (`) */
+        if (*read == '`') {
+            if (read[1] == '`' && read[2] == '`') {
+                in_code_block = !in_code_block;
+            } else if (!in_code_block) {
+                in_inline_code = !in_inline_code;
+            }
+        }
+
+        /* Skip emoji processing inside any code context */
+        if (in_code_block || in_inline_code || in_indented_code_block) {
+            if (remaining > 0) {
+                *write++ = *read++;
+                remaining--;
+            } else {
+                read++;
+            }
+            continue;
+        }
+
         if (*read == ':') {
             /* Look for closing : */
             const char *end = strchr(read + 1, ':');

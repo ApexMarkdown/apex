@@ -118,6 +118,56 @@ static bool next_nonblank_line_is_table(const char *pos, const char *text_end) {
     return false;
 }
 
+/** True if content at p looks like a list marker (- , * , + , or digit+. ) */
+static bool looks_like_list_marker(const char *p) {
+    if (*p == '-' || *p == '*' || *p == '+')
+        return (p[1] == ' ' || p[1] == '\t');
+    if (isdigit((unsigned char)*p)) {
+        while (isdigit((unsigned char)*p)) p++;
+        return (*p == '.' && (p[1] == ' ' || p[1] == '\t'));
+    }
+    return false;
+}
+
+/**
+ * True if line is an indented code block (4+ spaces or tab at start, not a list line).
+ * Used to skip definition list processing inside indented code blocks.
+ */
+static bool line_is_indented_code_block(const char *line, size_t len) {
+    if (len == 0) return false;
+    if (line[0] == '\t') {
+        return len > 1 && !looks_like_list_marker(line + 1);
+    }
+    if (len < 4 || line[0] != ' ' || line[1] != ' ' || line[2] != ' ' || line[3] != ' ')
+        return false;
+    const char *content = line + 4;
+    while (content < line + len && *content == ' ') content++;
+    return (content < line + len) && !looks_like_list_marker(content);
+}
+
+/**
+ * Scans line for inline code backticks, updates state for next line, and returns
+ * whether sep_pos is inside an inline code span. Single backticks toggle; 3+ are
+ * fenced blocks (handled elsewhere). Used to skip definition processing inside
+ * inline code spans, including multi-line spans like `term::def\n :more:`.
+ */
+static bool scan_inline_code_for_sep(const char *line, size_t len, int sep_pos,
+                                     bool in_span_at_start, bool *out_in_span_at_end) {
+    bool in = in_span_at_start;
+    bool sep_inside = false;
+    for (size_t i = 0; i < len; i++) {
+        if ((int)i == sep_pos) sep_inside = in;
+        if (line[i] == '`') {
+            int count = 1;
+            while (i + (size_t)count < len && line[i + count] == '`') count++;
+            if (count == 1) in = !in;
+            i += (size_t)(count - 1);
+        }
+    }
+    *out_in_span_at_end = in;
+    return (sep_pos >= 0 && (size_t)sep_pos < len) ? sep_inside : false;
+}
+
 /**
  * Check if we're inside a fenced code block (```) - don't process definition lists there
  */
@@ -241,6 +291,8 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
     bool in_def_list = false;
     bool in_code_block = false;
+    bool in_indented_code_block = false;
+    bool in_inline_code_span = false;
     char term_buffer[4096];
     int term_len = 0;
     bool dd_open = false;  /* True when we output <dd> but not yet </dd> (for Kramdown continuation) */
@@ -252,6 +304,19 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         if (!line_end) line_end = read + strlen(read);
 
         size_t line_length = (size_t)(line_end - line_start);
+        int sep = -1;  /* One-line def separator pos; -1 = none (used for inline code state update) */
+
+        /* Track indented code blocks (4+ spaces or tab, not list continuation) */
+        if (read == text || read[-1] == '\n') {
+            bool this_line_indented = line_is_indented_code_block(line_start, line_length);
+            if (this_line_indented) {
+                in_indented_code_block = true;
+            } else {
+                /* Non-blank line without indent ends the block */
+                bool is_blank = (line_length == 0 || (line_length == 1 && (*line_start == '\r' || *line_start == '\n')));
+                if (!is_blank) in_indented_code_block = false;
+            }
+        }
 
         /* Track code blocks */
         if (is_code_fence_line(line_start, line_length)) {
@@ -285,8 +350,20 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             continue;
         }
 
+        /* Skip definition processing inside indented code blocks */
+        if (in_indented_code_block) {
+            ENSURE_SPACE(line_length + 2);
+            memcpy(write, line_start, line_length);
+            write += line_length;
+            remaining -= line_length;
+            *write++ = '\n';
+            remaining--;
+            read = line_end + (line_end < text + text_len && *line_end == '\n' ? 1 : 0);
+            continue;
+        }
+
         /* Check for Kramdown-style definition: : Definition (requires buffered term) */
-        bool is_kramdown_def = !in_code_block && is_kramdown_def_line(line_start, line_length);
+        bool is_kramdown_def = !in_code_block && !in_inline_code_span && is_kramdown_def_line(line_start, line_length);
         if (is_kramdown_def) {
             /* Skip reference link definitions [id]: url */
             const char *p = line_start;
@@ -383,8 +460,12 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         }
         /* Check for one-line definition: Term :: Definition */
         else if (!in_code_block) {
-            int sep = find_def_separator((const unsigned char *)line_start, (int)line_length);
+            sep = find_def_separator((const unsigned char *)line_start, (int)line_length);
+            bool sep_inside_inline = false;
             if (sep >= 0) {
+                sep_inside_inline = scan_inline_code_for_sep(line_start, line_length, sep, in_inline_code_span, &in_inline_code_span);
+            }
+            if (sep >= 0 && !sep_inside_inline) {
             /* Close any open Kramdown dd and flush unused term buffer */
             if (dd_open) {
                 memcpy(write, "</dd>\n", 6);
@@ -533,6 +614,11 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         /* Track if this line was a table row (for : Caption after table detection) */
         bool is_blank = (line_length == 0 || (line_length == 1 && (*line_start == '\r' || *line_start == '\n')));
         if (!is_blank) prev_line_was_table_row = is_table_row_line(line_start, line_length);
+
+        /* Update inline code span state for next line (if not already updated in one-line def path) */
+        if (sep < 0) {
+            scan_inline_code_for_sep(line_start, line_length, -1, in_inline_code_span, &in_inline_code_span);
+        }
 
         read = line_end;
         if (read < text + text_len && *read == '\n') read++;
