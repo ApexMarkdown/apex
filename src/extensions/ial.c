@@ -4329,7 +4329,23 @@ char *apex_preprocess_bracketed_spans(const char *text) {
                                     /* Build span tag with attributes */
                                     char *attr_str = attributes_to_html(attrs);
                                     if (attr_str) {
-                                        /* Calculate space needed */
+                                        /* Decide whether this span actually needs markdown=\"span\"
+                                         * Only enable markdown-in-HTML for bracketed spans whose
+                                         * inner text contains inline markdown syntax (emphasis,
+                                         * links, code, etc.). This prevents simple spans like
+                                         * [-]{.taskmarker} from being reparsed as block lists. */
+                                        bool needs_markdown_span = false;
+                                        for (size_t i = 0; i < text_len; i++) {
+                                            char ch = bracket_text[i];
+                                            if (ch == '*' || ch == '_' || ch == '`' ||
+                                                ch == '[' || ch == '!' || ch == '#') {
+                                                needs_markdown_span = true;
+                                                break;
+                                            }
+                                        }
+
+                                        /* Calculate space needed.
+                                         * Worst case assumes we include markdown=\"span\" plus attributes. */
                                         size_t span_open_len = 20 + strlen(attr_str) + strlen(bracket_text) + 10; /* <span markdown="span" ...>text</span> */
                                         if (remaining < span_open_len) {
                                             size_t written = write - output;
@@ -4346,8 +4362,18 @@ char *apex_preprocess_bracketed_spans(const char *text) {
                                             remaining = output_capacity - written;
                                         }
 
-                                        /* Write <span markdown="span" ...> */
-                                        int written = snprintf(write, remaining, "<span markdown=\"span\"%s>", attr_str);
+                                        int written;
+                                        if (needs_markdown_span) {
+                                            /* Write <span markdown="span" ...> for spans that
+                                             * genuinely need inline markdown processing. */
+                                            written = snprintf(write, remaining, "<span markdown=\"span\"%s>", attr_str);
+                                        } else {
+                                            /* For simple text-only spans, omit markdown=\"span\"
+                                             * so that content like a lone '-' is not reparsed
+                                             * as a list item by the markdown-in-HTML pipeline. */
+                                            written = snprintf(write, remaining, "<span%s>", attr_str);
+                                        }
+
                                         if (written > 0 && (size_t)written < remaining) {
                                             write += written;
                                             remaining -= written;
