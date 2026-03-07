@@ -1,5 +1,5 @@
 
-[![Version: 0.1.92](https://img.shields.io/badge/Version-0.1.92-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1449/1449](https://img.shields.io/badge/Tests-1449/1449-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.93](https://img.shields.io/badge/Version-0.1.93-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1449/1449](https://img.shields.io/badge/Tests-1449/1449-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -299,7 +299,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.92
+Apex Markdown Processor v0.1.93
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex

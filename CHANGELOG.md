@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.94] - 2026-03-07
+
+### Fixed
+
+- CMake/C99 build: add missing stdlib.h so malloc, free, realloc, getenv, and strtol are declared (fixes build on strict compilers)
+- Bracketed spans like [-]{.taskmarker} no longer trigger list parsing; markdown="span" is only emitted when the span content contains inline markdown syntax (emphasis, links, code, etc.)
+
 ## [0.1.93] - 2026-03-05
 
 ### New
@@ -2672,6 +2679,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.94]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.94
 [0.1.93]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.93
 [0.1.92]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.92
 [0.1.91]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.91
