@@ -437,6 +437,26 @@ else()
     message(STATUS "  Man pages will not be installed.")
 endif()
 
+add_custom_target(swift_package_check
+  COMMAND ${CMAKE_COMMAND} -E env
+          SWIFT_PACKAGE_PATH=${CMAKE_SOURCE_DIR}
+          swift build
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMENT "Building Swift package (debug)"
+)
+
+add_custom_target(swift_package_check_release
+  COMMAND ${CMAKE_COMMAND} -E env
+          SWIFT_PACKAGE_PATH=${CMAKE_SOURCE_DIR}
+          swift build -c release
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMENT "Building Swift package (release)"
+)
+
+add_custom_target(all_checks
+  DEPENDS apex_test_runner swift_package_check swift_package_check_release
+)
+
 # Print configuration
 message(STATUS "Apex ${PROJECT_VERSION}")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")

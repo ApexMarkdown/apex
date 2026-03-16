@@ -4,6 +4,7 @@ tag_message.txt
 build/
 build-coverage/
 build-test/
+xcode_build/
 cmake-build-*/
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/

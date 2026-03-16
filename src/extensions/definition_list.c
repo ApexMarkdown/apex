@@ -31,11 +31,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-/* Stub node types - one-line format uses preprocessing only, no cmark extension */
-cmark_node_type APEX_NODE_DEFINITION_LIST = 0;
-cmark_node_type APEX_NODE_DEFINITION_TERM = 0;
-cmark_node_type APEX_NODE_DEFINITION_DATA = 0;
-
 /**
  * Check if a line matches the one-line definition format: Term :: Definition
  * The line must contain :: with optional whitespace around it.

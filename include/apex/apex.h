@@ -14,6 +14,9 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "ast_markdown.h"
+#include "ast_terminal.h"
+#include "ast_man.h"
 
 #define APEX_VERSION_MAJOR 0
 #define APEX_VERSION_MINOR 1

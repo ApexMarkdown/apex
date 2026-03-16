@@ -15,11 +15,6 @@
 extern "C" {
 #endif
 
-/* Stub node types for ast_man.c compatibility - one-line format outputs HTML, so these are never used */
-extern cmark_node_type APEX_NODE_DEFINITION_LIST;
-extern cmark_node_type APEX_NODE_DEFINITION_TERM;
-extern cmark_node_type APEX_NODE_DEFINITION_DATA;
-
 /**
  * Process one-line definition lists via preprocessing.
  * Converts "Term :: Definition" lines to <dl><dt>Term</dt><dd>Definition</dd></dl>

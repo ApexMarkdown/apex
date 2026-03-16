@@ -4,6 +4,7 @@
  */
 
 #include "apex/ast_man.h"
+#include "apex/parser.h"
 #include "extensions/definition_list.h"
 #include "extensions/syntax_highlight.h"
 #include <stdbool.h>
@@ -418,8 +419,10 @@ static void render_block_roff(man_buffer *buf, cmark_node *node) {
             cmark_node *parent = cmark_node_parent(node);
             cmark_node_type pt = parent ? cmark_node_get_type(parent) : (cmark_node_type)0;
             bool in_item = (pt == CMARK_NODE_ITEM);
-            bool in_def_data_first = (pt == APEX_NODE_DEFINITION_DATA && !cmark_node_previous(node));
-            bool in_def_term = (pt == APEX_NODE_DEFINITION_TERM);
+            bool in_def_data_first =
+                (pt == (cmark_node_type)APEX_NODE_DEFINITION_DATA &&
+                 !cmark_node_previous(node));
+            bool in_def_term = (pt == (cmark_node_type)APEX_NODE_DEFINITION_TERM);
             bool continue_after_dd = roff_last_was_dl_dd;
             bool para_has_content = (cmark_node_first_child(node) != NULL);
             if (continue_after_dd) {
@@ -521,19 +524,19 @@ static void render_block_roff(man_buffer *buf, cmark_node *node) {
         default:
             roff_last_was_dl_dd = false;
             /* Definition list (Apex extension): term = .TP + bold term, data = body */
-            if (t == APEX_NODE_DEFINITION_LIST) {
+            if (t == (cmark_node_type)APEX_NODE_DEFINITION_LIST) {
                 for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                     render_block_roff(buf, cur);
                 break;
             }
-            if (t == APEX_NODE_DEFINITION_TERM) {
+            if (t == (cmark_node_type)APEX_NODE_DEFINITION_TERM) {
                 man_buf_append_str(buf, "\n.TP\n");
                 /* Term can contain a paragraph or direct inlines; recurse so paragraph content is emitted without .PP */
                 for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                     render_block_roff(buf, cur);
                 break;
             }
-            if (t == APEX_NODE_DEFINITION_DATA) {
+            if (t == (cmark_node_type)APEX_NODE_DEFINITION_DATA) {
                 for (cmark_node *cur = cmark_node_first_child(node); cur; cur = cmark_node_next(cur))
                     render_block_roff(buf, cur);
                 break;

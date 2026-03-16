@@ -518,7 +518,7 @@ void test_comprehensive_table_features(void) {
     /* Check for empty cell after Absent - empty cells should remain as <td></td> not merged */
     bool has_empty_after_absent = strstr(html, "<td>Absent</td><td></td>") != NULL ||
                                    strstr(html, "<td>Absent</td>\n<td></td>") != NULL ||
-                                   strstr(html, "<td>Absent</td>") != NULL && strstr(html, "<td></td>") != NULL;
+                                   (strstr(html, "<td>Absent</td>") != NULL && strstr(html, "<td></td>") != NULL);
     if (has_empty_after_absent) {
         test_result(true, "Empty cell present in table");
     } else {
@@ -734,6 +734,9 @@ void test_table_cr_line_endings(void) {
     }
 
     apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Table CR Line Endings Test", had_failures, false);
 }
 
 /**

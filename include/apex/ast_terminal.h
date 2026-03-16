@@ -8,8 +8,11 @@
 #ifndef APEX_AST_TERMINAL_H
 #define APEX_AST_TERMINAL_H
 
-#include "apex/apex.h"
+#include <stdbool.h>
 #include "cmark-gfm.h"
+
+/* Forward declaration of options struct; full typedef lives in apex.h */
+struct apex_options;
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +29,7 @@ extern "C" {
  *         Must be freed with apex_free_string (or free()) by the caller.
  */
 char *apex_cmark_to_terminal(cmark_node *document,
-                             const apex_options *options,
+                             const struct apex_options *options,
                              bool use_256);
 
 #ifdef __cplusplus

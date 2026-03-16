@@ -8,7 +8,9 @@
 #define APEX_AST_MARKDOWN_H
 
 #include "cmark-gfm.h"
-#include "apex/apex.h"
+
+/* Forward declaration of options struct; full typedef lives in apex.h */
+struct apex_options;
 
 /**
  * Markdown dialect types
@@ -31,7 +33,7 @@ typedef enum {
  *         Caller must free with free().
  */
 char *apex_cmark_to_markdown(cmark_node *document,
-                             const apex_options *options,
+                             const struct apex_options *options,
                              apex_markdown_dialect_t dialect);
 
 #endif /* APEX_AST_MARKDOWN_H */

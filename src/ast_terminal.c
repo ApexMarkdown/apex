@@ -12,6 +12,7 @@
  * existing configurations can be reused with minimal changes.
  */
 
+#include "apex/apex.h"
 #include "apex/ast_terminal.h"
 #include "table.h"          /* For CMARK_NODE_TABLE, CMARK_NODE_TABLE_ROW, CMARK_NODE_TABLE_CELL */
 #include "extensions/emoji.h"
@@ -21,7 +22,6 @@
 #include <strings.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
