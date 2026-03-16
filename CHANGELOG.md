@@ -2,6 +2,18 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.95] - 2026-03-16
+
+### Improved
+
+- Added all_checks target that runs C tests and Swift package builds together for one-command verification before publishing
+- Cleanup: quieter tests by fixing logical-op and unused-variable warnings in table test suite
+
+### Fixed
+
+- Swift package now compiles cleanly in debug and release as part of all_checks, catching Swift-side breakage before release
+- Man-page renderer builds without enum or options-type warnings in both CMake CLI and Swift package builds
+
 ## [0.1.94] - 2026-03-07
 
 ### Fixed
@@ -2679,6 +2691,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.95]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.95
 [0.1.94]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.94
 [0.1.93]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.93
 [0.1.92]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.92
