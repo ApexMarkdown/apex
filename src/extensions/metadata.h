@@ -48,6 +48,13 @@ cmark_syntax_extension *create_metadata_extension(void);
 apex_metadata_item *apex_extract_metadata(char **text_ptr);
 
 /**
+ * Extract metadata from the beginning of text using mode-aware precedence.
+ * In MultiMarkdown mode, MMD metadata parsing takes precedence over YAML-style
+ * block parsing when an MMD delimiter block is detected.
+ */
+apex_metadata_item *apex_extract_metadata_for_mode(char **text_ptr, apex_mode_t mode);
+
+/**
  * Get metadata from a document node
  * Returns a linked list of key-value pairs
  */

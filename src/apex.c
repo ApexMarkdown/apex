@@ -4247,7 +4247,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         options->mode == APEX_MODE_UNIFIED) {
         /* Extract metadata FIRST */
         PROFILE_START(metadata);
-        metadata = apex_extract_metadata(&text_ptr);
+        metadata = apex_extract_metadata_for_mode(&text_ptr, options->mode);
         PROFILE_END(metadata);
         if (getenv("APEX_DEBUG_PIPELINE")) {
             size_t len = strlen(text_ptr);

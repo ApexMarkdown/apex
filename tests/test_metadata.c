@@ -228,6 +228,20 @@ void test_mmd_metadata_keys(void) {
     assert_contains(html, "&bdquo;", "Case-insensitive: QUOTES LANGUAGE works");
     apex_free_string(html);
 
+    /* MMD delimiter block compatibility: opening/closing with repeated chars */
+    opts.standalone = true;
+    const char *mmd_delimited_doc =
+        "----\n"
+        "Title: Delimited Title\n"
+        "Author: Delimited Author\n"
+        "......\n"
+        "\n"
+        "# Body";
+    html = apex_markdown_to_html(mmd_delimited_doc, strlen(mmd_delimited_doc), &opts);
+    assert_contains(html, "<meta name=\"Author\" content=\"Delimited Author\"/>", "MMD delimiter block: author parsed");
+    assert_not_contains(html, "......", "MMD delimiter block: dot closer not rendered in body");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Metadata Keys Tests", had_failures, false);
 }

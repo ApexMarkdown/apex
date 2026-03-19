@@ -654,6 +654,116 @@ static apex_metadata_item *parse_mmd_metadata(const char *text, size_t *consumed
     return items;
 }
 
+/* Check if a line consists only of at least min_count of delim_char (ignoring
+ * surrounding whitespace). */
+static bool is_delimiter_line(const char *line, char delim_char, size_t min_count) {
+    if (!line) return false;
+    char temp[1024];
+    size_t len = strlen(line);
+    if (len >= sizeof(temp)) len = sizeof(temp) - 1;
+    memcpy(temp, line, len);
+    temp[len] = '\0';
+
+    char *trimmed = trim_whitespace(temp);
+    size_t tlen = strlen(trimmed);
+    if (tlen < min_count) return false;
+    for (size_t i = 0; i < tlen; i++) {
+        if (trimmed[i] != delim_char) return false;
+    }
+    return true;
+}
+
+/* Parse MultiMarkdown metadata when wrapped in delimiter lines.
+ * Opening delimiter: --- (or longer)
+ * Closing delimiter: --- (or longer) OR ... (or longer)
+ */
+static apex_metadata_item *parse_mmd_metadata_delimited(const char *text, size_t *consumed) {
+    apex_metadata_item *items = NULL;
+    const char *line_start = text;
+    const char *line_end = strchr(line_start, '\n');
+    bool found_metadata = false;
+
+    if (!line_end) return NULL;
+
+    /* First line must be a dash delimiter */
+    {
+        size_t len = line_end - line_start;
+        char line[1024];
+        if (len >= sizeof(line)) len = sizeof(line) - 1;
+        memcpy(line, line_start, len);
+        line[len] = '\0';
+        if (!is_delimiter_line(line, '-', 3)) return NULL;
+    }
+
+    line_start = line_end + 1;
+    while ((line_end = strchr(line_start, '\n')) != NULL) {
+        size_t len = line_end - line_start;
+        char line[1024];
+        if (len >= sizeof(line)) len = sizeof(line) - 1;
+        memcpy(line, line_start, len);
+        line[len] = '\0';
+        char *trimmed = trim_whitespace(line);
+
+        /* End markers supported by MultiMarkdown compatibility */
+        if (is_delimiter_line(trimmed, '-', 3) || is_delimiter_line(trimmed, '.', 3)) {
+            if (found_metadata) {
+                *consumed = (line_end + 1) - text;
+                return items;
+            }
+            *consumed = 0;
+            return NULL;
+        }
+
+        /* Blank line also terminates metadata block */
+        if (*trimmed == '\0') {
+            if (found_metadata) {
+                *consumed = (line_end + 1) - text;
+                return items;
+            }
+            *consumed = 0;
+            return NULL;
+        }
+
+        char *colon = strchr(line, ':');
+        if (!colon) {
+            if (found_metadata) {
+                *consumed = line_start - text;
+                return items;
+            }
+            *consumed = 0;
+            return NULL;
+        }
+
+        if (colon[1] != ' ' && colon[1] != '\t') {
+            if (found_metadata) {
+                *consumed = line_start - text;
+                return items;
+            }
+            *consumed = 0;
+            return NULL;
+        }
+
+        *colon = '\0';
+        char *key = trim_whitespace(line);
+        char *value = trim_whitespace(colon + 1);
+        if (*key && *value) {
+            add_metadata_item(&items, key, value);
+            found_metadata = true;
+        } else {
+            if (found_metadata) {
+                *consumed = line_start - text;
+                return items;
+            }
+            *consumed = 0;
+            return NULL;
+        }
+
+        line_start = line_end + 1;
+    }
+
+    return NULL;
+}
+
 /**
  * Parse Pandoc title block metadata
  * Format: % Title, % Author, % Date as first three lines
@@ -701,15 +811,27 @@ static apex_metadata_item *parse_pandoc_metadata(const char *text, size_t *consu
  * This modifies the input by removing the metadata section
  * Returns the extracted metadata
  */
-apex_metadata_item *apex_extract_metadata(char **text_ptr) {
+apex_metadata_item *apex_extract_metadata_for_mode(char **text_ptr, apex_mode_t mode) {
     if (!text_ptr || !*text_ptr || !**text_ptr) return NULL;
 
     char *text = *text_ptr;
     size_t consumed = 0;
     apex_metadata_item *items = NULL;
 
-    /* Try YAML first (most explicit) */
-    if (strncmp(text, "---", 3) == 0) {
+    if (mode == APEX_MODE_MULTIMARKDOWN && strncmp(text, "---", 3) == 0) {
+        /* In MMD mode, delimiter blocks are treated as MultiMarkdown metadata,
+         * including dot-delimited closers (.../......). */
+        items = parse_mmd_metadata_delimited(text, &consumed);
+        if (!items) {
+            /* Keep YAML compatibility in MMD mode when content is actual YAML. */
+            items = parse_yaml_metadata(text, &consumed);
+        }
+        if (!items) {
+            items = parse_mmd_metadata(text, &consumed);
+        }
+    }
+    /* Try YAML first (most explicit) for non-MMD modes */
+    else if (strncmp(text, "---", 3) == 0) {
         items = parse_yaml_metadata(text, &consumed);
     }
     /* Try Pandoc */
@@ -728,6 +850,10 @@ apex_metadata_item *apex_extract_metadata(char **text_ptr) {
     }
 
     return items;
+}
+
+apex_metadata_item *apex_extract_metadata(char **text_ptr) {
+    return apex_extract_metadata_for_mode(text_ptr, APEX_MODE_UNIFIED);
 }
 
 /**
