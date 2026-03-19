@@ -13,6 +13,10 @@ let package = Package(
         .library(
             name: "Apex",
             targets: ["Apex"]
+        ),
+        .library(
+            name: "ApexC",
+            targets: ["ApexC"]
         )
     ],
     targets: [

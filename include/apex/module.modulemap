@@ -1,4 +1,4 @@
-module Apex {
+module ApexHeaders {
     umbrella header "apex.h"
     explicit module parser {
         header "parser.h"
