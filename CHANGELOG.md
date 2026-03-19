@@ -2,6 +2,32 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.97] - 2026-03-19
+
+### Changed
+
+- Metadata extraction is now mode-aware so Combined/Unified and Kramdown keep YAML-first interpretation of delimiter blocks, while MMD uses MMD-compatible precedence.
+
+### New
+
+- CSV and TSV includes now support custom separators via {delimiter=X} and single-character shorthand {X} while keeping comma/tab defaults when no override is provided.
+- This release adds delimiter support as discussed in [#13](https://github.com/ApexMarkdown/apex/issues/13)
+
+### Improved
+
+- Metadata-to-meta conversion now works consistently in MultiMarkdown, Unified (combined), and Kramdown modes.
+- In --mode mmd, delimiter-style metadata is parsed using MultiMarkdown rules while still falling back to YAML parsing for true YAML front matter.
+- Include parsing now recognizes explicit delimiter overrides consistently across iA Writer, Marked, and MultiMarkdown include styles for CSV/TSV table conversion.
+
+### Fixed
+
+- Standalone HTML now emits generic metadata headers as <meta name="..."> tags instead of dropping them.
+- Generated meta tags preserve declared metadata order and safely escape attribute content.
+- MultiMarkdown mode now accepts delimited metadata blocks with dash or dot closers (for example "----" ... "......") without leaking the delimiter into HTML output.
+- Marked include syntax now supports embedded delimiter overrides inside the include token (for example <<[data.csv{;}] and <<[data.csv{delimiter=;}] ) to avoid conflicts with bracket-plus-brace parsing patterns.
+- MultiMarkdown transclusions now accept embedded delimiter overrides (for example {{data.csv{;}}} and {{data.csv{delimiter=;}}}) and no longer fail when braces appear inside the transclusion path.
+- This release resolves [#17](https://github.com/ApexMarkdown/apex/issues/17)
+
 ## [0.1.96] - 2026-03-19
 
 ### Improved
@@ -2701,6 +2727,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.97]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.97
 [0.1.96]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.96
 [0.1.95]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.95
 [0.1.94]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.94
