@@ -2,6 +2,20 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.98] - 2026-03-19
+
+### Changed
+
+- Homebrew formula bumped to 0.1.97.
+
+### Improved
+
+- SwiftPM now exports the raw C API via the `ApexC` product.
+
+### Fixed
+
+- Avoid Swift module-name collisions so `apex_*` symbols are visible from Swift.
+
 ## [0.1.97] - 2026-03-19
 
 ### Changed
@@ -2727,6 +2741,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.98]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.98
 [0.1.97]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.97
 [0.1.96]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.96
 [0.1.95]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.95
