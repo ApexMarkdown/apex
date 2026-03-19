@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.96] - 2026-03-19
+
+### Improved
+
+- Swift plugin integrations can now fetch default low-level options through NSString.defaultApexOptions() and mutate apex_options fields directly.
+
+### Fixed
+
+- Swift-side module visibility for C interop is improved by exporting ApexC from the Apex Swift module.
+
 ## [0.1.95] - 2026-03-16
 
 ### Improved
@@ -2691,6 +2701,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.96]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.96
 [0.1.95]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.95
 [0.1.94]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.94
 [0.1.93]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.93
