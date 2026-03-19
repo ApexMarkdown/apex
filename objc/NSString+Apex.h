@@ -4,6 +4,7 @@
  */
 
 #import <Foundation/Foundation.h>
+#import <apex/apex.h>
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -17,6 +18,12 @@ extern NSString * const ApexModeKramdown;
 extern NSString * const ApexModeUnified;
 
 @interface NSString (Apex)
+
+/**
+ * Return Apex default C options structure.
+ * Exposed for Swift/plugin integrations that need low-level option flags.
+ */
++ (apex_options)defaultApexOptions;
 
 /**
  * Apex processor version string (e.g. "0.1.89")

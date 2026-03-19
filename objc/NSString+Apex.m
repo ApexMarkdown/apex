@@ -17,6 +17,10 @@ NSString *const ApexModeUnified = @"unified";
 
 @implementation NSString (Apex)
 
++ (apex_options)defaultApexOptions {
+  return apex_options_default();
+}
+
 + (NSString *)apexVersion {
   const char *ver = apex_version_string();
   return ver ? [NSString stringWithUTF8String:ver] : @"";

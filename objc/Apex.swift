@@ -6,6 +6,7 @@
 
 import Foundation
 @_exported import ApexObjC
+@_exported import ApexC
 
 /// Apex processor mode
 /// Type-safe enum for processor modes
