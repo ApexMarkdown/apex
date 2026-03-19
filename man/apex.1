@@ -40,6 +40,10 @@ Processor mode: \f[B]commonmark\f[], \f[B]gfm\f[], \f[B]mmd\f[] (or
 Write output to FILE instead of stdout.
 
 .TP
+\f[B]\-t\f[] FORMAT, \f[B]\-\-to\f[] FORMAT
+Output format: \f[B]html\f[] (default), \f[B]json\f[] (before filters), \f[B]json\-filtered\f[]/\f[B]ast\-json\f[]/\f[B]ast\f[] (after filters), \f[B]markdown\f[]/\f[B]md\f[], \f[B]mmd\f[], \f[B]commonmark\f[]/\f[B]cmark\f[], \f[B]kramdown\f[], \f[B]gfm\f[], \f[B]terminal\f[]/\f[B]cli\f[], \f[B]terminal256\f[], \f[B]man\f[], \f[B]man\-html\f[].
+
+.TP
 \f[B]\-s\f[], \f[B]\-\-standalone\f[]
 Generate complete HTML document with \fR<html>\f[], \fR<head>\f[],
 and \fR<body>\f[] tags.
@@ -55,11 +59,35 @@ When used with \f[B]\-\-css FILE\f[], read the CSS file(s) and embed
 their contents into \fR<style>\f[] tags in the document head instead of emitting \fR<link rel="stylesheet">\f[] tags. All specified stylesheets are embedded.
 
 .TP
+\f[B]\-\-width\f[] N
+Hard\-wrap terminal/terminal256 output at N visible columns.
+
+.TP
+\f[B]\-p\f[], \f[B]\-\-paginate\f[]
+Page terminal/cli/terminal256 output through a pager (\fR$APEX_PAGER\f[], then \fR$PAGER\f[], then \fRless \-R\f[]).
+
+.TP
+\f[B]\-\-theme\f[] NAME
+Terminal theme name for \f[B]\-t terminal\f[]/\f[B]\-t terminal256\f[].
+
+.TP
 
 .TP
 \f[B]\-\-code\-highlight\f[] TOOL
 Use external tool for syntax highlighting of code blocks.
 \f[I]TOOL\f[] must be \f[B]pygments\f[] (or \f[B]p\f[], \f[B]pyg\f[]) or \f[B]skylighting\f[] (or \f[B]s\f[], \f[B]sky\f[]). Code blocks are sent to the external tool with their language specifier (if present) or with auto\-detection enabled. The highlighted HTML output replaces the original code block in the document.
+
+.TP
+\f[B]\-\-code\-highlight\-theme\f[] THEME
+Theme/style name for external syntax highlighters (\f[B]pygments\f[], \f[B]skylighting\f[], \f[B]shiki\f[]).
+
+.TP
+\f[B]\-\-code\-hilight\-theme\f[] THEME
+Legacy alias for \f[B]\-\-code\-highlight\-theme\f[].
+
+.TP
+\f[B]\-\-list\-themes\f[]
+List available syntax highlighting themes for supported external highlighters.
 
 .TP
 \f[B]\-\-code\-line\-numbers\f[]
@@ -78,7 +106,7 @@ Inject \fR<script>\f[] tags either before \fR</body>\f[] in standalone mode or a
 .TP
 \f[B]\-\-title\f[] TITLE
 Document title (requires \f[B]\-\-standalone\f[], default:
-“Document”).
+"Document").
 
 .TP
 \f[B]\-\-pretty\f[]
@@ -139,6 +167,14 @@ specified (via \fR```language\f[] or IAL). Code blocks without a language will b
 \f[B]\-\-includes\f[], \f[B]\-\-no\-includes\f[]
 Enable or disable file inclusion. Enabled by default in
 unified mode.
+
+.TP
+\f[B]\-\-transforms\f[], \f[B]\-\-no\-transforms\f[]
+Enable or disable metadata variable transforms (\fR[%key:transform]\f[]).
+
+.TP
+\f[B]\-\-one\-line\-definitions\f[], \f[B]\-\-no\-one\-line\-definitions\f[]
+Enable or disable one\-line definition list syntax (\fRTerm :: Definition\f[]).
 
 .TP
 
@@ -289,6 +325,8 @@ Obfuscate email links and text using HTML entities
 (hex\-encoded).
 
 .TP
+\f[B]\-\-wikilink\-space\f[] MODE
+Space replacement mode for wiki links:
 
 .PP
 \fRdash\f[] \- Convert spaces to dashes: \fR[[Home Page]]\f[] → \fRhref="Home\-Page"\f[]
@@ -311,6 +349,8 @@ Default: `dash`.
 .fi
 
 .TP
+\f[B]\-\-wikilink\-extension\f[] EXT
+File extension to append to wiki link URLs (e.g. \fRhtml\f[], \fRmd\f[]).
 
 .TP
 \f[B]\-\-wikilink\-sanitize\f[], \f[B]\-\-no\-wikilink\-sanitize\f[]
@@ -358,6 +398,10 @@ Embed local images as base64 data URLs in HTML output. Only local images (file p
 .TP
 \f[B]\-\-image\-captions\f[], \f[B]\-\-no\-image\-captions\f[]
 Wrap images with title or alt text in \fR<figure>\f[] elements with \fR<figcaption>\f[]. Default: enabled in unified and MultiMarkdown modes; disabled in commonmark, gfm, and kramdown modes.
+
+.TP
+\f[B]\-\-title\-captions\-only\f[], \f[B]\-\-no\-title\-captions\-only\f[]
+Only add image captions when a title attribute is present (do not use alt text as caption fallback).
 
 .TP
 \f[B]\-\-emoji\-autocorrect\f[], \f[B]\-\-no\-emoji\-autocorrect\f[]
