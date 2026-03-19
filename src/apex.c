@@ -74,6 +74,185 @@ static char *apex_encode_hex_entities(const char *text, size_t len) {
 }
 
 /**
+ * Escape string for safe HTML attribute usage.
+ */
+static char *apex_escape_html_attr(const char *input) {
+    if (!input) return strdup("");
+
+    size_t len = strlen(input);
+    size_t max_len = len * 6 + 1; /* Worst case for &quot; */
+    char *out = malloc(max_len);
+    if (!out) return NULL;
+
+    char *w = out;
+    for (const char *p = input; *p; p++) {
+        switch (*p) {
+            case '&':
+                memcpy(w, "&amp;", 5);
+                w += 5;
+                break;
+            case '<':
+                memcpy(w, "&lt;", 4);
+                w += 4;
+                break;
+            case '>':
+                memcpy(w, "&gt;", 4);
+                w += 4;
+                break;
+            case '"':
+                memcpy(w, "&quot;", 6);
+                w += 6;
+                break;
+            case '\'':
+                memcpy(w, "&#39;", 5);
+                w += 5;
+                break;
+            default:
+                *w++ = *p;
+                break;
+        }
+    }
+    *w = '\0';
+    return out;
+}
+
+/**
+ * Normalize metadata key by removing spaces and lowercasing.
+ */
+static char *apex_normalize_meta_key(const char *key) {
+    if (!key) return NULL;
+    size_t len = strlen(key);
+    char *normalized = malloc(len + 1);
+    if (!normalized) return NULL;
+
+    char *out = normalized;
+    for (const char *in = key; *in; in++) {
+        if (!isspace((unsigned char)*in)) {
+            *out++ = (char)tolower((unsigned char)*in);
+        }
+    }
+    *out = '\0';
+    return normalized;
+}
+
+/**
+ * Keys handled elsewhere (title/lang/css/html header/footer/etc.) should not
+ * be emitted as generic <meta name="..."> tags.
+ */
+static bool apex_skip_generic_meta_key(const char *key) {
+    char *normalized = apex_normalize_meta_key(key);
+    if (!normalized) return false;
+
+    static const char *skip_keys[] = {
+        "title",
+        "css",
+        "language",
+        "htmlheader",
+        "htmlfooter",
+        "htmlheaderlevel",
+        "baseheaderlevel",
+        "quoteslanguage",
+        NULL
+    };
+
+    bool skip = false;
+    for (int i = 0; skip_keys[i]; i++) {
+        if (strcmp(normalized, skip_keys[i]) == 0) {
+            skip = true;
+            break;
+        }
+    }
+    free(normalized);
+    return skip;
+}
+
+/**
+ * Render metadata list to newline-separated generic HTML meta tags.
+ */
+static char *apex_render_generic_meta_tags(apex_metadata_item *metadata) {
+    if (!metadata) return NULL;
+
+    size_t capacity = 256;
+    size_t used = 0;
+    char *out = malloc(capacity);
+    if (!out) return NULL;
+    out[0] = '\0';
+
+    /* Metadata entries are prepended during parsing; reverse iteration restores
+     * source declaration order in generated head tags. */
+    size_t item_count = 0;
+    for (apex_metadata_item *it = metadata; it; it = it->next) item_count++;
+    if (item_count == 0) {
+        free(out);
+        return NULL;
+    }
+    apex_metadata_item **items = malloc(item_count * sizeof(apex_metadata_item *));
+    if (!items) {
+        free(out);
+        return NULL;
+    }
+    size_t item_index = 0;
+    for (apex_metadata_item *it = metadata; it; it = it->next) {
+        items[item_index++] = it;
+    }
+
+    for (size_t i = item_count; i > 0; i--) {
+        apex_metadata_item *item = items[i - 1];
+        if (!item->key || !item->value || apex_skip_generic_meta_key(item->key)) {
+            continue;
+        }
+
+        char *escaped_key = apex_escape_html_attr(item->key);
+        char *escaped_value = apex_escape_html_attr(item->value);
+        if (!escaped_key || !escaped_value) {
+            if (escaped_key) free(escaped_key);
+            if (escaped_value) free(escaped_value);
+            free(items);
+            free(out);
+            return NULL;
+        }
+
+        size_t needed = strlen(escaped_key) + strlen(escaped_value) + 36;
+        if (used + needed + 1 > capacity) {
+            size_t new_capacity = capacity * 2;
+            while (used + needed + 1 > new_capacity) {
+                new_capacity *= 2;
+            }
+            char *new_out = realloc(out, new_capacity);
+            if (!new_out) {
+                free(escaped_key);
+                free(escaped_value);
+                free(items);
+                free(out);
+                return NULL;
+            }
+            out = new_out;
+            capacity = new_capacity;
+        }
+
+        int written = snprintf(out + used, capacity - used,
+                               "  <meta name=\"%s\" content=\"%s\"/>\n",
+                               escaped_key, escaped_value);
+        free(escaped_key);
+        free(escaped_value);
+        if (written < 0) {
+            free(items);
+            free(out);
+            return NULL;
+        }
+        used += (size_t)written;
+    }
+    free(items);
+
+    if (used == 0) {
+        free(out);
+        return NULL;
+    }
+
+    return out;
+}
+
+/**
  * Base64 encode binary data
  * Caller must free the returned buffer.
  */
@@ -5354,6 +5533,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *html_footer_metadata = NULL;
     char *language_metadata = NULL;
     char *quotes_lang_metadata = NULL;
+    char *generic_meta_tags = NULL;
     int base_header_level = 1;  /* Default is 1 */
 
     if (metadata) {
@@ -5402,6 +5582,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
                 base_header_level = (int)level;
             }
         }
+
+        /* Collect remaining metadata as generic head meta tags. */
+        generic_meta_tags = apex_render_generic_meta_tags(metadata);
     }
 
     /* Adjust header levels and quote language based on metadata */
@@ -5856,9 +6039,35 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
         const char *footer_to_use = footer_with_scripts ? footer_with_scripts : html_footer_metadata;
 
+        /* Combine generated generic meta tags with any explicit HTML Header metadata. */
+        char *combined_head_metadata = NULL;
+        const char *head_to_use = html_header_metadata;
+        if (generic_meta_tags || html_header_metadata) {
+            size_t generic_len = generic_meta_tags ? strlen(generic_meta_tags) : 0;
+            size_t header_len = html_header_metadata ? strlen(html_header_metadata) : 0;
+            size_t newline_len = (generic_len > 0 && header_len > 0) ? 1 : 0;
+            combined_head_metadata = malloc(generic_len + newline_len + header_len + 1);
+            if (combined_head_metadata) {
+                size_t pos = 0;
+                if (generic_len > 0) {
+                    memcpy(combined_head_metadata + pos, generic_meta_tags, generic_len);
+                    pos += generic_len;
+                }
+                if (newline_len) {
+                    combined_head_metadata[pos++] = '\n';
+                }
+                if (header_len > 0) {
+                    memcpy(combined_head_metadata + pos, html_header_metadata, header_len);
+                    pos += header_len;
+                }
+                combined_head_metadata[pos] = '\0';
+                head_to_use = combined_head_metadata;
+            }
+        }
+
         PROFILE_START(standalone_wrap);
         char *document = apex_wrap_html_document(html, local_opts.document_title, css_paths, css_count,
-                                                 local_opts.code_highlighter, html_header_metadata, footer_to_use,
+                                                 local_opts.code_highlighter, head_to_use, footer_to_use,
                                                  language_metadata);
         PROFILE_END(standalone_wrap);
 
@@ -5873,6 +6082,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
         if (footer_with_scripts) {
             free(footer_with_scripts);
+        }
+        if (combined_head_metadata) {
+            free(combined_head_metadata);
         }
 
         /* If requested, replace stylesheet links with embedded CSS contents */
@@ -6002,6 +6214,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (html_footer_metadata) free(html_footer_metadata);
     if (language_metadata) free(language_metadata);
     if (quotes_lang_metadata) free(quotes_lang_metadata);
+    if (generic_meta_tags) free(generic_meta_tags);
     if (h1_title) free(h1_title);
 
     /* Remove blank lines within tables (applies to both pretty and non-pretty) */

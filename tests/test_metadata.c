@@ -183,6 +183,34 @@ void test_mmd_metadata_keys(void) {
     assert_contains(html, "</body>", "HTML Footer metadata before </body>");
     apex_free_string(html);
 
+    /* Test generic metadata tags in standalone HTML head */
+    opts.standalone = true;
+    const char *head_meta_doc =
+        "Title: This is the Title\n"
+        "Author: That would be me\n"
+        "Date: March 9, 2026\n\n"
+        "# Test";
+    html = apex_markdown_to_html(head_meta_doc, strlen(head_meta_doc), &opts);
+    assert_contains(html, "<meta name=\"Author\" content=\"That would be me\"/>", "Author metadata emitted as meta tag");
+    assert_contains(html, "<meta name=\"Date\" content=\"March 9, 2026\"/>", "Date metadata emitted as meta tag");
+    apex_free_string(html);
+
+    /* Test generic metadata tags in standalone HTML head (Unified mode) */
+    apex_options unified_head_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    unified_head_opts.standalone = true;
+    html = apex_markdown_to_html(head_meta_doc, strlen(head_meta_doc), &unified_head_opts);
+    assert_contains(html, "<meta name=\"Author\" content=\"That would be me\"/>", "Unified: author metadata emitted as meta tag");
+    assert_contains(html, "<meta name=\"Date\" content=\"March 9, 2026\"/>", "Unified: date metadata emitted as meta tag");
+    apex_free_string(html);
+
+    /* Test generic metadata tags in standalone HTML head (Kramdown mode) */
+    apex_options kramdown_head_opts = apex_options_for_mode(APEX_MODE_KRAMDOWN);
+    kramdown_head_opts.standalone = true;
+    html = apex_markdown_to_html(head_meta_doc, strlen(head_meta_doc), &kramdown_head_opts);
+    assert_contains(html, "<meta name=\"Author\" content=\"That would be me\"/>", "Kramdown: author metadata emitted as meta tag");
+    assert_contains(html, "<meta name=\"Date\" content=\"March 9, 2026\"/>", "Kramdown: date metadata emitted as meta tag");
+    apex_free_string(html);
+
     /* Test normalized key matching (spaces removed, case-insensitive) */
     opts.standalone = false;
     opts.enable_smart_typography = true;  /* Ensure smart typography is enabled */
