@@ -578,10 +578,42 @@ void test_file_includes(void) {
     assert_contains(html, "New York", "CSV cell content");
     apex_free_string(html);
 
+    /* Test Marked CSV include with embedded shorthand delimiter override */
+    const char *marked_csv_embedded_short = "Data:\n\n<<[data-semi.csv{;}]\n\nEnd";
+    html = apex_markdown_to_html(marked_csv_embedded_short, strlen(marked_csv_embedded_short), &opts);
+    assert_contains(html, "<table>", "Marked CSV include with embedded {;} converts to table");
+    assert_contains(html, "San Francisco", "Marked CSV include with embedded {;} parses semicolon-separated values");
+    assert_not_contains(html, "{;}", "Marked CSV include consumes embedded {;} delimiter token");
+    apex_free_string(html);
+
+    /* Test Marked CSV include with embedded verbose delimiter override */
+    const char *marked_csv_embedded_verbose = "Data:\n\n<<[data-semi.csv{delimiter=;}]\n\nEnd";
+    html = apex_markdown_to_html(marked_csv_embedded_verbose, strlen(marked_csv_embedded_verbose), &opts);
+    assert_contains(html, "<table>", "Marked CSV include with embedded {delimiter=;} converts to table");
+    assert_contains(html, "Alice", "Marked CSV include with embedded {delimiter=;} parses semicolon-separated values");
+    assert_not_contains(html, "{delimiter=;}", "Marked CSV include consumes embedded verbose delimiter token");
+    apex_free_string(html);
+
     /* Test TSV to table conversion */
     html = apex_markdown_to_html("{{data.tsv}}", 12, &opts);
     assert_contains(html, "<table>", "TSV converts to table");
     assert_contains(html, "Widget", "TSV data in table");
+    apex_free_string(html);
+
+    /* Test MMD CSV transclusion with embedded shorthand delimiter override */
+    const char *mmd_csv_embedded_short = "{{data-semi.csv{;}}}";
+    html = apex_markdown_to_html(mmd_csv_embedded_short, strlen(mmd_csv_embedded_short), &opts);
+    assert_contains(html, "<table>", "MMD CSV transclusion with embedded {;} converts to table");
+    assert_contains(html, "San Francisco", "MMD CSV transclusion with embedded {;} parses semicolon-separated values");
+    assert_not_contains(html, "{;}", "MMD CSV transclusion consumes embedded {;} delimiter token");
+    apex_free_string(html);
+
+    /* Test MMD CSV transclusion with embedded verbose delimiter override */
+    const char *mmd_csv_embedded_verbose = "{{data-semi.csv{delimiter=;}}}";
+    html = apex_markdown_to_html(mmd_csv_embedded_verbose, strlen(mmd_csv_embedded_verbose), &opts);
+    assert_contains(html, "<table>", "MMD CSV transclusion with embedded {delimiter=;} converts to table");
+    assert_contains(html, "Alice", "MMD CSV transclusion with embedded {delimiter=;} parses semicolon-separated values");
+    assert_not_contains(html, "{delimiter=;}", "MMD CSV transclusion consumes embedded verbose delimiter token");
     apex_free_string(html);
 
     /* Test percent-encoded path in include */
@@ -599,6 +631,22 @@ void test_file_includes(void) {
     html = apex_markdown_to_html("/code.py", 8, &opts);
     assert_contains(html, "<pre", "iA Writer code include");
     assert_contains(html, "def hello", "Code included");
+    apex_free_string(html);
+
+    /* Test iA Writer CSV include with verbose delimiter keyword */
+    const char *ia_csv_delim_override_doc = "/data-semi.csv {delimiter=;}";
+    html = apex_markdown_to_html(ia_csv_delim_override_doc, strlen(ia_csv_delim_override_doc), &opts);
+    assert_contains(html, "<table>", "iA Writer CSV include with {delimiter=;} converts to table");
+    assert_contains(html, "Alice", "iA Writer CSV include parses semicolon-separated values");
+    assert_not_contains(html, "{delimiter=;}", "iA Writer include consumes verbose delimiter token");
+    apex_free_string(html);
+
+    /* Test iA Writer CSV include with embedded shorthand delimiter (no whitespace) */
+    const char *ia_csv_embedded_short = "/data-semi.csv{;}";
+    html = apex_markdown_to_html(ia_csv_embedded_short, strlen(ia_csv_embedded_short), &opts);
+    assert_contains(html, "<table>", "iA Writer CSV include with embedded {;} converts to table");
+    assert_contains(html, "San Francisco", "iA Writer CSV include with embedded {;} parses semicolon-separated values");
+    assert_not_contains(html, "{;}", "iA Writer include consumes embedded shorthand delimiter token");
     apex_free_string(html);
 
     /* Test glob wildcard: *.md (should resolve to one of the .md fixtures) */

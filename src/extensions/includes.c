@@ -204,10 +204,10 @@ static apex_file_type_t apex_detect_file_type(const char *filepath) {
  * - Otherwise, a default '---' separator row is generated after the header.
  *   The second row is emitted as normal data.
  */
-char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
+char *apex_csv_to_table_with_delimiter(const char *csv_content, bool is_tsv, char delimiter_override) {
     if (!csv_content) return NULL;
 
-    char delim = is_tsv ? '\t' : ',';
+    char delim = delimiter_override ? delimiter_override : (is_tsv ? '\t' : ',');
     size_t len = strlen(csv_content);
     if (len == 0) return NULL;
 
@@ -528,6 +528,10 @@ char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
     free(rows);
 
     return output;
+}
+
+char *apex_csv_to_table(const char *csv_content, bool is_tsv) {
+    return apex_csv_to_table_with_delimiter(csv_content, is_tsv, '\0');
 }
 
 /**
@@ -1147,6 +1151,118 @@ static char *normalize_fence_delimiters(const char *text) {
     return output;
 }
 
+/* Parse optional delimiter override tokens used after CSV/TSV includes.
+ * Supported forms:
+ *   {;}
+ *   {delimiter=;}
+ *   {delimiter=\t}
+ */
+static bool parse_include_delimiter_override(const char *start, const char **after_out, char *delimiter_out) {
+    if (!start || !after_out || !delimiter_out) return false;
+
+    const char *p = start;
+    while (*p == ' ' || *p == '\t') p++;
+    if (*p != '{') return false;
+
+    const char *close = strchr(p + 1, '}');
+    if (!close || close <= p + 1) return false;
+
+    char inner[64];
+    size_t inner_len = (size_t)(close - (p + 1));
+    if (inner_len >= sizeof(inner)) return false;
+    memcpy(inner, p + 1, inner_len);
+    inner[inner_len] = '\0';
+
+    char *s = inner;
+    while (*s && isspace((unsigned char)*s)) s++;
+    char *e = s + strlen(s);
+    while (e > s && isspace((unsigned char)e[-1])) e--;
+    *e = '\0';
+
+    if (s[0] == '\0') return false;
+
+    /* Shorthand: {;} */
+    if (s[0] && s[1] == '\0') {
+        *delimiter_out = s[0];
+        *after_out = close + 1;
+        return true;
+    }
+
+    /* Verbose: {delimiter=;} */
+    const char *key = "delimiter";
+    size_t key_len = strlen(key);
+    if (strncasecmp(s, key, key_len) != 0) return false;
+    s += key_len;
+    while (*s && isspace((unsigned char)*s)) s++;
+    if (*s != '=') return false;
+    s++;
+    while (*s && isspace((unsigned char)*s)) s++;
+
+    if (s[0] == '\\' && s[1] == 't' && s[2] == '\0') {
+        *delimiter_out = '\t';
+        *after_out = close + 1;
+        return true;
+    }
+    if (s[0] && s[1] == '\0') {
+        *delimiter_out = s[0];
+        *after_out = close + 1;
+        return true;
+    }
+
+    return false;
+}
+
+/* Parse delimiter override embedded at end of filepath, e.g.:
+ *   data.csv{;}
+ *   data.csv{delimiter=;}
+ * If found, trims filepath in-place and sets delimiter_out.
+ */
+static bool parse_embedded_delimiter_override(char *filepath, char *delimiter_out) {
+    if (!filepath || !delimiter_out) return false;
+
+    char *brace = strrchr(filepath, '{');
+    if (!brace) return false;
+    size_t tail_len = strlen(brace);
+    if (tail_len < 3) return false; /* at least "{x}" */
+    if (brace[tail_len - 1] != '}') return false;
+
+    const char *after = NULL;
+    char parsed = '\0';
+    if (!parse_include_delimiter_override(brace, &after, &parsed)) return false;
+    if (after == NULL || *after != '\0') return false;
+
+    *brace = '\0';
+    *delimiter_out = parsed;
+    return true;
+}
+
+/* Find closing "}}" for MMD transclusion, allowing embedded single-brace
+ * segments inside filepath (e.g. {{data.csv{;}}}). */
+static const char *find_mmd_transclusion_end(const char *filepath_start) {
+    if (!filepath_start) return NULL;
+
+    int brace_depth = 0;
+    const char *p = filepath_start;
+    while (*p) {
+        if (p[0] == '{') {
+            brace_depth++;
+            p++;
+            continue;
+        }
+        if (p[0] == '}' && brace_depth > 0) {
+            brace_depth--;
+            p++;
+            continue;
+        }
+        if (p[0] == '}' && p[1] == '}' && brace_depth == 0) {
+            return p;
+        }
+        p++;
+    }
+
+    return NULL;
+}
+
 /**
  * Process file includes in text
  */
@@ -1210,9 +1326,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
             if (filepath_end > filepath_start && (filepath_end - filepath_start) < 1024) {
                 char filepath[1024];
                 size_t filepath_len = filepath_end - filepath_start;
+                char ia_delimiter_override = '\0';
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
                 percent_decode_inplace(filepath);
+                parse_embedded_delimiter_override(filepath, &ia_delimiter_override);
 
                 /* Resolve and check file exists */
                 char *resolved_path = resolve_path(filepath, effective_base_dir);
@@ -1230,7 +1348,13 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             if (to_insert) snprintf(to_insert, buf_size, "![](%s)\n", filepath);
                         } else if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
                             /* CSV/TSV: convert to table */
-                            to_insert = apex_csv_to_table(content, file_type == FILE_TYPE_TSV);
+                            char delimiter_override = ia_delimiter_override;
+                            const char *override_end = filepath_end;
+                            if (delimiter_override == '\0' &&
+                                parse_include_delimiter_override(filepath_end, &override_end, &delimiter_override)) {
+                                filepath_end = override_end;
+                            }
+                            to_insert = apex_csv_to_table_with_delimiter(content, file_type == FILE_TYPE_TSV, delimiter_override);
                         } else if (file_type == FILE_TYPE_CODE) {
                             /* Code: wrap in fenced code block */
                             const char *ext = strrchr(filepath, '.');
@@ -1291,15 +1415,17 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
         /* Look for MMD transclusion {{file}} */
         if (!processed_include && !in_code_span && read_pos[0] == '{' && read_pos[1] == '{') {
             const char *filepath_start = read_pos + 2;
-            const char *filepath_end = strstr(filepath_start, "}}");
+            const char *filepath_end = find_mmd_transclusion_end(filepath_start);
 
             if (filepath_end && (filepath_end - filepath_start) > 0 && (filepath_end - filepath_start) < 1024) {
                 /* Extract filepath */
                 int filepath_len = filepath_end - filepath_start;
                 char filepath[1024];
+                char mmd_delimiter_override = '\0';
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
                 percent_decode_inplace(filepath);
+                parse_embedded_delimiter_override(filepath, &mmd_delimiter_override);
 
                 /* Check for address specification [address] */
                 const char *address_start = filepath_end + 2;
@@ -1355,7 +1481,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
                         /* Convert CSV/TSV to table */
                         if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
-                            char *table = apex_csv_to_table(extracted_content, file_type == FILE_TYPE_TSV);
+                            char *table = apex_csv_to_table_with_delimiter(
+                                extracted_content,
+                                file_type == FILE_TYPE_TSV,
+                                mmd_delimiter_override
+                            );
                             if (table) {
                                 to_process = table;
                                 free_to_process = true;
@@ -1441,10 +1571,14 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 /* Extract filepath */
                 int filepath_len = filepath_end - filepath_start;
                 char filepath[1024];
+                char marked_delimiter_override = '\0';
                 if (filepath_len > 0 && filepath_len < (int)sizeof(filepath)) {
                     memcpy(filepath, filepath_start, filepath_len);
                     filepath[filepath_len] = '\0';
                     percent_decode_inplace(filepath);
+                    if (bracket_type == '[') {
+                        parse_embedded_delimiter_override(filepath, &marked_delimiter_override);
+                    }
 
                     /* Check for address specification [address] */
                     const char *address_start = filepath_end + 1;
@@ -1499,7 +1633,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
                                 /* Convert CSV/TSV to table */
                                 if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
-                                    char *table = apex_csv_to_table(extracted_content, file_type == FILE_TYPE_TSV);
+                                    char *table = apex_csv_to_table_with_delimiter(
+                                        extracted_content,
+                                        file_type == FILE_TYPE_TSV,
+                                        marked_delimiter_override
+                                    );
                                     if (table) {
                                         to_process = table;
                                         free_to_process = true;
@@ -1586,9 +1724,21 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
                     /* Skip past the include syntax */
                     if (address_end) {
-                        read_pos = address_end + 1;
+                        const char *override_end = address_end + 1;
+                        char delimiter_unused = '\0';
+                        if (parse_include_delimiter_override(address_end + 1, &override_end, &delimiter_unused)) {
+                            read_pos = override_end;
+                        } else {
+                            read_pos = address_end + 1;
+                        }
                     } else {
-                        read_pos = filepath_end + 1;
+                        const char *override_end = filepath_end + 1;
+                        char delimiter_unused = '\0';
+                        if (parse_include_delimiter_override(filepath_end + 1, &override_end, &delimiter_unused)) {
+                            read_pos = override_end;
+                        } else {
+                            read_pos = filepath_end + 1;
+                        }
                     }
                     if (address_spec) free_address_spec(address_spec);
                     processed_include = true;

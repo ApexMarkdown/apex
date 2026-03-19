@@ -39,6 +39,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 bool apex_file_exists(const char *filepath);
 
 char *apex_csv_to_table(const char *csv_content, bool is_tsv);
+char *apex_csv_to_table_with_delimiter(const char *csv_content, bool is_tsv, char delimiter_override);
 
 /**
  * Resolve wildcard path (e.g., file.* -> file.html)
