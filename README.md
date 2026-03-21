@@ -237,6 +237,10 @@ apex input.md --mode kramdown
 
 - `--pretty` - Pretty-print HTML with indentation
 
+- `--xhtml` - HTML5 output with XML-style self-closing void tags (`<br />`, `<meta charset="UTF-8" />`, etc.)
+
+- `--strict-xhtml` - Polyglot XHTML/XML for `application/xhtml+xml` consumers: XML declaration, XHTML namespace, `Content-Type` meta; implies `--xhtml` serialization. Cannot be combined with `--xhtml` (use `--strict-xhtml` alone).
+
 `--standalone` - Generate complete HTML document with `<html>`, `<head>`, `<body>`
 
 `--style FILE` / `--css FILE` - Link to CSS file(s) in document head (requires `--standalone`). Can be used multiple times or with comma-separated list (e.g., `--css style.css --css syntax.css` or `--css style.css,syntax.css`)
@@ -379,6 +383,8 @@ Options:
   --[no-]progress          Show progress indicator during processing (enabled by default for TTY)
   --plugins              Enable external/plugin processing
   --pretty               Pretty-print HTML with indentation and whitespace
+  --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />)
+  --strict-xhtml         Polyglot XHTML/XML (xmlns, application/xhtml+xml meta; implies --xhtml). Not with --xhtml.
   --reject               Reject all Critic Markup changes (revert edits)
   --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)
   --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)

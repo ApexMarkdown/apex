@@ -291,6 +291,60 @@ void test_pretty_html(void) {
 }
 
 /**
+ * Test --xhtml / --strict-xhtml HTML serialization
+ */
+void test_xhtml_output(void) {
+    int suite_failures = suite_start();
+    print_suite_title("XHTML Output Mode Tests", false, true);
+
+    apex_options opts = apex_options_default();
+    char *html;
+    const char *hr_md = "\n\n---\n\n";
+
+    /* --xhtml: self-closing void tags in fragment */
+    opts.xhtml = true;
+    html = apex_markdown_to_html(hr_md, strlen(hr_md), &opts);
+    assert_contains(html, "<hr />", "XHTML mode self-closes hr");
+    apex_free_string(html);
+
+    /* --xhtml standalone: charset meta self-closed, HTML5 doctype */
+    opts = apex_options_default();
+    opts.xhtml = true;
+    opts.standalone = true;
+    opts.document_title = "X";
+    html = apex_markdown_to_html("Hi", 2, &opts);
+    assert_contains(html, "<meta charset=\"UTF-8\" />", "XHTML standalone charset meta self-closed");
+    assert_contains(html, "<!DOCTYPE html>", "Still HTML5 doctype");
+    apex_free_string(html);
+
+    /* --strict-xhtml standalone: polyglot document */
+    opts = apex_options_default();
+    opts.strict_xhtml = true;
+    opts.standalone = true;
+    opts.document_title = "S";
+    html = apex_markdown_to_html("Hi", 2, &opts);
+    assert_contains(html, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "XML declaration");
+    assert_contains(html, "xmlns=\"http://www.w3.org/1999/xhtml\"", "XHTML namespace");
+    assert_contains(html, "application/xhtml+xml", "Strict Content-Type meta");
+    if (strstr(html, "<meta charset=") != NULL) {
+        test_result(false, "Strict mode should not emit separate charset meta");
+    } else {
+        test_result(true, "Strict mode uses Content-Type only for charset");
+    }
+    apex_free_string(html);
+
+    /* strict implies void serialization on fragments */
+    opts = apex_options_default();
+    opts.strict_xhtml = true;
+    html = apex_markdown_to_html(hr_md, strlen(hr_md), &opts);
+    assert_contains(html, "<hr />", "Strict mode self-closes void elements");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("XHTML Output Mode Tests", had_failures, false);
+}
+
+/**
  * Test terminal and terminal256 output format: ANSI output, list markers, and terminal_width option.
  */
 void test_terminal_output(void) {

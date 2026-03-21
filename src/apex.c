@@ -1,6 +1,7 @@
 #include "apex/apex.h"
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <sys/stat.h>
@@ -2718,6 +2719,8 @@ apex_options apex_options_default(void) {
     opts.github_pre_lang = true;
     opts.standalone = false;
     opts.pretty = false;
+    opts.xhtml = false;
+    opts.strict_xhtml = false;
     opts.stylesheet_paths = NULL;
     opts.stylesheet_count = 0;
     opts.document_title = NULL;
@@ -4162,6 +4165,190 @@ static char *apex_apply_widont_to_headings(const char *html) {
     return output;
 }
 
+static const char *apex_find_unquoted_gt(const char *p, const char *end) {
+    int quote = 0;
+    while (p < end) {
+        if (quote) {
+            if (*p == quote) quote = 0;
+            p++;
+            continue;
+        }
+        if (*p == '"' || *p == '\'') {
+            quote = *p;
+            p++;
+            continue;
+        }
+        if (*p == '>') return p;
+        p++;
+    }
+    return NULL;
+}
+
+static bool apex_html_void_element_name(const char *name, size_t nlen) {
+    static const char *void_tags[] = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr"
+    };
+    for (size_t t = 0; t < sizeof(void_tags) / sizeof(void_tags[0]); t++) {
+        const char *v = void_tags[t];
+        size_t vl = strlen(v);
+        if (vl != nlen) continue;
+        size_t j;
+        for (j = 0; j < nlen; j++) {
+            if (tolower((unsigned char)name[j]) != tolower((unsigned char)v[j])) break;
+        }
+        if (j == nlen) return true;
+    }
+    return false;
+}
+
+static int apex_html_buf_append(char **outp, size_t *cap, size_t *olen, const char *s, size_t n) {
+    while (*olen + n + 1 > *cap) {
+        size_t new_cap = *cap ? *cap * 2 : 8192;
+        char *nbuf = realloc(*outp, new_cap);
+        if (!nbuf) return -1;
+        *outp = nbuf;
+        *cap = new_cap;
+    }
+    memcpy(*outp + *olen, s, n);
+    *olen += n;
+    (*outp)[*olen] = '\0';
+    return 0;
+}
+
+/**
+ * Rewrite HTML void/empty elements to XML self-closing form (e.g. <br> -> <br />).
+ * Skips contents of script, style, and HTML comments. Returns newly allocated string or NULL.
+ */
+static char *apex_html_apply_xhtml_void_tags(const char *html) {
+    if (!html) return NULL;
+
+    size_t cap = strlen(html) * 2 + 256;
+    if (cap < 8192) cap = 8192;
+    char *out = malloc(cap);
+    if (!out) return NULL;
+    size_t olen = 0;
+
+    const char *r = html;
+    const char *end = html + strlen(html);
+
+    while (r < end) {
+        if (*r != '<') {
+            if (apex_html_buf_append(&out, &cap, &olen, r, 1) != 0) goto fail;
+            r++;
+            continue;
+        }
+
+        /* Comment */
+        if (r + 4 <= end && strncmp(r, "<!--", 4) == 0) {
+            const char *ce = strstr(r + 4, "-->");
+            if (!ce) {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+                break;
+            }
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(ce + 3 - r)) != 0) goto fail;
+            r = ce + 3;
+            continue;
+        }
+
+        /* CDATA */
+        if (r + 9 <= end && strncmp(r, "<![CDATA[", 9) == 0) {
+            const char *ce = strstr(r + 9, "]]>");
+            if (!ce) {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+                break;
+            }
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(ce + 3 - r)) != 0) goto fail;
+            r = ce + 3;
+            continue;
+        }
+
+        /* script */
+        if (r + 7 <= end && strncasecmp(r, "<script", 7) == 0) {
+            const char *close = strcasestr(r + 7, "</script>");
+            if (!close) {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+                break;
+            }
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(close + 9 - r)) != 0) goto fail;
+            r = close + 9;
+            continue;
+        }
+
+        /* style */
+        if (r + 6 <= end && strncasecmp(r, "<style", 6) == 0) {
+            const char *close = strcasestr(r + 6, "</style>");
+            if (!close) {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+                break;
+            }
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(close + 8 - r)) != 0) goto fail;
+            r = close + 8;
+            continue;
+        }
+
+        /* Declaration <!...> */
+        if (r + 1 < end && r[1] == '!') {
+            const char *gt = apex_find_unquoted_gt(r, end);
+            if (!gt) {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+                break;
+            }
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(gt + 1 - r)) != 0) goto fail;
+            r = gt + 1;
+            continue;
+        }
+
+        /* Closing tag */
+        if (r + 1 < end && r[1] == '/') {
+            const char *gt = apex_find_unquoted_gt(r, end);
+            if (!gt) {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+                break;
+            }
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(gt + 1 - r)) != 0) goto fail;
+            r = gt + 1;
+            continue;
+        }
+
+        /* Opening tag: extract name */
+        const char *name_start = r + 1;
+        while (name_start < end && isspace((unsigned char)*name_start)) name_start++;
+        const char *name_end = name_start;
+        while (name_end < end && (isalnum((unsigned char)*name_end) || *name_end == '-' || *name_end == '_' || *name_end == ':')) {
+            name_end++;
+        }
+        size_t name_len = (size_t)(name_end - name_start);
+
+        const char *gt = apex_find_unquoted_gt(r, end);
+        if (!gt) {
+            if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(end - r)) != 0) goto fail;
+            break;
+        }
+
+        if (name_len > 0 && apex_html_void_element_name(name_start, name_len)) {
+            const char *slash = gt - 1;
+            while (slash > r && isspace((unsigned char)*slash)) slash--;
+            if (slash >= r && *slash == '/') {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(gt + 1 - r)) != 0) goto fail;
+            } else {
+                if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(gt - r)) != 0) goto fail;
+                if (apex_html_buf_append(&out, &cap, &olen, " />", 3) != 0) goto fail;
+            }
+            r = gt + 1;
+            continue;
+        }
+
+        if (apex_html_buf_append(&out, &cap, &olen, r, (size_t)(gt + 1 - r)) != 0) goto fail;
+        r = gt + 1;
+    }
+
+    return out;
+fail:
+    free(out);
+    return NULL;
+}
+
 char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options *options) {
     if (!markdown || len == 0) {
         char *empty = malloc(1);
@@ -4182,6 +4369,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
     /* Use local_opts for rest of function (mutable) - shadow the const parameter */
     #define options (&local_opts)
+
+    if (local_opts.strict_xhtml) {
+        local_opts.xhtml = true;
+    }
 
     /* Man/man-html output: force disable smart typography so option names (e.g. --to) stay as literal -- */
     if (options->output_format == APEX_OUTPUT_MAN || options->output_format == APEX_OUTPUT_MAN_HTML) {
@@ -6068,7 +6259,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         PROFILE_START(standalone_wrap);
         char *document = apex_wrap_html_document(html, local_opts.document_title, css_paths, css_count,
                                                  local_opts.code_highlighter, head_to_use, footer_to_use,
-                                                 language_metadata);
+                                                 language_metadata, local_opts.strict_xhtml);
         PROFILE_END(standalone_wrap);
 
         /* Free temporary metadata stylesheet array if we allocated it */
@@ -6252,6 +6443,17 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* XHTML-style void elements (--xhtml / --strict-xhtml); run after pretty-print (HTML only) */
+    if (local_opts.xhtml && html && options->output_format == APEX_OUTPUT_HTML) {
+        PROFILE_START(xhtml_void_tags);
+        char *xhtml_out = apex_html_apply_xhtml_void_tags(html);
+        PROFILE_END(xhtml_void_tags);
+        if (xhtml_out) {
+            free(html);
+            html = xhtml_out;
+        }
+    }
+
     PROFILE_END(total);
 
     if (profiling_enabled()) {
@@ -6264,7 +6466,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 /**
  * Wrap HTML content in complete HTML5 document structure
  */
-char *apex_wrap_html_document(const char *content, const char *title, const char **stylesheet_paths, size_t stylesheet_count, const char *code_highlighter, const char *html_header, const char *html_footer, const char *language) {
+char *apex_wrap_html_document(const char *content, const char *title, const char **stylesheet_paths, size_t stylesheet_count, const char *code_highlighter, const char *html_header, const char *html_footer, const char *language, bool strict_xhtml) {
     if (!content) return NULL;
 
     const char *doc_title = title ? title : "Document";
@@ -6348,10 +6550,19 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
     const char *version_str = APEX_VERSION_STRING;
     if (!version_str) version_str = "unknown";
 
-    /* HTML5 doctype and opening */
+    /* HTML5 doctype and opening (polyglot XHTML when strict_xhtml) */
     /* Add body class if code highlighting is enabled */
     const char *body_class = code_highlighter ? " class=\"code-highlighted\"" : "";
-    int n = snprintf(write, remaining, "<!DOCTYPE html>\n<html lang=\"%s\">\n<head>\n", lang);
+    int n;
+    if (strict_xhtml) {
+        n = snprintf(write, remaining,
+                     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                     "<!DOCTYPE html>\n"
+                     "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"%s\" lang=\"%s\">\n<head>\n",
+                     lang, lang);
+    } else {
+        n = snprintf(write, remaining, "<!DOCTYPE html>\n<html lang=\"%s\">\n<head>\n", lang);
+    }
     if (n < 0 || (size_t)n >= remaining) {
         free(output);
         return strdup(content);
@@ -6360,7 +6571,12 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
     remaining -= n;
 
     /* Meta tags */
-    n = snprintf(write, remaining, "  <meta charset=\"UTF-8\">\n");
+    if (strict_xhtml) {
+        n = snprintf(write, remaining,
+                     "  <meta http-equiv=\"Content-Type\" content=\"application/xhtml+xml; charset=UTF-8\" />\n");
+    } else {
+        n = snprintf(write, remaining, "  <meta charset=\"UTF-8\">\n");
+    }
     if (n < 0 || (size_t)n >= remaining) {
         free(output);
         return strdup(content);

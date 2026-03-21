@@ -99,6 +99,8 @@ typedef struct apex_options {
     bool github_pre_lang;  /* Use GitHub code block language format */
     bool standalone;  /* Generate complete HTML document */
     bool pretty;      /* Pretty-print HTML with indentation */
+    bool xhtml;       /* HTML5 output with self-closing void/empty tags (<br />, <meta ... />) */
+    bool strict_xhtml; /* Polyglot XHTML/XML: xmlns, strict Content-Type meta, well-formed void tags (implies xhtml serialization) */
     const char **stylesheet_paths;  /* NULL-terminated array of CSS file paths to link in head */
     size_t stylesheet_count;        /* Number of stylesheets */
     const char *document_title;   /* Title for HTML document */
@@ -274,9 +276,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
  * @param html_header Raw HTML to insert in <head> section (NULL for none)
  * @param html_footer Raw HTML to append before </body> (NULL for none)
  * @param language Language code for <html lang> attribute (NULL for "en")
+ * @param strict_xhtml When true, emit polyglot XHTML document (XML declaration, xmlns, Content-Type meta; not combined with legacy HTML5 head)
  * @return Newly allocated HTML document string (must be freed with apex_free_string)
  */
-char *apex_wrap_html_document(const char *content, const char *title, const char **stylesheet_paths, size_t stylesheet_count, const char *code_highlighter, const char *html_header, const char *html_footer, const char *language);
+char *apex_wrap_html_document(const char *content, const char *title, const char **stylesheet_paths, size_t stylesheet_count, const char *code_highlighter, const char *html_header, const char *html_footer, const char *language, bool strict_xhtml);
 
 /**
  * Pretty-print HTML with proper indentation

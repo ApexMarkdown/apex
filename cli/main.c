@@ -677,6 +677,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]progress          Show progress indicator during processing (enabled by default for TTY)\n");
     fprintf(stderr, "  --plugins              Enable external/plugin processing\n");
     fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
+    fprintf(stderr, "  --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />)\n");
+    fprintf(stderr, "  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml.\n");
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
     fprintf(stderr, "  --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)\n");
     fprintf(stderr, "  --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)\n");
@@ -1953,6 +1955,10 @@ int main(int argc, char *argv[]) {
             options.document_title = argv[i];
         } else if (strcmp(argv[i], "--pretty") == 0) {
             options.pretty = true;
+        } else if (strcmp(argv[i], "--xhtml") == 0) {
+            options.xhtml = true;
+        } else if (strcmp(argv[i], "--strict-xhtml") == 0) {
+            options.strict_xhtml = true;
         } else if (strcmp(argv[i], "--accept") == 0) {
             options.enable_critic_markup = true;
             options.critic_mode = 0;  /* CRITIC_ACCEPT */
@@ -2273,6 +2279,11 @@ int main(int argc, char *argv[]) {
     /* If --combine was provided but no files, error out early */
     if (combine_mode && combine_file_count == 0) {
         fprintf(stderr, "Error: --combine requires at least one input file\n");
+        return 1;
+    }
+
+    if (options.xhtml && options.strict_xhtml) {
+        fprintf(stderr, "Error: --xhtml and --strict-xhtml cannot be used together (use --strict-xhtml alone).\n");
         return 1;
     }
 

@@ -70,6 +70,7 @@ void test_insert_syntax(void);
 void test_advanced_footnotes(void);
 void test_standalone_output(void);
 void test_pretty_html(void);
+void test_xhtml_output(void);
 void test_header_ids(void);
 void test_image_captions(void);
 void test_indices(void);
@@ -137,6 +138,7 @@ static test_suite suites[] = {
     { "advanced_footnotes",            test_advanced_footnotes },
     { "standalone_output",             test_standalone_output },
     { "pretty_html",                   test_pretty_html },
+    { "xhtml_output",                  test_xhtml_output },
     { "header_ids",                    test_header_ids },
     { "image_captions",                test_image_captions },
     { "image_embedding",               test_image_embedding },
