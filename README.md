@@ -241,6 +241,8 @@ apex input.md --mode kramdown
 
 - `--strict-xhtml` - Polyglot XHTML/XML for `application/xhtml+xml` consumers: XML declaration, XHTML namespace, `Content-Type` meta; implies `--xhtml` serialization. Cannot be combined with `--xhtml` (use `--strict-xhtml` alone).
 
+**Strict XHTML without `--standalone` (fragments):** Apex still applies void-tag serialization (`--xhtml`-style) but does **not** guarantee well-formed XML for the whole snippet. Raw HTML from Markdown (or `unsafe` HTML) can still be ill-formed (unbalanced tags, unescaped `&` / `<` / `>` in text, etc.). For full polyglot document scaffolding (XML declaration, namespace, `Content-Type` meta), use `--standalone`.
+
 `--standalone` - Generate complete HTML document with `<html>`, `<head>`, `<body>`
 
 `--style FILE` / `--css FILE` - Link to CSS file(s) in document head (requires `--standalone`). Can be used multiple times or with comma-separated list (e.g., `--css style.css --css syntax.css` or `--css style.css,syntax.css`)

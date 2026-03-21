@@ -113,6 +113,17 @@ Document title (requires \f[B]\-\-standalone\f[], default:
 Pretty\-print HTML with indentation and whitespace.
 
 .TP
+\f[B]\-\-xhtml\f[]
+HTML5 output with XML\-style self\-closing void tags (e.g., \fR<br />\f[], \fR<meta charset="UTF-8" />\f[], \fR<link ... />\f[]). Does not add \fRapplication/xhtml+xml\f[] metadata by default. Applied after pretty\-printing.
+
+.TP
+\f[B]\-\-strict\-xhtml\f[]
+Polyglot XHTML/XML oriented output: implies \fR\-\-xhtml\f[]\-style void\-element serialization, and with \fR\-\-standalone\f[] emits an XML declaration, XHTML namespace on \fR<html>\f[], and a single \fR<meta http\-equiv="Content-Type" content="application/xhtml+xml; charset=UTF\-8" />\f[] (no separate \fR<meta charset>\f[]). Mutually exclusive with \fR\-\-xhtml\f[]; use \fR\-\-strict\-xhtml\f[] alone.
+
+.PP
+\f[B]Strict XHTML fragments:\f[] Without \fR\-\-standalone\f[], strict mode still serializes void elements but does \f[B]not\f[] validate or repair arbitrary raw HTML. Unbalanced tags, unescaped \fR&\f[]/\fR<\f[]/\fR>\f[] in text nodes, or other ill\-formed markup may yield output that is not well\-formed XML. For full document\-level polyglot headers, use \fR\-\-standalone\f[].
+
+.TP
 \f[B]\-\-aria\f[]
 Add ARIA labels and accessibility attributes to HTML
 output. When enabled, adds:

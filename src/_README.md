@@ -121,6 +121,7 @@ one tool.
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
 - **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
+- **XHTML output**: `--xhtml` writes void/empty elements in XML form (`<br />`, `<meta ... />`). `--strict-xhtml` adds polyglot XHTML document scaffolding when used with `--standalone` (XML declaration, XHTML namespace, `Content-Type` meta). In **fragment** mode, strict mode does not validate or repair all markup as XML—raw HTML can still be ill-formed; see the main README.
 - **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# 😄 Support` → `id="smile-support"`), matching Pandoc's GFM behavior
 - **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs

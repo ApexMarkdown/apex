@@ -100,7 +100,7 @@ typedef struct apex_options {
     bool standalone;  /* Generate complete HTML document */
     bool pretty;      /* Pretty-print HTML with indentation */
     bool xhtml;       /* HTML5 output with self-closing void/empty tags (<br />, <meta ... />) */
-    bool strict_xhtml; /* Polyglot XHTML/XML: xmlns, strict Content-Type meta, well-formed void tags (implies xhtml serialization) */
+    bool strict_xhtml; /* Polyglot XHTML/XML: xmlns, strict Content-Type meta with --standalone; void-tag serialization always (implies xhtml). Fragments are not fully validated as XML if raw HTML is ill-formed */
     const char **stylesheet_paths;  /* NULL-terminated array of CSS file paths to link in head */
     size_t stylesheet_count;        /* Number of stylesheets */
     const char *document_title;   /* Title for HTML document */
