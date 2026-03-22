@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.103] - 2026-03-22
+
+### New
+
+- `i/--info` prints version, merged config (global, project, --meta-file, --meta),
+- `--extract-meta` and `-e KEY` merge per-file document metadata in order (mode-aware)
+- Add metadata_yaml_emit unit tests and man page entries.
+
 ## [0.1.102] - 2026-03-22
 
 ### Changed
@@ -2770,6 +2778,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.103]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.103
 [0.1.102]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.102
 [0.1.100]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.100
 [0.1.98]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.98

@@ -1,5 +1,5 @@
 
-[![Version: 0.1.100](https://img.shields.io/badge/Version-0.1.100-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1498/1498](https://img.shields.io/badge/Tests-1498/1498-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.102](https://img.shields.io/badge/Version-0.1.102-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1502/1502](https://img.shields.io/badge/Tests-1502/1502-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -301,7 +301,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.101
+Apex Markdown Processor v0.1.102
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -335,6 +335,9 @@ Options:
   --hardbreaks           Treat newlines as hard breaks
   --header-anchors        Generate <a> anchor tags instead of header IDs
   -h, --help             Show this help message
+  -i, --info             Show version, merged config (YAML), and plugin ids; to stdout without files, to stderr when processing files
+  --extract-meta         Print merged document metadata from input file(s) as YAML and exit
+  -e, --extract-meta-value KEY  Print one metadata value for KEY and exit (uses merged metadata from files, last wins)
   --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown
                           (modes auto-set format; use this to override in unified mode)
   --[no-]includes        Enable file inclusion (enabled by default in unified mode)
