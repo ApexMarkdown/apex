@@ -2,6 +2,8 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.101] - 2026-03-22
+
 ## [0.1.100] - 2026-03-22
 
 ## [0.1.99] - 2026-03-22
@@ -13,7 +15,7 @@ All notable changes to Apex will be documented in this file.
 
 ### New
 
-- Display inline images in terminal output using imgcat, viu, chafa, or cxatimg
+- Display inline images in terminal output using imgcat, chafa, viu, or catimg
 - `--[no-]terminal-images`, `--terminal-image-width
 - Remote images are downloaded to temp directory for terminal display (requires curl)
 - Rough tests for image output
@@ -2766,6 +2768,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.101]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.101
 [0.1.100]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.100
 [0.1.99]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.99
 [0.1.98]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.98
