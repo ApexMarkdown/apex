@@ -2,6 +2,29 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [0.1.99] - 2026-03-22
+
+### Changed
+
+- Homebrew formula bumped to 0.1.97.
+- Bump Homebrew formula to v0.1.98 with updated release tarball SHA256.
+
+### New
+
+- Display inline images in terminal output using imgcat, viu, chafa, or cxatimg
+- `--[no-]terminal-images`, `--terminal-image-width
+- Remote images are downloaded to temp directory for terminal display (requires curl)
+- Rough tests for image output
+
+### Improved
+
+- SwiftPM now exports the raw C API via the `ApexC` product.
+
+### Fixed
+
+- Avoid Swift module-name collisions so `apex_*` symbols are visible from Swift.
+- Include new module map
+
 ## [0.1.98] - 2026-03-19
 
 ### Changed
@@ -2741,6 +2764,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.99]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.99
 [0.1.98]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.98
 [0.1.97]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.97
 [0.1.96]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.96

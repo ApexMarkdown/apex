@@ -1,5 +1,5 @@
 
-[![Version: 0.1.97](https://img.shields.io/badge/Version-0.1.97-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1475/1475](https://img.shields.io/badge/Tests-1475/1475-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.98](https://img.shields.io/badge/Version-0.1.98-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1498/1498](https://img.shields.io/badge/Tests-1498/1498-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -121,10 +121,12 @@ one tool.
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
 - **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
+- **XHTML output**: `--xhtml` writes void/empty elements in XML form (`<br />`, `<meta ... />`). `--strict-xhtml` adds polyglot XHTML document scaffolding when used with `--standalone` (XML declaration, XHTML namespace, `Content-Type` meta). In **fragment** mode, strict mode does not validate or repair all markup as XML???raw HTML can still be ill-formed; see the main README.
 - **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# ???? Support` ??? `id="smile-support"`), matching Pandoc's GFM behavior
 - **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
 - **ARIA accessibility**: Add ARIA labels and accessibility attributes (`--aria`) for better screen reader support, including aria-label on TOC navigation, role attributes on figures and tables, and aria-describedby linking tables to their captions
+- **Terminal inline images**: With `-t terminal` / `-t terminal256`, when stdout is a TTY and a viewer is available on `PATH`, Markdown images are rendered as inline terminal graphics (viewer order: `imgcat`, `chafa`, `viu`, `catimg`). Width is controlled with `--terminal-image-width` (default 50 character cells). HTTP(S) URLs are downloaded with `curl` (60s timeout, 10 MiB max) to a temp file under `TMPDIR` or `/tmp`. Use `--no-terminal-images` to always show images as styled link text plus URL instead. Metadata: `terminal.inline_images` / `terminal_inline_images`, `terminal.image_width` / `terminal_image_width`.
 
 ### Advanced Features
 
@@ -237,12 +239,6 @@ apex input.md --mode kramdown
 
 - `--pretty` - Pretty-print HTML with indentation
 
-- `--xhtml` - HTML5 output with XML-style self-closing void tags (`<br />`, `<meta charset="UTF-8" />`, etc.)
-
-- `--strict-xhtml` - Polyglot XHTML/XML for `application/xhtml+xml` consumers: XML declaration, XHTML namespace, `Content-Type` meta; implies `--xhtml` serialization. Cannot be combined with `--xhtml` (use `--strict-xhtml` alone).
-
-**Strict XHTML without `--standalone` (fragments):** Apex still applies void-tag serialization (`--xhtml`-style) but does **not** guarantee well-formed XML for the whole snippet. Raw HTML from Markdown (or `unsafe` HTML) can still be ill-formed (unbalanced tags, unescaped `&` / `<` / `>` in text, etc.). For full polyglot document scaffolding (XML declaration, namespace, `Content-Type` meta), use `--standalone`.
-
 `--standalone` - Generate complete HTML document with `<html>`, `<head>`, `<body>`
 
 `--style FILE` / `--css FILE` - Link to CSS file(s) in document head (requires `--standalone`). Can be used multiple times or with comma-separated list (e.g., `--css style.css --css syntax.css` or `--css style.css,syntax.css`)
@@ -305,7 +301,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.97
+Apex Markdown Processor v0.1.98
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -386,7 +382,7 @@ Options:
   --plugins              Enable external/plugin processing
   --pretty               Pretty-print HTML with indentation and whitespace
   --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />)
-  --strict-xhtml         Polyglot XHTML/XML (xmlns, application/xhtml+xml meta; implies --xhtml). Not with --xhtml.
+  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml.
   --reject               Reject all Critic Markup changes (revert edits)
   --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)
   --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)
@@ -416,6 +412,8 @@ Options:
   --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)
   --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)
   --width N               Hard-wrap terminal/terminal256 output at N visible columns
+  --no-terminal-images    Do not render local images via imgcat/chafa/viu/catimg on terminal output
+  --terminal-image-width N  Max width/cells for terminal image tools (default: 50)
   -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)
 
 If no file is specified, reads from stdin.
