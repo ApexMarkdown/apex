@@ -402,20 +402,29 @@ void test_terminal_output(void) {
         free(rp);
     }
 
-    /* Remote images: fallback markdown (non-TTY: inline viewers not used) */
+    /* Remote images: link-style fallback when not inline (non-TTY: no download/viewer) */
     opts = apex_options_default();
     opts.output_format = APEX_OUTPUT_TERMINAL;
     out = apex_markdown_to_html("![r](https://ex.com/x.png)", 28, &opts);
-    assert_contains(out, "![", "Remote image: fallback markdown");
     assert_contains(out, "https://ex.com/x.png", "Remote image URL in fallback");
+    test_result(strstr(out, "![") == NULL, "Remote image fallback uses link style not markdown image");
     apex_free_string(out);
 
-    /* terminal_inline_images false: preserve markdown image syntax */
+    /* terminal_inline_images false: link-style fallback */
     opts = apex_options_default();
     opts.output_format = APEX_OUTPUT_TERMINAL;
     opts.terminal_inline_images = false;
     out = apex_markdown_to_html("![z](local.png)", 17, &opts);
-    assert_contains(out, "![", "terminal_inline_images off preserves image syntax");
+    assert_contains(out, "local.png", "Disabled inline: URL shown like a link");
+    test_result(strstr(out, "![") == NULL, "terminal_inline_images off uses link style not markdown image");
+    apex_free_string(out);
+
+    /* Missing local file: link-style fallback (non-TTY) */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("![missing](_/apex_test_missing_image_99.png)", 45, &opts);
+    assert_contains(out, "apex_test_missing_image_99.png", "Missing file: URL in link-style output");
+    test_result(strstr(out, "![") == NULL, "Missing local image uses link style not markdown image");
     apex_free_string(out);
 
     bool had_failures = suite_end(suite_failures);

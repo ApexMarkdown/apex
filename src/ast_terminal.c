@@ -1075,6 +1075,13 @@ static void serialize_inline(terminal_buffer *buf,
                              const terminal_theme *theme,
                              bool use_256_color);
 
+static void serialize_terminal_image_as_link(terminal_buffer *buf,
+                                             cmark_node *image,
+                                             const char *url,
+                                             const apex_options *options,
+                                             const terminal_theme *theme,
+                                             bool use_256_color);
+
 static void serialize_block(terminal_buffer *buf,
                             cmark_node *node,
                             const apex_options *options,
@@ -1213,6 +1220,93 @@ typedef enum {
 
 static term_img_tool_t g_term_img_tool = TERM_IMG_NONE;
 static int g_term_img_width = 50;
+static bool g_term_has_curl = false;
+
+static bool terminal_url_is_http(const char *url) {
+    if (!url || !*url) {
+        return false;
+    }
+    return (strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0);
+}
+
+static char *terminal_mkstemp_download_path(void) {
+    const char *td = getenv("TMPDIR");
+    if (!td || !*td) {
+        td = "/tmp";
+    }
+    char *tmpl = (char *)malloc(PATH_MAX);
+    if (!tmpl) {
+        return NULL;
+    }
+    if ((size_t)snprintf(tmpl, PATH_MAX, "%s/apex-timg-XXXXXX", td) >= PATH_MAX) {
+        free(tmpl);
+        return NULL;
+    }
+    int fd = mkstemp(tmpl);
+    if (fd < 0) {
+        free(tmpl);
+        return NULL;
+    }
+    close(fd);
+    return tmpl;
+}
+
+static bool terminal_curl_download(const char *url, const char *dest_path) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        int dnw = open("/dev/null", O_WRONLY);
+        if (dnw != -1) {
+            dup2(dnw, STDOUT_FILENO);
+            dup2(dnw, STDERR_FILENO);
+            close(dnw);
+        }
+        int dnr = open("/dev/null", O_RDONLY);
+        if (dnr != -1) {
+            dup2(dnr, STDIN_FILENO);
+            close(dnr);
+        }
+        execlp("curl", "curl", "-fsSL", "-m", "60", "-o", dest_path, url, (char *)NULL);
+        _exit(127);
+    }
+    if (pid < 0) {
+        return false;
+    }
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        unlink(dest_path);
+        return false;
+    }
+    struct stat st;
+    if (stat(dest_path, &st) != 0 || !S_ISREG(st.st_mode) || st.st_size == 0) {
+        unlink(dest_path);
+        return false;
+    }
+    if (st.st_size > 10 * 1024 * 1024) {
+        unlink(dest_path);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Download http(s) URL to a fresh temp file (caller must unlink + free).
+ * Returns NULL on failure; curl errors are suppressed (stderr to /dev/null).
+ */
+static char *terminal_fetch_http_image_temp(const char *url) {
+    if (!url || !g_term_has_curl || !terminal_url_is_http(url)) {
+        return NULL;
+    }
+    char *path = terminal_mkstemp_download_path();
+    if (!path) {
+        return NULL;
+    }
+    if (!terminal_curl_download(url, path)) {
+        free(path);
+        return NULL;
+    }
+    return path;
+}
 
 static bool executable_on_path(const char *name) {
     const char *pathenv = getenv("PATH");
@@ -1627,34 +1721,44 @@ static void serialize_inline(terminal_buffer *buf,
             bool did_inline = false;
             if (g_term_img_tool != TERM_IMG_NONE && url && options && options->terminal_inline_images &&
                 isatty(STDOUT_FILENO)) {
-                char *resolved = terminal_resolve_image_path(url, options->base_directory);
-                if (resolved) {
-                    struct stat st;
-                    if (stat(resolved, &st) == 0 && S_ISREG(st.st_mode) && access(resolved, R_OK) == 0) {
-                        char altbuf[512];
-                        collect_image_alt_text(node, altbuf, sizeof(altbuf));
-                        const char *title = cmark_node_get_title(node);
-                        if (run_terminal_image_tool(buf, g_term_img_tool, g_term_img_width, resolved)) {
-                            append_terminal_image_caption(buf, resolved, title, altbuf, options, theme,
-                                                          use_256_color);
-                            buffer_append_str(buf, "\n");
-                            did_inline = true;
+                char *path_to_show = NULL;
+                bool is_temp_http = false;
+
+                if (terminal_url_is_http(url)) {
+                    if (g_term_has_curl) {
+                        path_to_show = terminal_fetch_http_image_temp(url);
+                        is_temp_http = (path_to_show != NULL);
+                    }
+                } else {
+                    path_to_show = terminal_resolve_image_path(url, options->base_directory);
+                    if (path_to_show) {
+                        struct stat st;
+                        if (stat(path_to_show, &st) != 0 || !S_ISREG(st.st_mode) ||
+                            access(path_to_show, R_OK) != 0) {
+                            free(path_to_show);
+                            path_to_show = NULL;
                         }
                     }
-                    free(resolved);
+                }
+
+                if (path_to_show) {
+                    char altbuf[512];
+                    collect_image_alt_text(node, altbuf, sizeof(altbuf));
+                    const char *title = cmark_node_get_title(node);
+                    if (run_terminal_image_tool(buf, g_term_img_tool, g_term_img_width, path_to_show)) {
+                        append_terminal_image_caption(buf, path_to_show, title, altbuf, options, theme,
+                                                      use_256_color);
+                        buffer_append_str(buf, "\n");
+                        did_inline = true;
+                    }
+                    if (is_temp_http) {
+                        unlink(path_to_show);
+                    }
+                    free(path_to_show);
                 }
             }
             if (!did_inline) {
-                buffer_append_str(buf, "![");
-                for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
-                    serialize_inline(buf, child, options, theme, use_256_color);
-                }
-                buffer_append_str(buf, "]");
-                if (url && *url) {
-                    buffer_append_str(buf, "(");
-                    buffer_append_str(buf, url);
-                    buffer_append_str(buf, ")");
-                }
+                serialize_terminal_image_as_link(buf, node, url, options, theme, use_256_color);
             }
             break;
         }
@@ -1721,6 +1825,39 @@ static void serialize_inline(terminal_buffer *buf,
                 serialize_inline(buf, child, options, theme, use_256_color);
             }
             break;
+    }
+}
+
+/* Same visual pattern as CMARK_NODE_LINK: styled text then (url). */
+static void serialize_terminal_image_as_link(terminal_buffer *buf,
+                                             cmark_node *image,
+                                             const char *url,
+                                             const apex_options *options,
+                                             const terminal_theme *theme,
+                                             bool use_256_color) {
+    const char *class_style = theme_style_for_node(theme, image);
+    if (class_style) {
+        apply_style_string(buf, class_style, use_256_color);
+    } else if (theme && theme->link_text) {
+        apply_style_string(buf, theme->link_text, use_256_color);
+    } else {
+        apply_style_string(buf, "u b blue", use_256_color);
+    }
+    for (cmark_node *child = cmark_node_first_child(image); child; child = cmark_node_next(child)) {
+        serialize_inline(buf, child, options, theme, use_256_color);
+    }
+    append_ansi_reset(buf);
+    if (url && *url) {
+        buffer_append_str(buf, " ");
+        if (theme && theme->link_url) {
+            apply_style_string(buf, theme->link_url, use_256_color);
+        } else {
+            apply_style_string(buf, "cyan", use_256_color);
+        }
+        buffer_append_str(buf, "(");
+        buffer_append_str(buf, url);
+        buffer_append_str(buf, ")");
+        append_ansi_reset(buf);
     }
 }
 
@@ -2795,6 +2932,7 @@ char *apex_cmark_to_terminal(cmark_node *document,
 
     g_term_img_tool = TERM_IMG_NONE;
     g_term_img_width = 50;
+    g_term_has_curl = executable_on_path("curl");
     if (options && options->terminal_inline_images && isatty(STDOUT_FILENO)) {
         int w = options->terminal_image_width > 0 ? options->terminal_image_width : 50;
         g_term_img_width = w;
