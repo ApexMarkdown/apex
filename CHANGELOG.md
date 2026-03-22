@@ -8,11 +8,7 @@ All notable changes to Apex will be documented in this file.
 
 - Use `--to xhtml`/`-t strict-xhtml` for semantic reasons, original `--[strict-]xhtml` flags left in place
 
-## [0.1.101] - 2026-03-22
-
 ## [0.1.100] - 2026-03-22
-
-## [0.1.99] - 2026-03-22
 
 ### Changed
 
@@ -2775,9 +2771,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
 [0.1.102]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.102
-[0.1.101]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.101
 [0.1.100]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.100
-[0.1.99]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.99
 [0.1.98]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.98
 [0.1.97]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.97
 [0.1.96]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.96
