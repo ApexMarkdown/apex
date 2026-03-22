@@ -402,12 +402,51 @@ void test_terminal_output(void) {
         free(rp);
     }
 
+    /* Terminal images: inline rendering uses isatty(STDOUT_FILENO). Test output is
+     * captured to a string; under a normal CI pipe or non-TTY, stdout is not a TTY
+     * so these exercises never call curl or imgcat/chafa/viu/catimg. (Running the
+     * suite in an interactive terminal with those tools on PATH could take a
+     * different path for remote URLs.) */
+
     /* Remote images: link-style fallback when not inline (non-TTY: no download/viewer) */
     opts = apex_options_default();
     opts.output_format = APEX_OUTPUT_TERMINAL;
     out = apex_markdown_to_html("![r](https://ex.com/x.png)", 28, &opts);
     assert_contains(out, "https://ex.com/x.png", "Remote image URL in fallback");
     test_result(strstr(out, "![") == NULL, "Remote image fallback uses link style not markdown image");
+    apex_free_string(out);
+
+    /* http:// same as https for fallback */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("![h](http://ex.com/y.png)", 26, &opts);
+    assert_contains(out, "http://ex.com/y.png", "http remote image URL in fallback");
+    test_result(strstr(out, "![") == NULL, "http remote image uses link style not markdown image");
+    apex_free_string(out);
+
+    /* terminal256: same link-style fallback for images */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    out = apex_markdown_to_html("![z](https://ex.com/z.png)", 28, &opts);
+    assert_contains(out, "https://ex.com/z.png", "terminal256 remote image URL in fallback");
+    test_result(strstr(out, "![") == NULL, "terminal256 remote image uses link style");
+    apex_free_string(out);
+
+    /* Empty alt still emits (url) */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("![](https://ex.com/e.png)", 25, &opts);
+    assert_contains(out, "https://ex.com/e.png", "Empty-alt remote image URL in fallback");
+    test_result(strstr(out, "![") == NULL, "Empty-alt image uses link style");
+    apex_free_string(out);
+
+    /* terminal_image_width is ignored when not inlining (non-TTY); must not crash */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    opts.terminal_image_width = 72;
+    out = apex_markdown_to_html("![w](https://ex.com/w.png)", 28, &opts);
+    test_result(out != NULL && strstr(out, "https://ex.com/w.png") != NULL,
+                "terminal_image_width set with non-TTY still yields link-style remote image");
     apex_free_string(out);
 
     /* terminal_inline_images false: link-style fallback */
