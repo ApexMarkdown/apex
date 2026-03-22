@@ -77,6 +77,15 @@ Pagination is ignored when the output format is not a terminal format or when
 `-o/--output` is used to write to a file. You can also enable pagination via
 metadata or config by setting `paginate: true`.
 
+**--theme** *NAME*
+: Terminal theme name for **--to terminal** / **--to terminal256**. Themes are YAML files under `~/.config/apex/terminal/themes/` (see the Apex wiki).
+
+**--no-terminal-images**
+: Disable inline terminal rendering of Markdown images for **--to terminal** / **--to terminal256**. Default is to render when **stdout** is a TTY, a supported viewer exists on **PATH**, and inline images are enabled (see **METADATA CONTROL OF OPTIONS** for `terminal.inline_images`).
+
+**--terminal-image-width** *N*
+: Maximum width in character cells passed to the image viewer (default: 50). The first of **imgcat**, **chafa**, **viu**, **catimg** found on **PATH** is used, in that order. For `http://` and `https://` image URLs, Apex downloads with **curl** (60 second timeout, 10 MiB maximum size) to a file under **$TMPDIR** or `/tmp`, then displays it. If **curl** is missing, download fails, no viewer is found, **stdout** is not a TTY, or **--no-terminal-images** is set, images are emitted as styled link text and URL (like hyperlinks), not as Markdown `![alt](url)` syntax.
+
 **--code-highlight** *TOOL*
 : Use external tool for syntax highlighting of code blocks.
 *TOOL* must be **pygments** (or **p**, **pyg**), **skylighting**
@@ -615,6 +624,8 @@ directly.
 `bibliography`, `csl`, `title`, `style` (or `css`),
 `id-format`, `base-dir`, `mode`, `wikilink-space`,
 `wikilink-extension`
+
+**Terminal output metadata** (for **--to terminal** / **terminal256**): `terminal.theme` (`terminal_theme`), `terminal.width` (`terminal_width`, wrap width), `terminal.inline_images` (`terminal_inline_images`, boolean), `terminal.image_width` (`terminal_image_width`, viewer width in character cells), `terminal.paginate` (`terminal_paginate`), `paginate`, `code-highlight`, `code-highlight-theme`.
 
 **Example YAML front matter:**
 ```

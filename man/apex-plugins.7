@@ -11,7 +11,7 @@ apex\-plugins \- Apex plugin system for extending Markdown processing
 Apex supports a lightweight plugin system that lets you add new syntax and post\-processing behavior without patching the core. Plugins can be small scripts (Ruby, Python, etc.) or simple declarative regex rules defined in YAML.
 
 .PP
-Plugins are disabled by default so Apex’s performance and behavior are unchanged unless you explicitly opt in.
+Plugins are disabled by default so Apex's performance and behavior are unchanged unless you explicitly opt in.
 
 .SH ENABLING PLUGINS
 
@@ -26,7 +26,7 @@ Plugins are disabled by default so Apex’s performance and behavior are unchang
 .SS Metadata keys
 
 .PP
-In the document’s front matter, any of these keys are recognized (case\-insensitive):
+In the document's front matter, any of these keys are recognized (case\-insensitive):
 
 .IP \(bu 2
 \fRplugins\f[]
@@ -121,7 +121,7 @@ Good for: custom syntax (e.g. \fRAPEX_LIQUID_TAG_0\f[]), textual rewrites, addin
 Runs on the final HTML output after Apex finishes rendering.
 
 .IP \(bu 2
-Good for: wrapping elements in spans/divs, adding CSS classes, simple HTML post\-processing (e.g. turning \fR:memo:\f[] into \fR<span>\f[])
+Good for: wrapping elements in spans/divs, adding CSS classes, simple HTML post\-processing (e.g. turning \fR:emoji:\f[] into \fR<span>\f[])
 
 .PP
 Internally, plugins for each phase are run in a deterministic order:
@@ -141,7 +141,7 @@ Each plugin is defined by a manifest file:
 \f[B]File name\f[]: \fRplugin.yml\f[]
 
 .IP \(bu 2
-\f[B]Location\f[]: inside the plugin’s directory
+\f[B]Location\f[]: inside the plugin's directory
 
 .PP
 At minimum, a plugin needs:
@@ -168,7 +168,7 @@ From there, you choose one of two plugin types:
 \f[B]Declarative regex plugin\f[] \- No external code; in\-process regex search/replace. Declared with \fRpattern\f[] and \fRreplacement\f[] fields.
 
 .PP
-You can’t mix both styles in a single plugin; if \fRhandler.command\f[] is present, the plugin is treated as external.
+You can't mix both styles in a single plugin; if \fRhandler.command\f[] is present, the plugin is treated as external.
 
 .SS Metadata fields
 
@@ -262,7 +262,7 @@ If your plugin fails, times out, or prints nothing, Apex will treat it as a no\-
 .SH DECLARATIVE REGEX PLUGINS
 
 .PP
-For many cases, you don’t need a script at all. A declarative regex plugin uses \fRregex.h\f[] inside Apex for fast in\-process search/replace.
+For many cases, you don't need a script at all. A declarative regex plugin uses \fRregex.h\f[] inside Apex for fast in\-process search/replace.
 
 .SS Manifest example
 
@@ -273,7 +273,7 @@ For many cases, you don’t need a script at all. A declarative regex plugin use
 id: emoji\-span
 title: Emoji span wrapper
 author: Brett Terpstra
-description: Wrap :memo: markers in a span for styling
+description: Wrap :emoji: markers in a span for styling
 homepage: https://github.com/ApexMarkdown/apex\-emoji\-plugin
 repo: https://github.com/ApexMarkdown/apex\-emoji\-plugin.git
 phase: post_render
@@ -359,7 +359,7 @@ When Apex runs an external handler plugin, it sets:
 \f[B]\fRAPEX_PLUGIN_DIR\f[]\f[]
 
 .IP \(bu 2
-Filesystem path to the plugin’s directory (where \fRplugin.yml\f[] lives).
+Filesystem path to the plugin's directory (where \fRplugin.yml\f[] lives).
 
 .IP \(bu 2
 Useful for loading sidecar files, templates, etc.
@@ -386,7 +386,7 @@ When Apex is invoked on a file, this is the original path that was passed on the
 When Apex reads from stdin, \fRAPEX_FILE_PATH\f[] is set to the current \fRbase_directory\f[] (if one was set) or an empty string.
 
 .PP
-All of these variables apply only during the external command’s execution and are restored afterward.
+All of these variables apply only during the external command's execution and are restored afterward.
 
 .SH INSTALLING PLUGINS
 
@@ -440,7 +440,7 @@ apex \-\-uninstall\-plugin kbd
 .fi
 
 .PP
-The \fR\-\-uninstall\-plugin\f[] command verifies that the plugin directory exists, prompts for confirmation, and removes the plugin’s directory. Support data under \fR.../apex/support/<plugin\-id>/\f[] is left intact.
+The \fR\-\-uninstall\-plugin\f[] command verifies that the plugin directory exists, prompts for confirmation, and removes the plugin's directory. Support data under \fR.../apex/support/<plugin\-id>/\f[] is left intact.
 
 .PP
 This command only works for plugins installed in the user plugin directory. Project\-local plugins (in \fR.apex/plugins/\f[]) must be removed manually.
@@ -491,10 +491,10 @@ handler:
 .PP
 The Ruby script reads JSON from stdin, extracts \fRtext\f[], replaces each \fRAPEX_LIQUID_TAG_6\f[] occurrence with properly formatted \fR<kbd>\f[] HTML, and prints the full transformed text to stdout.
 
-.SS Example: \fR:memo:\f[] span plugin (declarative)
+.SS Example: \fR:emoji:\f[] span plugin (declarative)
 
 .PP
-This plugin turns \fR:memo:\f[] tokens in the final HTML into \fR<span class="emoji">:memo:</span>\f[].
+This plugin turns \fR:emoji:\f[] tokens in the final HTML into \fR<span class="emoji">:emoji:</span>\f[].
 
 .SS \fRplugin.yml\f[]
 
@@ -505,7 +505,7 @@ This plugin turns \fR:memo:\f[] tokens in the final HTML into \fR<span class="em
 id: emoji\-span
 title: Emoji span wrapper
 author: Brett Terpstra
-description: Wrap :memo: markers in a span for styling
+description: Wrap :emoji: markers in a span for styling
 homepage: https://github.com/ApexMarkdown/apex\-emoji\-plugin
 repo: https://github.com/ApexMarkdown/apex\-emoji\-plugin.git
 phase: post_render

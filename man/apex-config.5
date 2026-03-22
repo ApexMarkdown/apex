@@ -219,7 +219,7 @@ A document can override defaults from \fRconfig.yml\f[] or \fR\-\-meta\-file\f[]
 Explicit CLI flags still behave as final overrides where applicable
 
 .PP
-\f[B]Note:\f[] If \fRmode\f[] is specified in metadata (file or document), Apex resets options to that mode’s defaults before applying other metadata keys, so the mode behaves as if you had passed it on the command line first.
+\f[B]Note:\f[] If \fRmode\f[] is specified in metadata (file or document), Apex resets options to that mode's defaults before applying other metadata keys, so the mode behaves as if you had passed it on the command line first.
 
 .SH CONFIGURATION KEYS
 
@@ -396,7 +396,13 @@ Human\-readable language name used for quote styling (e.g. \fRenglish\f[], \fRfr
 \fRcode\-highlight\f[]
 
 .IP \(bu 2
-External syntax highlighting tool: \fRpygments\f[] (or \fRp\f[]/\fRpyg\f[]), \fRskylighting\f[] (or \fRs\f[]/\fRsky\f[]), or \fRfalse\f[]/\fRnone\f[] to disable
+External syntax highlighting tool: \fRpygments\f[] (or \fRp\f[]/\fRpyg\f[]), \fRskylighting\f[] (or \fRs\f[]/\fRsky\f[]), \fRshiki\f[] (or \fRsh\f[]), or \fRfalse\f[]/\fRnone\f[] to disable
+
+.IP \(bu 2
+\fRcode\-highlight\-theme\f[] / \fRcode_highlight_theme\f[]
+
+.IP \(bu 2
+Preferred syntax highlighting theme/style name. Maps to Pygments styles, Skylighting styles, or Shiki themes in both HTML and terminal/ANSI output. Use \fRapex \-\-list\-themes\f[] for an overview of built\-in themes.
 
 .PP
 You can also use arbitrary keys for your own templates and transforms; Apex simply passes them through to the metadata system so they can be referenced via \fR[%key]\f[] and \fR[%key:transform]\f[].

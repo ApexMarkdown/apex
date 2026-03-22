@@ -8,21 +8,12 @@ apex \- Unified Markdown processor supporting CommonMark, GFM, MultiMarkdown, an
 .SH SYNOPSIS
 
 .PP
-\f[B]apex\f[] [\f[I]options\f[]] [\f[I]file\f[]]
-
-.PP
-\f[B]apex\f[] \-\-combine [\f[I]files\f[]…]
-
-.PP
-\f[B]apex\f[] \-\-mmd\-merge [\f[I]index files\f[]…]
+\f[B]apex\f[] [\f[I]options\f[]] [\f[I]file\f[]] \f[B]apex\f[] \-\-combine [\f[I]files\f[]...] \f[B]apex\f[] \-\-mmd\-merge [\f[I]index files\f[]...]
 
 .SH DESCRIPTION
 
 .PP
-Apex is a unified Markdown processor that combines the best features from CommonMark, GitHub Flavored Markdown (GFM), MultiMarkdown, Kramdown, and Marked. One processor to rule them all.
-
-.PP
-If no file is specified, \f[B]apex\f[] reads from stdin.
+Apex is a unified Markdown processor that combines the best features from CommonMark, GitHub Flavored Markdown (GFM), MultiMarkdown, Kramdown, and Marked. One processor to rule them all. If no file is specified, \f[B]apex\f[] reads from stdin.
 
 .SH OPTIONS
 
@@ -40,59 +31,45 @@ Processor mode: \f[B]commonmark\f[], \f[B]gfm\f[], \f[B]mmd\f[] (or
 Write output to FILE instead of stdout.
 
 .TP
-\f[B]\-t\f[] FORMAT, \f[B]\-\-to\f[] FORMAT
-Output format: \f[B]html\f[] (default), \f[B]json\f[] (before filters), \f[B]json\-filtered\f[]/\f[B]ast\-json\f[]/\f[B]ast\f[] (after filters), \f[B]markdown\f[]/\f[B]md\f[], \f[B]mmd\f[], \f[B]commonmark\f[]/\f[B]cmark\f[], \f[B]kramdown\f[], \f[B]gfm\f[], \f[B]terminal\f[]/\f[B]cli\f[], \f[B]terminal256\f[], \f[B]man\f[], \f[B]man\-html\f[].
-
-.TP
-\f[B]\-s\f[], \f[B]\-\-standalone\f[]
-Generate complete HTML document with \fR<html>\f[], \fR<head>\f[],
-and \fR<body>\f[] tags.
-
-.TP
-\f[B]\-\-style\f[] FILE, \f[B]\-\-css\f[] FILE
-Link to CSS file(s) in document head (requires
-\f[B]\-\-standalone\f[]). Can be used multiple times or accept comma\-separated list (e.g., \fR\-\-css style.css \-\-css syntax.css\f[] or \fR\-\-css style.css,syntax.css\f[]). Overrides CSS metadata if specified.
-
-.TP
-\f[B]\-\-embed\-css\f[]
-When used with \f[B]\-\-css FILE\f[], read the CSS file(s) and embed
-their contents into \fR<style>\f[] tags in the document head instead of emitting \fR<link rel="stylesheet">\f[] tags. All specified stylesheets are embedded.
-
-.TP
-\f[B]\-\-width\f[] N
-Hard\-wrap terminal/terminal256 output at N visible columns.
-
-.TP
 \f[B]\-p\f[], \f[B]\-\-paginate\f[]
-Page terminal/cli/terminal256 output through a pager (\fR$APEX_PAGER\f[], then \fR$PAGER\f[], then \fRless \-R\f[]).
+When using \f[B]\-\-to terminal\f[], \f[B]\-\-to cli\f[], or \f[B]\-\-to terminal256\f[], send
+the rendered terminal output through a pager instead of writing directly to stdout. The pager command is chosen in this order:
+
+.IP \(bu 2
+If \fR$APEX_PAGER\f[] is set and non\-empty, Apex uses its value as the pager.
+
+.IP \(bu 2
+Otherwise, if \fR$PAGER\f[] is set and non\-empty, Apex uses that.
+
+.IP \(bu 2
+Otherwise, Apex falls back to \fRless \-R\f[]. Pagination is ignored when the output format is not a terminal format or when \fR\-o/\-\-output\f[] is used to write to a file. You can also enable pagination via metadata or config by setting \fRpaginate: true\f[].
 
 .TP
 \f[B]\-\-theme\f[] NAME
-Terminal theme name for \f[B]\-t terminal\f[]/\f[B]\-t terminal256\f[].
+Terminal theme name for \f[B]\-\-to terminal\f[] / \f[B]\-\-to terminal256\f[]. Themes are YAML files under \fR~/.config/apex/terminal/themes/\f[] (see the Apex wiki).
 
 .TP
+\f[B]\-\-no\-terminal\-images\f[]
+Disable inline terminal rendering of Markdown images for \f[B]\-\-to terminal\f[] / \f[B]\-\-to terminal256\f[]. Default is to render when \f[B]stdout\f[] is a TTY, a supported viewer exists on \f[B]PATH\f[], and inline images are enabled (see \f[B]METADATA CONTROL OF OPTIONS\f[] for \fRterminal.inline_images\f[]).
+
+.TP
+\f[B]\-\-terminal\-image\-width\f[] N
+Maximum width in character cells passed to the image viewer (default: 50). The first of \f[B]imgcat\f[], \f[B]chafa\f[], \f[B]viu\f[], \f[B]catimg\f[] found on \f[B]PATH\f[] is used, in that order. For \fRhttp://\f[] and \fRhttps://\f[] image URLs, Apex downloads with \f[B]curl\f[] (60 second timeout, 10 MiB maximum size) to a file under \f[B]$TMPDIR\f[] or \fR/tmp\f[], then displays it. If \f[B]curl\f[] is missing, download fails, no viewer is found, \f[B]stdout\f[] is not a TTY, or \f[B]\-\-no\-terminal\-images\f[] is set, images are emitted as styled link text and URL (like hyperlinks), not as Markdown \fR![alt](url)\f[] syntax.
 
 .TP
 \f[B]\-\-code\-highlight\f[] TOOL
 Use external tool for syntax highlighting of code blocks.
-\f[I]TOOL\f[] must be \f[B]pygments\f[] (or \f[B]p\f[], \f[B]pyg\f[]) or \f[B]skylighting\f[] (or \f[B]s\f[], \f[B]sky\f[]). Code blocks are sent to the external tool with their language specifier (if present) or with auto\-detection enabled. The highlighted HTML output replaces the original code block in the document.
+\f[I]TOOL\f[] must be \f[B]pygments\f[] (or \f[B]p\f[], \f[B]pyg\f[]), \f[B]skylighting\f[] (or \f[B]s\f[], \f[B]sky\f[]), or \f[B]shiki\f[] (or \f[B]sh\f[]). Code blocks are sent to the external tool with their language specifier (if present) or with auto\-detection enabled. Output format is HTML or ANSI depending on destination (e.g. \f[B]\-\-to terminal\f[]). Shiki requires a language when it cannot auto\-detect; on error, the block is left as plain text.
 
 .TP
 \f[B]\-\-code\-highlight\-theme\f[] THEME
-Theme/style name for external syntax highlighters (\f[B]pygments\f[], \f[B]skylighting\f[], \f[B]shiki\f[]).
-
-.TP
-\f[B]\-\-code\-hilight\-theme\f[] THEME
-Legacy alias for \f[B]\-\-code\-highlight\-theme\f[].
-
-.TP
-\f[B]\-\-list\-themes\f[]
-List available syntax highlighting themes for supported external highlighters.
+Theme/style name for external syntax highlighters.
+When using \f[B]pygments\f[], this maps to the Pygments style name in both HTML and terminal output (e.g. \fRstyle=THEME\f[]). When using \f[B]skylighting\f[], it maps to the Skylighting style name via \fR\-\-style THEME\f[] for both HTML and ANSI terminal output. When using \f[B]shiki\f[], it maps to the Shiki theme via \fR\-\-theme THEME\f[] for both HTML and terminal/ANSI output. See \f[B]\-\-list\-themes\f[] for available theme names for each tool.
 
 .TP
 \f[B]\-\-code\-line\-numbers\f[]
 Include line numbers in syntax\-highlighted code blocks.
-Requires \f[B]\-\-code\-highlight\f[]. When used with Pygments, adds \fRlinenos=1\f[] option. When used with Skylighting, adds \fR\-n\f[] flag.
+Requires \f[B]\-\-code\-highlight\f[]. When used with Pygments, adds \fRlinenos=1\f[] option. When used with Skylighting, adds \fR\-n\f[] flag. Shiki does not support line numbers in CLI mode.
 
 .TP
 \f[B]\-\-highlight\-language\-only\f[]
@@ -113,33 +90,16 @@ Document title (requires \f[B]\-\-standalone\f[], default:
 Pretty\-print HTML with indentation and whitespace.
 
 .TP
-\f[B]\-\-xhtml\f[]
-HTML5 output with XML\-style self\-closing void tags (e.g., \fR<br />\f[], \fR<meta charset="UTF-8" />\f[], \fR<link ... />\f[]). Does not add \fRapplication/xhtml+xml\f[] metadata by default. Applied after pretty\-printing.
-
-.TP
-\f[B]\-\-strict\-xhtml\f[]
-Polyglot XHTML/XML oriented output: implies \fR\-\-xhtml\f[]\-style void\-element serialization, and with \fR\-\-standalone\f[] emits an XML declaration, XHTML namespace on \fR<html>\f[], and a single \fR<meta http\-equiv="Content-Type" content="application/xhtml+xml; charset=UTF\-8" />\f[] (no separate \fR<meta charset>\f[]). Mutually exclusive with \fR\-\-xhtml\f[]; use \fR\-\-strict\-xhtml\f[] alone.
-
-.PP
-\f[B]Strict XHTML fragments:\f[] Without \fR\-\-standalone\f[], strict mode still serializes void elements but does \f[B]not\f[] validate or repair arbitrary raw HTML. Unbalanced tags, unescaped \fR&\f[]/\fR<\f[]/\fR>\f[] in text nodes, or other ill\-formed markup may yield output that is not well\-formed XML. For full document\-level polyglot headers, use \fR\-\-standalone\f[].
-
-.TP
 \f[B]\-\-aria\f[]
 Add ARIA labels and accessibility attributes to HTML
-output. When enabled, adds:
-
-.PP
-\fRaria\-label="Table of contents"\f[] to TOC navigation elements (\fR<nav class="toc">\f[])
+output. When enabled, adds: \fRaria\-label="Table of contents"\f[] to TOC navigation elements (\fR<nav class="toc">\f[]) \- \fRrole="figure"\f[] to \fR<figure>\f[] elements \- \fRrole="table"\f[] to \fR<table>\f[] elements table figures (if missing)
 
 .PP
 .nf
 \fR
-\- `role="figure"` to `<figure>` elements
-\- `role="table"` to `<table>` elements
 \- `id` attributes to `<figcaption>` elements within
-  table figures (if missing)
-\- `aria\-describedby` attributes to tables linking them
   to their captions
+\- `aria\-describedby` attributes to tables linking them
 
 \f[]
 .fi
@@ -148,6 +108,26 @@ output. When enabled, adds:
 This enhances screen reader support and makes the HTML output more accessible. Default: disabled.
 
 .TP
+\f[B]\-t\f[] FORMAT, \f[B]\-\-to\f[] FORMAT
+Output format. One of:
+
+.IP \(bu 2
+\f[B]html\f[] (default) \- Rendered HTML
+
+.IP \(bu 2
+\f[B]json\f[], \f[B]json\-filtered\f[], \f[B]ast\-json\f[], \f[B]ast\f[] \- JSON output (before or after filters)
+
+.IP \(bu 2
+\f[B]markdown\f[], \f[B]md\f[], \f[B]mmd\f[], \f[B]commonmark\f[], \f[B]cmark\f[], \f[B]kramdown\f[], \f[B]gfm\f[] \- Markdown variants
+
+.IP \(bu 2
+\f[B]terminal\f[], \f[B]cli\f[], \f[B]terminal256\f[] \- ANSI\-colored output for TTYs and terminal emulators
+
+.IP \(bu 2
+\f[B]man\f[] \- Man page roff source (.TH, .SH, etc.)
+
+.IP \(bu 2
+\f[B]man\-html\f[] \- Styled HTML man page (use \f[B]\-\-standalone\f[] for full page with nav sidebar) When using a terminal format, Apex emits ANSI\-colored output suitable for TTYs and terminal emulators.
 
 .SS Feature Flags
 
@@ -162,12 +142,12 @@ Reject all Critic Markup changes (revert edits).
 .TP
 \f[B]\-\-code\-highlight\f[] TOOL
 Use external tool for syntax highlighting of code blocks.
-\f[I]TOOL\f[] must be \f[B]pygments\f[] (or abbreviations \f[B]p\f[], \f[B]pyg\f[]) or \f[B]skylighting\f[] (or abbreviations \f[B]s\f[], \f[B]sky\f[]). Code blocks are sent to the external tool with their language specifier (if present) or with auto\-detection enabled. The highlighted HTML output replaces the original code block in the document.
+\f[I]TOOL\f[] must be \f[B]pygments\f[] (or \f[B]p\f[], \f[B]pyg\f[]), \f[B]skylighting\f[] (or \f[B]s\f[], \f[B]sky\f[]), or \f[B]shiki\f[] (or \f[B]sh\f[]). Code blocks are sent to the external tool with their language specifier (if present) or with auto\-detection enabled. Output format is HTML or ANSI depending on destination. Shiki falls back to plain text when language cannot be determined.
 
 .TP
 \f[B]\-\-code\-line\-numbers\f[]
 Include line numbers in syntax\-highlighted code blocks.
-Requires \f[B]\-\-code\-highlight\f[]. When used with Pygments, adds \fRlinenos=1\f[] option. When used with Skylighting, adds \fR\-n\f[] flag.
+Requires \f[B]\-\-code\-highlight\f[]. When used with Pygments, adds \fRlinenos=1\f[] option. When used with Skylighting, adds \fR\-n\f[] flag. Shiki does not support line numbers in CLI mode.
 
 .TP
 \f[B]\-\-highlight\-language\-only\f[]
@@ -176,18 +156,12 @@ specified (via \fR```language\f[] or IAL). Code blocks without a language will b
 
 .TP
 \f[B]\-\-includes\f[], \f[B]\-\-no\-includes\f[]
-Enable or disable file inclusion. Enabled by default in
-unified mode.
+Enable or disable file inclusion. Enabled by default in unified mode.
 
 .TP
 \f[B]\-\-transforms\f[], \f[B]\-\-no\-transforms\f[]
-Enable or disable metadata variable transforms (\fR[%key:transform]\f[]).
-
-.TP
-\f[B]\-\-one\-line\-definitions\f[], \f[B]\-\-no\-one\-line\-definitions\f[]
-Enable or disable one\-line definition list syntax (\fRTerm :: Definition\f[]).
-
-.TP
+Enable or disable metadata variable transforms
+(\fR[%key:transform]\f[]). When enabled, metadata values can be transformed (case conversion, string manipulation, regex replacement, date formatting, etc.) when inserted into the document. Enabled by default in unified mode.
 
 .TP
 \f[B]\-\-meta\-file\f[] FILE
@@ -202,55 +176,12 @@ Set a metadata key\-value pair. Can be used multiple times. Supports comma\-sepa
 Treat newlines as hard breaks.
 
 .TP
-\f[B]\-\-widont\f[]
-Prevent short widows in headings by inserting non\-breaking spaces
-(`&nbsp;`) between trailing words when their combined length is 10
-characters or less. Applies to h1\-h6 headings.
-
-
-.TP
-\f[B]\-\-code\-is\-poetry\f[]
-Treat code blocks without a language as poetry by adding the \fRpoetry\f[]
-class. Automatically enables **\-\-highlight\-language\-only**.
-
-
-.TP
-\f[B]\-\-markdown\-in\-html\f[], \f[B]\-\-no\-markdown\-in\-html\f[]
-Enable or disable markdown processing inside HTML blocks with
-`markdown` attributes. Enabled by default in unified mode.
-
-
-.TP
-\f[B]\-\-random\-footnote\-ids\f[]
-Use hash\-based footnote IDs (e.g., \fRfn\-a7b3c9d2\-1\f[]) instead of
-sequential IDs to avoid collisions when combining multiple documents.
-
-
-.TP
 \f[B]\-\-hashtags\f[]
 Convert \fR#tags\f[] into span\-wrapped hashtags with the \fRmkhashtag\f[] class.
 
 .TP
-\f[B]\-\-style\-hashtags\f[]
-Use the \fRmkstyledtag\f[] class instead of \fRmkhashtag\f[] for hashtags.
-Requires **\-\-hashtags**.
-
-
-.TP
-\f[B]\-\-proofreader\f[]
-Treat \fR==highlight==\f[] and \fR~~delete~~\f[] as CriticMarkup highlight and
-deletion syntax. Automatically enables CriticMarkup processing.
-
-
-.TP
 \f[B]\-\-hr\-page\-break\f[]
 Replace \fR<hr>\f[] elements with Marked\-style page break divs.
-
-.TP
-\f[B]\-\-title\-from\-h1\f[]
-Use the first H1 heading as the document title when no title is
-specified via **\-\-title** or metadata. Requires **\-\-standalone**.
-
 
 .TP
 \f[B]\-\-page\-break\-before\-footnotes\f[]
@@ -308,60 +239,13 @@ first item).
 \f[B]\-\-relaxed\-tables\f[], \f[B]\-\-no\-relaxed\-tables\f[]
 Enable relaxed table parsing (no separator rows required).
 
-.TP
-\f[B]\-\-per\-cell\-alignment\f[], \f[B]\-\-no\-per\-cell\-alignment\f[]
-Enable per\-cell alignment markers in tables. When enabled, cells
-starting with a colon (\fR:\f[]) are left\-aligned, ending with a colon (\fR:\f[]) are right\-aligned, or both (\fR:tent:\f[]) are center\-aligned. The colons are stripped from the output and replaced with \fRstyle="text\-align: ..."\f[] attributes. Default: enabled in unified mode, disabled in commonmark, gfm, mmd, and kramdown modes.
-
-.TP
-\f[B]\-\-captions\f[] POSITION
-Table caption position: \f[B]above\f[] or \f[B]below\f[] (default:
-\f[B]below\f[]). Controls where table captions appear relative to the table.
-
 .SS HTML and Links
 
-.TP
-\f[B]\-\-unsafe\f[], \f[B]\-\-no\-unsafe\f[]
-Allow raw HTML in output. Default: true for
-unified/mmd/kramdown modes, false for commonmark/gfm modes.
-
-.TP
-\f[B]\-\-autolink\f[], \f[B]\-\-no\-autolink\f[]
-Enable autolinking of URLs and email addresses. Default:
-enabled in GFM, MultiMarkdown, Kramdown, and unified modes; disabled in CommonMark mode.
-
-.TP
-\f[B]\-\-obfuscate\-emails\f[]
-Obfuscate email links and text using HTML entities
-(hex\-encoded).
-
-.TP
-\f[B]\-\-wikilink\-space\f[] MODE
-Space replacement mode for wiki links:
-
 .PP
-\fRdash\f[] \- Convert spaces to dashes: \fR[[Home Page]]\f[] → \fRhref="Home\-Page"\f[]
-
-.PP
-\fRnone\f[] \- Remove spaces: \fR[[Home Page]]\f[] → \fRhref="HomePage"\f[]
-
-.PP
-\fRunderscore\f[] \- Convert spaces to underscores: \fR[[Home Page]]\f[] → \fRhref="Home_Page"\f[]
+\fRdash\f[] \- Convert spaces to dashes: \fR[[Home Page]]\f[] → \fRhref="Home\-Page"\f[] \fRnone\f[] \- Remove spaces: \fR[[Home Page]]\f[] → \fRhref="HomePage"\f[] \fRunderscore\f[] \- Convert spaces to underscores: \fR[[Home Page]]\f[] → \fRhref="Home_Page"\f[] Default: \fRdash\f[].
 
 .PP
 \fRspace\f[] \- Keep spaces (rendered as \fR%%20\f[] in HTML): \fR[[Home Page]]\f[] → \fRhref="Home%20Page"\f[]
-
-.PP
-.nf
-\fR
-Default: `dash`.
-
-\f[]
-.fi
-
-.TP
-\f[B]\-\-wikilink\-extension\f[] EXT
-File extension to append to wiki link URLs (e.g. \fRhtml\f[], \fRmd\f[]).
 
 .TP
 \f[B]\-\-wikilink\-sanitize\f[], \f[B]\-\-no\-wikilink\-sanitize\f[]
@@ -383,104 +267,46 @@ Replaces non\-ascii and any non\-alphanumeric ascii characters with the space\-m
 Removes duplicate space\-mode characters
 
 .IP \(bu 2
-Removes leading and trailing space\-mode characters
-
-.PP
-For example, with \fR\-\-wikilink\-sanitize \-\-wikilink\-space dash\f[]:
-
-.PP
-\fR[[O'Brien's Page]]\f[] → \fRhref="obriens\-page"\f[]
-
-.PP
-\fR[[Hello   World!!!]]\f[] → \fRhref="hello\-world"\f[]
-
-.PP
-\fR[[path/to/FILE.MD]]\f[] → \fRhref="path/to/file.md"\f[]
-
-.PP
-Default: disabled.
+Removes leading and trailing space\-mode characters For example, with \fR\-\-wikilink\-sanitize \-\-wikilink\-space dash\f[]: \fR[[O'Brien's Page]]\f[] → \fRhref="obriens\-page"\f[] \fR[[Hello   World!!!]]\f[] → \fRhref="hello\-world"\f[] \fR[[path/to/FILE.MD]]\f[] → \fRhref="path/to/file.md"\f[] Default: disabled.
 
 .SS Image Embedding
 
-.TP
-\f[B]\-\-embed\-images\f[]
-Embed local images as base64 data URLs in HTML output. Only local images (file paths) are embedded; remote images (http://, https://) are not processed. Images are read from the filesystem and encoded as base64 data URLs (e.g., \fRdata:image/png;base64,...\f[]). Relative paths are resolved using the base directory (see \f[B]\-\-base\-dir\f[]).
-
-.TP
-\f[B]\-\-image\-captions\f[], \f[B]\-\-no\-image\-captions\f[]
-Wrap images with title or alt text in \fR<figure>\f[] elements with \fR<figcaption>\f[]. Default: enabled in unified and MultiMarkdown modes; disabled in commonmark, gfm, and kramdown modes.
-
-.TP
-\f[B]\-\-title\-captions\-only\f[], \f[B]\-\-no\-title\-captions\-only\f[]
-Only add image captions when a title attribute is present (do not use alt text as caption fallback).
-
-.TP
-\f[B]\-\-emoji\-autocorrect\f[], \f[B]\-\-no\-emoji\-autocorrect\f[]
-Convert emoji names (e.g., \fR:rocket:\f[]) to Unicode emoji characters. Default: enabled in unified mode; disabled in other modes.
+.PP
+\f[B]\-\-embed\-images\f[] :   Embed local images as base64 data URLs in HTML output. Only local images (file paths) are embedded; remote images (http://, https://) are not processed. Images are read from the filesystem and encoded as base64 data URLs (e.g., \fRdata:image/png;base64,...\f[]). Relative paths are resolved using the base directory (see \f[B]\-\-base\-dir\f[]). \f[B]\-\-image\-captions\f[], \f[B]\-\-no\-image\-captions\f[] :   Wrap images with title or alt text in \fR<figure>\f[] elements with \fR<figcaption>\f[]. Default: enabled in unified and MultiMarkdown modes; disabled in commonmark, gfm, and kramdown modes. \f[B]\-\-emoji\-autocorrect\f[], \f[B]\-\-no\-emoji\-autocorrect\f[] :   Convert emoji names (e.g., \fR:rocket:\f[]) to Unicode emoji characters. Default: enabled in unified mode; disabled in other modes.
 
 .SS Path Resolution
 
-.TP
-\f[B]\-\-base\-dir\f[] DIR
-Base directory for resolving relative paths. Used for:
-\- Image embedding (with **\-\-embed\-images**)
-\- File includes/transclusions
-\- Relative path resolution when reading from stdin or
-
-  when the working directory differs from the document
-  location
-
+.PP
+\f[B]\-\-base\-dir\f[] \f[I]DIR\f[] :   Base directory for resolving relative paths. Used for: \- Image embedding (with \f[B]\-\-embed\-images\f[]) \- File includes/transclusions when the working directory differs from the document location
 
 .PP
-If not specified and reading from a file, the base directory is automatically set to the input file’s directory. When reading from stdin, this flag must be used to resolve relative paths.
+.nf
+\fR
+\- Relative path resolution when reading from stdin or
+
+\f[]
+.fi
+
+.PP
+If not specified and reading from a file, the base directory is automatically set to the input file's directory. When reading from stdin, this flag must be used to resolve relative paths.
 
 .SS Superscript/Subscript
 
-.TP
-\f[B]\-\-sup\-sub\f[], \f[B]\-\-no\-sup\-sub\f[]
-Enable MultiMarkdown\-style superscript and subscript syntax. The \fR<sup>\f[] character creates superscript for the text immediately following it (stops at space or punctuation). The \fR~\f[] character creates subscript when used within a word/identifier (e.g., \fRH~2~O\f[] creates H₂O). When tildes are at word boundaries (e.g., \fR~text~\f[]), they create underline instead. Default: enabled in unified and MultiMarkdown modes.
+.PP
+\f[B]\-\-sup\-sub\f[], \f[B]\-\-no\-sup\-sub\f[] :   Enable MultiMarkdown\-style superscript and subscript syntax. The \fR^\f[] character creates superscript for the text immediately following it (stops at space or punctuation). The \fR~\f[] character creates subscript when used within a word/identifier (e.g., \fRH~2~O\f[] creates H₂O). When tildes are at word boundaries (e.g., \fR~text~\f[]), they create underline instead. Default: enabled in unified and MultiMarkdown modes. \f[B]\-\-strikethrough\f[], \f[B]\-\-no\-strikethrough\f[] :   Enable or disable GFM\-style strikethrough processing (\fR~~text~~\f[]). When enabled, \fR~~text~~\f[] renders as \fR<del>text</del>\f[]. Default: enabled in GFM and unified modes; disabled in commonmark, mmd, and kramdown modes. \f[B]\-\-divs\f[], \f[B]\-\-no\-divs\f[]
 
 .TP
-\f[B]\-\-strikethrough\f[], \f[B]\-\-no\-strikethrough\f[]
-Enable or disable GFM\-style strikethrough processing (\fR~~text~~\f[]). When enabled, \fR~~text~~\f[] renders as \fR<del>text</del>\f[]. Default: enabled in GFM and unified modes; disabled in commonmark, mmd, and kramdown modes.
+:   Enable or disable Pandoc fenced divs syntax (\fR:::: {#id .class} ... :::::\f[]). Fenced divs allow you to create HTML block elements with attributes using a special fence syntax. By default, fenced divs create \fR<div>\f[] elements, but you can specify different block types using the \fR>blocktype\f[] syntax (e.g., `
 
-.TP
-\f[B]\-\-divs\f[], \f[B]\-\-no\-divs\f[]
-Enable or disable Pandoc fenced divs syntax (\fR::::: {#id .class} ... :::::\f[]). Fenced divs allow you to create HTML block elements with attributes using a special fence syntax. By default, fenced divs create \fR<div>\f[] elements, but you can specify different block types using the \fR>blocktype\f[] syntax (e.g., \fR::: >aside {.sidebar} ... :::\f[] creates an \fR<aside>\f[] element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
+aside {.sidebar} … :::\fRcreates an\f[]` element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
 
-.TP
-\f[B]\-\-spans\f[], \f[B]\-\-no\-spans\f[]
-Enable or disable Pandoc\-style bracketed spans syntax (\fR[text]{#id .class key="val"}\f[]). Bracketed spans allow you to create HTML \fR<span>\f[] elements with attributes. The text inside the brackets is processed as markdown. If the bracketed text matches a reference link definition, it will be treated as a link instead of a span. Default: enabled in unified mode only.
+
+\f[B]\-\-spans\f[], \f[B]\-\-no\-spans\f[] :   Enable or disable Pandoc\-style bracketed spans syntax (\fR[text]{#id .class key="val"}\f[]). Bracketed spans allow you to create HTML \fR<span>\f[] elements with attributes. The text inside the brackets is processed as markdown. If the bracketed text matches a reference link definition, it will be treated as a link instead of a span. Default: enabled in unified mode only.
 
 .SS Citations and Bibliography
 
-.TP
-\f[B]\-\-bibliography\f[] FILE
-Bibliography file in BibTeX, CSL JSON, or CSL YAML format.
-Can be specified multiple times to load multiple bibliography files. Citations are automatically enabled when this option is used. Bibliography can also be specified in document metadata.
-
-.TP
-\f[B]\-\-csl\f[] FILE
-Citation Style Language (CSL) file for formatting
-citations and bibliography. Citations are automatically enabled when this option is used. CSL file can also be specified in document metadata.
-
-.TP
-\f[B]\-\-no\-bibliography\f[]
-Suppress bibliography output even when citations are
-present.
-
-.TP
-\f[B]\-\-link\-citations\f[]
-Link citations to their corresponding bibliography
-entries. Citations will include \fRhref\f[] attributes pointing to the bibliography entry.
-
-.TP
-\f[B]\-\-show\-tooltips\f[]
-Show tooltips on citations when hovering (requires CSS
-support).
-
 .PP
-Citation syntax is supported in MultiMarkdown and unified modes:
+\f[B]\-\-bibliography\f[] \f[I]FILE\f[] : Bibliography file in BibTeX, CSL JSON, or CSL YAML format. Can be specified multiple times to load multiple bibliography files. Citations are automatically enabled when this option is used. Bibliography can also be specified in document metadata. \f[B]\-\-csl\f[] \f[I]FILE\f[] : Citation Style Language (CSL) file for formatting citations and bibliography. Citations are automatically enabled when this option is used. CSL file can also be specified in document metadata. \f[B]\-\-no\-bibliography\f[] : Suppress bibliography output even when citations are present. \f[B]\-\-link\-citations\f[] : Link citations to their corresponding bibliography entries. Citations will include \fRhref\f[] attributes pointing to the bibliography entry. \f[B]\-\-show\-tooltips\f[] : Show tooltips on citations when hovering (requires CSS support). Citation syntax is supported in MultiMarkdown and unified modes:
 
 .IP \(bu 2
 Pandoc: \fR[@key]\f[], \fR[@key1; @key2]\f[], \fR@key\f[]
@@ -489,128 +315,82 @@ Pandoc: \fR[@key]\f[], \fR[@key1; @key2]\f[], \fR@key\f[]
 MultiMarkdown: \fR[#key]\f[]
 
 .IP \(bu 2
-mmark: \fR[@RFC1234]\f[]
-
-.PP
-Bibliography is inserted at the \fR<!\-\- REFERENCES \-\->\f[] marker or appended to the end of the document if no marker is found.
+mmark: \fR[@RFC1234]\f[] Bibliography is inserted at the \fR<!\-\- REFERENCES \-\->\f[] marker or appended to the end of the document if no marker is found.
 
 .SS Indices
 
-.TP
-\f[B]\-\-indices\f[]
-Enable index processing. Supports both mmark and TextIndex
-syntax. Default: enabled in MultiMarkdown and unified modes.
-
-.TP
-\f[B]\-\-no\-indices\f[]
-Disable index processing.
-
-.TP
-\f[B]\-\-no\-index\f[]
-Suppress index generation at the end of the document.
-Index markers are still created in the document, but the index section is not generated.
+.PP
+\f[B]\-\-indices\f[] syntax. Default: enabled in MultiMarkdown and unified modes.
 
 .PP
-Index syntax is supported in MultiMarkdown and unified modes:
-
-.IP \(bu 2
-\f[B]mmark syntax\f[]: \fR(!item)\f[], \fR(!item, subitem)\f[], `(!!item,
-subitem)` for primary entries
-
-.IP \(bu 2
-\f[B]TextIndex syntax\f[]: \fRword{^}\f[], \fR[term]{^}\f[], \fR{^params}\f[]
+: Enable index processing. Supports both mmark and TextIndex \f[B]\-\-no\-indices\f[] :   Disable index processing. \f[B]\-\-no\-index\f[] Index markers are still created in the document, but the index section is not generated.
 
 .PP
-The index is automatically generated at the end of the document or at the \fR<!\-\-INDEX\-\->\f[] marker if present. Entries are sorted alphabetically and can be grouped by first letter.
+: Suppress index generation at the end of the document. Index syntax is supported in MultiMarkdown and unified modes:
+
+.IP \(bu 2
+\f[B]mmark syntax\f[]: \fR(!item)\f[], \fR(!item, subitem)\f[], \fR(!!item, subitem)\f[] for primary entries
+
+.IP \(bu 2
+\f[B]TextIndex syntax\f[]: \fRword{^}\f[], \fR[term]{^}\f[], \fR{^params}\f[] The index is automatically generated at the end of the document or at the \fR<!\-\-INDEX\-\->\f[] marker if present. Entries are sorted alphabetically and can be grouped by first letter.
 
 .SS AST Filters
 
-.TP
-\f[B]\-\-filter\f[] NAME
-Run a single AST filter from the user filters directory
-(\fR$XDG_CONFIG_HOME/apex/filters\f[] or \fR~/.config/apex/filters\f[]). \f[I]NAME\f[] is the basename of an executable that reads Pandoc JSON from stdin and writes Pandoc JSON to stdout.
+.PP
+\f[B]\-\-filter\f[] \f[I]NAME\f[] (\fR$XDG_CONFIG_HOME/apex/filters\f[] or \fR~/.config/apex/filters\f[]). \f[I]NAME\f[] is the basename of an executable that reads Pandoc JSON from stdin and writes Pandoc JSON to stdout.
 
-.TP
-\f[B]\-\-filters\f[]
-Run all executable files in the user filters directory, in sorted
-filename order. Directory filters run first if \f[B]\-\-filter\f[] is also used.
+.PP
+: Run a single AST filter from the user filters directory \f[B]\-\-filters\f[] filename order. Directory filters run first if \f[B]\-\-filter\f[] is also used.
 
-.TP
-\f[B]\-\-lua\-filter\f[] FILE
-Run a Lua script as an AST filter. Apex invokes the system \f[B]lua\f[]
-interpreter with \f[I]FILE\f[]. The script reads a Pandoc JSON document from stdin and must write a Pandoc JSON document to stdout. A JSON library (e.g. dkjson) is required; see the Filters documentation for details.
+.PP
+: Run all executable files in the user filters directory, in sorted \f[B]\-\-lua\-filter\f[] \f[I]FILE\f[] interpreter with \f[I]FILE\f[]. The script reads a Pandoc JSON document from stdin and must write a Pandoc JSON document to stdout. A JSON library (e.g. dkjson) is required; see the Filters documentation for details.
 
-.TP
-\f[B]\-\-no\-strict\-filters\f[]
-Do not abort when a filter fails or returns invalid JSON; log a
-warning and continue with the previous AST. Default: abort on error.
+.PP
+: Run a Lua script as an AST filter. Apex invokes the system \f[B]lua\f[] \f[B]\-\-no\-strict\-filters\f[] warning and continue with the previous AST. Default: abort on error.
 
-.TP
-\f[B]\-\-list\-filters\f[]
-List installed filters and available filters from the central
-apex\-filters directory. Shows filter IDs; available filters show title, author, description, and homepage.
+.PP
+: Do not abort when a filter fails or returns invalid JSON; log a \f[B]\-\-list\-filters\f[] apex\-filters directory. Shows filter IDs; available filters show title, author, description, and homepage.
 
-.TP
-\f[B]\-\-install\-filter\f[] ID\-or\-URL
-Install an AST filter into the user filters directory. ID\-or\-URL
-may be a filter ID from the central apex\-filters directory (e.g. \f[B]unwrap\f[]) or a Git URL / GitHub shorthand. When installing from a URL, Apex may prompt for confirmation.
+.PP
+: List installed filters and available filters from the central \f[B]\-\-install\-filter\f[] \f[I]ID\-or\-URL\f[] may be a filter ID from the central apex\-filters directory (e.g. \f[B]unwrap\f[]) or a Git URL / GitHub shorthand. When installing from a URL, Apex may prompt for confirmation.
 
-.TP
-\f[B]\-\-uninstall\-filter\f[] ID
-Uninstall a filter by ID. Removes the filter (file or directory)
-from the user filters directory. Apex prompts for confirmation.
+.PP
+: Install an AST filter into the user filters directory. \f[I]ID\-or\-URL\f[] \f[B]\-\-uninstall\-filter\f[] \f[I]ID\f[] from the user filters directory. Apex prompts for confirmation.
+
+.PP
+: Uninstall a filter by ID. Removes the filter (file or directory)
 
 .SS Plugins
 
-.TP
-\f[B]\-\-plugins\f[], \f[B]\-\-no\-plugins\f[]
-Enable or disable external/plugin processing. Plugins
-extend Apex with custom processing capabilities.
+.PP
+\f[B]\-\-plugins\f[], \f[B]\-\-no\-plugins\f[] extend Apex with custom processing capabilities.
 
-.TP
-\f[B]\-\-list\-plugins\f[]
-List installed plugins and available plugins from the
-remote directory. Shows both locally installed plugins and plugins available for installation from the Apex plugin directory.
+.PP
+: Enable or disable external/plugin processing. Plugins \f[B]\-\-list\-plugins\f[] remote directory. Shows both locally installed plugins and plugins available for installation from the Apex plugin directory.
 
-.TP
-\f[B]\-\-install\-plugin\f[] ID
-Install a plugin by ID from the remote directory, or by Git URL/GitHub shorthand (user/repo). Plugins are installed to \fR$XDG_CONFIG_HOME/apex/plugins\f[] (or \fR~/.config/apex/plugins\f[] when \fRXDG_CONFIG_HOME\f[] is not set). When installing from a URL or GitHub shorthand, Apex will prompt for confirmation since plugins execute unverified code.
+.PP
+: List installed plugins and available plugins from the \f[B]\-\-install\-plugin\f[] \f[I]ID\f[] :   Install a plugin by ID from the remote directory, or by Git URL/GitHub shorthand (user/repo). Plugins are installed to \fR$XDG_CONFIG_HOME/apex/plugins\f[] (or \fR<sub>/</sub>.config/apex/plugins\f[] when \fRXDG_CONFIG_HOME\f[] is not set). When installing from a URL or GitHub shorthand, Apex will prompt for confirmation since plugins execute unverified code. \f[B]\-\-uninstall\-plugin\f[] \f[I]ID\f[] from the plugins folder. Apex will prompt for confirmation before removing the plugin.
 
-.TP
-\f[B]\-\-uninstall\-plugin\f[] ID
-Uninstall a plugin by ID. Removes the plugin directory
-from the plugins folder. Apex will prompt for confirmation before removing the plugin.
+.PP
+: Uninstall a plugin by ID. Removes the plugin directory
 
 .SS General Options
 
-.TP
-\f[B]\-h\f[], \f[B]\-\-help\f[]
-Show help message and exit.
-
-.TP
-\f[B]\-v\f[], \f[B]\-\-version\f[]
-Show version information and exit.
-
-.TP
-\f[B]\-\-progress\f[], \f[B]\-\-no\-progress\f[]
-Show progress indicator during processing. Default: enabled when stderr is a TTY.
+.PP
+\f[B]\-h\f[], \f[B]\-\-help\f[] :   Show help message and exit. \f[B]\-v\f[], \f[B]\-\-version\f[] :   Show version information and exit. \f[B]\-\-progress\f[], \f[B]\-\-no\-progress\f[] :   Show progress indicator during processing. Default: enabled when stderr is a TTY.
 
 .SS Multi\-file Utilities
 
-.TP
-\f[B]\-\-combine\f[] files…
-Concatenate one or more Markdown files into a single
-Markdown stream, expanding all supported include syntaxes. When a \fRSUMMARY.md\f[] file is provided, Apex treats it as a GitBook\-style index and combines the linked files in order. Output is raw Markdown suitable for piping back into Apex.
-
-.TP
-\f[B]\-\-mmd\-merge\f[] index files…
-Merge files from one or more MultiMarkdown \fRmmd_merge\f[]\-style index files into a single Markdown stream. Each non\-empty, non\-comment line in an index file specifies a document to include. Lines whose first non\-whitespace character is \fR#\f[] are treated as comments and ignored. Indentation (tabs or groups of four spaces) before the filename increases the header level of the included document (each indent level shifts all Markdown headings in that file down one level). Output is raw Markdown suitable for piping into Apex, for example:
-apex \-\-mmd\-merge index.txt | apex \-\-mode mmd \-\-standalone \-o book.html
-
-.SH EXAMPLES
+.PP
+\f[B]\-\-combine\f[] \f[I]files...\f[] Markdown stream, expanding all supported include syntaxes. When a \fRSUMMARY.md\f[] file is provided, Apex treats it as a GitBook\-style index and combines the linked files in order. Output is raw Markdown suitable for piping back into Apex.
 
 .PP
-Process a markdown file:
+: Concatenate one or more Markdown files into a single \f[B]\-\-mmd\-merge\f[] \f[I]index files...\f[] apex \-\-mmd\-merge index.txt | apex \-\-mode mmd \-\-standalone \-o book.html
+
+.PP
+:   Merge files from one or more MultiMarkdown \fRmmd_merge\f[]\-style index files into a  single Markdown stream. Each non\-empty, non\-comment line in an index file specifies a document to include. Lines whose first non\-whitespace character is \fR#\f[] are treated as comments and ignored. Indentation (tabs or groups of four spaces) before the filename increases the header level of the included document (each indent level shifts all Markdown headings in that file down one level). Output is raw Markdown suitable for piping into Apex, for example:
+
+.SH EXAMPLES
 
 .PP
 .nf
@@ -621,135 +401,53 @@ apex input.md
 .fi
 
 .PP
-Output to a file:
+Process a markdown file: apex input.md \-o output.html
 
 .PP
-.nf
-\fR
-apex input.md \-o output.html
-
-\f[]
-.fi
+Output to a file: apex input.md \-\-standalone \-\-title "My Document"
 
 .PP
-Generate standalone HTML document:
+Generate standalone HTML document: apex input.md \-\-pretty
 
 .PP
-.nf
-\fR
-apex input.md \-\-standalone \-\-title "My Document"
-
-\f[]
-.fi
+Pretty\-print HTML output: apex input.md \-\-mode gfm
 
 .PP
-Pretty\-print HTML output:
+Use GFM mode: apex document.md \-\-bibliography refs.bib
 
 .PP
-.nf
-\fR
-apex input.md \-\-pretty
-
-\f[]
-.fi
+Process document with citations and bibliography: apex document.md
 
 .PP
-Use GFM mode:
+Use metadata to specify bibliography: (With bibliography specified in YAML front matter) apex input.md \-\-mode kramdown
 
 .PP
-.nf
-\fR
-apex input.md \-\-mode gfm
-
-\f[]
-.fi
-
-.PP
-Process document with citations and bibliography:
-
-.PP
-.nf
-\fR
-apex document.md \-\-bibliography refs.bib
-
-\f[]
-.fi
-
-.PP
-Use metadata to specify bibliography:
-
-.PP
-.nf
-\fR
-apex document.md
-
-\f[]
-.fi
-
-.PP
-(With bibliography specified in YAML front matter)
-
-.PP
-Use Kramdown mode with relaxed tables:
-
-.PP
-.nf
-\fR
-apex input.md \-\-mode kramdown
-
-\f[]
-.fi
+Use Kramdown mode with relaxed tables: echo "# Hello" | apex
 
 .PP
 Process from stdin:
 
-.PP
-.nf
-\fR
-echo "# Hello" | apex
-
-\f[]
-.fi
-
 .SH PROCESSING MODES
 
-.TP
-\f[B]commonmark\f[]
-Pure CommonMark specification. Minimal features, maximum
-compatibility.
+.PP
+\f[B]commonmark\f[] compatibility.
 
-.TP
-\f[B]gfm\f[]
-GitHub Flavored Markdown. Includes tables, strikethrough,
-task lists, autolinks, and more.
+.PP
+: Pure CommonMark specification. Minimal features, maximum \f[B]gfm\f[] task lists, autolinks, and more.
 
-.TP
-\f[B]mmd\f[], \f[B]multimarkdown\f[]
-MultiMarkdown compatibility. Includes metadata, definition
-lists, footnotes, and more.
+.PP
+: GitHub Flavored Markdown. Includes tables, strikethrough, \f[B]mmd\f[], \f[B]multimarkdown\f[] lists, footnotes, and more.
 
-.TP
-\f[B]kramdown\f[]
-Kramdown compatibility. Includes relaxed tables, IAL
-(Inline Attribute Lists) for adding HTML attributes to elements, and more.
+.PP
+: MultiMarkdown compatibility. Includes metadata, definition \f[B]kramdown\f[] (Inline Attribute Lists) for adding HTML attributes to elements, and more.
 
-.TP
-\f[B]unified\f[] (default)
-All features enabled. Combines features from all modes.
+.PP
+: Kramdown compatibility. Includes relaxed tables, IAL \f[B]unified\f[] (default) :   All features enabled. Combines features from all modes.
 
 .SH METADATA CONTROL OF OPTIONS
 
 .PP
-Most command\-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per\-document configuration without needing separate command\-line invocations.
-
-.PP
-\f[B]Boolean options\f[] accept \fRtrue\f[]/\fRfalse\f[], \fRyes\f[]/\fRno\f[], or \fR1\f[]/\fR0\f[] (case\-insensitive). \f[B]String options\f[] use the value directly.
-
-.PP
-\f[B]Supported boolean options:\f[] \fRindices\f[], \fRwikilinks\f[], \fRwikilink\-sanitize\f[], \fRincludes\f[], \fRrelaxed\-tables\f[], \fRper\-cell\-alignment\f[], \fRalpha\-lists\f[], \fRmixed\-lists\f[], \fRsup\-sub\f[], \fRstrikethrough\f[], \fRautolink\f[], \fRtransforms\f[], \fRunsafe\f[], \fRtables\f[], \fRfootnotes\f[], \fRsmart\f[], \fRmath\f[], \fRids\f[], \fRheader\-anchors\f[], \fRembed\-images\f[], \fRimage\-captions\f[], \fRlink\-citations\f[], \fRshow\-tooltips\f[], \fRsuppress\-bibliography\f[], \fRsuppress\-index\f[], \fRgroup\-index\-by\-letter\f[], \fRobfuscate\-emails\f[], \fRpretty\f[], \fRstandalone\f[], \fRhardbreaks\f[], \fRplugins\f[], \fRemoji\-autocorrect\f[], \fRcode\-line\-numbers\f[], \fRhighlight\-language\-only\f[], \fRmarkdown\-in\-html\f[]
-
-.PP
-\f[B]Supported string options:\f[] \fRbibliography\f[], \fRcsl\f[], \fRtitle\f[], \fRstyle\f[] (or \fRcss\f[]), \fRid\-format\f[], \fRbase\-dir\f[], \fRmode\f[], \fRwikilink\-space\f[], \fRwikilink\-extension\f[]
+Most command\-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per\-document configuration without needing separate command\-line invocations. \f[B]Boolean options\f[] accept \fRtrue\f[]/\fRfalse\f[], \fRyes\f[]/\fRno\f[], or \fR1\f[]/\fR0\f[] (case\-insensitive). \f[B]String options\f[] use the value directly. \f[B]Supported boolean options:\f[] \fRindices\f[], \fRwikilinks\f[], \fRwikilink\-sanitize\f[], \fRincludes\f[], \fRrelaxed\-tables\f[], \fRper\-cell\-alignment\f[], \fRalpha\-lists\f[], \fRmixed\-lists\f[], \fRsup\-sub\f[], \fRstrikethrough\f[], \fRautolink\f[], \fRtransforms\f[], \fRunsafe\f[], \fRtables\f[], \fRfootnotes\f[], \fRsmart\f[], \fRmath\f[], \fRids\f[], \fRheader\-anchors\f[], \fRembed\-images\f[], \fRimage\-captions\f[], \fRlink\-citations\f[], \fRshow\-tooltips\f[], \fRsuppress\-bibliography\f[], \fRsuppress\-index\f[], \fRgroup\-index\-by\-letter\f[], \fRobfuscate\-emails\f[], \fRpretty\f[], \fRstandalone\f[], \fRhardbreaks\f[], \fRplugins\f[], \fRemoji\-autocorrect\f[], \fRcode\-line\-numbers\f[], \fRhighlight\-language\-only\f[], \fRmarkdown\-in\-html\f[] \f[B]Supported string options:\f[] \fRbibliography\f[], \fRcsl\f[], \fRtitle\f[], \fRstyle\f[] (or \fRcss\f[]), \fRid\-format\f[], \fRbase\-dir\f[], \fRmode\f[], \fRwikilink\-space\f[], \fRwikilink\-extension\f[] \f[B]Terminal output metadata\f[] (for \f[B]\-\-to terminal\f[] / \f[B]terminal256\f[]): \fRterminal.theme\f[] (\fRterminal_theme\f[]), \fRterminal.width\f[] (\fRterminal_width\f[], wrap width), \fRterminal.inline_images\f[] (\fRterminal_inline_images\f[], boolean), \fRterminal.image_width\f[] (\fRterminal_image_width\f[], viewer width in character cells), \fRterminal.paginate\f[] (\fRterminal_paginate\f[]), \fRpaginate\f[], \fRcode\-highlight\f[], \fRcode\-highlight\-theme\f[].
 
 .PP
 .nf
@@ -767,6 +465,9 @@ standalone: true
 .fi
 
 .PP
+\f[B]Example YAML front matter:\f[]
+
+.PP
 .nf
 \fR
 indices: false
@@ -778,10 +479,7 @@ title: My Research Paper
 .fi
 
 .PP
-When processing multiple files with \fRapex *.md\f[], each file can use its own configuration via metadata. You can also use \fR\-\-meta\-file\f[] to specify a shared configuration file that applies to all processed files.
-
-.PP
-\f[B]Note:\f[] If \fRmode\f[] is specified in metadata, it resets all options to that mode’s defaults before applying other metadata options.
+\f[B]Example MultiMarkdown metadata:\f[] When processing multiple files with \fRapex *.md\f[], each file can use its own configuration via metadata. You can also use \fR\-\-meta\-file\f[] to specify a shared configuration file that applies to all processed files. \f[B]Note:\f[] If \fRmode\f[] is specified in metadata, it resets all options to that mode's defaults before applying other metadata options.
 
 .SH FEATURES
 
@@ -798,16 +496,13 @@ Apex supports a wide range of Markdown extensions:
 \f[B]Footnotes\f[]: Reference\-style footnotes
 
 .IP \(bu 2
-\f[B]Math\f[]: Inline (\fR$...$\f[]) and display (\fR$$...$$\f[]) math
-with LaTeX
+\f[B]Math\f[]: Inline (\fR$...$\f[]) and display (\fR$$...$$\f[]) math with LaTeX
 
 .IP \(bu 2
-\f[B]Wiki Links\f[]: \fR[[Page]]\f[], \fR[[Page|Display]]\f[],
-\fR[[Page#Section]]\f[]
+\f[B]Wiki Links\f[]: \fR[[Page]]\f[], \fR[[Page|Display]]\f[], \fR[[Page#Section]]\f[]
 
 .IP \(bu 2
-\f[B]Critic Markup\f[]: All 5 types (add, del,
-sub, mark, comment)
+\f[B]Critic Markup\f[]: All 5 types (add, del, sub, mark, comment)
 
 .IP \(bu 2
 \f[B]Smart Typography\f[]: Smart quotes, dashes, ellipsis
@@ -819,52 +514,39 @@ sub, mark, comment)
 \f[B]Task Lists\f[]: GFM\-style task lists
 
 .IP \(bu 2
-\f[B]Metadata\f[]: YAML front matter, MultiMarkdown metadata,
-Pandoc title blocks
+\f[B]Metadata\f[]: YAML front matter, MultiMarkdown metadata, Pandoc title blocks
 
 .IP \(bu 2
-\f[B]Metadata Transforms\f[]: Transform metadata values with
-\fR[%key:transform]\f[] syntax (case conversion, string manipulation, regex replacement, date formatting, etc.)
+\f[B]Metadata Transforms\f[]: Transform metadata values with \fR[%key:transform]\f[] syntax (case conversion, string manipulation, regex replacement, date formatting, etc.)
 
 .IP \(bu 2
-\f[B]Metadata Control of Options\f[]: Control command\-line
-options via metadata for per\-document configuration
+\f[B]Metadata Control of Options\f[]: Control command\-line options via metadata for per\-document configuration
 
 .IP \(bu 2
-\f[B]Header IDs\f[]: Automatic or manual header IDs with
-multiple format options
+\f[B]Header IDs\f[]: Automatic or manual header IDs with multiple format options
 
 .IP \(bu 2
 \f[B]Relaxed Tables\f[]: Support for tables without separator rows (Kramdown\-style). Enabled by default in unified and Kramdown modes.
 
 .IP \(bu 2
 \f[B]Per\-Cell Alignment\f[]: Support for alignment markers using colons at the start and/or end of table cells. Enabled by default in unified mode only.
-rows (Kramdown\-style)
 
 .IP \(bu 2
-\f[B]Inline Tables from CSV/TSV\f[]: Convert inline CSV/TSV
-text to tables using ```table fences or \fR<!\-\-TABLE\-\->\f[] markers
+\f[B]Inline Tables from CSV/TSV\f[]: Convert inline CSV/TSV text to tables using ```table fences or \fR<!\-\-TABLE\-\->\f[] markers
 
-.PP
+.IP \(bu 2
 \f[B]Superscript/Subscript\f[]: MultiMarkdown\-style superscript (\fR^text\f[]) and subscript (\fR~text~\f[] within words) syntax. Subscript uses paired tildes within word boundaries (e.g., \fRH~2~O\f[]), while tildes at word boundaries create underline
 
 .IP \(bu 2
-\f[B]Image Embedding\f[]: Embed local images as base64 data
-URLs with \fR\-\-embed\-images\f[] flag
+\f[B]Image Embedding\f[]: Embed local images as base64 data URLs with \fR\-\-embed\-images\f[] flag
 
-.PP
+.IP \(bu 2
 \f[B]Inline Attribute Lists (IAL)\f[]: Kramdown\-style syntax for adding HTML attributes (IDs, classes, key\-value pairs) to block\-level and inline elements. Supports Attribute List Definitions (ALDs) for reusable attribute sets. Available in kramdown and unified modes. See Inline Attribute Lists (https://github.com/ttscoff/apex/wiki/Inline\-Attribute\-Lists) for complete documentation
 
 .SH SEE ALSO
 
 .PP
-\f[B]apex\-config\f[](5), \f[B]apex\-plugins\f[](7), \f[B]pandoc\f[](1), \f[B]markdown\f[](7)
-
-.PP
-For complete documentation, see the Apex Wiki (https://github.com/ttscoff/apex/wiki).
-
-.PP
-Project homepage: https://github.com/ApexMarkdown/apex (https://github.com/ApexMarkdown/apex)
+\f[B]apex\-config\f[](5), \f[B]apex\-plugins\f[](7), \f[B]pandoc\f[](1), \f[B]markdown\f[](7) For complete documentation, see the Apex Wiki (https://github.com/ttscoff/apex/wiki). Project homepage: https://github.com/ApexMarkdown/apex (https://github.com/ApexMarkdown/apex)
 
 .SH AUTHOR
 

@@ -126,6 +126,7 @@ one tool.
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# 😄 Support` → `id="smile-support"`), matching Pandoc's GFM behavior
 - **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
 - **ARIA accessibility**: Add ARIA labels and accessibility attributes (`--aria`) for better screen reader support, including aria-label on TOC navigation, role attributes on figures and tables, and aria-describedby linking tables to their captions
+- **Terminal inline images**: With `-t terminal` / `-t terminal256`, when stdout is a TTY and a viewer is available on `PATH`, Markdown images are rendered as inline terminal graphics (viewer order: `imgcat`, `chafa`, `viu`, `catimg`). Width is controlled with `--terminal-image-width` (default 50 character cells). HTTP(S) URLs are downloaded with `curl` (60s timeout, 10 MiB max) to a temp file under `TMPDIR` or `/tmp`. Use `--no-terminal-images` to always show images as styled link text plus URL instead. Metadata: `terminal.inline_images` / `terminal_inline_images`, `terminal.image_width` / `terminal_image_width`.
 
 ### Advanced Features
 
