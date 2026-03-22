@@ -652,7 +652,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
-    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
+    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
@@ -677,8 +677,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]progress          Show progress indicator during processing (enabled by default for TTY)\n");
     fprintf(stderr, "  --plugins              Enable external/plugin processing\n");
     fprintf(stderr, "  --pretty               Pretty-print HTML with indentation and whitespace\n");
-    fprintf(stderr, "  --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />)\n");
-    fprintf(stderr, "  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml.\n");
+    fprintf(stderr, "  --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />). Same as -t xhtml.\n");
+    fprintf(stderr, "  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml. Same as -t strict-xhtml.\n");
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
     fprintf(stderr, "  --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)\n");
     fprintf(stderr, "  --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)\n");
@@ -1625,6 +1625,16 @@ int main(int argc, char *argv[]) {
             }
             if (strcmp(argv[i], "html") == 0) {
                 options.output_format = APEX_OUTPUT_HTML;
+            } else if (strcmp(argv[i], "xhtml") == 0) {
+                /* Alias for -t html --xhtml */
+                options.output_format = APEX_OUTPUT_HTML;
+                options.xhtml = true;
+                options.strict_xhtml = false;
+            } else if (strcmp(argv[i], "strict-xhtml") == 0) {
+                /* Alias for -t html --strict-xhtml */
+                options.output_format = APEX_OUTPUT_HTML;
+                options.strict_xhtml = true;
+                options.xhtml = false;
             } else if (strcmp(argv[i], "json") == 0) {
                 options.output_format = APEX_OUTPUT_JSON;
             } else if (strcmp(argv[i], "json-filtered") == 0 || strcmp(argv[i], "ast-json") == 0 || strcmp(argv[i], "ast") == 0) {
@@ -1649,7 +1659,7 @@ int main(int argc, char *argv[]) {
                 options.output_format = APEX_OUTPUT_MAN_HTML;
             } else {
                 fprintf(stderr, "Error: Unknown output format '%s'\n", argv[i]);
-                fprintf(stderr, "Supported formats: html, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
+                fprintf(stderr, "Supported formats: html, xhtml, strict-xhtml, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
                 return 1;
             }
         } else if (strcmp(argv[i], "--theme") == 0) {

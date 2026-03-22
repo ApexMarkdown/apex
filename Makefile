@@ -131,11 +131,12 @@ install: build
 	@echo "Installation complete!"
 
 # Man page generation (uses built apex with -t man)
+# Empty XDG_CONFIG_HOME avoids user-installed plugins (can break -t man); UTF-8 for JSON in plugins.
 man: build
 	@echo "Generating man pages with apex -t man..."
-	@./build/apex -t man man/apex.1.md > man/apex.1 && echo "Man page generated: man/apex.1"
-	@if [ -f man/apex-config.5.md ]; then ./build/apex -t man man/apex-config.5.md > man/apex-config.5 && echo "Man page generated: man/apex-config.5"; fi
-	@if [ -f man/apex-plugins.7.md ]; then ./build/apex -t man man/apex-plugins.7.md > man/apex-plugins.7 && echo "Man page generated: man/apex-plugins.7"; fi
+	@mkdir -p build/empty-xdg-for-man && LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man man/apex.1.md > man/apex.1 && echo "Man page generated: man/apex.1"
+	@if [ -f man/apex-config.5.md ]; then LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man man/apex-config.5.md > man/apex-config.5 && echo "Man page generated: man/apex-config.5"; fi
+	@if [ -f man/apex-plugins.7.md ]; then LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man man/apex-plugins.7.md > man/apex-plugins.7 && echo "Man page generated: man/apex-plugins.7"; fi
 
 # Release build targets
 release: clean-release

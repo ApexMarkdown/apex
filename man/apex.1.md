@@ -150,6 +150,8 @@ output more accessible. Default: disabled.
 : Output format. One of:
 
 - **html** (default) - Rendered HTML
+- **xhtml** - Same as **html** with **`--xhtml`** (self-closing void tags). Alias; **`--xhtml`** remains valid.
+- **strict-xhtml** - Same as **html** with **`--strict-xhtml`** (polyglot XHTML when used with **--standalone**). Alias; **`--strict-xhtml`** remains valid.
 - **json**, **json-filtered**, **ast-json**, **ast** - JSON output (before or after filters)
 - **markdown**, **md**, **mmd**, **commonmark**, **cmark**, **kramdown**, **gfm** - Markdown variants
 - **terminal**, **cli**, **terminal256** - ANSI-colored output for TTYs and terminal emulators
