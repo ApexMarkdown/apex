@@ -708,6 +708,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]wikilink-sanitize  Sanitize wiki link URLs (lowercase, remove apostrophes, etc.)\n");
     fprintf(stderr, "  --theme NAME            Terminal theme name for -t terminal/terminal256 (from ~/.config/apex/terminal/themes/NAME.theme)\n");
     fprintf(stderr, "  --width N               Hard-wrap terminal/terminal256 output at N visible columns\n");
+    fprintf(stderr, "  --no-terminal-images    Do not render local images via imgcat/chafa/viu/catimg on terminal output\n");
+    fprintf(stderr, "  --terminal-image-width N  Max width/cells for terminal image tools (default: 50)\n");
     fprintf(stderr, "  -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
@@ -1585,6 +1587,10 @@ int main(int argc, char *argv[]) {
     /* Pagination for terminal/terminal256 output */
     bool paginate_cli = false;
 
+    /* Terminal inline images: --no-terminal-images / --terminal-image-width N */
+    bool no_terminal_images_cli = false;
+    int terminal_image_width_cli = -1; /* -1 = use options default */
+
     /* Parse command-line arguments */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0) {
@@ -1663,6 +1669,18 @@ int main(int argc, char *argv[]) {
             }
         } else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--paginate") == 0) {
             paginate_cli = true;
+        } else if (strcmp(argv[i], "--no-terminal-images") == 0) {
+            no_terminal_images_cli = true;
+        } else if (strcmp(argv[i], "--terminal-image-width") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --terminal-image-width requires a positive integer\n");
+                return 1;
+            }
+            terminal_image_width_cli = atoi(argv[i]);
+            if (terminal_image_width_cli < 1) {
+                fprintf(stderr, "Error: --terminal-image-width must be at least 1\n");
+                return 1;
+            }
         } else if (strcmp(argv[i], "-o") == 0 || strcmp(argv[i], "--output") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --output requires an argument\n");
@@ -3696,6 +3714,13 @@ int main(int argc, char *argv[]) {
     /* Man page output must keep -- as literal double hyphen; option names must not become en-dash */
     if (options.output_format == APEX_OUTPUT_MAN || options.output_format == APEX_OUTPUT_MAN_HTML) {
         options.enable_smart_typography = false;
+    }
+
+    if (no_terminal_images_cli) {
+        options.terminal_inline_images = false;
+    }
+    if (terminal_image_width_cli > 0) {
+        options.terminal_image_width = terminal_image_width_cli;
     }
 
     /* Convert to output (HTML, Markdown, terminal, etc.) */

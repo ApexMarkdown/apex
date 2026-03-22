@@ -432,7 +432,7 @@ static const char *apex_detect_mime_type(const char *filepath) {
 /**
  * Resolve relative path from base directory
  */
-static char *apex_resolve_image_path(const char *filepath, const char *base_dir) {
+char *apex_resolve_local_image_path(const char *filepath, const char *base_dir) {
     if (!filepath) return NULL;
 
     /* If absolute path, return as-is */
@@ -556,7 +556,7 @@ static char *apex_embed_images(const char *html, const apex_options *options, co
 
                         if (!is_data_url && !is_remote && options->embed_images) {
                             /* Local image */
-                            char *resolved_path = apex_resolve_image_path(url, base_directory);
+                            char *resolved_path = apex_resolve_local_image_path(url, base_directory);
                             if (resolved_path) {
                                 struct stat st;
                                 if (stat(resolved_path, &st) == 0 && S_ISREG(st.st_mode)) {
@@ -2832,6 +2832,8 @@ apex_options apex_options_default(void) {
     opts.theme_name = NULL;
     opts.terminal_width = 0;
     opts.paginate = false;
+    opts.terminal_inline_images = true;
+    opts.terminal_image_width = 50;
 
     return opts;
 }

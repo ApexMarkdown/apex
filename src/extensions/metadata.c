@@ -2952,6 +2952,19 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             if (w > 0) {
                 options->terminal_width = w;
             }
+        } else if (strcasecmp(key, "terminal.inline_images") == 0 ||
+                   strcasecmp(key, "terminal_inline_images") == 0) {
+            if (is_true_value(value)) {
+                options->terminal_inline_images = true;
+            } else if (is_false_value(value)) {
+                options->terminal_inline_images = false;
+            }
+        } else if (strcasecmp(key, "terminal.image_width") == 0 ||
+                   strcasecmp(key, "terminal_image_width") == 0) {
+            int iw = atoi(value);
+            if (iw > 0) {
+                options->terminal_image_width = iw;
+            }
         } else if (strcasecmp(key, "paginate") == 0 ||
                    strcasecmp(key, "terminal.paginate") == 0 ||
                    strcasecmp(key, "terminal_paginate") == 0) {

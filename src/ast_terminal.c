@@ -27,6 +27,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#include <limits.h>
+#include <sys/stat.h>
 
 #ifdef APEX_HAVE_LIBYAML
 #include <yaml.h>
@@ -1197,6 +1199,285 @@ static const char *theme_style_for_node(const terminal_theme *theme,
 static const char *html_span_style_stack[16];
 static int html_span_style_depth = 0;
 
+/* ------------------------------------------------------------------------- */
+/* Terminal inline images (imgcat, chafa, viu, catimg)                        */
+/* ------------------------------------------------------------------------- */
+
+typedef enum {
+    TERM_IMG_NONE = 0,
+    TERM_IMG_IMGCAT,
+    TERM_IMG_CHAFA,
+    TERM_IMG_VIU,
+    TERM_IMG_CATIMG
+} term_img_tool_t;
+
+static term_img_tool_t g_term_img_tool = TERM_IMG_NONE;
+static int g_term_img_width = 50;
+
+static bool executable_on_path(const char *name) {
+    const char *pathenv = getenv("PATH");
+    if (!pathenv || !*pathenv || !name || !*name) {
+        return false;
+    }
+    char buf[PATH_MAX];
+    const char *p = pathenv;
+    while (*p) {
+        const char *colon = strchr(p, ':');
+        size_t dirlen = colon ? (size_t)(colon - p) : strlen(p);
+        if (dirlen == 0) {
+            if (sizeof(buf) > strlen(name) + 3) {
+                snprintf(buf, sizeof(buf), "./%s", name);
+                if (access(buf, X_OK) == 0) {
+                    return true;
+                }
+            }
+        } else if (dirlen + strlen(name) + 2 < sizeof(buf)) {
+            memcpy(buf, p, dirlen);
+            buf[dirlen] = '\0';
+            if (buf[dirlen - 1] != '/') {
+                snprintf(buf + dirlen, sizeof(buf) - dirlen, "/%s", name);
+            } else {
+                snprintf(buf + dirlen, sizeof(buf) - dirlen, "%s", name);
+            }
+            if (access(buf, X_OK) == 0) {
+                return true;
+            }
+        }
+        if (!colon) {
+            break;
+        }
+        p = colon + 1;
+    }
+    return false;
+}
+
+static term_img_tool_t probe_terminal_image_tool(void) {
+    if (executable_on_path("imgcat")) {
+        return TERM_IMG_IMGCAT;
+    }
+    if (executable_on_path("chafa")) {
+        return TERM_IMG_CHAFA;
+    }
+    if (executable_on_path("viu")) {
+        return TERM_IMG_VIU;
+    }
+    if (executable_on_path("catimg")) {
+        return TERM_IMG_CATIMG;
+    }
+    return TERM_IMG_NONE;
+}
+
+static char *terminal_resolve_image_path(const char *url, const char *base_dir) {
+    if (!url || !*url) {
+        return NULL;
+    }
+    if (strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0) {
+        return NULL;
+    }
+    if (strncmp(url, "file://", 7) == 0) {
+        const char *p = url + 7;
+        if (strncmp(p, "localhost", 9) == 0) {
+            p += 9;
+        }
+        while (*p && *p != '/') {
+            p++;
+        }
+        if (*p == '/') {
+            return strdup(p);
+        }
+        return NULL;
+    }
+    if (strstr(url, "://")) {
+        return NULL;
+    }
+    return apex_resolve_local_image_path(url, base_dir);
+}
+
+static void collect_image_alt_text(cmark_node *image, char *out, size_t cap) {
+    out[0] = '\0';
+    if (!image || cap == 0) {
+        return;
+    }
+    const char *lit = cmark_node_get_literal(image);
+    if (lit && *lit) {
+        snprintf(out, cap, "%s", lit);
+        return;
+    }
+    size_t n = 0;
+    for (cmark_node *ch = cmark_node_first_child(image); ch && n + 1 < cap; ch = cmark_node_next(ch)) {
+        if (cmark_node_get_type(ch) == CMARK_NODE_TEXT) {
+            const char *t = cmark_node_get_literal(ch);
+            if (t) {
+                size_t tl = strlen(t);
+                size_t room = cap - 1 - n;
+                if (tl > room) {
+                    tl = room;
+                }
+                memcpy(out + n, t, tl);
+                n += tl;
+                out[n] = '\0';
+            }
+        }
+    }
+}
+
+static void append_terminal_image_caption(terminal_buffer *buf,
+                                          const char *resolved_path,
+                                          const char *title,
+                                          const char *alt,
+                                          const apex_options *options,
+                                          const terminal_theme *theme,
+                                          bool use_256_color) {
+    const char *base = resolved_path;
+    const char *slash = strrchr(resolved_path, '/');
+    if (slash) {
+        base = slash + 1;
+    }
+
+    char line[512];
+    snprintf(line, sizeof(line), "%s", base ? base : resolved_path);
+    size_t pos = strlen(line);
+
+    if (title && *title && pos + 4 < sizeof(line)) {
+        snprintf(line + pos, sizeof(line) - pos, " — %s", title);
+        pos = strlen(line);
+    }
+    if (options && !options->title_captions_only && alt && *alt) {
+        if (!title || strcmp(alt, title) != 0) {
+            if (pos + 4 < sizeof(line)) {
+                snprintf(line + pos, sizeof(line) - pos, " — %s", alt);
+            }
+        }
+    }
+
+    if (theme && theme->link_url) {
+        apply_style_string(buf, theme->link_url, use_256_color);
+    } else {
+        apply_style_string(buf, "bright_black", use_256_color);
+    }
+    buffer_append_str(buf, line);
+    append_ansi_reset(buf);
+    buffer_append_str(buf, "\n");
+}
+
+static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, int width, const char *abspath) {
+    char wstr[32];
+    snprintf(wstr, sizeof(wstr), "%d", width);
+
+    char *argv[8];
+    int argc = 0;
+    switch (tool) {
+        case TERM_IMG_IMGCAT:
+            argv[argc++] = "imgcat";
+            argv[argc++] = "-W";
+            argv[argc++] = wstr;
+            argv[argc++] = (char *)abspath;
+            break;
+        case TERM_IMG_CHAFA:
+            argv[argc++] = "chafa";
+            argv[argc++] = "-s";
+            argv[argc++] = wstr;
+            argv[argc++] = (char *)abspath;
+            break;
+        case TERM_IMG_VIU:
+            argv[argc++] = "viu";
+            argv[argc++] = "-w";
+            argv[argc++] = wstr;
+            argv[argc++] = (char *)abspath;
+            break;
+        case TERM_IMG_CATIMG:
+            argv[argc++] = "catimg";
+            argv[argc++] = "-w";
+            argv[argc++] = wstr;
+            argv[argc++] = (char *)abspath;
+            break;
+        default:
+            return false;
+    }
+    argv[argc] = NULL;
+
+    int out_pipe[2];
+    if (pipe(out_pipe) != 0) {
+        return false;
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        dup2(out_pipe[1], STDOUT_FILENO);
+        int devnull = open("/dev/null", O_WRONLY);
+        if (devnull != -1) {
+            dup2(devnull, STDERR_FILENO);
+            close(devnull);
+        }
+        close(out_pipe[0]);
+        close(out_pipe[1]);
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+
+    if (pid < 0) {
+        close(out_pipe[0]);
+        close(out_pipe[1]);
+        return false;
+    }
+
+    close(out_pipe[1]);
+
+    size_t cap = 8192;
+    size_t size = 0;
+    char *out = malloc(cap);
+    if (!out) {
+        close(out_pipe[0]);
+        waitpid(pid, NULL, 0);
+        return false;
+    }
+
+    for (;;) {
+        if (size + 4096 > cap) {
+            cap *= 2;
+            char *nb = realloc(out, cap);
+            if (!nb) {
+                free(out);
+                close(out_pipe[0]);
+                waitpid(pid, NULL, 0);
+                return false;
+            }
+            out = nb;
+        }
+        ssize_t n = read(out_pipe[0], out + size, 4096);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            free(out);
+            close(out_pipe[0]);
+            waitpid(pid, NULL, 0);
+            return false;
+        }
+        if (n == 0) {
+            break;
+        }
+        size += (size_t)n;
+    }
+    close(out_pipe[0]);
+
+    int status;
+    waitpid(pid, &status, 0);
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        free(out);
+        return false;
+    }
+
+    bool need_nl = (size == 0 || out[size - 1] != '\n');
+    buffer_append(buf, out, size);
+    free(out);
+    if (need_nl) {
+        buffer_append_str(buf, "\n");
+    }
+    return true;
+}
+
 static void serialize_inline(terminal_buffer *buf,
                              cmark_node *node,
                              const apex_options *options,
@@ -1343,15 +1624,37 @@ static void serialize_inline(terminal_buffer *buf,
         }
         case CMARK_NODE_IMAGE: {
             const char *url = cmark_node_get_url(node);
-            buffer_append_str(buf, "![");
-            for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
-                serialize_inline(buf, child, options, theme, use_256_color);
+            bool did_inline = false;
+            if (g_term_img_tool != TERM_IMG_NONE && url && options && options->terminal_inline_images &&
+                isatty(STDOUT_FILENO)) {
+                char *resolved = terminal_resolve_image_path(url, options->base_directory);
+                if (resolved) {
+                    struct stat st;
+                    if (stat(resolved, &st) == 0 && S_ISREG(st.st_mode) && access(resolved, R_OK) == 0) {
+                        char altbuf[512];
+                        collect_image_alt_text(node, altbuf, sizeof(altbuf));
+                        const char *title = cmark_node_get_title(node);
+                        if (run_terminal_image_tool(buf, g_term_img_tool, g_term_img_width, resolved)) {
+                            append_terminal_image_caption(buf, resolved, title, altbuf, options, theme,
+                                                          use_256_color);
+                            buffer_append_str(buf, "\n");
+                            did_inline = true;
+                        }
+                    }
+                    free(resolved);
+                }
             }
-            buffer_append_str(buf, "]");
-            if (url && *url) {
-                buffer_append_str(buf, "(");
-                buffer_append_str(buf, url);
-                buffer_append_str(buf, ")");
+            if (!did_inline) {
+                buffer_append_str(buf, "![");
+                for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
+                    serialize_inline(buf, child, options, theme, use_256_color);
+                }
+                buffer_append_str(buf, "]");
+                if (url && *url) {
+                    buffer_append_str(buf, "(");
+                    buffer_append_str(buf, url);
+                    buffer_append_str(buf, ")");
+                }
             }
             break;
         }
@@ -2490,6 +2793,14 @@ char *apex_cmark_to_terminal(cmark_node *document,
     /* Reset HTML span style stack at the start of each render. */
     html_span_style_depth = 0;
 
+    g_term_img_tool = TERM_IMG_NONE;
+    g_term_img_width = 50;
+    if (options && options->terminal_inline_images && isatty(STDOUT_FILENO)) {
+        int w = options->terminal_image_width > 0 ? options->terminal_image_width : 50;
+        g_term_img_width = w;
+        g_term_img_tool = probe_terminal_image_tool();
+    }
+
     terminal_theme *theme = load_theme(options);
     if (getenv("APEX_DEBUG_THEME")) {
         const char *tname = (options && options->theme_name) ? options->theme_name : "(null)";
@@ -2503,6 +2814,8 @@ char *apex_cmark_to_terminal(cmark_node *document,
     serialize_block(&buf, document, options, theme, use_256, 0);
 
     free_theme(theme);
+
+    g_term_img_tool = TERM_IMG_NONE;
 
     if (!buf.buf) {
         /* Fallback: empty string */

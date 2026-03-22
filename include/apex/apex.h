@@ -109,6 +109,8 @@ typedef struct apex_options {
     const char *theme_name;      /* Optional terminal theme name (for -t terminal/terminal256) */
     int terminal_width;          /* Optional fixed wrapping width for terminal output (0 = auto / none) */
     bool paginate;               /* When true and output_format is terminal/terminal256, page output via pager */
+    bool terminal_inline_images; /* When true, render local images via imgcat/chafa/viu/catimg on a TTY */
+    int terminal_image_width;    /* Max width/cells for terminal image tools (default 50; 0 = use 50) */
 
     /* Line break handling */
     bool hardbreaks;  /* Treat newlines as hard breaks (GFM style) */
@@ -264,6 +266,13 @@ apex_options apex_options_for_mode(apex_mode_t mode);
  * @return Newly allocated HTML string (must be freed with apex_free_string)
  */
 char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options *options);
+
+/**
+ * Resolve a local image path against base_directory (same rules as HTML embedding).
+ * Returns a newly allocated path, or NULL on allocation failure.
+ * Caller must free with free() or apex_free_string.
+ */
+char *apex_resolve_local_image_path(const char *filepath, const char *base_dir);
 
 /**
  * Wrap HTML content in complete HTML5 document structure

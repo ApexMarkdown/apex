@@ -390,6 +390,34 @@ void test_terminal_output(void) {
     test_result(out != NULL && strstr(out, "plain") != NULL, "terminal_width set still produces terminal output");
     if (out) apex_free_string(out);
 
+    /* apex_resolve_local_image_path */
+    {
+        char *rp = apex_resolve_local_image_path("img/a.png", "/tmp/proj");
+        test_result(rp != NULL && strcmp(rp, "/tmp/proj/img/a.png") == 0,
+                    "apex_resolve_local_image_path joins base_directory");
+        free(rp);
+        rp = apex_resolve_local_image_path("/abs/foo.png", "/any");
+        test_result(rp != NULL && strcmp(rp, "/abs/foo.png") == 0,
+                    "apex_resolve_local_image_path keeps absolute paths");
+        free(rp);
+    }
+
+    /* Remote images: fallback markdown (non-TTY: inline viewers not used) */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("![r](https://ex.com/x.png)", 28, &opts);
+    assert_contains(out, "![", "Remote image: fallback markdown");
+    assert_contains(out, "https://ex.com/x.png", "Remote image URL in fallback");
+    apex_free_string(out);
+
+    /* terminal_inline_images false: preserve markdown image syntax */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    opts.terminal_inline_images = false;
+    out = apex_markdown_to_html("![z](local.png)", 17, &opts);
+    assert_contains(out, "![", "terminal_inline_images off preserves image syntax");
+    apex_free_string(out);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Terminal Output Tests", had_failures, false);
 }
