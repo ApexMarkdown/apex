@@ -10,6 +10,7 @@
 #ifndef APEX_METADATA_H
 #define APEX_METADATA_H
 
+#include <stdio.h>
 #include "cmark-gfm.h"
 #include "cmark-gfm-extension_api.h"
 #include "../../include/apex/apex.h"
@@ -90,6 +91,17 @@ apex_metadata_item *apex_load_metadata_from_file(const char *filepath);
  * Returns a metadata list, or NULL on error
  */
 apex_metadata_item *apex_parse_command_metadata(const char *arg);
+
+/**
+ * Print metadata as YAML key: value lines (no document delimiters).
+ * Values are quoted when they contain :, newline, ", or \\ (same rules as CLI front matter).
+ */
+void apex_metadata_fprint_yaml_mapping(FILE *fp, const apex_metadata_item *metadata);
+
+/**
+ * Print a YAML document with leading/trailing --- markers and a mapping body.
+ */
+void apex_metadata_fprint_yaml_document(FILE *fp, const apex_metadata_item *metadata);
 
 /**
  * Merge multiple metadata lists with precedence

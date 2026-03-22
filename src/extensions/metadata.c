@@ -950,6 +950,39 @@ const char *apex_metadata_get(apex_metadata_item *metadata, const char *key) {
     return NULL;
 }
 
+static void apex_fprint_yaml_escaped_double_quoted(FILE *fp, const char *value) {
+    if (!value) return;
+    for (const char *p = value; *p; p++) {
+        if (*p == '\\' || *p == '"') {
+            fputc('\\', fp);
+        }
+        fputc((unsigned char)*p, fp);
+    }
+}
+
+void apex_metadata_fprint_yaml_mapping(FILE *fp, const apex_metadata_item *metadata) {
+    if (!fp) return;
+    for (const apex_metadata_item *item = metadata; item; item = item->next) {
+        if (!item->key || !item->value) continue;
+        bool needs_quotes = strchr(item->value, ':') || strchr(item->value, '\n') ||
+                            strchr(item->value, '"') || strchr(item->value, '\\');
+        if (needs_quotes) {
+            fprintf(fp, "%s: \"", item->key);
+            apex_fprint_yaml_escaped_double_quoted(fp, item->value);
+            fprintf(fp, "\"\n");
+        } else {
+            fprintf(fp, "%s: %s\n", item->key, item->value);
+        }
+    }
+}
+
+void apex_metadata_fprint_yaml_document(FILE *fp, const apex_metadata_item *metadata) {
+    if (!fp) return;
+    fprintf(fp, "---\n");
+    apex_metadata_fprint_yaml_mapping(fp, metadata);
+    fprintf(fp, "---\n");
+}
+
 /**
  * Free transform chain
  */

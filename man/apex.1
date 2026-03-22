@@ -385,6 +385,15 @@ mmark: \fR[@RFC1234]\f[] Bibliography is inserted at the \fR<!\-\- REFERENCES \-
 .PP
 \f[B]\-h\f[], \f[B]\-\-help\f[] :   Show help message and exit. \f[B]\-v\f[], \f[B]\-\-version\f[] :   Show version information and exit. \f[B]\-\-progress\f[], \f[B]\-\-no\-progress\f[] :   Show progress indicator during processing. Default: enabled when stderr is a TTY.
 
+.PP
+\f[B]\-i\f[], \f[B]\-\-info\f[] :   Print version, merged config metadata (global and project \fRconfig.yml\f[], plus \f[B]\-\-meta\-file\f[] and \f[B]\-\-meta\f[] when given) as YAML, and the plugin IDs that would load when plugins are enabled. Without input files, writes to stdout and exits. With files or \f[B]\-\-combine\f[]/\f[B]\-\-mmd\-merge\f[], writes to stderr first, then continues.
+
+.PP
+\f[B]\-\-extract\-meta\f[] :   Merge document metadata from input files in order (later overrides; respects \f[B]\-\-mode\f[]), print YAML to stdout, and exit. Requires at least one file (\f[B]\-\-combine\f[] file list counts). Incompatible with \f[B]\-\-mmd\-merge\f[].
+
+.PP
+\f[B]\-e\f[], \f[B]\-\-extract\-meta\-value\f[] \f[I]KEY\f[] :   Same merge as \f[B]\-\-extract\-meta\f[] but print only the value for \f[I]KEY\f[]. Exit status is non\-zero if the key is absent.
+
 .SS Multi\-file Utilities
 
 .PP

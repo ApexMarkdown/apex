@@ -7,6 +7,8 @@
 #include "../src/extensions/metadata.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <assert.h>
 
 void test_metadata(void) {
     int suite_failures = suite_start();
@@ -94,6 +96,46 @@ void test_metadata(void) {
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Metadata Tests", had_failures, false);
+}
+
+/**
+ * YAML serialization helpers used by the CLI
+ */
+void test_metadata_yaml_emit(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Metadata YAML emit Tests", false, true);
+
+    apex_metadata_item *m = apex_parse_command_metadata("title=Hello World");
+    assert(m != NULL);
+    FILE *fp = tmpfile();
+    assert(fp != NULL);
+    apex_metadata_fprint_yaml_document(fp, m);
+    rewind(fp);
+    char buf[800];
+    size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+    buf[n] = '\0';
+    fclose(fp);
+    assert_contains(buf, "---", "yaml document has markers");
+    assert_contains(buf, "title:", "yaml title key");
+    assert_contains(buf, "Hello World", "yaml title value");
+    apex_free_metadata(m);
+
+    apex_metadata_item *a = apex_parse_command_metadata("x=1");
+    apex_metadata_item *b = apex_parse_command_metadata("x=2");
+    apex_metadata_item *mg = apex_merge_metadata(a, b, NULL);
+    apex_free_metadata(a);
+    apex_free_metadata(b);
+    fp = tmpfile();
+    apex_metadata_fprint_yaml_mapping(fp, mg);
+    rewind(fp);
+    n = fread(buf, 1, sizeof(buf) - 1, fp);
+    buf[n] = '\0';
+    fclose(fp);
+    assert_contains(buf, "x: 2", "merge: later metadata wins for yaml mapping");
+    apex_free_metadata(mg);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Metadata YAML emit Tests", had_failures, false);
 }
 
 /**

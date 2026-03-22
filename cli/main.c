@@ -18,6 +18,8 @@
 #include <sys/ioctl.h>
 #include <limits.h>
 
+static char *read_file(const char *filename, size_t *len);
+
     /* Remote plugin directory helpers (from plugins_remote.c) */
 typedef struct apex_remote_plugin apex_remote_plugin;
 typedef struct apex_remote_plugin_list apex_remote_plugin_list;
@@ -479,6 +481,192 @@ static void cli_collect_installed_from_root(const char *root,
     closedir(d);
 }
 
+/**
+ * Merge document metadata from one or more files (later files override).
+ * Sets *out to merged metadata (may be NULL if no blocks found in any file).
+ * Returns 0 on success, non-zero if a file could not be read.
+ */
+static int apex_cli_merge_doc_metadata_from_files(apex_mode_t mode,
+                                                  char **paths,
+                                                  size_t n,
+                                                  apex_metadata_item **out) {
+    apex_metadata_item *acc = NULL;
+    *out = NULL;
+    for (size_t i = 0; i < n; i++) {
+        if (!paths || !paths[i]) continue;
+        size_t len = 0;
+        char *raw = read_file(paths[i], &len);
+        if (!raw) {
+            apex_free_metadata(acc);
+            return 1;
+        }
+        char *copy = malloc(len + 1);
+        if (!copy) {
+            free(raw);
+            apex_free_metadata(acc);
+            return 1;
+        }
+        memcpy(copy, raw, len + 1);
+        free(raw);
+        char *ptr = copy;
+        apex_metadata_item *chunk = apex_extract_metadata_for_mode(&ptr, mode);
+        free(copy);
+        if (!chunk) continue;
+        apex_metadata_item *merged = apex_merge_metadata(acc, chunk, NULL);
+        if (acc) apex_free_metadata(acc);
+        apex_free_metadata(chunk);
+        acc = merged;
+    }
+    *out = acc;
+    return 0;
+}
+
+/**
+ * Print version, merged config (global + project + --meta-file + --meta), and plugin resolution.
+ */
+static void apex_cli_print_info(FILE *out,
+                                const apex_options *options,
+                                bool plugins_cli_override,
+                                bool plugins_cli_value,
+                                const char *meta_file,
+                                apex_metadata_item *cmdline_metadata) {
+    fprintf(out, "version: %s\n\n", apex_version_string());
+
+    char *global_config_path = apex_cli_find_global_config();
+    char *project_config_path = apex_cli_find_project_config(options);
+
+    apex_metadata_item *global_config_meta = NULL;
+    apex_metadata_item *project_config_meta = NULL;
+    apex_metadata_item *explicit_file_meta = NULL;
+
+    if (global_config_path) {
+        global_config_meta = apex_load_metadata_from_file(global_config_path);
+    }
+    if (project_config_path) {
+        project_config_meta = apex_load_metadata_from_file(project_config_path);
+    }
+    if (meta_file) {
+        explicit_file_meta = apex_load_metadata_from_file(meta_file);
+    }
+
+    apex_metadata_item *merged_config = NULL;
+    if (global_config_meta || project_config_meta || explicit_file_meta || cmdline_metadata) {
+        merged_config = apex_merge_metadata(
+            global_config_meta,
+            project_config_meta,
+            explicit_file_meta,
+            cmdline_metadata,
+            NULL);
+    }
+
+    if (global_config_meta) apex_free_metadata(global_config_meta);
+    if (project_config_meta) apex_free_metadata(project_config_meta);
+    if (explicit_file_meta) apex_free_metadata(explicit_file_meta);
+    if (global_config_path) free(global_config_path);
+    if (project_config_path) free(project_config_path);
+
+    fprintf(out, "---\n");
+    if (merged_config) {
+        apex_metadata_fprint_yaml_mapping(out, merged_config);
+    }
+    fprintf(out, "---\n\n");
+
+    apex_options eff = *options;
+    if (merged_config) {
+        apex_apply_metadata_to_options(merged_config, &eff);
+    }
+    if (plugins_cli_override) {
+        eff.enable_plugins = plugins_cli_value;
+    }
+    apex_free_metadata(merged_config);
+
+    if (!eff.enable_plugins) {
+        fprintf(out, "plugins:\n  enabled: false\n");
+        return;
+    }
+
+    fprintf(out, "plugins:\n  enabled: true\n  ids:\n");
+
+    cli_installed_plugin *installed_head = NULL;
+    char **installed_ids = NULL;
+    size_t installed_count = 0;
+    size_t installed_cap = 0;
+
+    char cwd[1024];
+    cwd[0] = '\0';
+    if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
+        char cwd_plugins[1200];
+        snprintf(cwd_plugins, sizeof(cwd_plugins), "%s/.apex/plugins", cwd);
+        cli_collect_installed_from_root(cwd_plugins,
+                                        &installed_head,
+                                        &installed_ids,
+                                        &installed_count,
+                                        &installed_cap);
+    }
+
+    if (options->base_directory && options->base_directory[0] != '\0') {
+        char base_plugins[1200];
+        snprintf(base_plugins, sizeof(base_plugins), "%s/.apex/plugins", options->base_directory);
+        cli_collect_installed_from_root(base_plugins,
+                                        &installed_head,
+                                        &installed_ids,
+                                        &installed_count,
+                                        &installed_cap);
+    }
+
+    char *git_root = apex_cli_git_toplevel();
+    if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
+        size_t root_len = strlen(git_root);
+        if (strncmp(cwd, git_root, root_len) == 0 &&
+            (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
+            char git_plugins[1200];
+            snprintf(git_plugins, sizeof(git_plugins), "%s/.apex/plugins", git_root);
+            cli_collect_installed_from_root(git_plugins,
+                                            &installed_head,
+                                            &installed_ids,
+                                            &installed_count,
+                                            &installed_cap);
+        }
+        free(git_root);
+    }
+
+    const char *xdg = getenv("XDG_CONFIG_HOME");
+    char root[1024];
+    root[0] = '\0';
+    if (xdg && *xdg) {
+        snprintf(root, sizeof(root), "%s/apex/plugins", xdg);
+    } else {
+        const char *home = getenv("HOME");
+        if (home && *home) {
+            snprintf(root, sizeof(root), "%s/.config/apex/plugins", home);
+        }
+    }
+    if (root[0] != '\0') {
+        cli_collect_installed_from_root(root,
+                                        &installed_head,
+                                        &installed_ids,
+                                        &installed_count,
+                                        &installed_cap);
+    }
+
+    if (installed_ids) {
+        for (size_t i = 0; i < installed_count; i++) {
+            free(installed_ids[i]);
+        }
+        free(installed_ids);
+    }
+
+    if (!installed_head) {
+        fprintf(out, "    # (none installed)\n");
+    } else {
+        for (cli_installed_plugin *p = installed_head; p; p = p->next) {
+            const char *pid = p->id ? p->id : "";
+            fprintf(out, "    - %s\n", pid);
+        }
+    }
+    cli_free_installed_plugins(installed_head);
+}
+
 /* Profiling helpers (same as in apex.c) */
 static double get_time_ms(void) {
     struct timeval tv;
@@ -631,6 +819,9 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --hardbreaks           Treat newlines as hard breaks\n");
     fprintf(stderr, "  --header-anchors        Generate <a> anchor tags instead of header IDs\n");
     fprintf(stderr, "  -h, --help             Show this help message\n");
+    fprintf(stderr, "  -i, --info             Show version, merged config (YAML), and plugin ids; to stdout without files, to stderr when processing files\n");
+    fprintf(stderr, "  --extract-meta         Print merged document metadata from input file(s) as YAML and exit\n");
+    fprintf(stderr, "  -e, --extract-meta-value KEY  Print one metadata value for KEY and exit (uses merged metadata from files, last wins)\n");
     fprintf(stderr, "  --id-format FORMAT      Header ID format: gfm (default), mmd, or kramdown\n");
     fprintf(stderr, "                          (modes auto-set format; use this to override in unified mode)\n");
     fprintf(stderr, "  --[no-]includes        Enable file inclusion (enabled by default in unified mode)\n");
@@ -1528,6 +1719,9 @@ int main(int argc, char *argv[]) {
     bool plugins_cli_value = false;
     bool list_plugins = false;
     bool list_themes = false;
+    bool cli_info = false;
+    bool cli_extract_meta = false;
+    const char *extract_meta_value_key = NULL;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
     bool list_filters = false;
@@ -1599,6 +1793,16 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--version") == 0) {
             print_version();
             return 0;
+        } else if (strcmp(argv[i], "-i") == 0 || strcmp(argv[i], "--info") == 0) {
+            cli_info = true;
+        } else if (strcmp(argv[i], "--extract-meta") == 0) {
+            cli_extract_meta = true;
+        } else if (strcmp(argv[i], "-e") == 0 || strcmp(argv[i], "--extract-meta-value") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --extract-meta-value requires a KEY argument\n");
+                return 1;
+            }
+            extract_meta_value_key = argv[i];
         } else if (strcmp(argv[i], "-m") == 0 || strcmp(argv[i], "--mode") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --mode requires an argument\n");
@@ -2321,9 +2525,71 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    if (cli_info && (cli_extract_meta || extract_meta_value_key)) {
+        fprintf(stderr, "Error: --info cannot be combined with --extract-meta or --extract-meta-value\n");
+        return 1;
+    }
+    if (cli_extract_meta && extract_meta_value_key) {
+        fprintf(stderr, "Error: --extract-meta cannot be combined with --extract-meta-value\n");
+        return 1;
+    }
+
     /* Handle theme listing before normal conversion */
     if (list_themes) {
         apex_cli_print_highlight_themes();
+        return 0;
+    }
+
+    /* Extract document metadata and exit (before plugin/network subcommands) */
+    if (cli_extract_meta || extract_meta_value_key) {
+        if (mmd_merge_mode) {
+            fprintf(stderr, "Error: --extract-meta/--extract-meta-value cannot be used with --mmd-merge\n");
+            return 1;
+        }
+        bool has_files = (input_file != NULL) || (combine_mode && combine_file_count > 0);
+        if (!has_files) {
+            fprintf(stderr, "Error: --extract-meta requires at least one input file\n");
+            return 1;
+        }
+
+        apex_metadata_item *docmeta = NULL;
+        int merge_rc;
+        if (combine_mode) {
+            merge_rc = apex_cli_merge_doc_metadata_from_files(options.mode, combine_files, combine_file_count, &docmeta);
+        } else {
+            char *one_path[1];
+            one_path[0] = (char *)input_file;
+            merge_rc = apex_cli_merge_doc_metadata_from_files(options.mode, one_path, 1, &docmeta);
+        }
+        if (merge_rc != 0) {
+            if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
+            return 1;
+        }
+
+        if (cli_extract_meta) {
+            apex_metadata_fprint_yaml_document(stdout, docmeta);
+            if (docmeta) apex_free_metadata(docmeta);
+            if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
+            return 0;
+        }
+
+        const char *val = apex_metadata_get(docmeta, extract_meta_value_key);
+        if (!val) {
+            fprintf(stderr, "Error: metadata key '%s' not found\n", extract_meta_value_key);
+            if (docmeta) apex_free_metadata(docmeta);
+            if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
+            return 1;
+        }
+        printf("%s\n", val);
+        if (docmeta) apex_free_metadata(docmeta);
+        if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
+        return 0;
+    }
+
+    /* --info with no input files: print and exit */
+    if (cli_info && !input_file && !combine_mode && !mmd_merge_mode) {
+        apex_cli_print_info(stdout, &options, plugins_cli_override, plugins_cli_value, meta_file, cmdline_metadata);
+        if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
         return 0;
     }
 
@@ -3122,6 +3388,10 @@ int main(int argc, char *argv[]) {
             return 1;
         }
 
+        if (cli_info) {
+            apex_cli_print_info(stderr, &options, plugins_cli_override, plugins_cli_value, meta_file, cmdline_metadata);
+        }
+
         int rc = 0;
         for (size_t i = 0; i < mmd_merge_file_count; i++) {
             const char *path = mmd_merge_files[i];
@@ -3147,6 +3417,10 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: Cannot open output file '%s'\n", output_file);
                 return 1;
             }
+        }
+
+        if (cli_info) {
+            apex_cli_print_info(stderr, &options, plugins_cli_override, plugins_cli_value, meta_file, cmdline_metadata);
         }
 
         int rc = 0;
@@ -3203,6 +3477,10 @@ int main(int argc, char *argv[]) {
             }
             free(input_path_copy);
         }
+    }
+
+    if (cli_info && input_file && !combine_mode && !mmd_merge_mode) {
+        apex_cli_print_info(stderr, &options, plugins_cli_override, plugins_cli_value, meta_file, cmdline_metadata);
     }
 
     /* Set input_file_path for plugins (APEX_FILE_PATH) */
@@ -3338,86 +3616,50 @@ int main(int argc, char *argv[]) {
     size_t enhanced_len = input_len;
 
     if (merged_metadata) {
-        /* Build YAML front matter from merged metadata */
-        size_t yaml_size = 512;
-        char *yaml_buf = malloc(yaml_size);
-        if (yaml_buf) {
-            size_t yaml_pos = 0;
-            yaml_buf[yaml_pos++] = '-';
-            yaml_buf[yaml_pos++] = '-';
-            yaml_buf[yaml_pos++] = '-';
-            yaml_buf[yaml_pos++] = '\n';
+        bool has_existing_metadata = (doc_metadata_end > 0);
+        size_t metadata_start_pos = 0;
+        size_t metadata_end_pos = doc_metadata_end;
 
-            /* Use extracted metadata position if available */
-            bool has_existing_metadata = (doc_metadata_end > 0);
-            size_t metadata_start_pos = 0;
-            size_t metadata_end_pos = doc_metadata_end;
+        char *yaml_buf = NULL;
+        size_t yaml_sz = 0;
+        FILE *ym = open_memstream(&yaml_buf, &yaml_sz);
+        if (ym) {
+            fprintf(ym, "---\n");
+            apex_metadata_fprint_yaml_mapping(ym, merged_metadata);
+            fprintf(ym, "---\n");
+            fclose(ym);
+        }
 
-            /* Add all merged metadata */
-            apex_metadata_item *item = merged_metadata;
-            while (item) {
-                /* Escape value if it contains special characters */
-                bool needs_quotes = strchr(item->value, ':') || strchr(item->value, '\n') ||
-                                    strchr(item->value, '"') || strchr(item->value, '\\');
+        if (yaml_buf && yaml_sz > 0) {
+            size_t yaml_pos = yaml_sz;
 
-                size_t needed = strlen(item->key) + strlen(item->value) + (needs_quotes ? 4 : 0) + 10;
-                if (yaml_pos + needed >= yaml_size) {
-                    yaml_size = (yaml_pos + needed) * 2;
-                    char *new_buf = realloc(yaml_buf, yaml_size);
-                    if (!new_buf) {
-                        free(yaml_buf);
-                        yaml_buf = NULL;
-                        break;
+            if (has_existing_metadata) {
+                /* Replace existing metadata */
+                size_t before_len = metadata_start_pos;
+                size_t after_len = input_len - metadata_end_pos;
+                enhanced_len = before_len + yaml_pos + after_len;
+                enhanced_markdown = malloc(enhanced_len + 1);
+                if (enhanced_markdown) {
+                    if (before_len > 0) {
+                        memcpy(enhanced_markdown, markdown, before_len);
                     }
-                    yaml_buf = new_buf;
+                    memcpy(enhanced_markdown + before_len, yaml_buf, yaml_pos);
+                    if (after_len > 0) {
+                        memcpy(enhanced_markdown + before_len + yaml_pos, markdown + metadata_end_pos, after_len);
+                    }
+                    enhanced_markdown[enhanced_len] = '\0';
                 }
-
-                if (needs_quotes) {
-                    int written = snprintf(yaml_buf + yaml_pos, yaml_size - yaml_pos, "%s: \"%s\"\n", item->key, item->value);
-                    if (written > 0) yaml_pos += written;
-                } else {
-                    int written = snprintf(yaml_buf + yaml_pos, yaml_size - yaml_pos, "%s: %s\n", item->key, item->value);
-                    if (written > 0) yaml_pos += written;
+            } else {
+                /* Prepend metadata */
+                enhanced_len = yaml_pos + input_len;
+                enhanced_markdown = malloc(enhanced_len + 1);
+                if (enhanced_markdown) {
+                    memcpy(enhanced_markdown, yaml_buf, yaml_pos);
+                    memcpy(enhanced_markdown + yaml_pos, markdown, input_len);
+                    enhanced_markdown[enhanced_len] = '\0';
                 }
-                item = item->next;
             }
-
-            if (yaml_buf) {
-                /* Add closing --- */
-                yaml_buf[yaml_pos++] = '-';
-                yaml_buf[yaml_pos++] = '-';
-                yaml_buf[yaml_pos++] = '-';
-                yaml_buf[yaml_pos++] = '\n';
-                yaml_buf[yaml_pos] = '\0';
-
-                if (has_existing_metadata) {
-                    /* Replace existing metadata */
-                    size_t before_len = metadata_start_pos;
-                    size_t after_len = input_len - metadata_end_pos;
-                    enhanced_len = before_len + yaml_pos + after_len;
-                    enhanced_markdown = malloc(enhanced_len + 1);
-                    if (enhanced_markdown) {
-                        if (before_len > 0) {
-                            memcpy(enhanced_markdown, markdown, before_len);
-                        }
-                        memcpy(enhanced_markdown + before_len, yaml_buf, yaml_pos);
-                        if (after_len > 0) {
-                            memcpy(enhanced_markdown + before_len + yaml_pos, markdown + metadata_end_pos, after_len);
-                        }
-                        enhanced_markdown[enhanced_len] = '\0';
-                    }
-                } else {
-                    /* Prepend metadata */
-                    enhanced_len = yaml_pos + input_len;
-                    enhanced_markdown = malloc(enhanced_len + 1);
-                    if (enhanced_markdown) {
-                        memcpy(enhanced_markdown, yaml_buf, yaml_pos);
-                        memcpy(enhanced_markdown + yaml_pos, markdown, input_len);
-                        enhanced_markdown[enhanced_len] = '\0';
-                    }
-                }
-                free(yaml_buf);
-            }
+            free(yaml_buf);
         }
     }
     PROFILE_END(metadata_yaml_build);
