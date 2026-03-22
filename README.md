@@ -1,5 +1,5 @@
 
-[![Version: 0.1.99](https://img.shields.io/badge/Version-0.1.99-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1498/1498](https://img.shields.io/badge/Tests-1498/1498-a5da78)<!--END TESTS_BADGE-->
+[![Version: 0.1.100](https://img.shields.io/badge/Version-0.1.100-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 1498/1498](https://img.shields.io/badge/Tests-1498/1498-a5da78)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -121,7 +121,7 @@ one tool.
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
 - **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
-- **XHTML output**: `--xhtml` writes void/empty elements in XML form (`<br />`, `<meta ... />`). `--strict-xhtml` adds polyglot XHTML document scaffolding when used with `--standalone` (XML declaration, XHTML namespace, `Content-Type` meta). In **fragment** mode, strict mode does not validate or repair all markup as XML???raw HTML can still be ill-formed; see the main README.
+- **XHTML output**: `--xhtml` writes void/empty elements in XML form (`<br />`, `<meta ... />`). `--strict-xhtml` adds polyglot XHTML document scaffolding when used with `--standalone` (XML declaration, XHTML namespace, `Content-Type` meta). You can also select the same behavior with `-t xhtml` or `-t strict-xhtml` (aliases for HTML output with those flags). In **fragment** mode, strict mode does not validate or repair all markup as XML???raw HTML can still be ill-formed; see the main README.
 - **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# ???? Support` ??? `id="smile-support"`), matching Pandoc's GFM behavior
 - **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
@@ -301,7 +301,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v0.1.98
+Apex Markdown Processor v0.1.101
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -356,7 +356,7 @@ Options:
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
   -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)
-  -t, --to FORMAT        Output format: html (default), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html
+  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support
   --no-ids                Disable automatic header ID generation
@@ -381,8 +381,8 @@ Options:
   --[no-]progress          Show progress indicator during processing (enabled by default for TTY)
   --plugins              Enable external/plugin processing
   --pretty               Pretty-print HTML with indentation and whitespace
-  --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />)
-  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml.
+  --xhtml                HTML5 output with self-closing void tags (<br />, <meta ... />). Same as -t xhtml.
+  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml. Same as -t strict-xhtml.
   --reject               Reject all Critic Markup changes (revert edits)
   --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)
   --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)
