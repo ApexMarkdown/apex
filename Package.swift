@@ -1,7 +1,17 @@
 // swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
+import Foundation
 import PackageDescription
+
+/// Clang discovers `include/apex/module.modulemap` next to headers and builds a precompiled
+/// `ApexHeaders` module, but SPM only loads `include/module.modulemap` (ApexC). Without passing
+/// this path explicitly, `ApexObjC`/`Apex` fail with: module 'ApexHeaders' is not defined in any
+/// loaded module map file.
+private let apexHeadersModuleMap = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .appendingPathComponent("include/apex/module.modulemap")
+    .path
 
 let package = Package(
     name: "Apex",
@@ -150,7 +160,8 @@ let package = Package(
             sources: ["NSString+Apex.m"],
             publicHeadersPath: ".",
             cSettings: [
-                .headerSearchPath("../include")
+                .headerSearchPath("../include"),
+                .unsafeFlags(["-fmodule-map-file=\(apexHeadersModuleMap)"]),
             ]
         ),
         // Swift wrapper
@@ -162,7 +173,8 @@ let package = Package(
             sources: ["Apex.swift"],
             publicHeadersPath: ".",
             swiftSettings: [
-                .define("APEX_HAVE_LIBYAML")  // Always enabled when bundled
+                .define("APEX_HAVE_LIBYAML"),  // Always enabled when bundled
+                .unsafeFlags(["-Xcc", "-fmodule-map-file=\(apexHeadersModuleMap)"]),
             ]
         ),
     ]
