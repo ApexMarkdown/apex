@@ -2,17 +2,24 @@
 
 All notable changes to Apex will be documented in this file.
 
-## [0.1.103] - 2026-03-22
+## [0.1.104] - 2026-03-29
+
+### Fixed
+
+- After merging global/project/document/`--meta` metadata, the CLI now re-applies every option that was set on the command line so config and YAML metadata cannot override explicit flags (including `--mode`, `-t`/`--to`, feature toggles, `--standalone`, `--style`/`--css`, bibliography/CSL, and the rest of the documented CLI surface).
+
+## [0.1.103] - 2026-03-29
 
 ### New
 
 - `i/--info` prints version, merged config (global, project, --meta-file, --meta),
 - `--extract-meta` and `-e KEY` merge per-file document metadata in order (mode-aware)
 - Add metadata_yaml_emit unit tests and man page entries.
+- CLI `-s`/`--standalone` (and `--style`/`--css`, which imply standalone) now wins over `standalone: false` from document or config metadata, so explicit standalone output is not downgraded to an HTML fragment.
 
 ### Fixed
 
-- CLI `-s`/`--standalone` (and `--style`/`--css`, which imply standalone) now wins over `standalone: false` from document or config metadata, so explicit standalone output is not downgraded to an HTML fragment.
+- Track explicit -s/--standalone and --style/--css and re-apply standalone after apex_apply_metadata_to_options so document or config YAML cannot force a fragment when the user asked for a full document.
 
 ## [0.1.102] - 2026-03-22
 
@@ -2782,6 +2789,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[0.1.104]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.104
 [0.1.103]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.103
 [0.1.102]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.102
 [0.1.100]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.100

@@ -20,6 +20,177 @@
 
 static char *read_file(const char *filename, size_t *len);
 
+/**
+ * Tracks which apex_options fields were set explicitly from argv so that
+ * merged config/document metadata cannot override them after apex_apply_metadata_to_options.
+ */
+typedef struct apex_cli_option_mask {
+    bool mode;
+    bool output_format;
+    bool xhtml;
+    bool strict_xhtml;
+    bool theme_name;
+    bool enable_plugins;
+    bool enable_tables;
+    bool enable_footnotes;
+    bool enable_smart_typography;
+    bool enable_math;
+    bool enable_file_includes;
+    bool hardbreaks;
+    bool standalone;
+    bool embed_stylesheet;
+    bool document_title;
+    bool pretty;
+    bool critic;
+    bool id_format;
+    bool generate_header_ids;
+    bool header_anchors;
+    bool relaxed_tables;
+    bool per_cell_alignment;
+    bool caption_position;
+    bool code_highlighter;
+    bool code_highlight_theme;
+    bool code_line_numbers;
+    bool highlight_language_only;
+    bool allow_alpha_lists;
+    bool allow_mixed_list_markers;
+    bool unsafe;
+    bool enable_sup_sub;
+    bool enable_divs;
+    bool enable_definition_lists;
+    bool enable_spans;
+    bool enable_autolink;
+    bool enable_strikethrough;
+    bool obfuscate_emails;
+    bool enable_aria;
+    bool enable_wiki_links;
+    bool enable_emoji_autocorrect;
+    bool enable_widont;
+    bool code_is_poetry;
+    bool enable_markdown_in_html;
+    bool random_footnote_ids;
+    bool enable_hashtags;
+    bool style_hashtags;
+    bool proofreader;
+    bool hr_page_break;
+    bool title_from_h1;
+    bool page_break_before_footnotes;
+    bool wikilink_space;
+    bool wikilink_extension;
+    bool wikilink_sanitize;
+    bool enable_metadata_transforms;
+    bool embed_images;
+    bool enable_image_captions;
+    bool title_captions_only;
+    bool base_directory;
+    bool bibliography;
+    bool csl_file;
+    bool suppress_bibliography;
+    bool link_citations;
+    bool show_tooltips;
+    bool indices;
+    bool suppress_index;
+    bool stylesheet;
+} apex_cli_option_mask;
+
+static void apex_cli_restore_argv_options(apex_options *opts,
+                                          const apex_options *snap,
+                                          const apex_cli_option_mask *m) {
+    if (m->mode) opts->mode = snap->mode;
+    if (m->output_format) opts->output_format = snap->output_format;
+    if (m->xhtml) opts->xhtml = snap->xhtml;
+    if (m->strict_xhtml) opts->strict_xhtml = snap->strict_xhtml;
+    if (m->theme_name) opts->theme_name = snap->theme_name;
+    if (m->enable_plugins) opts->enable_plugins = snap->enable_plugins;
+    if (m->enable_tables) opts->enable_tables = snap->enable_tables;
+    if (m->enable_footnotes) opts->enable_footnotes = snap->enable_footnotes;
+    if (m->enable_smart_typography) opts->enable_smart_typography = snap->enable_smart_typography;
+    if (m->enable_math) opts->enable_math = snap->enable_math;
+    if (m->enable_file_includes) opts->enable_file_includes = snap->enable_file_includes;
+    if (m->hardbreaks) opts->hardbreaks = snap->hardbreaks;
+    if (m->standalone) opts->standalone = snap->standalone;
+    if (m->embed_stylesheet) opts->embed_stylesheet = snap->embed_stylesheet;
+    if (m->document_title) opts->document_title = snap->document_title;
+    if (m->pretty) opts->pretty = snap->pretty;
+    if (m->critic) {
+        opts->enable_critic_markup = snap->enable_critic_markup;
+        opts->critic_mode = snap->critic_mode;
+    }
+    if (m->id_format) opts->id_format = snap->id_format;
+    if (m->generate_header_ids) opts->generate_header_ids = snap->generate_header_ids;
+    if (m->header_anchors) opts->header_anchors = snap->header_anchors;
+    if (m->relaxed_tables) opts->relaxed_tables = snap->relaxed_tables;
+    if (m->per_cell_alignment) opts->per_cell_alignment = snap->per_cell_alignment;
+    if (m->caption_position) opts->caption_position = snap->caption_position;
+    if (m->code_highlighter) opts->code_highlighter = snap->code_highlighter;
+    if (m->code_highlight_theme) opts->code_highlight_theme = snap->code_highlight_theme;
+    if (m->code_line_numbers) opts->code_line_numbers = snap->code_line_numbers;
+    if (m->highlight_language_only) opts->highlight_language_only = snap->highlight_language_only;
+    if (m->allow_alpha_lists) opts->allow_alpha_lists = snap->allow_alpha_lists;
+    if (m->allow_mixed_list_markers) opts->allow_mixed_list_markers = snap->allow_mixed_list_markers;
+    if (m->unsafe) opts->unsafe = snap->unsafe;
+    if (m->enable_sup_sub) opts->enable_sup_sub = snap->enable_sup_sub;
+    if (m->enable_divs) opts->enable_divs = snap->enable_divs;
+    if (m->enable_definition_lists) opts->enable_definition_lists = snap->enable_definition_lists;
+    if (m->enable_spans) opts->enable_spans = snap->enable_spans;
+    if (m->enable_autolink) opts->enable_autolink = snap->enable_autolink;
+    if (m->enable_strikethrough) opts->enable_strikethrough = snap->enable_strikethrough;
+    if (m->obfuscate_emails) opts->obfuscate_emails = snap->obfuscate_emails;
+    if (m->enable_aria) opts->enable_aria = snap->enable_aria;
+    if (m->enable_wiki_links) opts->enable_wiki_links = snap->enable_wiki_links;
+    if (m->enable_emoji_autocorrect) opts->enable_emoji_autocorrect = snap->enable_emoji_autocorrect;
+    if (m->enable_widont) opts->enable_widont = snap->enable_widont;
+    if (m->code_is_poetry) {
+        opts->code_is_poetry = snap->code_is_poetry;
+        opts->highlight_language_only = snap->highlight_language_only;
+    }
+    if (m->enable_markdown_in_html) opts->enable_markdown_in_html = snap->enable_markdown_in_html;
+    if (m->random_footnote_ids) opts->random_footnote_ids = snap->random_footnote_ids;
+    if (m->enable_hashtags) opts->enable_hashtags = snap->enable_hashtags;
+    if (m->style_hashtags) opts->style_hashtags = snap->style_hashtags;
+    if (m->proofreader) {
+        opts->proofreader_mode = snap->proofreader_mode;
+        opts->enable_critic_markup = snap->enable_critic_markup;
+        opts->critic_mode = snap->critic_mode;
+    }
+    if (m->hr_page_break) opts->hr_page_break = snap->hr_page_break;
+    if (m->title_from_h1) opts->title_from_h1 = snap->title_from_h1;
+    if (m->page_break_before_footnotes) opts->page_break_before_footnotes = snap->page_break_before_footnotes;
+    if (m->wikilink_space) opts->wikilink_space = snap->wikilink_space;
+    if (m->wikilink_extension) opts->wikilink_extension = snap->wikilink_extension;
+    if (m->wikilink_sanitize) opts->wikilink_sanitize = snap->wikilink_sanitize;
+    if (m->enable_metadata_transforms) opts->enable_metadata_transforms = snap->enable_metadata_transforms;
+    if (m->embed_images) opts->embed_images = snap->embed_images;
+    if (m->enable_image_captions) opts->enable_image_captions = snap->enable_image_captions;
+    if (m->title_captions_only) {
+        opts->title_captions_only = snap->title_captions_only;
+        opts->enable_image_captions = snap->enable_image_captions;
+    }
+    if (m->base_directory) opts->base_directory = snap->base_directory;
+    if (m->bibliography) {
+        opts->bibliography_files = snap->bibliography_files;
+        opts->enable_citations = snap->enable_citations;
+    }
+    if (m->csl_file) {
+        opts->csl_file = snap->csl_file;
+        opts->enable_citations = snap->enable_citations;
+    }
+    if (m->suppress_bibliography) opts->suppress_bibliography = snap->suppress_bibliography;
+    if (m->link_citations) opts->link_citations = snap->link_citations;
+    if (m->show_tooltips) opts->show_tooltips = snap->show_tooltips;
+    if (m->indices) {
+        opts->enable_indices = snap->enable_indices;
+        opts->enable_mmark_index_syntax = snap->enable_mmark_index_syntax;
+        opts->enable_textindex_syntax = snap->enable_textindex_syntax;
+        opts->enable_leanpub_index_syntax = snap->enable_leanpub_index_syntax;
+    }
+    if (m->suppress_index) opts->suppress_index = snap->suppress_index;
+    if (m->stylesheet) {
+        opts->stylesheet_paths = snap->stylesheet_paths;
+        opts->stylesheet_count = snap->stylesheet_count;
+    }
+}
+
     /* Remote plugin directory helpers (from plugins_remote.c) */
 typedef struct apex_remote_plugin apex_remote_plugin;
 typedef struct apex_remote_plugin_list apex_remote_plugin_list;
@@ -1715,6 +1886,8 @@ int main(int argc, char *argv[]) {
     init_progress();
 
     apex_options options = apex_options_default();
+    apex_options cli_options_snapshot;
+    apex_cli_option_mask cli_opt_mask = {0};
     bool plugins_cli_override = false;
     bool plugins_cli_value = false;
     bool list_plugins = false;
@@ -1722,8 +1895,6 @@ int main(int argc, char *argv[]) {
     bool cli_info = false;
     bool cli_extract_meta = false;
     const char *extract_meta_value_key = NULL;
-    /* When set, -s/--standalone or --style/--css requested HTML standalone; must not be overridden by metadata. */
-    bool cli_standalone_override = false;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
     bool list_filters = false;
@@ -1810,6 +1981,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --mode requires an argument\n");
                 return 1;
             }
+            cli_opt_mask.mode = true;
             if (strcmp(argv[i], "commonmark") == 0) {
                 options = apex_options_for_mode(APEX_MODE_COMMONMARK);
             } else if (strcmp(argv[i], "gfm") == 0) {
@@ -1829,15 +2001,20 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --to requires an argument\n");
                 return 1;
             }
+            cli_opt_mask.output_format = true;
             if (strcmp(argv[i], "html") == 0) {
                 options.output_format = APEX_OUTPUT_HTML;
             } else if (strcmp(argv[i], "xhtml") == 0) {
                 /* Alias for -t html --xhtml */
+                cli_opt_mask.xhtml = true;
+                cli_opt_mask.strict_xhtml = true;
                 options.output_format = APEX_OUTPUT_HTML;
                 options.xhtml = true;
                 options.strict_xhtml = false;
             } else if (strcmp(argv[i], "strict-xhtml") == 0) {
                 /* Alias for -t html --strict-xhtml */
+                cli_opt_mask.xhtml = true;
+                cli_opt_mask.strict_xhtml = true;
                 options.output_format = APEX_OUTPUT_HTML;
                 options.strict_xhtml = true;
                 options.xhtml = false;
@@ -1873,6 +2050,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --theme requires a name argument\n");
                 return 1;
             }
+            cli_opt_mask.theme_name = true;
             options.theme_name = argv[i];
         } else if (strcmp(argv[i], "--width") == 0) {
             if (++i >= argc) {
@@ -1904,10 +2082,12 @@ int main(int argc, char *argv[]) {
             }
             output_file = argv[i];
         } else if (strcmp(argv[i], "--plugins") == 0) {
+            cli_opt_mask.enable_plugins = true;
             options.enable_plugins = true;
             plugins_cli_override = true;
             plugins_cli_value = true;
         } else if (strcmp(argv[i], "--no-plugins") == 0) {
+            cli_opt_mask.enable_plugins = true;
             options.enable_plugins = false;
             plugins_cli_override = true;
             plugins_cli_value = false;
@@ -1991,29 +2171,37 @@ int main(int argc, char *argv[]) {
             }
             uninstall_plugin_id = argv[i];
         } else if (strcmp(argv[i], "--no-tables") == 0) {
+            cli_opt_mask.enable_tables = true;
             options.enable_tables = false;
         } else if (strcmp(argv[i], "--no-footnotes") == 0) {
+            cli_opt_mask.enable_footnotes = true;
             options.enable_footnotes = false;
         } else if (strcmp(argv[i], "--no-smart") == 0) {
+            cli_opt_mask.enable_smart_typography = true;
             options.enable_smart_typography = false;
         } else if (strcmp(argv[i], "--no-math") == 0) {
+            cli_opt_mask.enable_math = true;
             options.enable_math = false;
         } else if (strcmp(argv[i], "--includes") == 0) {
+            cli_opt_mask.enable_file_includes = true;
             options.enable_file_includes = true;
         } else if (strcmp(argv[i], "--no-includes") == 0) {
+            cli_opt_mask.enable_file_includes = true;
             options.enable_file_includes = false;
         } else if (strcmp(argv[i], "--hardbreaks") == 0) {
+            cli_opt_mask.hardbreaks = true;
             options.hardbreaks = true;
         } else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--standalone") == 0) {
+            cli_opt_mask.standalone = true;
             options.standalone = true;
-            cli_standalone_override = true;
         } else if (strcmp(argv[i], "--css") == 0 || strcmp(argv[i], "--style") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: %s requires an argument\n", argv[i-1]);
                 return 1;
             }
+            cli_opt_mask.standalone = true;
+            cli_opt_mask.stylesheet = true;
             options.standalone = true;  /* Imply standalone if CSS is specified */
-            cli_standalone_override = true;
 
             /* Parse comma-separated stylesheet paths */
             const char *arg = argv[i];
@@ -2077,6 +2265,7 @@ int main(int argc, char *argv[]) {
                 }
             }
         } else if (strcmp(argv[i], "--embed-css") == 0) {
+            cli_opt_mask.embed_stylesheet = true;
             options.embed_stylesheet = true;
         } else if (strcmp(argv[i], "--script") == 0) {
             if (++i >= argc) {
@@ -2188,17 +2377,23 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --title requires an argument\n");
                 return 1;
             }
+            cli_opt_mask.document_title = true;
             options.document_title = argv[i];
         } else if (strcmp(argv[i], "--pretty") == 0) {
+            cli_opt_mask.pretty = true;
             options.pretty = true;
         } else if (strcmp(argv[i], "--xhtml") == 0) {
+            cli_opt_mask.xhtml = true;
             options.xhtml = true;
         } else if (strcmp(argv[i], "--strict-xhtml") == 0) {
+            cli_opt_mask.strict_xhtml = true;
             options.strict_xhtml = true;
         } else if (strcmp(argv[i], "--accept") == 0) {
+            cli_opt_mask.critic = true;
             options.enable_critic_markup = true;
             options.critic_mode = 0;  /* CRITIC_ACCEPT */
         } else if (strcmp(argv[i], "--reject") == 0) {
+            cli_opt_mask.critic = true;
             options.enable_critic_markup = true;
             options.critic_mode = 1;  /* CRITIC_REJECT */
         } else if (strcmp(argv[i], "--id-format") == 0) {
@@ -2206,6 +2401,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --id-format requires an argument (gfm, mmd, or kramdown)\n");
                 return 1;
             }
+            cli_opt_mask.id_format = true;
             if (strcmp(argv[i], "gfm") == 0) {
                 options.id_format = 0;  /* GFM format */
             } else if (strcmp(argv[i], "mmd") == 0) {
@@ -2217,22 +2413,29 @@ int main(int argc, char *argv[]) {
                 return 1;
             }
         } else if (strcmp(argv[i], "--no-ids") == 0) {
+            cli_opt_mask.generate_header_ids = true;
             options.generate_header_ids = false;
         } else if (strcmp(argv[i], "--header-anchors") == 0) {
+            cli_opt_mask.header_anchors = true;
             options.header_anchors = true;
         } else if (strcmp(argv[i], "--relaxed-tables") == 0) {
+            cli_opt_mask.relaxed_tables = true;
             options.relaxed_tables = true;
         } else if (strcmp(argv[i], "--no-relaxed-tables") == 0) {
+            cli_opt_mask.relaxed_tables = true;
             options.relaxed_tables = false;
         } else if (strcmp(argv[i], "--per-cell-alignment") == 0) {
+            cli_opt_mask.per_cell_alignment = true;
             options.per_cell_alignment = true;
         } else if (strcmp(argv[i], "--no-per-cell-alignment") == 0) {
+            cli_opt_mask.per_cell_alignment = true;
             options.per_cell_alignment = false;
         } else if (strcmp(argv[i], "--captions") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --captions requires an argument (above or below)\n");
                 return 1;
             }
+            cli_opt_mask.caption_position = true;
             if (strcmp(argv[i], "above") == 0) {
                 options.caption_position = 0;
             } else if (strcmp(argv[i], "below") == 0) {
@@ -2246,6 +2449,7 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --code-highlight requires a tool name (pygments, skylighting, shiki, or abbreviations p, s, sh)\n");
                 return 1;
             }
+            cli_opt_mask.code_highlighter = true;
             /* Accept full names and abbreviations */
             if (strcmp(argv[i], "pygments") == 0 || strcmp(argv[i], "p") == 0 || strcmp(argv[i], "pyg") == 0) {
                 options.code_highlighter = "pygments";
@@ -2263,95 +2467,132 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --code-highlight-theme requires a theme name\n");
                 return 1;
             }
+            cli_opt_mask.code_highlight_theme = true;
             options.code_highlight_theme = argv[i];
         } else if (strcmp(argv[i], "--code-line-numbers") == 0) {
+            cli_opt_mask.code_line_numbers = true;
             options.code_line_numbers = true;
         } else if (strcmp(argv[i], "--highlight-language-only") == 0) {
+            cli_opt_mask.highlight_language_only = true;
             options.highlight_language_only = true;
         } else if (strcmp(argv[i], "--alpha-lists") == 0) {
+            cli_opt_mask.allow_alpha_lists = true;
             options.allow_alpha_lists = true;
         } else if (strcmp(argv[i], "--no-alpha-lists") == 0) {
+            cli_opt_mask.allow_alpha_lists = true;
             options.allow_alpha_lists = false;
         } else if (strcmp(argv[i], "--mixed-lists") == 0) {
+            cli_opt_mask.allow_mixed_list_markers = true;
             options.allow_mixed_list_markers = true;
         } else if (strcmp(argv[i], "--no-mixed-lists") == 0) {
+            cli_opt_mask.allow_mixed_list_markers = true;
             options.allow_mixed_list_markers = false;
         } else if (strcmp(argv[i], "--unsafe") == 0) {
+            cli_opt_mask.unsafe = true;
             options.unsafe = true;
         } else if (strcmp(argv[i], "--no-unsafe") == 0) {
+            cli_opt_mask.unsafe = true;
             options.unsafe = false;
         } else if (strcmp(argv[i], "--sup-sub") == 0) {
+            cli_opt_mask.enable_sup_sub = true;
             options.enable_sup_sub = true;
         } else if (strcmp(argv[i], "--no-sup-sub") == 0) {
+            cli_opt_mask.enable_sup_sub = true;
             options.enable_sup_sub = false;
         } else if (strcmp(argv[i], "--divs") == 0) {
+            cli_opt_mask.enable_divs = true;
             options.enable_divs = true;
         } else if (strcmp(argv[i], "--no-divs") == 0) {
+            cli_opt_mask.enable_divs = true;
             options.enable_divs = false;
         } else if (strcmp(argv[i], "--one-line-definitions") == 0) {
+            cli_opt_mask.enable_definition_lists = true;
             options.enable_definition_lists = true;
         } else if (strcmp(argv[i], "--no-one-line-definitions") == 0) {
+            cli_opt_mask.enable_definition_lists = true;
             options.enable_definition_lists = false;
         } else if (strcmp(argv[i], "--spans") == 0) {
+            cli_opt_mask.enable_spans = true;
             options.enable_spans = true;
         } else if (strcmp(argv[i], "--no-spans") == 0) {
+            cli_opt_mask.enable_spans = true;
             options.enable_spans = false;
         } else if (strcmp(argv[i], "--autolink") == 0) {
+            cli_opt_mask.enable_autolink = true;
             options.enable_autolink = true;
         } else if (strcmp(argv[i], "--no-autolink") == 0) {
+            cli_opt_mask.enable_autolink = true;
             options.enable_autolink = false;
         } else if (strcmp(argv[i], "--strikethrough") == 0) {
+            cli_opt_mask.enable_strikethrough = true;
             options.enable_strikethrough = true;
         } else if (strcmp(argv[i], "--no-strikethrough") == 0) {
+            cli_opt_mask.enable_strikethrough = true;
             options.enable_strikethrough = false;
         } else if (strcmp(argv[i], "--obfuscate-emails") == 0) {
+            cli_opt_mask.obfuscate_emails = true;
             options.obfuscate_emails = true;
         } else if (strcmp(argv[i], "--progress") == 0) {
             progress_enabled = true;
         } else if (strcmp(argv[i], "--no-progress") == 0) {
             progress_enabled = false;
         } else if (strcmp(argv[i], "--aria") == 0) {
+            cli_opt_mask.enable_aria = true;
             options.enable_aria = true;
-        } else if (strcmp(argv[i], "--no-plugins") == 0) {
-            options.enable_plugins = false;
         } else if (strcmp(argv[i], "--wikilinks") == 0) {
+            cli_opt_mask.enable_wiki_links = true;
             options.enable_wiki_links = true;
         } else if (strcmp(argv[i], "--no-wikilinks") == 0) {
+            cli_opt_mask.enable_wiki_links = true;
             options.enable_wiki_links = false;
         } else if (strcmp(argv[i], "--emoji-autocorrect") == 0) {
+            cli_opt_mask.enable_emoji_autocorrect = true;
             options.enable_emoji_autocorrect = true;
         } else if (strcmp(argv[i], "--no-emoji-autocorrect") == 0) {
+            cli_opt_mask.enable_emoji_autocorrect = true;
             options.enable_emoji_autocorrect = false;
         } else if (strcmp(argv[i], "--widont") == 0) {
+            cli_opt_mask.enable_widont = true;
             options.enable_widont = true;
         } else if (strcmp(argv[i], "--code-is-poetry") == 0) {
+            cli_opt_mask.code_is_poetry = true;
             options.code_is_poetry = true;
             options.highlight_language_only = true;
         } else if (strcmp(argv[i], "--markdown-in-html") == 0) {
+            cli_opt_mask.enable_markdown_in_html = true;
             options.enable_markdown_in_html = true;
         } else if (strcmp(argv[i], "--no-markdown-in-html") == 0) {
+            cli_opt_mask.enable_markdown_in_html = true;
             options.enable_markdown_in_html = false;
         } else if (strcmp(argv[i], "--random-footnote-ids") == 0) {
+            cli_opt_mask.random_footnote_ids = true;
             options.random_footnote_ids = true;
         } else if (strcmp(argv[i], "--hashtags") == 0) {
+            cli_opt_mask.enable_hashtags = true;
             options.enable_hashtags = true;
         } else if (strcmp(argv[i], "--style-hashtags") == 0) {
+            cli_opt_mask.style_hashtags = true;
             options.style_hashtags = true;
         } else if (strcmp(argv[i], "--proofreader") == 0) {
+            cli_opt_mask.proofreader = true;
             options.proofreader_mode = true;
             options.enable_critic_markup = true;
             options.critic_mode = 2;  /* Ensure markup mode */
         } else if (strcmp(argv[i], "--hr-page-break") == 0) {
+            cli_opt_mask.hr_page_break = true;
             options.hr_page_break = true;
         } else if (strcmp(argv[i], "--title-from-h1") == 0) {
+            cli_opt_mask.title_from_h1 = true;
             options.title_from_h1 = true;
         } else if (strcmp(argv[i], "--page-break-before-footnotes") == 0) {
+            cli_opt_mask.page_break_before_footnotes = true;
             options.page_break_before_footnotes = true;
         } else if (strcmp(argv[i], "--wikilink-space") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --wikilink-space requires an argument (dash, none, underscore, or space)\n");
                 return 1;
             }
+            cli_opt_mask.wikilink_space = true;
             if (strcmp(argv[i], "dash") == 0) {
                 options.wikilink_space = 0;
             } else if (strcmp(argv[i], "none") == 0) {
@@ -2369,31 +2610,42 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --wikilink-extension requires an argument\n");
                 return 1;
             }
+            cli_opt_mask.wikilink_extension = true;
             options.wikilink_extension = argv[i];
         } else if (strcmp(argv[i], "--wikilink-sanitize") == 0) {
+            cli_opt_mask.wikilink_sanitize = true;
             options.wikilink_sanitize = true;
         } else if (strcmp(argv[i], "--no-wikilink-sanitize") == 0) {
+            cli_opt_mask.wikilink_sanitize = true;
             options.wikilink_sanitize = false;
         } else if (strcmp(argv[i], "--transforms") == 0) {
+            cli_opt_mask.enable_metadata_transforms = true;
             options.enable_metadata_transforms = true;
         } else if (strcmp(argv[i], "--no-transforms") == 0) {
+            cli_opt_mask.enable_metadata_transforms = true;
             options.enable_metadata_transforms = false;
         } else if (strcmp(argv[i], "--embed-images") == 0) {
+            cli_opt_mask.embed_images = true;
             options.embed_images = true;
         } else if (strcmp(argv[i], "--image-captions") == 0) {
+            cli_opt_mask.enable_image_captions = true;
             options.enable_image_captions = true;
         } else if (strcmp(argv[i], "--no-image-captions") == 0) {
+            cli_opt_mask.enable_image_captions = true;
             options.enable_image_captions = false;
         } else if (strcmp(argv[i], "--title-captions-only") == 0) {
+            cli_opt_mask.title_captions_only = true;
             options.title_captions_only = true;
             options.enable_image_captions = true;  /* implied when title-captions-only is set */
         } else if (strcmp(argv[i], "--no-title-captions-only") == 0) {
+            cli_opt_mask.title_captions_only = true;
             options.title_captions_only = false;
         } else if (strcmp(argv[i], "--base-dir") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --base-dir requires an argument\n");
                 return 1;
             }
+            cli_opt_mask.base_directory = true;
             options.base_directory = argv[i];
         } else if (strcmp(argv[i], "--bibliography") == 0) {
             if (++i >= argc) {
@@ -2416,6 +2668,7 @@ int main(int argc, char *argv[]) {
                 }
                 bibliography_files = new_files;
             }
+            cli_opt_mask.bibliography = true;
             bibliography_files[bibliography_count++] = argv[i];
             options.enable_citations = true;  /* Enable citations when bibliography is provided */
         } else if (strcmp(argv[i], "--csl") == 0) {
@@ -2423,22 +2676,29 @@ int main(int argc, char *argv[]) {
                 fprintf(stderr, "Error: --csl requires an argument\n");
                 return 1;
             }
+            cli_opt_mask.csl_file = true;
             options.csl_file = argv[i];
             options.enable_citations = true;  /* Enable citations when CSL is provided */
         } else if (strcmp(argv[i], "--no-bibliography") == 0) {
+            cli_opt_mask.suppress_bibliography = true;
             options.suppress_bibliography = true;
         } else if (strcmp(argv[i], "--link-citations") == 0) {
+            cli_opt_mask.link_citations = true;
             options.link_citations = true;
         } else if (strcmp(argv[i], "--show-tooltips") == 0) {
+            cli_opt_mask.show_tooltips = true;
             options.show_tooltips = true;
         } else if (strcmp(argv[i], "--indices") == 0) {
+            cli_opt_mask.indices = true;
             options.enable_indices = true;
             options.enable_mmark_index_syntax = true;
             options.enable_textindex_syntax = true;
             options.enable_leanpub_index_syntax = true;
         } else if (strcmp(argv[i], "--no-indices") == 0) {
+            cli_opt_mask.indices = true;
             options.enable_indices = false;
         } else if (strcmp(argv[i], "--no-index") == 0) {
+            cli_opt_mask.suppress_index = true;
             options.suppress_index = true;
         } else if (strcmp(argv[i], "--meta-file") == 0) {
             if (++i >= argc) {
@@ -3669,49 +3929,31 @@ int main(int argc, char *argv[]) {
     PROFILE_END(metadata_yaml_build);
 
     /* Set bibliography files in options (NULL-terminated array) */
-    char **saved_bibliography_files = NULL;
     if (bibliography_count > 0) {
         bibliography_files = realloc(bibliography_files, (bibliography_count + 1) * sizeof(char*));
         if (bibliography_files) {
             bibliography_files[bibliography_count] = NULL;  /* NULL terminator */
             options.bibliography_files = bibliography_files;
-            /* Save reference in case metadata mode resets options */
-            saved_bibliography_files = bibliography_files;
         }
     }
 
     /* Set stylesheet files in options (NULL-terminated array) */
-    char **saved_stylesheet_files = NULL;
     if (stylesheet_count > 0) {
         stylesheet_files = realloc(stylesheet_files, (stylesheet_count + 1) * sizeof(char*));
         if (stylesheet_files) {
             stylesheet_files[stylesheet_count] = NULL;  /* NULL terminator */
             options.stylesheet_paths = (const char **)stylesheet_files;
             options.stylesheet_count = stylesheet_count;
-            /* Save reference in case metadata mode resets options */
-            saved_stylesheet_files = stylesheet_files;
         }
     }
 
     /* Apply metadata to options - allows per-document control of command-line options */
     /* Note: Bibliography file loading from metadata will be handled in citations extension */
-    apex_output_format_t saved_output_format = options.output_format;
     if (merged_metadata) {
+        /* Snapshot argv-resolved options after wiring bibliography/stylesheet; merged metadata must not override explicit CLI flags. */
+        cli_options_snapshot = options;
         apex_apply_metadata_to_options(merged_metadata, &options);
-        /* Restore explicit CLI choices that metadata mode reset */
-        options.output_format = saved_output_format;
-        if (saved_bibliography_files && !options.bibliography_files) {
-            options.bibliography_files = saved_bibliography_files;
-        }
-        /* Restore stylesheet files if they were lost (e.g., if mode was set in metadata) */
-        if (saved_stylesheet_files && !options.stylesheet_paths) {
-            options.stylesheet_paths = (const char **)saved_stylesheet_files;
-            options.stylesheet_count = stylesheet_count;
-        }
-        /* Document/config metadata can set standalone: false; explicit -s/--style must win. */
-        if (cli_standalone_override) {
-            options.standalone = true;
-        }
+        apex_cli_restore_argv_options(&options, &cli_options_snapshot, &cli_opt_mask);
     }
 
     /* Re-apply explicit CLI override for plugins so it wins over metadata. */
