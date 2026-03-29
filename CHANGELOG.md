@@ -2,11 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.1] - 2026-03-29
+
 ## [0.1.104] - 2026-03-29
 
 ### Fixed
 
 - After merging global/project/document/`--meta` metadata, the CLI now re-applies every option that was set on the command line so config and YAML metadata cannot override explicit flags (including `--mode`, `-t`/`--to`, feature toggles, `--standalone`, `--style`/`--css`, bibliography/CSL, and the rest of the documented CLI surface).
+- Track argv-set fields with apex_cli_option_mask, snapshot options after wiring bibliography/stylesheet, and re-apply after apex_apply_metadata_to_options so global/project/document metadata cannot override explicit flags.
 
 ## [0.1.103] - 2026-03-29
 
@@ -2789,6 +2792,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.1]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.1
 [0.1.104]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.104
 [0.1.103]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.103
 [0.1.102]: https://github.com/ApexMarkdown/apex/releases/tag/v0.1.102

@@ -18,10 +18,10 @@ extern "C" {
 #include "ast_terminal.h"
 #include "ast_man.h"
 
-#define APEX_VERSION_MAJOR 0
-#define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 104
-#define APEX_VERSION_STRING "0.1.104"
+#define APEX_VERSION_MAJOR 1
+#define APEX_VERSION_MINOR 0
+#define APEX_VERSION_PATCH 1
+#define APEX_VERSION_STRING "1.0.1"
 
 /**
  * Processor compatibility modes
