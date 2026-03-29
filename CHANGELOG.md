@@ -10,6 +10,10 @@ All notable changes to Apex will be documented in this file.
 - `--extract-meta` and `-e KEY` merge per-file document metadata in order (mode-aware)
 - Add metadata_yaml_emit unit tests and man page entries.
 
+### Fixed
+
+- CLI `-s`/`--standalone` (and `--style`/`--css`, which imply standalone) now wins over `standalone: false` from document or config metadata, so explicit standalone output is not downgraded to an HTML fragment.
+
 ## [0.1.102] - 2026-03-22
 
 ### Changed

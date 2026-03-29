@@ -1722,6 +1722,8 @@ int main(int argc, char *argv[]) {
     bool cli_info = false;
     bool cli_extract_meta = false;
     const char *extract_meta_value_key = NULL;
+    /* When set, -s/--standalone or --style/--css requested HTML standalone; must not be overridden by metadata. */
+    bool cli_standalone_override = false;
     const char *install_plugin_id = NULL;
     const char *uninstall_plugin_id = NULL;
     bool list_filters = false;
@@ -2004,12 +2006,14 @@ int main(int argc, char *argv[]) {
             options.hardbreaks = true;
         } else if (strcmp(argv[i], "-s") == 0 || strcmp(argv[i], "--standalone") == 0) {
             options.standalone = true;
+            cli_standalone_override = true;
         } else if (strcmp(argv[i], "--css") == 0 || strcmp(argv[i], "--style") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: %s requires an argument\n", argv[i-1]);
                 return 1;
             }
             options.standalone = true;  /* Imply standalone if CSS is specified */
+            cli_standalone_override = true;
 
             /* Parse comma-separated stylesheet paths */
             const char *arg = argv[i];
@@ -3703,6 +3707,10 @@ int main(int argc, char *argv[]) {
         if (saved_stylesheet_files && !options.stylesheet_paths) {
             options.stylesheet_paths = (const char **)saved_stylesheet_files;
             options.stylesheet_count = stylesheet_count;
+        }
+        /* Document/config metadata can set standalone: false; explicit -s/--style must win. */
+        if (cli_standalone_override) {
+            options.standalone = true;
         }
     }
 
