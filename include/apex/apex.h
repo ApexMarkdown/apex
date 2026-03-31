@@ -68,8 +68,6 @@ typedef enum {
 
 typedef struct apex_plugin_manager apex_plugin_manager;
 
-typedef struct apex_plugin apex_plugin;
-
 typedef struct apex_plugin {
     char *id;
     char *title;
@@ -92,7 +90,7 @@ typedef struct apex_plugin {
     /* Per-plugin support directory (used for APEX_SUPPORT_DIR) */
     char *support_dir;
     /* A custom callback to transform the passed text. Executed only if handler_command and has_regex are not set. */
-    char *(*callback)(const char *text, apex_plugin *plugin, apex_plugin_phase_mask phase, const struct apex_options *options);
+    char *(*callback)(const char *text, struct apex_plugin *plugin, apex_plugin_phase_mask phase, const struct apex_options *options);
     struct apex_plugin *next;
 } apex_plugin;
 
