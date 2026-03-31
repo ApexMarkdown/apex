@@ -2685,6 +2685,9 @@ apex_options apex_options_default(void) {
 
     /* Enable all features by default in unified mode; plugins are opt-in */
     opts.enable_plugins = false;
+    opts.allow_external_plugin_detection = true;
+    opts.plugin_register = NULL;
+
     opts.enable_tables = true;
     opts.enable_footnotes = true;
     opts.enable_definition_lists = true;
@@ -4361,9 +4364,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     PROFILE_START(total);
 
     /* Use default options if none provided, and create a mutable copy */
-    apex_options default_opts;
     apex_options local_opts;
     if (!options) {
+        apex_options default_opts;
         default_opts = apex_options_default();
         local_opts = default_opts;
     } else {

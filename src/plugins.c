@@ -92,35 +92,16 @@ static char *apex_git_toplevel(void) {
     return out;
 }
 
-struct apex_plugin {
-    char *id;
-    char *title;
-    char *author;
-    char *description;
-    char *homepage;
-    char *repo;
-    apex_plugin_phase_mask phases;
-    int priority;
-    char *handler_command;
-    int timeout_ms;
-    /* Declarative regex support */
-    char *pattern;
-    char *replacement;
-    regex_t regex;
-    int has_regex;
-    /* Owning directory for this plugin (used for APEX_PLUGIN_DIR) */
-    char *dir_path;
-    /* Per-plugin support directory (used for APEX_SUPPORT_DIR) */
-    char *support_dir;
-    struct apex_plugin *next;
-};
-
 struct apex_plugin_manager {
     struct apex_plugin *pre_parse;
     struct apex_plugin *post_render;
 };
 
-static void free_plugin(struct apex_plugin *p) {
+apex_plugin *init_plugin(void) {
+    return calloc(1, sizeof(struct apex_plugin));;
+}
+
+void free_plugin(struct apex_plugin *p) {
     while (p) {
         struct apex_plugin *next = p->next;
         free(p->id);
@@ -137,6 +118,7 @@ static void free_plugin(struct apex_plugin *p) {
         if (p->has_regex) {
             regfree(&p->regex);
         }
+        p->callback = NULL;
         free(p);
         p = next;
     }
@@ -207,6 +189,23 @@ static bool plugin_id_exists(struct apex_plugin *head, const char *id) {
     if (!id) return false;
     for (struct apex_plugin *p = head; p; p = p->next) {
         if (p->id && strcmp(p->id, id) == 0) return true;
+    }
+    return false;
+}
+
+bool plugin_register(apex_plugin_manager *manager, struct apex_plugin *plugin) {
+    if (!plugin || !manager) return false;
+
+    if (plugin->phases & APEX_PLUGIN_PHASE_PRE_PARSE) {
+        if (!plugin_id_exists(manager->pre_parse, plugin->id)) {
+            append_plugin_sorted(&manager->pre_parse, plugin);
+            return true;
+        }
+    } else if (plugin->phases & APEX_PLUGIN_PHASE_POST_RENDER) {
+        if (!plugin_id_exists(manager->post_render, plugin->id)) {
+            append_plugin_sorted(&manager->post_render, plugin);
+            return true;
+        }
     }
     return false;
 }
@@ -355,7 +354,7 @@ static void load_plugins_from_dir(apex_plugin_manager *manager,
                     continue;
                 }
 
-                struct apex_plugin *p = calloc(1, sizeof(struct apex_plugin));
+                struct apex_plugin *p = init_plugin();
                 if (!p) {
                     apex_free_metadata(merged);
                     continue;
@@ -478,7 +477,7 @@ static void load_plugins_from_dir(apex_plugin_manager *manager,
         }
 
         const char *final_id = id ? id : ent->d_name;
-        struct apex_plugin *p = calloc(1, sizeof(struct apex_plugin));
+        struct apex_plugin *p = init_plugin();
         if (!p) {
             apex_free_metadata(meta);
             continue;
@@ -568,66 +567,72 @@ apex_plugin_manager *apex_plugins_load(const apex_options *options) {
     apex_plugin_manager *manager = calloc(1, sizeof(apex_plugin_manager));
     if (!manager) return NULL;
 
-    /* Project-scoped (current working directory): CWD/.apex/plugins */
-    char cwd[1024];
-    cwd[0] = '\0';
-    if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
-        char *cwd_proj_dir = dup_join(cwd, ".apex/plugins");
-        if (cwd_proj_dir) {
-            load_plugins_from_dir(manager, cwd_proj_dir);
-            free(cwd_proj_dir);
-        }
+    if (options->plugin_register) {
+        options->plugin_register(manager, options);
     }
 
-    /* Project-scoped (explicit base_directory): base_directory/.apex/plugins */
-    if (options->base_directory && options->base_directory[0] != '\0') {
-        char *proj_dir = dup_join(options->base_directory, ".apex/plugins");
-        if (proj_dir) {
-            load_plugins_from_dir(manager, proj_dir);
-            free(proj_dir);
-        }
-    }
-
-    /* Project-scoped (Git repository root): <git top>/\.apex/plugins
-     * Only used when the current directory is inside the work tree.
-     */
-    char *git_root = apex_git_toplevel();
-    if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
-        size_t root_len = strlen(git_root);
-        /* Ensure the Git root is a parent of (or equal to) the current directory. */
-        if (strncmp(cwd, git_root, root_len) == 0 &&
-            (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
-            /* Avoid re-loading if git_root is the same as base_directory. */
-            if (!options->base_directory ||
-                strcmp(git_root, options->base_directory) != 0) {
-                char *git_proj_dir = dup_join(git_root, ".apex/plugins");
-                if (git_proj_dir) {
-                    load_plugins_from_dir(manager, git_proj_dir);
-                    free(git_proj_dir);
-                }
+    if (options->allow_external_plugin_detection) {
+        /* Project-scoped (current working directory): CWD/.apex/plugins */
+        char cwd[1024];
+        cwd[0] = '\0';
+        if (getcwd(cwd, sizeof(cwd)) != NULL && cwd[0] != '\0') {
+            char *cwd_proj_dir = dup_join(cwd, ".apex/plugins");
+            if (cwd_proj_dir) {
+                load_plugins_from_dir(manager, cwd_proj_dir);
+                free(cwd_proj_dir);
             }
         }
-        free(git_root);
-    }
 
-    /* User-global: $XDG_CONFIG_HOME/apex/plugins or $HOME/.config/apex/plugins */
-    const char *xdg = getenv("XDG_CONFIG_HOME");
-    char *global_dir = NULL;
-    if (xdg && *xdg) {
-        char buf[1024];
-        snprintf(buf, sizeof(buf), "%s/apex/plugins", xdg);
-        global_dir = strdup(buf);
-    } else {
-        const char *home = getenv("HOME");
-        if (home && *home) {
-            char buf[1024];
-            snprintf(buf, sizeof(buf), "%s/.config/apex/plugins", home);
-            global_dir = strdup(buf);
+        /* Project-scoped (explicit base_directory): base_directory/.apex/plugins */
+        if (options->base_directory && options->base_directory[0] != '\0') {
+            char *proj_dir = dup_join(options->base_directory, ".apex/plugins");
+            if (proj_dir) {
+                load_plugins_from_dir(manager, proj_dir);
+                free(proj_dir);
+            }
         }
-    }
-    if (global_dir) {
-        load_plugins_from_dir(manager, global_dir);
-        free(global_dir);
+
+        /* Project-scoped (Git repository root): <git top>/\.apex/plugins
+         * Only used when the current directory is inside the work tree.
+         */
+        char *git_root = apex_git_toplevel();
+        if (git_root && git_root[0] != '\0' && cwd[0] != '\0') {
+            size_t root_len = strlen(git_root);
+            /* Ensure the Git root is a parent of (or equal to) the current directory. */
+            if (strncmp(cwd, git_root, root_len) == 0 &&
+                (cwd[root_len] == '/' || cwd[root_len] == '\0')) {
+                /* Avoid re-loading if git_root is the same as base_directory. */
+                if (!options->base_directory ||
+                    strcmp(git_root, options->base_directory) != 0) {
+                    char *git_proj_dir = dup_join(git_root, ".apex/plugins");
+                    if (git_proj_dir) {
+                        load_plugins_from_dir(manager, git_proj_dir);
+                        free(git_proj_dir);
+                    }
+                    }
+                }
+            free(git_root);
+        }
+
+        /* User-global: $XDG_CONFIG_HOME/apex/plugins or $HOME/.config/apex/plugins */
+        const char *xdg = getenv("XDG_CONFIG_HOME");
+        char *global_dir = NULL;
+        if (xdg && *xdg) {
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "%s/apex/plugins", xdg);
+            global_dir = strdup(buf);
+        } else {
+            const char *home = getenv("HOME");
+            if (home && *home) {
+                char buf[1024];
+                snprintf(buf, sizeof(buf), "%s/.config/apex/plugins", home);
+                global_dir = strdup(buf);
+            }
+        }
+        if (global_dir) {
+            load_plugins_from_dir(manager, global_dir);
+            free(global_dir);
+        }
     }
 
     if (!manager->pre_parse && !manager->post_render) {
@@ -861,6 +866,8 @@ char *apex_plugins_run_text_phase(apex_plugin_manager *manager,
             }
         } else if (p->has_regex) {
             next = apply_regex_replacement(p, current);
+        } else if (p->callback) {
+            next = p->callback(current, p, phase, options);
         }
 
         if (do_profile) {

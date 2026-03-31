@@ -17,6 +17,7 @@ extern "C" {
 #include "ast_markdown.h"
 #include "ast_terminal.h"
 #include "ast_man.h"
+#include <regex.h>
 
 #define APEX_VERSION_MAJOR 1
 #define APEX_VERSION_MINOR 0
@@ -55,6 +56,65 @@ typedef enum {
     APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
 } apex_output_format_t;
 
+
+
+/* Plugin phases */
+typedef enum {
+    APEX_PLUGIN_PHASE_PRE_PARSE  = 1 << 0,
+    APEX_PLUGIN_PHASE_BLOCK      = 1 << 1,
+    APEX_PLUGIN_PHASE_INLINE     = 1 << 2,
+    APEX_PLUGIN_PHASE_POST_RENDER= 1 << 3
+} apex_plugin_phase_mask;
+
+typedef struct apex_plugin_manager apex_plugin_manager;
+
+typedef struct apex_plugin apex_plugin;
+
+typedef struct apex_plugin {
+    char *id;
+    char *title;
+    char *author;
+    char *description;
+    char *homepage;
+    char *repo;
+    apex_plugin_phase_mask phases;
+    int priority;
+
+    char *handler_command; /* External command to be executed */
+    int timeout_ms;
+    /* Declarative regex support */
+    char *pattern;
+    char *replacement;
+    regex_t regex;
+    int has_regex;
+    /* Owning directory for this plugin (used for APEX_PLUGIN_DIR) */
+    char *dir_path;
+    /* Per-plugin support directory (used for APEX_SUPPORT_DIR) */
+    char *support_dir;
+    /* A custom callback to transform the passed text. Executed only if handler_command and has_regex are not set. */
+    char *(*callback)(const char *text, apex_plugin *plugin, apex_plugin_phase_mask phase, const struct apex_options *options);
+    struct apex_plugin *next;
+} apex_plugin;
+
+/**
+ * Initialize an empty plugin.
+ */
+apex_plugin *init_plugin(void);
+
+/**
+ * Release a plugin.
+ */
+void free_plugin(struct apex_plugin *p);
+
+/**
+ * Register a new plugin.
+ * Please note that a plugin can only be registered for one of the possible processing phase.
+ * @param manager
+ * @param plugin
+ * @return Returns true if the plugin was registered successfully.
+ */
+bool plugin_register(struct apex_plugin_manager *manager, struct apex_plugin *plugin);
+
 struct cmark_parser;  /* Opaque; for cmark_init callback. Include cmark-gfm when implementing. */
 
 /**
@@ -65,6 +125,9 @@ typedef struct apex_options {
 
     /* Feature flags */
     bool enable_plugins;  /* Enable external/plugin processing */
+    bool allow_external_plugin_detection; /* Enable detection of external plugins */
+    void (*plugin_register)(apex_plugin_manager *manager, const struct apex_options *options); /* Function to register others plugins */
+
     bool enable_tables;
     bool enable_footnotes;
     bool enable_definition_lists;
