@@ -9,6 +9,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdint.h>
 
 /**
  * Convert diacritic characters to ASCII equivalents
@@ -399,15 +400,27 @@ static void append_literal(char **text, char **write, size_t *capacity, size_t *
                           const char *literal) {
     if (!literal) return;
     size_t len = strlen(literal);
-    while (len >= *remaining) {
-        size_t new_cap = *capacity * 2;
-        char *new_text = realloc(*text, new_cap);
+
+    size_t used = (size_t)(*write - *text);
+    size_t required = used + len + 1; /* +1 for NUL terminator */
+    if (required > *capacity) {
+        size_t new_capacity = *capacity;
+        while (new_capacity < required) {
+            if (new_capacity > SIZE_MAX / 2) {
+                return;
+            }
+            new_capacity *= 2;
+        }
+
+        char *new_text = realloc(*text, new_capacity);
         if (!new_text) return;
-        *write = new_text + (*write - *text);
+
         *text = new_text;
-        *capacity = new_cap;
-        *remaining = new_cap - (size_t)(*write - *text);
+        *write = *text + used;
+        *capacity = new_capacity;
+        *remaining = *capacity - used;
     }
+
     memcpy(*write, literal, len);
     *write += len;
     *remaining -= len;
