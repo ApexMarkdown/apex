@@ -10,6 +10,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <limits.h>
 
 /* Citation placeholder prefix - we'll use a unique marker */
 #define CITATION_PLACEHOLDER_PREFIX "<!--CITE:"
@@ -23,6 +24,17 @@ static bool is_valid_citation_char(char c) {
     return isalnum(c) || c == '_' || c == ':' || c == '.' || c == '#' ||
            c == '$' || c == '%' || c == '&' || c == '-' || c == '+' ||
            c == '?' || c == '<' || c == '>' || c == '~' || c == '/';
+}
+
+static int apex_ptrdiff_to_int(ptrdiff_t v) {
+    if (v <= 0) return 0;
+    if (v > INT_MAX) return INT_MAX;
+    return (int)v;
+}
+
+static int apex_size_to_int(size_t v) {
+    if (v > (size_t)INT_MAX) return INT_MAX;
+    return (int)v;
 }
 
 /**
@@ -114,7 +126,7 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
     /* Check for @key (author-in-text, no brackets) */
     if (*p == '@') {
         p++;
-        int key_len = extract_citation_key(text, p - text, len, &key);
+        int key_len = extract_citation_key(text, apex_ptrdiff_to_int(p - text), len, &key);
         if (key_len > 0 && key) {
             /* Check if there's a locator after: @key [p. 33] */
             const char *after_key = p + key_len;
@@ -140,7 +152,7 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
                 cite->locator = locator;
                 *citation_out = cite;
                 free(key);
-                return after_key - (text + pos);
+                return apex_ptrdiff_to_int(after_key - (text + pos));
             }
             free(key);
             free(locator);
@@ -164,7 +176,7 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
     }
 
     /* Extract key */
-    int key_len = extract_citation_key(text, p - text, len, &key);
+    int key_len = extract_citation_key(text, apex_ptrdiff_to_int(p - text), len, &key);
     if (key_len == 0 || !key) {
         return 0;
     }
@@ -253,7 +265,7 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
         cite->suffix = suffix;
         *citation_out = cite;
         free(key);
-        return p - (text + pos);
+        return apex_ptrdiff_to_int(p - (text + pos));
     }
 
     free(key);
@@ -280,7 +292,7 @@ static int parse_mmd_citation(const char *text, int pos, int len,
 
     /* Extract key */
     char *key = NULL;
-    int key_len = extract_citation_key(text, p - text, len, &key);
+    int key_len = extract_citation_key(text, apex_ptrdiff_to_int(p - text), len, &key);
     if (key_len == 0 || !key) {
         return 0;
     }
@@ -317,7 +329,7 @@ static int parse_mmd_citation(const char *text, int pos, int len,
         cite->locator = locator;
         *citation_out = cite;
         free(key);
-        return p - (text + pos);
+        return apex_ptrdiff_to_int(p - (text + pos));
     }
 
     free(key);
@@ -352,7 +364,7 @@ static int parse_mmark_citation(const char *text, int pos, int len,
     }
 
     /* Check if it's an RFC/BCP/STD/I-D/W3C pattern */
-    if (!is_mmark_pattern(text, p - text, len)) {
+    if (!is_mmark_pattern(text, apex_ptrdiff_to_int(p - text), len)) {
         return 0;  /* Not mmark pattern, might be Pandoc */
     }
 
@@ -390,7 +402,7 @@ static int parse_mmark_citation(const char *text, int pos, int len,
         cite->author_suppressed = author_suppressed;
         *citation_out = cite;
         free(key);
-        return p - (text + pos);
+        return apex_ptrdiff_to_int(p - (text + pos));
     }
 
     free(key);
@@ -470,23 +482,23 @@ char *apex_process_citations(const char *text, apex_citation_registry *registry,
             continue;
         }
 
-        int pos = read - text;
+        int pos = apex_ptrdiff_to_int(read - text);
         apex_citation *citation = NULL;
         int consumed = 0;
 
         /* Try mmark first (most specific pattern) */
         if (options->mode == APEX_MODE_UNIFIED) {
-            consumed = parse_mmark_citation(text, pos, len, &citation, options);
+            consumed = parse_mmark_citation(text, pos, apex_size_to_int(len), &citation, options);
         }
 
         /* Try MultiMarkdown */
         if (!citation && (options->mode == APEX_MODE_MULTIMARKDOWN || options->mode == APEX_MODE_UNIFIED)) {
-            consumed = parse_mmd_citation(text, pos, len, &citation, options);
+            consumed = parse_mmd_citation(text, pos, apex_size_to_int(len), &citation, options);
         }
 
         /* Try Pandoc (most common) */
         if (!citation && (options->mode == APEX_MODE_UNIFIED)) {
-            consumed = parse_pandoc_citation(text, pos, len, &citation, options);
+            consumed = parse_pandoc_citation(text, pos, apex_size_to_int(len), &citation, options);
         }
 
         if (citation && consumed > 0) {

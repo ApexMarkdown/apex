@@ -516,7 +516,7 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
             while (*tag_end && *tag_end != '>') tag_end++;
 
             /* Check if this is a block tag or table cell we care about */
-            int tag_len = tag_name_end - tag_start;
+            size_t tag_len = (size_t)(tag_name_end - tag_start);
 
             /* Determine element type and increment counter */
             cmark_node_type elem_type = 0;
@@ -631,7 +631,7 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
             if (elem_type != 0) {
                 /* Extract fingerprint for matching */
                 char html_fingerprint[51] = {0};
-                int fp_idx = 0;
+                size_t fp_idx = 0;
 
                 if (elem_type == CMARK_NODE_LINK || elem_type == CMARK_NODE_IMAGE) {
                     /* For links/images, extract href/src and for images also alt (to disambiguate same-src) */

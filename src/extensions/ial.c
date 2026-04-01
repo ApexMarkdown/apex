@@ -10,6 +10,18 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <limits.h>
+
+static int apex_ial_ptrdiff_to_int(ptrdiff_t v) {
+    if (v <= 0) return 0;
+    if (v > INT_MAX) return INT_MAX;
+    return (int)v;
+}
+
+static int apex_ial_size_to_int(size_t v) {
+    if (v > (size_t)INT_MAX) return INT_MAX;
+    return (int)v;
+}
 
 /**
  * Free attributes structure
@@ -292,7 +304,7 @@ static bool is_ald_line(const char *line, char **ref_name, apex_attributes **att
     if (*p != ':') return false; /* Not an ALD, maybe regular IAL */
 
     /* Found ALD */
-    int name_len = p - name_start;
+    int name_len = apex_ial_ptrdiff_to_int(p - name_start);
     if (name_len <= 0) return false;
 
     *ref_name = malloc(name_len + 1);
@@ -310,7 +322,7 @@ static bool is_ald_line(const char *line, char **ref_name, apex_attributes **att
     }
 
     /* Parse attributes */
-    *attrs = parse_ial_content(content_start, close - content_start);
+    *attrs = parse_ial_content(content_start, apex_ial_ptrdiff_to_int(close - content_start));
 
     return true;
 }
@@ -494,7 +506,7 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
     /* Parse IAL content */
     /* For {: format, skip {: (2 chars); for {# or {. format, skip { (1 char) */
     const char *content_start = (second_char == ':') ? ial_start + 2 : ial_start + 1;
-    int content_len = ial_end - content_start;
+    int content_len = apex_ial_ptrdiff_to_int(ial_end - content_start);
 
     if (content_len <= 0) {
         *attrs_out = NULL;
@@ -947,7 +959,7 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
         /* Parse IAL content directly (since we know it's valid IAL syntax) */
         /* For {: format, skip {: (2 chars); for {# or {. format, skip { (1 char) */
         const char *content_start = (second_char == ':') ? ial_start + 2 : ial_start + 1;
-        int content_len = close - content_start;
+        int content_len = apex_ial_ptrdiff_to_int(close - content_start);
 
         if (content_len <= 0) {
             child = next;
@@ -1014,7 +1026,7 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
             if (*p) {
                 /* There's remaining content - parse it as additional attributes */
                 remaining_content = content_start + (p - buffer);
-                remaining_len = content_len - (p - buffer);
+                remaining_len = content_len - apex_ial_ptrdiff_to_int(p - buffer);
             }
         }
 
@@ -2782,7 +2794,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         apex_attributes *attrs = NULL;
                         if (attr_start && attr_start < paren_end) {
                             size_t attr_len = paren_end - attr_start;
-                            attrs = parse_image_attributes(attr_start, attr_len);
+                            attrs = parse_image_attributes(attr_start, apex_ial_size_to_int(attr_len));
                         }
 
                         /* Check for IAL syntax after closing paren: {#id .class} or { width=50% } */
@@ -2813,7 +2825,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 }
 
                                 if (is_ial && content_start) {
-                                    int content_len = ial_end - content_start;
+                                    int content_len = apex_ial_ptrdiff_to_int(ial_end - content_start);
                                     if (content_len > 0) {
                                         /* Try parsing as IAL first (handles #id .class key=val) */
                                         apex_attributes *ial_attrs = parse_ial_content(content_start, content_len);
@@ -3110,7 +3122,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             const char *attr_end = p;
                             while (attr_end < line_end && *attr_end != '\n' && *attr_end != '\r') attr_end++;
                             size_t attr_len = attr_end - attr_start;
-                            attrs = parse_image_attributes(attr_start, attr_len);
+                            attrs = parse_image_attributes(attr_start, apex_ial_size_to_int(attr_len));
                             title_end = attr_end;
                         } else if (url_end < line_end) {
                             /* Check if there's a title after the URL */
@@ -3167,7 +3179,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                         }
 
                                         if (is_ial && content_start) {
-                                            int content_len = ial_end - content_start;
+                                            int content_len = apex_ial_ptrdiff_to_int(ial_end - content_start);
                                             if (content_len > 0) {
                                                 /* Try parsing as IAL first (handles #id .class key=val) */
                                                 apex_attributes *ial_attrs = parse_ial_content(content_start, content_len);
@@ -3266,7 +3278,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                         }
 
                                         if (is_ial && content_start) {
-                                            int content_len = ial_end - content_start;
+                                            int content_len = apex_ial_ptrdiff_to_int(ial_end - content_start);
                                             if (content_len > 0) {
                                                 apex_attributes *ial_attrs = parse_ial_content(content_start, content_len);
                                                 if (!ial_attrs || (ial_attrs->attr_count == 0 && !ial_attrs->id && ial_attrs->class_count == 0)) {
@@ -3908,7 +3920,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                             url[url_len] = '\0';
 
                                             size_t attr_len = paren_end - attr_start;
-                                            attrs = parse_image_attributes(attr_start, attr_len);
+                                            attrs = parse_image_attributes(attr_start, apex_ial_size_to_int(attr_len));
 
                                             /* URL is already encoded from expansion, so use as-is */
                                             encoded_url = strdup(url);
@@ -4323,7 +4335,7 @@ char *apex_preprocess_bracketed_spans(const char *text) {
                                 /* This is a bracketed span - convert to <span> */
                                 /* Parse IAL attributes */
                                 size_t ial_len = ial_end - (ial_start + 1);
-                                apex_attributes *attrs = parse_ial_content(ial_start + 1, ial_len);
+                                apex_attributes *attrs = parse_ial_content(ial_start + 1, apex_ial_size_to_int(ial_len));
 
                                 if (attrs) {
                                     /* Build span tag with attributes */

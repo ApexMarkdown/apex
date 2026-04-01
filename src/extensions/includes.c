@@ -1419,7 +1419,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
             if (filepath_end && (filepath_end - filepath_start) > 0 && (filepath_end - filepath_start) < 1024) {
                 /* Extract filepath */
-                int filepath_len = filepath_end - filepath_start;
+                size_t filepath_len = (size_t)(filepath_end - filepath_start);
                 char filepath[1024];
                 char mmd_delimiter_override = '\0';
                 memcpy(filepath, filepath_start, filepath_len);
@@ -1436,9 +1436,9 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                     address_start++;
                     address_end = strchr(address_start, ']');
                     if (address_end) {
-                        int address_len = address_end - address_start;
+                        size_t address_len = (size_t)(address_end - address_start);
                         char address_str[1024];
-                        if (address_len > 0 && address_len < (int)sizeof(address_str)) {
+                        if (address_len > 0 && address_len < sizeof(address_str)) {
                             memcpy(address_str, address_start, address_len);
                             address_str[address_len] = '\0';
                             address_spec = parse_address_spec(address_str);
@@ -1569,10 +1569,10 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
             if (bracket_type && filepath_start && filepath_end) {
                 /* Extract filepath */
-                int filepath_len = filepath_end - filepath_start;
+                size_t filepath_len = (size_t)(filepath_end - filepath_start);
                 char filepath[1024];
                 char marked_delimiter_override = '\0';
-                if (filepath_len > 0 && filepath_len < (int)sizeof(filepath)) {
+                if (filepath_len > 0 && filepath_len < sizeof(filepath)) {
                     memcpy(filepath, filepath_start, filepath_len);
                     filepath[filepath_len] = '\0';
                     percent_decode_inplace(filepath);
@@ -1591,9 +1591,9 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         address_start++;
                         address_end = strchr(address_start, ']');
                         if (address_end) {
-                            int address_len = address_end - address_start;
+                            size_t address_len = (size_t)(address_end - address_start);
                             char address_str[1024];
-                            if (address_len > 0 && address_len < (int)sizeof(address_str)) {
+                            if (address_len > 0 && address_len < sizeof(address_str)) {
                                 memcpy(address_str, address_start, address_len);
                                 address_str[address_len] = '\0';
                                 address_spec = parse_address_spec(address_str);

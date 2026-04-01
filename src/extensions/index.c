@@ -9,6 +9,18 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <limits.h>
+
+static int apex_idx_ptrdiff_to_int(ptrdiff_t v) {
+    if (v <= 0) return 0;
+    if (v > INT_MAX) return INT_MAX;
+    return (int)v;
+}
+
+static int apex_idx_size_to_int(size_t v) {
+    if (v > (size_t)INT_MAX) return INT_MAX;
+    return (int)v;
+}
 
 /* Index placeholder prefix - we'll use a unique marker */
 #define INDEX_PLACEHOLDER_PREFIX "<!--IDX:"
@@ -133,7 +145,7 @@ static int parse_mmark_index(const char *text, int pos, int len,
         free(subitem);
     }
 
-    return p - (text + pos);
+    return apex_idx_ptrdiff_to_int(p - (text + pos));
 }
 
 /**
@@ -174,7 +186,7 @@ static int parse_textindex(const char *text, int pos, int len,
     }
 
     p++;  /* Skip } */
-    int consumed = p - (text + pos);
+    int consumed = apex_idx_ptrdiff_to_int(p - (text + pos));
 
     /* Check for explicit term before {^: [term]{^} */
     char *term = NULL;
@@ -402,7 +414,7 @@ static int parse_leanpub_index(const char *text, int pos, int len,
         free(subitem);
     }
 
-    return p - (text + pos);
+    return apex_idx_ptrdiff_to_int(p - (text + pos));
 }
 
 /**
@@ -525,24 +537,24 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
 
         /* Try mmark syntax first if enabled */
         if (options->enable_mmark_index_syntax) {
-            consumed = parse_mmark_index(text, read - text, text_len, &entry);
+            consumed = parse_mmark_index(text, apex_idx_ptrdiff_to_int(read - text), apex_idx_size_to_int(text_len), &entry);
         }
 
         /* Try TextIndex syntax if mmark didn't match and TextIndex is enabled */
         /* TextIndex uses {^} which we need to scan forward for */
         if (!entry && options->enable_textindex_syntax && *read == '{' && read + 1 < text + text_len && read[1] == '^') {
-            consumed = parse_textindex(text, read - text, text_len, &entry);
+            consumed = parse_textindex(text, apex_idx_ptrdiff_to_int(read - text), apex_idx_size_to_int(text_len), &entry);
         }
 
         /* Try Leanpub syntax if no match yet and Leanpub is enabled */
         if (!entry && options->enable_leanpub_index_syntax && *read == '{' && read + 3 < text + text_len &&
             read[1] == 'i' && read[2] == ':') {
-            consumed = parse_leanpub_index(text, read - text, text_len, &entry);
+            consumed = parse_leanpub_index(text, apex_idx_ptrdiff_to_int(read - text), apex_idx_size_to_int(text_len), &entry);
         }
 
         if (entry && consumed > 0) {
             /* Add entry to registry */
-            entry->position = read - text;
+            entry->position = apex_idx_ptrdiff_to_int(read - text);
             char anchor_id[64];
             snprintf(anchor_id, sizeof(anchor_id), "idxref-%d", registry->next_ref_id);
             entry->anchor_id = strdup(anchor_id);

@@ -56,7 +56,7 @@ static char *extract_tag_name(const char *tag_start, bool *is_closing, bool *is_
     const char *name_start = p;
     while (*p && !isspace((unsigned char)*p) && *p != '>' && *p != '/') p++;
 
-    int len = p - name_start;
+    size_t len = (size_t)(p - name_start);
     if (len == 0) return NULL;
 
     char *name = malloc(len + 1);

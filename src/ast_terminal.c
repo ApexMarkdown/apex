@@ -1458,7 +1458,7 @@ static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, 
     char wstr[32];
     snprintf(wstr, sizeof(wstr), "%d", width);
 
-    char *argv[8];
+    const char *argv[8];
     int argc = 0;
     switch (tool) {
         case TERM_IMG_IMGCAT:
@@ -1505,7 +1505,7 @@ static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, 
         }
         close(out_pipe[0]);
         close(out_pipe[1]);
-        execvp(argv[0], argv);
+        execvp(argv[0], (char *const *)argv);
         _exit(127);
     }
 

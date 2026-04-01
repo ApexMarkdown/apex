@@ -209,7 +209,7 @@ static bool is_rowspan_cell(cmark_node *cell) {
  * Returns alignment type: "left", "right", "center", or NULL for default.
  * Modifies the cell's text content by removing the colons.
  */
-static char *process_cell_alignment(cmark_node *cell) {
+static const char *process_cell_alignment(cmark_node *cell) {
     if (!cell) return NULL;
 
     /* Recursively find all text nodes in the cell */
@@ -259,7 +259,7 @@ static char *process_cell_alignment(cmark_node *cell) {
     }
 
     /* Determine alignment */
-    char *align = NULL;
+    const char *align = NULL;
     if (has_leading_colon && has_trailing_colon) {
         align = "center";
     } else if (has_leading_colon) {
@@ -548,7 +548,7 @@ static void process_table_spans(cmark_node *table) {
                     if (g_per_cell_alignment) {
                         char *cell_attrs_check = (char *)cmark_node_get_user_data(cell);
                         if (!cell_attrs_check || !strstr(cell_attrs_check, "data-remove")) {
-                            char *align = process_cell_alignment(cell);
+                            const char *align = process_cell_alignment(cell);
                             if (align) {
                             /* Add style attribute for alignment */
                             char *existing_attrs = (char *)cmark_node_get_user_data(cell);
@@ -931,8 +931,8 @@ static apex_attributes *parse_ial_from_text(const char *text) {
     if (!ial_end) return NULL;
 
     /* Parse IAL content */
-    int content_len = ial_end - ial_start;
-    if (content_len <= 0) return NULL;
+    size_t content_len = (size_t)(ial_end - ial_start);
+    if (content_len == 0) return NULL;
 
     /* Use parse_ial_content from ial.c - it already handles the content format */
     /* We need to access the static function, so we'll duplicate the logic here */
@@ -942,7 +942,7 @@ static apex_attributes *parse_ial_from_text(const char *text) {
     memset(attrs, 0, sizeof(apex_attributes));
 
     char buffer[2048];
-    if (content_len >= (int)sizeof(buffer)) content_len = (int)sizeof(buffer) - 1;
+    if (content_len >= sizeof(buffer)) content_len = sizeof(buffer) - 1;
     memcpy(buffer, ial_start, content_len);
     buffer[content_len] = '\0';
 
