@@ -15,6 +15,8 @@ struct apex_options;
 /**
  * Markdown dialect types
  */
+#ifndef APEX_MARKDOWN_DIALECT_DEFINED
+#define APEX_MARKDOWN_DIALECT_DEFINED
 typedef enum {
     APEX_MD_DIALECT_UNIFIED = 0,      /* Unified-mode compatible */
     APEX_MD_DIALECT_MMD = 1,          /* MultiMarkdown-compatible */
@@ -22,6 +24,7 @@ typedef enum {
     APEX_MD_DIALECT_KRAMDOWN = 3,     /* Kramdown-compatible */
     APEX_MD_DIALECT_GFM = 4           /* GitHub Flavored Markdown */
 } apex_markdown_dialect_t;
+#endif
 
 /**
  * Serialize a cmark-gfm document node to Markdown

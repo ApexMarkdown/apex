@@ -15,6 +15,9 @@ extern "C" {
 #include <stddef.h>
 #include <stdbool.h>
 #include "ast_terminal.h"
+#ifndef CMARK_GFM_H
+typedef struct cmark_node cmark_node;
+#endif
 
 #define APEX_VERSION_MAJOR 1
 #define APEX_VERSION_MINOR 0
@@ -52,6 +55,18 @@ typedef enum {
     APEX_OUTPUT_MAN = 10,           /* roff (man page source) */
     APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
 } apex_output_format_t;
+
+/* Markdown dialects for AST->Markdown serialization. */
+#ifndef APEX_MARKDOWN_DIALECT_DEFINED
+#define APEX_MARKDOWN_DIALECT_DEFINED
+typedef enum {
+    APEX_MD_DIALECT_UNIFIED = 0,
+    APEX_MD_DIALECT_MMD = 1,
+    APEX_MD_DIALECT_COMMONMARK = 2,
+    APEX_MD_DIALECT_KRAMDOWN = 3,
+    APEX_MD_DIALECT_GFM = 4
+} apex_markdown_dialect_t;
+#endif
 
 
 
@@ -269,6 +284,13 @@ typedef struct apex_options {
     void (*cmark_done)(struct cmark_parser *parser, const struct apex_options *options, int cmark_opts, void *user_data);
     void *cmark_user_data; /* User data passed to cmark init/done callback */
 } apex_options;
+
+/* AST serializers */
+char *apex_cmark_to_markdown(cmark_node *document,
+                             const struct apex_options *options,
+                             apex_markdown_dialect_t dialect);
+char *apex_cmark_to_man_roff(cmark_node *document, const struct apex_options *options);
+char *apex_cmark_to_man_html(cmark_node *document, const struct apex_options *options);
 
 /**
  * Get default options for a specific mode
