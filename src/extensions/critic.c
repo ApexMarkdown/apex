@@ -8,6 +8,14 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <stddef.h>
+#include <limits.h>
+
+static int apex_critic_ptrdiff_to_int(ptrdiff_t v) {
+    if (v <= 0) return 0;
+    if (v > INT_MAX) return INT_MAX;
+    return (int)v;
+}
 
 /**
  * Scan for Critic Markup patterns
@@ -58,17 +66,17 @@ static critic_type_t scan_critic_markup(const char *input, int len, int *consume
     const char *closer = strstr(*content, close_marker);
     if (!closer) return CRITIC_NONE;
 
-    *content_len = closer - *content;
-    *consumed = (closer - input) + 3;  /* Include closing marker */
+    *content_len = apex_critic_ptrdiff_to_int(closer - *content);
+    *consumed = apex_critic_ptrdiff_to_int(closer - input) + 3;  /* Include closing marker */
 
     /* For substitutions, split on ~> */
     if (type == CRITIC_SUB) {
         const char *sep = strstr(*content, "~>");
         if (sep && sep < closer) {
-            *old_len = sep - *content;
+            *old_len = apex_critic_ptrdiff_to_int(sep - *content);
             *old_text = *content;
             *content = sep + 2;  /* Skip ~> */
-            *content_len = closer - *content;
+            *content_len = apex_critic_ptrdiff_to_int(closer - *content);
         }
     }
 
@@ -189,7 +197,7 @@ static void process_critic_in_text_node(cmark_node *node, critic_mode_t mode) {
         const char *old_text = NULL;
         int old_len = 0;
 
-        critic_type_t type = scan_critic_markup(start, strlen(start), &consumed,
+        critic_type_t type = scan_critic_markup(start, (int)strlen(start), &consumed,
                                                &content, &content_len, &old_text, &old_len);
 
         if (type != CRITIC_NONE) {
@@ -295,7 +303,7 @@ char *apex_process_critic_markup_text(const char *text, critic_mode_t mode) {
             const char *old_text = NULL;
             int old_len = 0;
 
-            critic_type_t type = scan_critic_markup(read_pos, strlen(read_pos), &consumed,
+            critic_type_t type = scan_critic_markup(read_pos, (int)strlen(read_pos), &consumed,
                                                    &content, &content_len, &old_text, &old_len);
 
             if (type != CRITIC_NONE) {

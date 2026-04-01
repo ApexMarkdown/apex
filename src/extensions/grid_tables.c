@@ -223,7 +223,6 @@ static bool cell_has_block_elements(const char *content) {
     if (!content) return false;
 
     const char *p = content;
-    bool in_code_block = false;
     int list_marker_count = 0;
     int paragraph_count = 0;
     bool prev_was_blank = false;
@@ -282,6 +281,7 @@ static bool cell_has_block_elements(const char *content) {
  * Convert block-level markdown in cell to HTML format
  * This allows block elements to be preserved in pipe table cells
  */
+static char *convert_cell_block_elements_to_html(const char *content) __attribute__((unused));
 static char *convert_cell_block_elements_to_html(const char *content) {
     if (!content) return NULL;
 

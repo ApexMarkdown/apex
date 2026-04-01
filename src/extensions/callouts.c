@@ -89,7 +89,7 @@ static bool is_bear_callout(cmark_node *blockquote, callout_type_t *type,
     if (!type_end) return false;
 
     /* Extract type first */
-    int type_len = type_end - type_start;
+    int type_len = (int)(type_end - type_start);
     if (type_len <= 0) return false;
 
     *type = detect_callout_type(type_start, type_len);

@@ -573,7 +573,7 @@ static bool extract_ial_from_text(const char *text, apex_attributes **attrs_out,
         if (*p) {
             /* There's remaining content - parse it as additional attributes */
             remaining_content = content_start + (p - buffer);
-            remaining_len = content_len - (p - buffer);
+            remaining_len = content_len - apex_ial_ptrdiff_to_int(p - buffer);
         }
     }
 

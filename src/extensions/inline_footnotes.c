@@ -104,7 +104,7 @@ char *apex_process_inline_footnotes(const char *text) {
 
             if (*end == ']') {
                 /* Found complete inline footnote */
-                int content_len = end - start;
+                int content_len = (int)(end - start);
 
                 /* Create footnote definition */
                 footnote_def *fn = malloc(sizeof(footnote_def));
@@ -139,7 +139,7 @@ char *apex_process_inline_footnotes(const char *text) {
             while (*end && *end != ']' && *end != '\n') end++;
 
             if (*end == ']') {
-                int content_len = end - start;
+                int content_len = (int)(end - start);
 
                 /* Check if it has spaces (MMD inline) vs no spaces (reference) */
                 if (has_spaces(start, content_len)) {

@@ -366,7 +366,7 @@ char *apex_replace_emoji(const char *html) {
             const char *end = strchr(read + 1, ':');
             if (end && (end - read) < 50) {  /* Reasonable emoji name length */
                 /* Extract emoji name */
-                int name_len = end - (read + 1);
+                int name_len = (int)(end - (read + 1));
                 const char *name_start = read + 1;
 
                 /* Validate: must have at least one character and no spaces */
@@ -797,7 +797,7 @@ char *apex_autocorrect_emoji_names(const char *text) {
             const char *end = strchr(read + 1, ':');
             if (end && (end - read) < 50) {  /* Reasonable emoji name length */
                 /* Extract emoji name */
-                int name_len = end - (read + 1);
+                int name_len = (int)(end - (read + 1));
                 const char *name_start = read + 1;
 
                     /* Validate: must have at least one character and no spaces */

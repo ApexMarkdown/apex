@@ -128,7 +128,7 @@ char *apex_process_inserts(const char *text) {
                         size_t ial_len = (ial_end - 1) - (ial_start + 1);  /* Content inside {} */
 
                         /* Parse IAL attributes */
-                        apex_attributes *attrs = parse_ial_content(ial_start + 1, ial_len);
+                        apex_attributes *attrs = parse_ial_content(ial_start + 1, (int)ial_len);
 
                         if (attrs) {
                             /* Build ins tag with attributes */
