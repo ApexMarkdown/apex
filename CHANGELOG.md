@@ -2,6 +2,36 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.5] - 2026-04-01
+
+### Changed
+
+- Update Homebrew formula to Apex 1.0.4 and refresh the macOS release checksum.
+
+### Improved
+
+- Strengthen public module exports so Swift and ObjC module consumers can resolve markdown and man serializer APIs consistently across build environments.
+- Fix compiler warnings
+- Tighten [Caption] detection so caption parsing only triggers when the paragraph contains standalone caption content.
+- Restrict backward caption lookup to the nearest valid caption context so distant captions cannot be reused.
+- Normalize TOC nesting relative to the selected minimum heading level so depth filtering produces stable structure.
+- Normalize TOC labels by trimming and collapsing whitespace so generated links stay clean.
+
+### Fixed
+
+- Render indented numeric sublists as nested ordered lists in unified mode instead of flattening them into parent list item text.
+- Correct alpha lists with nested sublists so continuation items render as proper list items instead of plain text.
+- Remove leaked [apex-alpha-list:lower] markers from rendered HTML when alpha lists contain nested sublists.
+- Prevent "$40" and similar currency amounts from being parsed as inline math delimiters.
+- Restore Swift package and release-check builds that failed after merge due to missing markdown/man serializer type and function declarations.
+- Render {{TOC}} markers in MultiMarkdown mode so table of contents placeholders are expanded instead of being left as literal text.
+- Prevent footnote definitions like [^1]: ... from being treated as table captions.
+- Prevent footnote and link definition lines like [ref]: ... from being treated as table captions.
+- Stop inclusion-table captions from leaking onto other nearby tables that do not define their own caption.
+- Make {{TOC:2}} render matching headings instead of an empty TOC.
+- Keep same-level headings as siblings in range TOCs like {{TOC:2-6}}.
+- Remove extra indentation whitespace that appeared inside TOC link text in pretty HTML output.
+
 ## [1.0.4] - 2026-03-31
 
 ### Fixed
@@ -2802,6 +2832,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.5]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.5
 [1.0.4]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.4
 [1.0.3]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.3
 [1.0.2]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.2
