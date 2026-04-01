@@ -45,8 +45,12 @@ static int scan_dollar_math(const char *input, int len, bool *is_display) {
     if (input[0] == '$') {
         *is_display = false;
 
-        /* Next character must not be whitespace or $ (avoid false positives like "$5 and $10") */
-        if (len < 2 || input[1] == ' ' || input[1] == '\t' || input[1] == '\n' || input[1] == '$') {
+        /*
+         * Next character must not be whitespace, '$', or a digit.
+         * Treat "$40", "$80", etc. as currency, not math delimiters.
+         */
+        if (len < 2 || input[1] == ' ' || input[1] == '\t' || input[1] == '\n' || input[1] == '$' ||
+            (input[1] >= '0' && input[1] <= '9')) {
             return 0;
         }
 
@@ -59,6 +63,11 @@ static int scan_dollar_math(const char *input, int len, bool *is_display) {
                 /* Previous character should not be whitespace (avoid "$5 " matching) */
                 if (i > 1 && (input[i - 1] == ' ' || input[i - 1] == '\t' || input[i - 1] == '\n')) {
                     return 0;
+                }
+
+                /* Closing delimiter should not be followed by a digit (currency like "$5"). */
+                if (i + 1 < len && input[i + 1] >= '0' && input[i + 1] <= '9') {
+                    continue;
                 }
 
                 /* Must have at least one character of content */

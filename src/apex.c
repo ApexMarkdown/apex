@@ -2221,6 +2221,7 @@ static char *apex_preprocess_alpha_lists(const char *text) {
     char *write = output;
     size_t remaining = output_capacity;
     bool in_alpha_list = false;
+    size_t alpha_list_indent = 0;
     char expected_lower = 'a';
     char expected_upper = 'A';
     bool is_upper = false;
@@ -2238,6 +2239,7 @@ static char *apex_preprocess_alpha_lists(const char *text) {
         while (p < line_end && (*p == ' ' || *p == '\t')) {
             p++;
         }
+        size_t current_indent = (size_t)(p - line_start);
 
         /* Check if line starts with alpha marker */
         bool is_alpha_marker = false;
@@ -2262,7 +2264,7 @@ static char *apex_preprocess_alpha_lists(const char *text) {
             /* Check if this continues an existing alpha list */
             bool continues_list = false;
             if (in_alpha_list) {
-                if (alpha_is_upper == is_upper) {
+                if (alpha_is_upper == is_upper && current_indent == alpha_list_indent) {
                     if (alpha_is_upper) {
                         if (alpha_char == expected_upper) {
                             continues_list = true;
@@ -2279,6 +2281,7 @@ static char *apex_preprocess_alpha_lists(const char *text) {
                 /* Start new alpha list */
                 in_alpha_list = true;
                 is_upper = alpha_is_upper;
+                alpha_list_indent = current_indent;
                 item_number = 1;
                 blank_lines_since_alpha = 0;
                 if (alpha_is_upper) {
@@ -2341,6 +2344,9 @@ static char *apex_preprocess_alpha_lists(const char *text) {
                     if (blank_lines_since_alpha >= 2) {
                         in_alpha_list = false;
                     }
+                } else if (current_indent > alpha_list_indent) {
+                    /* Nested content inside current alpha list item; keep list open. */
+                    blank_lines_since_alpha = 0;
                 } else {
                     /* Check if it's a numbered list marker starting with "1." after blank lines */
                     bool had_blank_lines = (blank_lines_since_alpha > 0);
@@ -2398,6 +2404,110 @@ static char *apex_preprocess_alpha_lists(const char *text) {
 }
 
 /**
+ * Insert a blank line before indented ordered sublists that directly follow
+ * a parent list item line, so they parse as nested <ol> blocks.
+ */
+static char *apex_preprocess_nested_ordered_sublists(const char *text) {
+    if (!text) return NULL;
+
+    size_t text_len = strlen(text);
+    size_t output_capacity = text_len * 2 + 1;
+    char *output = malloc(output_capacity);
+    if (!output) return NULL;
+
+    const char *read = text;
+    char *write = output;
+    size_t remaining = output_capacity;
+
+    bool prev_line_was_blank = true;
+    bool prev_line_was_list_item = false;
+    size_t prev_line_indent = 0;
+
+    while (*read) {
+        const char *line_start = read;
+        const char *line_end = strchr(read, '\n');
+        if (!line_end) line_end = read + strlen(read);
+        bool has_newline = (*line_end == '\n');
+
+        const char *p = line_start;
+        while (p < line_end && (*p == ' ' || *p == '\t')) p++;
+        size_t current_indent = (size_t)(p - line_start);
+
+        bool current_line_blank = (p >= line_end);
+        bool current_line_ordered_marker = false;
+        if (!current_line_blank && *p >= '0' && *p <= '9') {
+            const char *num_p = p;
+            while (num_p < line_end && *num_p >= '0' && *num_p <= '9') num_p++;
+            if (num_p < line_end && *num_p == '.' &&
+                (num_p + 1 >= line_end || num_p[1] == ' ' || num_p[1] == '\t')) {
+                current_line_ordered_marker = true;
+            }
+        }
+
+        bool current_line_list_item = false;
+        if (!current_line_blank) {
+            if (current_line_ordered_marker) {
+                current_line_list_item = true;
+            } else if ((*p == '-' || *p == '*' || *p == '+') &&
+                       (p + 1 >= line_end || p[1] == ' ' || p[1] == '\t')) {
+                current_line_list_item = true;
+            }
+        }
+
+        if (!prev_line_was_blank && prev_line_was_list_item &&
+            current_line_ordered_marker && current_indent > prev_line_indent) {
+            if (remaining < 1) {
+                size_t used = (size_t)(write - output);
+                size_t new_capacity = output_capacity * 2 + 64;
+                char *new_output = realloc(output, new_capacity);
+                if (!new_output) {
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+                write = output + used;
+                remaining = new_capacity - used;
+                output_capacity = new_capacity;
+            }
+            *write++ = '\n';
+            remaining--;
+            prev_line_was_blank = true;
+        }
+
+        size_t line_len = (size_t)(line_end - line_start) + (has_newline ? 1 : 0);
+        if (remaining < line_len) {
+            size_t used = (size_t)(write - output);
+            size_t needed = used + line_len + 1;
+            size_t new_capacity = output_capacity;
+            while (new_capacity < needed) new_capacity *= 2;
+            char *new_output = realloc(output, new_capacity);
+            if (!new_output) {
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+            write = output + used;
+            remaining = new_capacity - used;
+            output_capacity = new_capacity;
+        }
+
+        memcpy(write, line_start, line_len);
+        write += line_len;
+        remaining -= line_len;
+
+        prev_line_was_blank = current_line_blank;
+        prev_line_was_list_item = current_line_list_item;
+        prev_line_indent = current_indent;
+
+        read = line_end;
+        if (has_newline) read++;
+    }
+
+    *write = '\0';
+    return output;
+}
+
+/**
  * Post-process HTML to add style attributes to alpha lists
  * Finds HTML comments like <!-- apex-alpha-list-lower --> or <!-- apex-alpha-list-upper -->
  * and adds style="list-style-type: lower-alpha" or style="list-style-type: upper-alpha"
@@ -2439,6 +2549,21 @@ static char *apex_postprocess_alpha_lists_html(const char *html) {
     /* Single-pass optimization: look for markers as we go */
     const char *read_start = read;  /* Track where we started reading from */
     while (*read) {
+        /* Drop any stray raw markers that did not form a standalone paragraph. */
+        if (strncmp(read, "[apex-alpha-list:lower]", 23) == 0 ||
+            strncmp(read, "[apex-alpha-list:upper]", 23) == 0) {
+            size_t copy_len = read - read_start;
+            ENSURE_SPACE(copy_len);
+            if (copy_len > 0) {
+                memcpy(write, read_start, copy_len);
+                write += copy_len;
+                remaining -= copy_len;
+            }
+            read += 23;
+            read_start = read;
+            continue;
+        }
+
         /* Check for marker patterns */
         if (read[0] == '<' && read[1] == 'p' && read[2] == '>' && read[3] == '[') {
             /* Potential marker start */
@@ -4707,6 +4832,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    char *nested_ordered_sublists_processed = NULL;
+
     /* Process emoji autocorrect before parsing (preprocessing) */
     char *emoji_autocorrect_processed = NULL;
     if (options->enable_emoji_autocorrect && (options->mode == APEX_MODE_UNIFIED || options->mode == APEX_MODE_GFM)) {
@@ -5343,6 +5470,16 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     liquid_protected = apex_protect_liquid_tags(text_ptr, &liquid_tags, &liquid_tag_count);
     if (liquid_protected) {
         text_ptr = liquid_protected;
+    }
+
+    /* Keep this late so later preprocessors do not collapse inserted separation. */
+    if (options->mode == APEX_MODE_UNIFIED) {
+        PROFILE_START(nested_ordered_sublists);
+        nested_ordered_sublists_processed = apex_preprocess_nested_ordered_sublists(text_ptr);
+        PROFILE_END(nested_ordered_sublists);
+        if (nested_ordered_sublists_processed) {
+            text_ptr = nested_ordered_sublists_processed;
+        }
     }
 
     /* Normalize input after ALL preprocessing: ensure it ends with a newline.
@@ -6104,6 +6241,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (highlights_processed) free(highlights_processed);
     if (inserts_processed) free(inserts_processed);
     if (alpha_lists_processed) free(alpha_lists_processed);
+    if (nested_ordered_sublists_processed) free(nested_ordered_sublists_processed);
     if (relaxed_tables_processed) free(relaxed_tables_processed);
     if (headerless_tables_processed) free(headerless_tables_processed);
     if (table_captions_processed) free(table_captions_processed);

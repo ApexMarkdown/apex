@@ -2246,6 +2246,33 @@ void test_mixed_lists(void) {
     }
     apex_free_string(html);
 
+    /* Regression: alpha lists with nested sublists should stay intact and not leak marker tokens */
+    unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *alpha_with_nested_bullets = "a. Test\nb. Test\n\t- Test\n\t- Test\nc. Test\n";
+    html = apex_markdown_to_html(alpha_with_nested_bullets, strlen(alpha_with_nested_bullets), &unified_opts);
+    assert_contains(html, "<ol style=\"list-style-type: lower-alpha\">", "Alpha list keeps lower-alpha style with nested bullets");
+    assert_contains(html, "<ul>", "Nested bullet list rendered");
+    assert_not_contains(html, "[apex-alpha-list:", "Alpha marker token removed from output");
+    apex_free_string(html);
+
+    const char *alpha_with_nested_ordered = "a. Test\nb. Test\n\t1. Nested one\n\t2. Nested two\nc. Test\n";
+    html = apex_markdown_to_html(alpha_with_nested_ordered, strlen(alpha_with_nested_ordered), &unified_opts);
+    assert_contains(html, "<ol style=\"list-style-type: lower-alpha\">", "Alpha list keeps style with nested ordered list");
+    assert_not_contains(html, "[apex-alpha-list:", "No leaked alpha marker token after nested ordered list");
+    apex_free_string(html);
+
+    const char *alpha_with_nested_alpha = "a. Test\nb. Test\n\tc. Test\n\td. Test\ne. Test\n";
+    html = apex_markdown_to_html(alpha_with_nested_alpha, strlen(alpha_with_nested_alpha), &unified_opts);
+    assert_contains(html, "<ol style=\"list-style-type: lower-alpha\">", "Alpha list keeps style with nested alpha sublist");
+    assert_not_contains(html, "[apex-alpha-list:", "No leaked alpha marker token after nested alpha sublist");
+    apex_free_string(html);
+
+    const char *numeric_with_nested_ordered = "1. Test\n2. Test\n\t3. Test\n\t4. Test\n5. Test\n";
+    html = apex_markdown_to_html(numeric_with_nested_ordered, strlen(numeric_with_nested_ordered), &unified_opts);
+    assert_contains(html, "<ol start=\"3\">", "Numeric nested ordered sublist renders as nested ordered list");
+    assert_not_contains(html, "2. Test\n    3. Test", "Nested ordered items are not flattened into parent text");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Mixed List Markers Tests", had_failures, false);
 }
