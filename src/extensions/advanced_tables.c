@@ -1643,12 +1643,9 @@ cmark_node *apex_process_advanced_tables(cmark_node *root) {
                                     }
                                 }
                             }
-                            /* Found non-blank paragraph that's not a caption - continue looking
-                             * backwards in case there's a caption further up (e.g., after a header
-                             * and regular paragraph) */
-                            prev = cmark_node_previous(prev);
-                            /* Continue loop to check the next node (prev is checked at start of while) */
-                            continue;
+                            /* Found the nearest non-blank paragraph and it is not a caption.
+                             * Stop searching so a distant caption cannot leak forward to this table. */
+                            break;
                         }
                         /* This paragraph is blank, continue to previous sibling */
                         prev = cmark_node_previous(prev);
@@ -1659,13 +1656,12 @@ cmark_node *apex_process_advanced_tables(cmark_node *root) {
                         /* Headers can appear between caption and table, so continue looking */
                         /* But stop for other block types that shouldn't have captions after them */
                         if (prev_type == CMARK_NODE_HEADING) {
-                            /* Header found - continue looking backwards for caption */
-                            prev = cmark_node_previous(prev);
-                            continue;
-                        } else {
-                            /* Other block type - stop looking */
+                            /* The closest previous non-blank node is a heading, so stop.
+                             * Do not skip backwards across headings when resolving captions. */
                             break;
                         }
+                        /* Other block type - stop looking */
+                        break;
                     }
                 }
 

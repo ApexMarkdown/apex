@@ -79,6 +79,40 @@ void test_advanced_tables(void) {
                         "Footnote definition after GFM table is not treated as caption");
     apex_free_string(html);
 
+    /* Regression (#22): caption from inclusion-table section must not leak to nearby tables
+     * that do not define their own caption.
+     */
+    const char *inclusion_caption_leak_regression =
+        "**First table**\n\n"
+        "| Lorem         | Dolor   | Sit     |\n"
+        "| ------------- | ------- | ------- |\n"
+        "| Amet          | Fabulas | Propiae |\n"
+        "| Signiferumque | In      | Ius     |\n"
+        ": My little table caption\n\n"
+        "**Second table**\n\n"
+        "| Lorem         | Dolor   | Sit     |\n"
+        "| ------------- | ------- | ------- |\n"
+        "| Amet          | Fabulas | Propiae |\n"
+        "| Signiferumque | In      | Ius     |\n\n"
+        "**Inclusion Table**\n\n"
+        "<<[Table.csv]\n"
+        ": Caption for inclusion table\n\n"
+        "**Third table**\n\n"
+        "| Lorem         | Dolor   | Sit     |\n"
+        "| ------------- | ------- | ------- |\n"
+        "| Amet          | Fabulas | Propiae |\n"
+        "| Signiferumque | In      | Ius     |\n";
+    html = apex_markdown_to_html(inclusion_caption_leak_regression,
+                                 strlen(inclusion_caption_leak_regression),
+                                 &inline_table_opts);
+    assert_contains(html, "My little table caption",
+                    "Own caption remains attached to first table");
+    assert_not_contains(html, "data-caption=\"Caption for inclusion table\"",
+                        "Inclusion-table caption does not leak into other table attributes");
+    assert_not_contains(html, "<figcaption>Caption for inclusion table</figcaption>",
+                        "Inclusion-table caption does not leak into other table figure captions");
+    apex_free_string(html);
+
     /* Test rowspan with ^^ */
     const char *rowspan_table = "| H1 | H2 |\n|----|----|"
                                 "\n| A  | B  |"
