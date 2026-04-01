@@ -91,7 +91,7 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
     char *write = html;
     size_t remaining = capacity;
     int current_level = 0;
-    int last_level = 0;  /* level of last item added (0 = none yet) */
+    int last_level = 0;  /* normalized level of last item added (0 = none yet) */
 
     #define APPEND(str) do { \
         size_t len = strlen(str); \
@@ -107,9 +107,11 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
     for (header_item *h = headers; h; h = h->next) {
         /* Skip headers outside min/max range */
         if (h->level < min_level || h->level > max_level) continue;
+        int target_level = h->level - min_level + 1;
+        if (target_level < 1) target_level = 1;
 
         /* Going up: close </ul></li> for each level (nested ul inside parent li) */
-        while (current_level > h->level) {
+        while (current_level > target_level) {
             APPEND("</ul>\n</li>\n");
             current_level--;
         }
@@ -117,7 +119,7 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
         /* Going down: open one <ul> inside the previous li before adding child.
          * At root (current_level 0): only open one ul - never ul > ul.
          * When going deeper: open exactly one ul per step - never ul > ul. */
-        while (current_level < h->level) {
+        while (current_level < target_level) {
             if (current_level == 0) {
                 APPEND("<ul>\n");
                 current_level = 1;
@@ -133,7 +135,7 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
         }
 
         /* Close previous li when adding sibling (same or shallower level) */
-        if (last_level > 0 && h->level <= last_level) {
+        if (last_level > 0 && target_level <= last_level) {
             APPEND("</li>\n");
         }
 
@@ -142,7 +144,7 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
         snprintf(item, sizeof(item), "<li><a href=\"#%s\">%s</a>",
                  h->id, h->text);
         APPEND(item);
-        last_level = h->level;
+        last_level = target_level;
     }
 
     /* Close remaining: </li></ul> for each open level */
@@ -222,9 +224,23 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level)
     *min_level = 1;
     *max_level = 6;
 
+    if (!marker) return;
+
+    /* Only parse inside the marker, never beyond marker end into following HTML. */
+    const char *marker_end = strstr(marker, "}}");
+    if (!marker_end) marker_end = strstr(marker, "-->");
+    if (!marker_end) {
+        marker_end = marker + strlen(marker);
+    }
+    size_t marker_len = (size_t)(marker_end - marker);
+    char *marker_copy = (char *)malloc(marker_len + 1);
+    if (!marker_copy) return;
+    memcpy(marker_copy, marker, marker_len);
+    marker_copy[marker_len] = '\0';
+
     /* Look for max and min parameters */
-    const char *max_str = strstr(marker, "max");
-    const char *min_str = strstr(marker, "min");
+    const char *max_str = strstr(marker_copy, "max");
+    const char *min_str = strstr(marker_copy, "min");
 
     if (max_str) {
         max_str += 3;
@@ -239,7 +255,7 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level)
     }
 
     /* Check for Pandoc style {{TOC:2-5}} */
-    const char *colon = strchr(marker, ':');
+    const char *colon = strchr(marker_copy, ':');
     if (colon) {
         colon++;
         while (*colon && isspace((unsigned char)*colon)) colon++;
@@ -254,6 +270,7 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level)
             }
         }
     }
+    free(marker_copy);
 }
 
 /**

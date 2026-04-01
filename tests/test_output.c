@@ -56,6 +56,27 @@ void test_toc(void) {
     }
     apex_free_string(html);
 
+    /* Regression: {{TOC:2}} must not parse beyond marker into later IDs */
+    const char *single_depth_toc =
+        "# Table of Contents Test\n\n{{TOC:2}}\n\nLorem ipsum\n\n## Section 1\n\n## Section 2\n\n## Section 3";
+    html = apex_markdown_to_html(single_depth_toc, strlen(single_depth_toc), &opts);
+    assert_contains(html, "<nav class=\"toc\">", "Single depth TOC nav rendered");
+    assert_contains(html, "href=\"#section-1\"", "Single depth TOC includes Section 1");
+    assert_contains(html, "href=\"#section-2\"", "Single depth TOC includes Section 2");
+    assert_contains(html, "href=\"#section-3\"", "Single depth TOC includes Section 3");
+    apex_free_string(html);
+
+    /* Regression: same-level headings in {{TOC:2-6}} should remain siblings */
+    const char *same_level_range_toc =
+        "# Table of Contents Test\n\n{{TOC:2-6}}\n\nLorem ipsum\n\n## Section 1\n\n## Section 2\n\n## Section 3";
+    html = apex_markdown_to_html(same_level_range_toc, strlen(same_level_range_toc), &opts);
+    assert_contains(html, "href=\"#section-1\"", "Range TOC includes Section 1");
+    assert_contains(html, "href=\"#section-2\"", "Range TOC includes Section 2");
+    assert_contains(html, "href=\"#section-3\"", "Range TOC includes Section 3");
+    assert_not_contains(html, "href=\"#section-1\">Section 1</a>\n        <ul>",
+                        "Range TOC does not nest same-level headings");
+    apex_free_string(html);
+
     /* Test TOC with max depth only */
     const char *max_toc = "# H1\n\n<!--TOC max2-->\n\n## H2\n\n### H3";
     html = apex_markdown_to_html(max_toc, strlen(max_toc), &opts);
