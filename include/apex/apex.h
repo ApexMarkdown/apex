@@ -14,9 +14,7 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdbool.h>
-#include "ast_markdown.h"
 #include "ast_terminal.h"
-#include "ast_man.h"
 
 #define APEX_VERSION_MAJOR 1
 #define APEX_VERSION_MINOR 0
@@ -55,6 +53,24 @@ typedef enum {
     APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
 } apex_output_format_t;
 
+
+
+/* Plugin phases */
+typedef enum {
+    APEX_PLUGIN_PHASE_PRE_PARSE  = 1 << 0,
+    APEX_PLUGIN_PHASE_BLOCK      = 1 << 1,
+    APEX_PLUGIN_PHASE_INLINE     = 1 << 2,
+    APEX_PLUGIN_PHASE_POST_RENDER= 1 << 3
+} apex_plugin_phase_mask;
+
+typedef struct apex_plugin_manager apex_plugin_manager;
+
+/**
+ * Register a new callback plugin.
+ * @return Returns true if the plugin was registered successfully.
+ */
+bool apex_plugin_register(apex_plugin_manager *manager, const char *id, apex_plugin_phase_mask phase, char *(*callback)(const char *text, const char *id_plugin, apex_plugin_phase_mask phase, const struct apex_options *options));
+
 struct cmark_parser;  /* Opaque; for cmark_init callback. Include cmark-gfm when implementing. */
 
 /**
@@ -65,6 +81,9 @@ typedef struct apex_options {
 
     /* Feature flags */
     bool enable_plugins;  /* Enable external/plugin processing */
+    bool allow_external_plugin_detection; /* Enable detection of external plugins */
+    void (*plugin_register)(apex_plugin_manager *manager, const struct apex_options *options); /* Function to register callback plugins */
+
     bool enable_tables;
     bool enable_footnotes;
     bool enable_definition_lists;

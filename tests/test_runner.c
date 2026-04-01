@@ -41,6 +41,7 @@ void test_math(void);
 void test_critic_markup(void);
 void test_cmark_init_callback(void);
 void test_cmark_callback(void);
+void test_custom_plugins(void);
 void test_processor_modes(void);
 void test_multimarkdown_image_attributes(void);
 void test_file_includes(void);
@@ -149,8 +150,8 @@ static test_suite suites[] = {
     { "citations",                     test_citations },
     { "aria_labels",                   test_aria_labels },
     { "marked_integration",            test_marked_integration_features },
-    { "marked",                        test_marked_integration_features },
     { "plugins_integration",           test_plugins_integration },
+    { "plugins_custom",                test_custom_plugins },
     { "ast_json",                      test_ast_json_parser },
 };
 
