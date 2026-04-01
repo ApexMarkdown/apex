@@ -37,6 +37,48 @@ void test_advanced_tables(void) {
     assert_contains(html, "Table Caption After", "Caption text after is present");
     apex_free_string(html);
 
+    /* Regression: footnote definitions must not be interpreted as table captions.
+     * Repro from issue #20: inline table followed by [^1]: ...
+     */
+    apex_options inline_table_opts = apex_options_default();
+    inline_table_opts.enable_marked_extensions = true;
+    const char *inline_table_footnote_caption_regression =
+        "Lorem ipsum dolor sit amet[^1], fabulas propriae signiferumque in ius.\n\n"
+        "<<[Table.csv{;}]\n\n"
+        "[^1]: Lorem is a good guy\n";
+    html = apex_markdown_to_html(inline_table_footnote_caption_regression,
+                                 strlen(inline_table_footnote_caption_regression),
+                                 &inline_table_opts);
+    assert_not_contains(html, "<figcaption>^1</figcaption>",
+                        "Footnote definition is not treated as table caption");
+    apex_free_string(html);
+
+    const char *inline_table_linkdef_caption_regression =
+        "Lorem ipsum dolor sit amet [link-ref].\n\n"
+        "<<[Table.csv{;}]\n\n"
+        "[link-ref]: https://example.com\n";
+    html = apex_markdown_to_html(inline_table_linkdef_caption_regression,
+                                 strlen(inline_table_linkdef_caption_regression),
+                                 &inline_table_opts);
+    assert_not_contains(html, "<figcaption>link-ref</figcaption>",
+                        "Link definition is not treated as table caption");
+    apex_free_string(html);
+
+    const char *gfm_table_footnote_caption_regression =
+        "Lorem ipsum dolor sit amet[^1], fabulas propriae signiferumque in ius.\n\n"
+        "| Lorem         | Dolor   | Sit     |\n"
+        "| ------------- | ------- | ------- |\n"
+        "| Amet          | Fabulas | Propiae |\n"
+        "| Signiferumque | In      | Ius     |\n\n"
+        "[^1]: Lorem is a good guy\n";
+    html = apex_markdown_to_html(gfm_table_footnote_caption_regression,
+                                 strlen(gfm_table_footnote_caption_regression),
+                                 &opts);
+    assert_contains(html, "<table", "GFM table renders in footnote-caption regression");
+    assert_not_contains(html, "<figcaption>^1</figcaption>",
+                        "Footnote definition after GFM table is not treated as caption");
+    apex_free_string(html);
+
     /* Test rowspan with ^^ */
     const char *rowspan_table = "| H1 | H2 |\n|----|----|"
                                 "\n| A  | B  |"

@@ -339,8 +339,11 @@ static char *get_caption_from_paragraph(cmark_node *para) {
         if (!link_text || cmark_node_get_type(link_text) != CMARK_NODE_TEXT) return NULL;
         const char *text = cmark_node_get_literal(link_text);
         if (!text) return NULL;
-        /* Only treat as caption if it's the only content (no siblings) */
-        if (cmark_node_next(link_text) != NULL) return NULL;
+        /* Only treat as caption if paragraph contains exactly one link node.
+         * Footnote definitions like "[^1]: ..." can parse as LINK + TEXT;
+         * those must never be treated as table captions. */
+        if (cmark_node_next(link_text) != NULL) return NULL; /* extra content inside link */
+        if (cmark_node_next(child) != NULL) return NULL;     /* extra paragraph content after link */
         return strdup(text);
     }
     return NULL;
