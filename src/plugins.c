@@ -92,16 +92,43 @@ static char *apex_git_toplevel(void) {
     return out;
 }
 
+
+typedef struct apex_plugin {
+    char *id;
+    char *title;
+    char *author;
+    char *description;
+    char *homepage;
+    char *repo;
+    apex_plugin_phase_mask phases;
+    int priority;
+
+    char *handler_command; /* External command to be executed */
+    int timeout_ms;
+    /* Declarative regex support */
+    char *pattern;
+    char *replacement;
+    regex_t regex;
+    int has_regex;
+    /* Owning directory for this plugin (used for APEX_PLUGIN_DIR) */
+    char *dir_path;
+    /* Per-plugin support directory (used for APEX_SUPPORT_DIR) */
+    char *support_dir;
+    /* A custom callback to transform the passed text. Executed only if handler_command and has_regex are not set. */
+    char *(*callback)(const char *text, const char *id_plugin, apex_plugin_phase_mask phase, const struct apex_options *options);
+    struct apex_plugin *next;
+} apex_plugin;
+
 struct apex_plugin_manager {
     struct apex_plugin *pre_parse;
     struct apex_plugin *post_render;
 };
 
-apex_plugin *init_plugin(void) {
-    return calloc(1, sizeof(struct apex_plugin));;
+static apex_plugin *init_plugin(void) {
+    return calloc(1, sizeof(struct apex_plugin));
 }
 
-void free_plugin(struct apex_plugin *p) {
+static void free_plugin(struct apex_plugin *p) {
     while (p) {
         struct apex_plugin *next = p->next;
         free(p->id);
@@ -193,8 +220,16 @@ static bool plugin_id_exists(struct apex_plugin *head, const char *id) {
     return false;
 }
 
-bool plugin_register(apex_plugin_manager *manager, struct apex_plugin *plugin) {
-    if (!plugin || !manager) return false;
+bool apex_plugin_register(apex_plugin_manager *manager, const char *id, apex_plugin_phase_mask phase, char *(*callback)(const char *text,  const char *id_plugin, apex_plugin_phase_mask phase, const struct apex_options *options)) {
+    apex_plugin *plugin;
+    plugin = init_plugin();
+    if (!plugin || !manager) {
+        return false;
+    }
+
+    plugin->id = id != NULL ? strdup(id) : NULL;
+    plugin->callback = callback;
+    plugin->phases = phase;
 
     if (plugin->phases & APEX_PLUGIN_PHASE_PRE_PARSE) {
         if (!plugin_id_exists(manager->pre_parse, plugin->id)) {
@@ -867,7 +902,7 @@ char *apex_plugins_run_text_phase(apex_plugin_manager *manager,
         } else if (p->has_regex) {
             next = apply_regex_replacement(p, current);
         } else if (p->callback) {
-            next = p->callback(current, p, phase, options);
+            next = p->callback(current, p->id, phase, options);
         }
 
         if (do_profile) {
