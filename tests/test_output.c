@@ -77,6 +77,15 @@ void test_toc(void) {
                         "Range TOC does not nest same-level headings");
     apex_free_string(html);
 
+    /* Regression: TOC labels should not include source indentation/newline whitespace */
+    const char *toc_whitespace =
+        "# Top\n\n{{TOC:2}}\n\n##   Section 1\n\n##\tSection 2\n\n## Section   3";
+    html = apex_markdown_to_html(toc_whitespace, strlen(toc_whitespace), &opts);
+    assert_contains(html, "href=\"#section-1\">Section 1</a>", "TOC trims label whitespace");
+    assert_contains(html, "href=\"#section-2\">Section 2</a>", "TOC normalizes tab/newline whitespace");
+    assert_contains(html, "href=\"#section-3\">Section 3</a>", "TOC collapses internal whitespace runs");
+    apex_free_string(html);
+
     /* Test TOC with max depth only */
     const char *max_toc = "# H1\n\n<!--TOC max2-->\n\n## H2\n\n### H3";
     html = apex_markdown_to_html(max_toc, strlen(max_toc), &opts);
@@ -292,6 +301,13 @@ void test_pretty_html(void) {
     /* Test inline elements stay inline */
     html = apex_markdown_to_html("Text with **bold**", 18, &opts);
     assert_contains(html, "<strong>bold</strong>", "Inline elements not split");
+    apex_free_string(html);
+
+    /* TOC links should not get indentation whitespace inside anchor text */
+    html = apex_markdown_to_html("# Top\n\n{{TOC:2}}\n\n## Section 1", 31, &opts);
+    assert_contains(html, "<a href=\"#section-1\">Section 1</a>", "Pretty mode keeps TOC link text clean");
+    assert_not_contains(html, "<a href=\"#section-1\">        Section 1</a>",
+                        "Pretty mode does not pad TOC link text");
     apex_free_string(html);
 
     /* Test table formatting */

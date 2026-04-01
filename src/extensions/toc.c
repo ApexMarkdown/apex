@@ -20,6 +20,40 @@ typedef struct header_item {
     struct header_item *next;
 } header_item;
 
+/* Normalize heading text for TOC labels:
+ * - trim leading/trailing whitespace
+ * - collapse internal whitespace runs to a single space
+ */
+static char *normalize_toc_text(const char *text) {
+    if (!text) return strdup("");
+
+    size_t len = strlen(text);
+    char *out = malloc(len + 1);
+    if (!out) return strdup("");
+
+    const unsigned char *read = (const unsigned char *)text;
+    while (*read && isspace(*read)) read++;
+
+    char *write = out;
+    int pending_space = 0;
+
+    while (*read) {
+        if (isspace(*read)) {
+            pending_space = 1;
+        } else {
+            if (pending_space && write > out) {
+                *write++ = ' ';
+            }
+            *write++ = (char)*read;
+            pending_space = 0;
+        }
+        read++;
+    }
+
+    *write = '\0';
+    return out;
+}
+
 static void free_headers(header_item *headers) {
     while (headers) {
         header_item *next = headers->next;
@@ -54,7 +88,9 @@ static header_item *collect_headers(cmark_node *node, header_item **tail) {
             header_item *item = malloc(sizeof(header_item));
             if (item) {
                 item->level = cmark_node_get_heading_level(node);
-                item->text = apex_extract_heading_text(node);
+                char *raw_text = apex_extract_heading_text(node);
+                item->text = normalize_toc_text(raw_text);
+                free(raw_text);
                 item->id = NULL;  /* Will be set later with format */
                 item->next = NULL;
 

@@ -260,6 +260,11 @@ char *apex_pretty_print_html(const char *html) {
 
                 /* Track inline context */
                 if (is_inline) {
+                    /* If an inline tag starts at a new line (e.g. after pretty-printing
+                     * a block tag like <li>), align the tag itself with current indent.
+                     */
+                    WRITE_INDENT();
+
                     if (!is_closing) {
                         in_inline = true;
                     } else {
@@ -302,7 +307,7 @@ char *apex_pretty_print_html(const char *html) {
         }
 
         /* Regular content */
-        if (!at_line_start || in_pre || *read != '\n') {
+        if ((!at_line_start || in_pre || *read != '\n') && !in_inline) {
             WRITE_INDENT();
         }
 
