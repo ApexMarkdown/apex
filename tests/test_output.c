@@ -34,6 +34,13 @@ void test_toc(void) {
     assert_contains(html, "Section", "MMD TOC includes headers");
     apex_free_string(html);
 
+    /* MultiMarkdown mode should process {{TOC}} even with marked extensions disabled */
+    apex_options mmd_opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    html = apex_markdown_to_html(mmd_toc, strlen(mmd_toc), &mmd_opts);
+    assert_contains(html, "<nav class=\"toc\">", "MMD mode renders TOC marker");
+    assert_contains(html, "Section", "MMD mode TOC includes headers");
+    apex_free_string(html);
+
     /* Test TOC with depth range */
     const char *depth_toc = "# H1\n\n{{TOC:2-3}}\n\n## H2\n\n### H3\n\n#### H4";
     html = apex_markdown_to_html(depth_toc, strlen(depth_toc), &opts);

@@ -6036,8 +6036,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    /* Process TOC markers if enabled (Marked extensions) */
-    if (options->enable_marked_extensions && html) {
+    /* Process TOC markers if enabled (Marked extensions) or in MultiMarkdown mode.
+     * MultiMarkdown uses {{TOC}} syntax even when Marked extensions are disabled.
+     */
+    if ((options->enable_marked_extensions || options->mode == APEX_MODE_MULTIMARKDOWN) && html) {
         PROFILE_START(toc);
         char *with_toc = apex_process_toc(html, document, options->id_format);
         PROFILE_END(toc);
