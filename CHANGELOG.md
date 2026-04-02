@@ -2,6 +2,19 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.6] - 2026-04-02
+
+### Changed
+
+- Update Homebrew formula to Apex 1.0.5 and refresh the macOS release checksum.
+
+### Fixed
+
+- Keep synthetic nested ordered sublists tight in unified mode so first-level list items do not get unwanted paragraph wrappers.
+- Preserve intentionally loose list rendering when users add explicit blank lines before nested ordered sublists.
+- Prevent <<[file] includes from consuming following [ref]: and [^id]: lines as include address specs.
+- Stop definition lines after included CSV tables from being misread as table captions.
+
 ## [1.0.5] - 2026-04-01
 
 ### Changed
@@ -2832,6 +2845,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.6]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.6
 [1.0.5]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.5
 [1.0.4]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.4
 [1.0.3]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.3
