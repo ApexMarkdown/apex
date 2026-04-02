@@ -81,6 +81,7 @@ void test_aria_labels(void);
 void test_marked_integration_features(void);
 void test_plugins_integration(void);
 void test_ast_json_parser(void);
+void test_escaping_repro(void);
 
 /**
  * Test suite registry
@@ -153,6 +154,8 @@ static test_suite suites[] = {
     { "plugins_integration",           test_plugins_integration },
     { "plugins_custom",                test_custom_plugins },
     { "ast_json",                      test_ast_json_parser },
+    { "escaping_repro",                test_escaping_repro },
+    { "escaping",                      test_escaping_repro },
 };
 
 static const size_t suite_count = sizeof(suites) / sizeof(suites[0]);
