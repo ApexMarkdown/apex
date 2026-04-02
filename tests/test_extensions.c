@@ -2265,12 +2265,20 @@ void test_mixed_lists(void) {
     html = apex_markdown_to_html(alpha_with_nested_alpha, strlen(alpha_with_nested_alpha), &unified_opts);
     assert_contains(html, "<ol style=\"list-style-type: lower-alpha\">", "Alpha list keeps style with nested alpha sublist");
     assert_not_contains(html, "[apex-alpha-list:", "No leaked alpha marker token after nested alpha sublist");
+    assert_not_contains(html, "<p>Test</p>\n<ol>", "Synthetic nested alpha sublist stays tight without paragraph wrapper");
     apex_free_string(html);
 
     const char *numeric_with_nested_ordered = "1. Test\n2. Test\n\t3. Test\n\t4. Test\n5. Test\n";
     html = apex_markdown_to_html(numeric_with_nested_ordered, strlen(numeric_with_nested_ordered), &unified_opts);
     assert_contains(html, "<ol start=\"3\">", "Numeric nested ordered sublist renders as nested ordered list");
     assert_not_contains(html, "2. Test\n    3. Test", "Nested ordered items are not flattened into parent text");
+    assert_not_contains(html, "<p>Test</p>\n<ol start=\"3\">", "Synthetic nested ordered list stays tight without paragraph wrapper");
+    apex_free_string(html);
+
+    const char *numeric_with_explicit_loose_nested_ordered = "1. Test\n2. Test\n\n\t3. Test\n\t4. Test\n5. Test\n";
+    html = apex_markdown_to_html(numeric_with_explicit_loose_nested_ordered, strlen(numeric_with_explicit_loose_nested_ordered), &unified_opts);
+    assert_contains(html, "<ol start=\"3\">", "Explicit blank line nested ordered sublist renders");
+    assert_contains(html, "<p>Test</p>\n<ol start=\"3\">", "Explicit blank line keeps loose list paragraph wrapper");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);

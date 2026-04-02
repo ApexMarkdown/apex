@@ -2209,7 +2209,9 @@ static char *apex_preprocess_table_colspans(const char *text) {
  * Preprocess alpha list markers (a., b., c. and A., B., C.)
  * Converts them to numbered markers (1., 2., 3.) and adds markers for post-processing
  */
-static char *apex_preprocess_alpha_lists(const char *text) {
+static char *apex_preprocess_alpha_lists(const char *text,
+                                         bool *inserted_synthetic_nested_alpha_break,
+                                         bool *saw_explicit_nested_alpha_break) {
     if (!text) return NULL;
 
     size_t text_len = strlen(text);
@@ -2227,6 +2229,8 @@ static char *apex_preprocess_alpha_lists(const char *text) {
     bool is_upper = false;
     int item_number = 1;
     int blank_lines_since_alpha = 0;  /* Track blank lines to detect list breaks */
+    if (inserted_synthetic_nested_alpha_break) *inserted_synthetic_nested_alpha_break = false;
+    if (saw_explicit_nested_alpha_break) *saw_explicit_nested_alpha_break = false;
 
     while (*read) {
         const char *line_start = read;
@@ -2261,6 +2265,14 @@ static char *apex_preprocess_alpha_lists(const char *text) {
         }
 
         if (is_alpha_marker) {
+            bool nested_alpha_after_item = false;
+            if (in_alpha_list && alpha_is_upper == is_upper && current_indent > alpha_list_indent) {
+                if (alpha_is_upper) {
+                    nested_alpha_after_item = (alpha_char == expected_upper);
+                } else {
+                    nested_alpha_after_item = (alpha_char == expected_lower);
+                }
+            }
             /* Check if this continues an existing alpha list */
             bool continues_list = false;
             if (in_alpha_list) {
@@ -2278,6 +2290,13 @@ static char *apex_preprocess_alpha_lists(const char *text) {
             }
 
             if (!continues_list) {
+                if (nested_alpha_after_item) {
+                    if (blank_lines_since_alpha > 0) {
+                        if (saw_explicit_nested_alpha_break) *saw_explicit_nested_alpha_break = true;
+                    } else {
+                        if (inserted_synthetic_nested_alpha_break) *inserted_synthetic_nested_alpha_break = true;
+                    }
+                }
                 /* Start new alpha list */
                 in_alpha_list = true;
                 is_upper = alpha_is_upper;
@@ -2407,7 +2426,9 @@ static char *apex_preprocess_alpha_lists(const char *text) {
  * Insert a blank line before indented ordered sublists that directly follow
  * a parent list item line, so they parse as nested <ol> blocks.
  */
-static char *apex_preprocess_nested_ordered_sublists(const char *text) {
+static char *apex_preprocess_nested_ordered_sublists(const char *text,
+                                                     bool *inserted_synthetic_break,
+                                                     bool *saw_explicit_break) {
     if (!text) return NULL;
 
     size_t text_len = strlen(text);
@@ -2422,6 +2443,9 @@ static char *apex_preprocess_nested_ordered_sublists(const char *text) {
     bool prev_line_was_blank = true;
     bool prev_line_was_list_item = false;
     size_t prev_line_indent = 0;
+
+    if (inserted_synthetic_break) *inserted_synthetic_break = false;
+    if (saw_explicit_break) *saw_explicit_break = false;
 
     while (*read) {
         const char *line_start = read;
@@ -2454,8 +2478,14 @@ static char *apex_preprocess_nested_ordered_sublists(const char *text) {
             }
         }
 
-        if (!prev_line_was_blank && prev_line_was_list_item &&
-            current_line_ordered_marker && current_indent > prev_line_indent) {
+        bool nested_ordered_after_item = (prev_line_was_list_item &&
+                                          current_line_ordered_marker &&
+                                          current_indent > prev_line_indent);
+        if (nested_ordered_after_item && prev_line_was_blank) {
+            if (saw_explicit_break) *saw_explicit_break = true;
+        }
+
+        if (!prev_line_was_blank && nested_ordered_after_item) {
             if (remaining < 1) {
                 size_t used = (size_t)(write - output);
                 size_t new_capacity = output_capacity * 2 + 64;
@@ -2471,6 +2501,7 @@ static char *apex_preprocess_nested_ordered_sublists(const char *text) {
             }
             *write++ = '\n';
             remaining--;
+            if (inserted_synthetic_break) *inserted_synthetic_break = true;
             prev_line_was_blank = true;
         }
 
@@ -2505,6 +2536,35 @@ static char *apex_preprocess_nested_ordered_sublists(const char *text) {
 
     *write = '\0';
     return output;
+}
+
+/* Force tight rendering for lists synthesized from nested ordered sublist fixes. */
+static void apex_tighten_nested_ordered_list_items(cmark_node *node) {
+    if (!node) return;
+
+    for (cmark_node *child = cmark_node_first_child(node); child; ) {
+        cmark_node *next = cmark_node_next(child);
+        apex_tighten_nested_ordered_list_items(child);
+        child = next;
+    }
+
+    if (cmark_node_get_type(node) != CMARK_NODE_LIST) return;
+
+    bool has_para_then_sublist_item = false;
+    for (cmark_node *item = cmark_node_first_child(node); item; item = cmark_node_next(item)) {
+        if (cmark_node_get_type(item) != CMARK_NODE_ITEM) continue;
+        cmark_node *first = cmark_node_first_child(item);
+        cmark_node *second = first ? cmark_node_next(first) : NULL;
+        if (first && second &&
+            cmark_node_get_type(first) == CMARK_NODE_PARAGRAPH &&
+            cmark_node_get_type(second) == CMARK_NODE_LIST) {
+            has_para_then_sublist_item = true;
+            break;
+        }
+    }
+    if (has_para_then_sublist_item) {
+        cmark_node_set_list_tight(node, 1);
+    }
 }
 
 /**
@@ -4823,9 +4883,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Process alpha lists before parsing (preprocessing) */
     char *alpha_lists_processed = NULL;
+    bool inserted_synthetic_nested_alpha_break = false;
+    bool saw_explicit_nested_alpha_break = false;
     if (options->allow_alpha_lists) {
         PROFILE_START(alpha_lists);
-        alpha_lists_processed = apex_preprocess_alpha_lists(text_ptr);
+        alpha_lists_processed = apex_preprocess_alpha_lists(
+            text_ptr,
+            &inserted_synthetic_nested_alpha_break,
+            &saw_explicit_nested_alpha_break
+        );
         PROFILE_END(alpha_lists);
         if (alpha_lists_processed) {
             text_ptr = alpha_lists_processed;
@@ -4833,6 +4899,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     char *nested_ordered_sublists_processed = NULL;
+    bool inserted_synthetic_nested_ordered_break = false;
+    bool saw_explicit_nested_ordered_break = false;
 
     /* Process emoji autocorrect before parsing (preprocessing) */
     char *emoji_autocorrect_processed = NULL;
@@ -5475,7 +5543,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Keep this late so later preprocessors do not collapse inserted separation. */
     if (options->mode == APEX_MODE_UNIFIED) {
         PROFILE_START(nested_ordered_sublists);
-        nested_ordered_sublists_processed = apex_preprocess_nested_ordered_sublists(text_ptr);
+        nested_ordered_sublists_processed = apex_preprocess_nested_ordered_sublists(
+            text_ptr,
+            &inserted_synthetic_nested_ordered_break,
+            &saw_explicit_nested_ordered_break
+        );
         PROFILE_END(nested_ordered_sublists);
         if (nested_ordered_sublists_processed) {
             text_ptr = nested_ordered_sublists_processed;
@@ -5675,6 +5747,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Merge lists with mixed markers if enabled */
     if (options->allow_mixed_list_markers) {
         apex_merge_mixed_list_markers(document);
+    }
+    if (options->mode == APEX_MODE_UNIFIED &&
+        ((inserted_synthetic_nested_ordered_break && !saw_explicit_nested_ordered_break) ||
+         (inserted_synthetic_nested_alpha_break && !saw_explicit_nested_alpha_break))) {
+        apex_tighten_nested_ordered_list_items(document);
     }
 
     /* Note: Critic Markup is now handled via preprocessing (before parsing) */
