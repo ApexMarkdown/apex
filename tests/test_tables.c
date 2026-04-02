@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 void test_advanced_tables(void) {
     int suite_failures = suite_start();
@@ -112,6 +113,44 @@ void test_advanced_tables(void) {
     assert_not_contains(html, "<figcaption>Caption for inclusion table</figcaption>",
                         "Inclusion-table caption does not leak into other table figure captions");
     apex_free_string(html);
+
+    /* Regression (#20 comment): <<[file] include must not treat following
+     * definition lines as include addresses or table captions.
+     */
+    const char *include_csv_path = "/tmp/apex_issue20_include_table.csv";
+    FILE *include_csv = fopen(include_csv_path, "w");
+    if (include_csv) {
+        fputs("H1,H2\nA,B\n", include_csv);
+        fclose(include_csv);
+    }
+
+    char include_table_footnote_def_regression[512];
+    snprintf(include_table_footnote_def_regression,
+             sizeof(include_table_footnote_def_regression),
+             "<<[%s]\n\n[^1]: Some Footnote Text\n",
+             include_csv_path);
+    html = apex_markdown_to_html(include_table_footnote_def_regression,
+                                 strlen(include_table_footnote_def_regression),
+                                 &inline_table_opts);
+    assert_contains(html, "<table", "Include-table with real CSV renders");
+    assert_not_contains(html, "<figcaption>Some Footnote Text</figcaption>",
+                        "Footnote definition after <<[file] is not treated as caption");
+    apex_free_string(html);
+
+    char include_table_link_def_regression[512];
+    snprintf(include_table_link_def_regression,
+             sizeof(include_table_link_def_regression),
+             "<<[%s]\n\n[link-ref]: https://example.com\n",
+             include_csv_path);
+    html = apex_markdown_to_html(include_table_link_def_regression,
+                                 strlen(include_table_link_def_regression),
+                                 &inline_table_opts);
+    assert_contains(html, "<table", "Include-table with link definition renders");
+    assert_not_contains(html, "<figcaption>https://example.com</figcaption>",
+                        "Link definition after <<[file] is not treated as caption");
+    apex_free_string(html);
+
+    remove(include_csv_path);
 
     /* Test rowspan with ^^ */
     const char *rowspan_table = "| H1 | H2 |\n|----|----|"

@@ -1580,10 +1580,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         parse_embedded_delimiter_override(filepath, &marked_delimiter_override);
                     }
 
-                    /* Check for address specification [address] */
+                    /* Check for address specification [address] on the SAME line only.
+                     * Do not skip across newlines, otherwise following reference
+                     * definitions like "[^1]: ..." are misparsed as include addresses. */
                     const char *address_start = filepath_end + 1;
-                    /* Skip whitespace */
-                    while (*address_start && isspace(*address_start)) address_start++;
+                    while (*address_start == ' ' || *address_start == '\t') address_start++;
                     const char *address_end = NULL;
                     address_spec_t *address_spec = NULL;
 
