@@ -2268,6 +2268,15 @@ void test_mixed_lists(void) {
     assert_not_contains(html, "<p>Test</p>\n<ol>", "Synthetic nested alpha sublist stays tight without paragraph wrapper");
     apex_free_string(html);
 
+    /* Numeric parent list with indented alpha sublist → nested <ol style="lower-alpha"> */
+    const char *numeric_with_nested_alpha = "1. One\n2. Two\n\ta. Two-One\n\tb. Two-Two\n3. Three\n";
+    html = apex_markdown_to_html(numeric_with_nested_alpha, strlen(numeric_with_nested_alpha), &unified_opts);
+    assert_contains(html, "<ol style=\"list-style-type: lower-alpha\">",
+                    "Alpha sublist under numeric list gets lower-alpha styling");
+    assert_contains(html, "<li>Two-One</li>", "Nested alpha item text preserved");
+    assert_not_contains(html, "<!-- apex-alpha-list-", "Alpha HTML comment marker stripped from output");
+    apex_free_string(html);
+
     const char *numeric_with_nested_ordered = "1. Test\n2. Test\n\t3. Test\n\t4. Test\n5. Test\n";
     html = apex_markdown_to_html(numeric_with_nested_ordered, strlen(numeric_with_nested_ordered), &unified_opts);
     assert_contains(html, "<ol start=\"3\">", "Numeric nested ordered sublist renders as nested ordered list");

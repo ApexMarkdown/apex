@@ -2207,7 +2207,9 @@ static char *apex_preprocess_table_colspans(const char *text) {
 
 /**
  * Preprocess alpha list markers (a., b., c. and A., B., C.)
- * Converts them to numbered markers (1., 2., 3.) and adds markers for post-processing
+ * Converts them to numbered markers (1., 2., 3.) and inserts an HTML comment (indented like
+ * the list items) so the HTML pass can apply list-style-type; bracket tokens are not used
+ * because the Markdown parser strips them before HTML is produced.
  */
 static char *apex_preprocess_alpha_lists(const char *text,
                                          bool *inserted_synthetic_nested_alpha_break,
@@ -2308,8 +2310,10 @@ static char *apex_preprocess_alpha_lists(const char *text,
                 } else {
                     expected_lower = alpha_char;
                 }
-                /* Add marker paragraph before the list (will be rendered as <p data-apex-alpha-list="lower|upper"></p>) */
-                int needed = snprintf(write, remaining, "[apex-alpha-list:%s]\n\n", alpha_is_upper ? "upper" : "lower");
+                /* HTML comment + indent: bracket markers are stripped by the parser; comments survive in unsafe HTML
+                 * and must be indented like the following list items to stay inside a parent <li>. */
+                int needed = snprintf(write, remaining, "%.*s<!-- apex-alpha-list-%s -->\n\n",
+                                      (int)(p - line_start), line_start, alpha_is_upper ? "upper" : "lower");
                 if (needed > 0 && needed < (int)remaining) {
                     write += needed;
                     remaining -= needed;
@@ -2576,9 +2580,10 @@ static void apex_tighten_nested_ordered_list_items(cmark_node *node) {
 static char *apex_postprocess_alpha_lists_html(const char *html) {
     if (!html) return NULL;
 
-    /* Early exit: check if alpha list markers exist before processing */
-    if (strstr(html, "[apex-alpha-list:") == NULL) {
-        return NULL;  /* No alpha list markers, skip processing */
+    /* Early exit: bracket markers (legacy) or HTML comments from preprocessor */
+    if (strstr(html, "[apex-alpha-list:") == NULL &&
+        strstr(html, "<!-- apex-alpha-list-") == NULL) {
+        return NULL;
     }
 
     size_t html_len = strlen(html);
@@ -2606,9 +2611,78 @@ static char *apex_postprocess_alpha_lists_html(const char *html) {
         } \
     } while(0)
 
-    /* Single-pass optimization: look for markers as we go */
-    const char *read_start = read;  /* Track where we started reading from */
+    /* Single-pass: HTML comments (current), <p>[apex-alpha-list:…]</p> (legacy), or stray brackets */
+    const char *read_start = read;
+    static const char alpha_comment_lower[] = "<!-- apex-alpha-list-lower -->";
+    static const char alpha_comment_upper[] = "<!-- apex-alpha-list-upper -->";
+    const size_t alpha_comment_lower_len = sizeof(alpha_comment_lower) - 1;
+    const size_t alpha_comment_upper_len = sizeof(alpha_comment_upper) - 1;
+
     while (*read) {
+        /* Strip HTML comment markers and style the following <ol> (not copied to output). */
+        bool comment_upper = false;
+        size_t comment_len = 0;
+        if ((size_t)(html + html_len - read) >= alpha_comment_lower_len &&
+            strncmp(read, alpha_comment_lower, alpha_comment_lower_len) == 0) {
+            comment_len = alpha_comment_lower_len;
+        } else if ((size_t)(html + html_len - read) >= alpha_comment_upper_len &&
+                   strncmp(read, alpha_comment_upper, alpha_comment_upper_len) == 0) {
+            comment_upper = true;
+            comment_len = alpha_comment_upper_len;
+        }
+        if (comment_len > 0) {
+            size_t copy_len = (size_t)(read - read_start);
+            ENSURE_SPACE(copy_len);
+            if (copy_len > 0) {
+                memcpy(write, read_start, copy_len);
+                write += copy_len;
+                remaining -= copy_len;
+            }
+            read += comment_len;
+            read_start = read;
+            while (*read == ' ' || *read == '\t' || *read == '\n' || *read == '\r') {
+                read++;
+            }
+            read_start = read;
+            if (read[0] == '<' && read[1] == 'o' && read[2] == 'l' &&
+                (read[3] == '>' || read[3] == ' ' || read[3] == '\t' || read[3] == '\n')) {
+                const char *ol_start = read;
+                const char *tag_end = strchr(ol_start, '>');
+
+                if (tag_end) {
+                    bool has_style = false;
+                    for (const char *p = ol_start; p < tag_end; p++) {
+                        if (strncmp(p, "style=", 6) == 0) {
+                            has_style = true;
+                            break;
+                        }
+                    }
+                    size_t tag_len = (size_t)(tag_end - ol_start); /* before '>' */
+                    ENSURE_SPACE(tag_len + 50);
+                    memcpy(write, ol_start, tag_len);
+                    write += tag_len;
+                    remaining -= tag_len;
+                    if (!has_style) {
+                        const char *style = comment_upper
+                            ? " style=\"list-style-type: upper-alpha\">"
+                            : " style=\"list-style-type: lower-alpha\">";
+                        size_t style_len = strlen(style);
+                        memcpy(write, style, style_len);
+                        write += style_len;
+                        remaining -= style_len;
+                    } else {
+                        ENSURE_SPACE(1);
+                        *write++ = '>';
+                        remaining--;
+                    }
+                    read = tag_end + 1;
+                    read_start = read;
+                    continue;
+                }
+            }
+            continue;
+        }
+
         /* Drop any stray raw markers that did not form a standalone paragraph. */
         if (strncmp(read, "[apex-alpha-list:lower]", 23) == 0 ||
             strncmp(read, "[apex-alpha-list:upper]", 23) == 0) {
