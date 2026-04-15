@@ -837,6 +837,12 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
             }
         }
 
+        /* Skip autolinking while inside markdown link text [ ... ] */
+        if (bracket_count > 0 && !in_markdown_link_url) {
+            *w++ = *r++;
+            continue;
+        }
+
         /* Skip autolinking if we're inside a markdown link URL */
         if (in_markdown_link_url) {
             *w++ = *r++;
