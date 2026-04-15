@@ -1091,6 +1091,20 @@ void test_citations(void) {
     assert_contains(html, "mailto:", "Email autolinking still works");
     apex_free_string(html);
 
+    /* Test markdown mailto links with @ and query params are not re-autolinked */
+    const char *mailto_markdown =
+        "If you have purchased a permanent unlock or lifetime license through the Mac App Store, please "
+        "[email the developer](mailto:marked@brettterpstra.com?subject=Marked%20License%20Crossgrade&body=Please%20include%20your%20UUID%20%28Help-%3ECopy%20UUID%20in%20Marked%29%20in%20this%20email%20for%20receipt%20verification.) "
+        "to request a free lifetime Paddle license.";
+    html = apex_markdown_to_html(mailto_markdown, strlen(mailto_markdown), &opts_autolink);
+    assert_contains(
+        html,
+        "<a href=\"mailto:marked@brettterpstra.com?subject=Marked%20License%20Crossgrade&amp;body=Please%20include%20your%20UUID%20%28Help-%3ECopy%20UUID%20in%20Marked%29%20in%20this%20email%20for%20receipt%20verification.\">email the developer</a>",
+        "Markdown mailto link with query params renders as a single clean anchor");
+    assert_not_contains(html, "[email the", "Markdown link syntax is not leaked into output");
+    assert_not_contains(html, "mailto:developer](", "No nested autolink corruption in mailto link");
+    apex_free_string(html);
+
     /* Test that autolink does not run inside indented code blocks */
     const char *indented_code =
         "    x-marked://extract?url=https://example.com\n";

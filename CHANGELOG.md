@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.7] - 2026-04-15
+
+### New
+
+- Tests for CommonMark !\[ (non-image), false ![ blog case, U+2033 vs ASCII quotes, real images, and glued ** after punctuation (see tests/test_escaping_repro.c).
+
+### Fixed
+
+- Prevented autolink preprocessing from rewriting text inside markdown link labels, which fixes broken rendering for links like [email](mailto:user@example.com?subject=...&body=...).
+
 ## [1.0.6] - 2026-04-02
 
 ### Changed
@@ -2845,6 +2855,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.7]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.7
 [1.0.6]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.6
 [1.0.5]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.5
 [1.0.4]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.4
