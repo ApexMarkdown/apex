@@ -401,6 +401,24 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* Picture conversion should preserve image IAL attrs on fallback <img> */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *picture_ial_md =
+            "[![text-basic widget screenshot](img/text-basic.jpg avif @2x){:loading=lazy width=400 height=400}]"
+            "(img/text-basic@2x.jpg){.widget-shot.js-lightbox}";
+        char *html = apex_markdown_to_html(picture_ial_md, strlen(picture_ial_md), &opts);
+        assert_contains(html, "<a href=\"img/text-basic@2x.jpg\" class=\"widget-shot js-lightbox\">",
+                        "picture+ial: outer link classes preserved");
+        assert_contains(html, "<picture>", "picture+ial: picture element");
+        assert_contains(html, "img/text-basic.avif 1x, img/text-basic@2x.avif 2x",
+                        "picture+ial: avif srcset with @2x");
+        assert_contains(html,
+                        "<img src=\"img/text-basic.jpg\" alt=\"text-basic widget screenshot\" width=\"400\" height=\"400\" loading=\"lazy\">",
+                        "picture+ial: fallback img preserves IAL attrs");
+        apex_free_string(html);
+    }
+
     /* Video URL: ![alt](video.mp4) emits <video> */
     {
         apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);

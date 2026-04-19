@@ -275,6 +275,67 @@ static char *extract_data_apex_picture_srcset(const char *attrs, const char *for
     return out;
 }
 
+/**
+ * Return attrs with internal data-apex-* and core img attrs removed.
+ * Keeps user-specified attrs (e.g. width/height/loading/class/style) for img fallback.
+ * Caller must free.
+ */
+static char *filter_img_fallback_attrs(const char *attrs) {
+    if (!attrs) return NULL;
+
+    size_t cap = strlen(attrs) + 1;
+    char *out = malloc(cap);
+    if (!out) return NULL;
+
+    char *w = out;
+    const char *p = attrs;
+
+    while (*p) {
+        while (*p && isspace((unsigned char)*p)) p++;
+        if (!*p) break;
+
+        const char *token_start = p;
+        const char *name_start = p;
+        while (*p && !isspace((unsigned char)*p) && *p != '=') p++;
+        const char *name_end = p;
+
+        if (*p == '=') {
+            p++; /* consume '=' */
+            if (*p == '"' || *p == '\'') {
+                char q = *p++;
+                while (*p && *p != q) p++;
+                if (*p == q) p++;
+            } else {
+                while (*p && !isspace((unsigned char)*p)) p++;
+            }
+        }
+
+        const char *token_end = p;
+        size_t name_len = (size_t)(name_end - name_start);
+        bool skip_attr = false;
+
+        if (name_len == 0) continue;
+
+        if (name_len >= 10 && strncasecmp(name_start, "data-apex-", 10) == 0) {
+            skip_attr = true;
+        } else if ((name_len == 3 && strncasecmp(name_start, "src", 3) == 0) ||
+                   (name_len == 3 && strncasecmp(name_start, "alt", 3) == 0) ||
+                   (name_len == 5 && strncasecmp(name_start, "title", 5) == 0)) {
+            skip_attr = true;
+        }
+
+        if (!skip_attr) {
+            if (w != out) *w++ = ' ';
+            size_t token_len = (size_t)(token_end - token_start);
+            memcpy(w, token_start, token_len);
+            w += token_len;
+        }
+    }
+
+    *w = '\0';
+    return out;
+}
+
 /* Counters for element indexing */
 typedef struct {
     int para_count;
@@ -896,9 +957,12 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                                 /* Build <picture> with <source> elements and <img> fallback */
                                 char *webp_srcset = extract_data_apex_picture_srcset(matching->attrs, "webp");
                                 char *avif_srcset = extract_data_apex_picture_srcset(matching->attrs, "avif");
+                                char *img_fallback_attrs = filter_img_fallback_attrs(matching->attrs);
 
-                                /* Strip data-apex-* from attrs for the img */
-                                size_t cap = 512 + (src ? strlen(src) * 2 : 0) + (webp_srcset ? strlen(webp_srcset) : 0) + (avif_srcset ? strlen(avif_srcset) : 0);
+                                size_t cap = 512 + (src ? strlen(src) * 2 : 0) +
+                                             (webp_srcset ? strlen(webp_srcset) : 0) +
+                                             (avif_srcset ? strlen(avif_srcset) : 0) +
+                                             (img_fallback_attrs ? strlen(img_fallback_attrs) : 0);
                                 replacement = malloc(cap);
                                 if (replacement) {
                                     char *w = replacement;
@@ -906,15 +970,25 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                                     if (avif_srcset) w += snprintf(w, cap - (size_t)(w - replacement), "<source type=\"image/avif\" srcset=\"%s\">", avif_srcset);
                                     if (webp_srcset) w += snprintf(w, cap - (size_t)(w - replacement), "<source type=\"image/webp\" srcset=\"%s\">", webp_srcset);
                                     /* Preserve title on img for caption logic (apex_convert_image_captions) */
+                                    const char *img_attrs = (img_fallback_attrs && *img_fallback_attrs) ? img_fallback_attrs : NULL;
                                     if (title && *title) {
-                                        w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\" title=\"%s\"></picture>", src, alt, title);
+                                        if (img_attrs) {
+                                            w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\" title=\"%s\" %s></picture>", src, alt, title, img_attrs);
+                                        } else {
+                                            w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\" title=\"%s\"></picture>", src, alt, title);
+                                        }
                                     } else {
-                                        w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\"></picture>", src, alt);
+                                        if (img_attrs) {
+                                            w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\" %s></picture>", src, alt, img_attrs);
+                                        } else {
+                                            w += snprintf(w, cap - (size_t)(w - replacement), "<img src=\"%s\" alt=\"%s\"></picture>", src, alt);
+                                        }
                                     }
                                     repl_len = (size_t)(w - replacement);
                                 }
                                 free(webp_srcset);
                                 free(avif_srcset);
+                                free(img_fallback_attrs);
                             }
 
                             if (replacement && repl_len > 0 && repl_len <= remaining) {
