@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.9] - 2026-04-19
+
+### Changed
+
+- Homebrew installs now point to Apex 1.0.8 with the updated macOS release artifact checksum.
+
+### Fixed
+
+- Picture generation now preserves image attributes like loading, width, and height on fallback img tags when using avif/webp with retina variants.
+
 ## [1.0.8] - 2026-04-19
 
 ### Changed
@@ -2866,6 +2876,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.9]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.9
 [1.0.8]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.8
 [1.0.7]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.7
 [1.0.6]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.6
