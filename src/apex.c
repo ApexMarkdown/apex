@@ -811,6 +811,46 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
             continue;
         }
 
+        /* Skip any autolink processing while inside an HTML tag (<...>),
+         * including quoted attributes. */
+        bool in_html_tag = false;
+        {
+            bool quote_active = false;
+            char quote_char = '\0';
+            const char *scan = text;
+
+            while (scan < r) {
+                if (!in_html_tag) {
+                    if (*scan == '<') {
+                        in_html_tag = true;
+                    }
+                    scan++;
+                    continue;
+                }
+
+                if (quote_active) {
+                    if (*scan == quote_char) {
+                        quote_active = false;
+                    }
+                    scan++;
+                    continue;
+                }
+
+                if (*scan == '"' || *scan == '\'') {
+                    quote_active = true;
+                    quote_char = *scan;
+                } else if (*scan == '>') {
+                    in_html_tag = false;
+                }
+                scan++;
+            }
+        }
+
+        if (in_html_tag) {
+            *w++ = *r++;
+            continue;
+        }
+
         /* Track markdown links: [text](url) - skip autolinking inside URL part */
         if (*r == '[' && !in_markdown_link_url) {
             bracket_count++;
@@ -1096,6 +1136,30 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                     /* Require that the character immediately before @ is alphanumeric.
                      * This prevents matching @ in URLs like https://example.com/@user */
                     if (at_pos > r && isalnum((unsigned char)at_pos[-1])) {
+                        /* Ignore image-density suffixes like @2x.jpg, @3x.avif, etc. */
+                        const char *suffix = at_pos + 1;
+                        if (suffix < token_end && isdigit((unsigned char)*suffix)) {
+                            while (suffix < token_end && isdigit((unsigned char)*suffix)) {
+                                suffix++;
+                            }
+                            if (suffix < token_end && *suffix == 'x') {
+                                suffix++;
+                                if (suffix < token_end && *suffix == '.') {
+                                    suffix++;
+                                    if (suffix < token_end && isalnum((unsigned char)*suffix)) {
+                                        while (suffix < token_end && isalnum((unsigned char)*suffix)) {
+                                            suffix++;
+                                        }
+                                        if (suffix == token_end) {
+                                            /* This token is an image filename density suffix,
+                                             * not an email address. */
+                                            goto skip_email_candidate;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         /* Validate that email has a TLD (at least one dot followed by alphanumeric) */
                         const char *after_at = at_pos + 1;
                         bool has_tld = false;
@@ -1119,6 +1183,7 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                 }
             }
         }
+skip_email_candidate:
 
         if (is_url_start || is_email_start) {
             const char *start = r;
