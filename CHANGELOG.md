@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.8] - 2026-04-19
+
+### Changed
+
+- Homebrew users now install Apex v1.0.7 from the release tarball.
+
+### Fixed
+
+- Autolinking no longer rewrites image density filenames like text-basic@2x.jpg into mailto links.
+- Autolinking now ignores content inside HTML tags and attributes such as href and srcset values.
+
 ## [1.0.7] - 2026-04-15
 
 ### New
@@ -2855,6 +2866,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.8]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.8
 [1.0.7]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.7
 [1.0.6]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.6
 [1.0.5]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.5
