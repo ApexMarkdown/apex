@@ -332,6 +332,11 @@ static cmark_node *match_wiki_link(cmark_syntax_extension *self,
     const char *input = (const char *)chunk->data + pos;
     int remaining = chunk->len - pos;
 
+    /* Do not parse Obsidian embeds ![[...]] as regular wiki links. */
+    if (pos > 0 && chunk->data[pos - 1] == '!') {
+        return NULL;
+    }
+
     /* CRITICAL: Must check for [[ to distinguish from regular markdown links [text](url) */
     if (remaining < 2 || input[0] != '[' || input[1] != '[') {
         return NULL;  /* Not a wiki link, let standard link parser handle it */
@@ -500,6 +505,29 @@ void apex_process_wiki_links_in_tree(cmark_node *node, wiki_link_config *config)
             }
 
             size_t content_len = (size_t)(close - (open + 2));
+
+            /* Preserve Obsidian embeds ![[...]] as literal text so include
+             * preprocessing can handle them, and avoid rendering !<a ...>. */
+            if (open > literal && open[-1] == '!') {
+                size_t raw_len = (size_t)((close + 2) - open);
+                char *raw = malloc(raw_len + 1);
+                if (raw) {
+                    memcpy(raw, open, raw_len);
+                    raw[raw_len] = '\0';
+                    cmark_node *text = cmark_node_new(CMARK_NODE_TEXT);
+                    cmark_node_set_literal(text, raw);
+                    free(raw);
+                    if (!insert_after) {
+                        cmark_node_insert_before(node, text);
+                    } else {
+                        cmark_node_insert_after(insert_after, text);
+                    }
+                    insert_after = text;
+                    changed = true;
+                }
+                cursor = close + 2;
+                continue;
+            }
 
             /* If empty content, keep literal text and continue */
             if (content_len == 0) {

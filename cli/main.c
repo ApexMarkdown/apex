@@ -1755,7 +1755,7 @@ static char *apex_cli_combine_process_file(const char *filepath) {
     }
 
     char *base_dir = apex_cli_get_directory(filepath);
-    char *processed = apex_process_includes(markdown, base_dir, doc_metadata, 0);
+    char *processed = apex_process_includes(markdown, base_dir, doc_metadata, 0, NULL);
 
     if (doc_metadata) {
         apex_free_metadata(doc_metadata);

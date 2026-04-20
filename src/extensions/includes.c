@@ -1236,6 +1236,242 @@ static bool parse_embedded_delimiter_override(char *filepath, char *delimiter_ou
     return true;
 }
 
+static char *trim_copy(const char *s, size_t len) {
+    if (!s) return NULL;
+    while (len > 0 && isspace((unsigned char)*s)) {
+        s++;
+        len--;
+    }
+    while (len > 0 && isspace((unsigned char)s[len - 1])) {
+        len--;
+    }
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+    memcpy(out, s, len);
+    out[len] = '\0';
+    return out;
+}
+
+static void split_section_fragment(char *filepath, char **section_out) {
+    if (section_out) *section_out = NULL;
+    if (!filepath) return;
+
+    char *hash = strchr(filepath, '#');
+    if (!hash) return;
+
+    *hash = '\0';
+    hash++;
+    while (*hash && isspace((unsigned char)*hash)) hash++;
+    if (!*hash) return;
+
+    if (section_out) {
+        *section_out = strdup(hash);
+    }
+}
+
+static bool has_extension(const char *path) {
+    if (!path || !*path) return false;
+    const char *slash = strrchr(path, '/');
+    const char *base = slash ? slash + 1 : path;
+    const char *dot = strrchr(base, '.');
+    return dot && dot[1] != '\0';
+}
+
+static char *with_default_extension(const char *path, const char *ext_without_dot) {
+    if (!path || !*path) return NULL;
+    if (has_extension(path)) return strdup(path);
+    if (!ext_without_dot || !*ext_without_dot) return strdup(path);
+
+    size_t len = strlen(path) + strlen(ext_without_dot) + 2;
+    char *out = malloc(len);
+    if (!out) return NULL;
+    snprintf(out, len, "%s.%s", path, ext_without_dot);
+    return out;
+}
+
+static const char *next_line_start(const char *line_end) {
+    if (!line_end) return NULL;
+    if (*line_end == '\n') return line_end + 1;
+    if (*line_end == '\0') return line_end;
+    return line_end + 1;
+}
+
+static bool parse_setext_underline(const char *line, size_t len, int *level_out) {
+    if (!line || len == 0) return false;
+    size_t i = 0;
+    while (i < len && line[i] == ' ') i++;
+    if (i > 3 || i >= len) return false;
+
+    char marker = 0;
+    int marker_count = 0;
+    for (; i < len; i++) {
+        char c = line[i];
+        if (c == '\r') continue;
+        if (c == '=' || c == '-') {
+            if (marker == 0) marker = c;
+            if (c != marker) return false;
+            marker_count++;
+            continue;
+        }
+        if (!isspace((unsigned char)c)) return false;
+    }
+    if (marker_count == 0 || marker == 0) return false;
+    if (level_out) *level_out = (marker == '=') ? 1 : 2;
+    return true;
+}
+
+static char *normalize_heading_text(const char *start, size_t len, bool is_atx) {
+    if (!start) return NULL;
+
+    while (len > 0 && isspace((unsigned char)*start)) {
+        start++;
+        len--;
+    }
+    while (len > 0 && isspace((unsigned char)start[len - 1])) {
+        len--;
+    }
+
+    if (is_atx && len > 0) {
+        size_t t = len;
+        while (t > 0 && start[t - 1] == '#') t--;
+        if (t < len) {
+            size_t u = t;
+            while (u > 0 && isspace((unsigned char)start[u - 1])) u--;
+            if (u < t) len = u;
+        }
+    }
+
+    /* Collapse spaces and lowercase for matching. */
+    char *out = malloc(len + 1);
+    if (!out) return NULL;
+
+    size_t w = 0;
+    bool in_space = false;
+    for (size_t i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)start[i];
+        if (isspace(c)) {
+            if (!in_space) {
+                out[w++] = ' ';
+                in_space = true;
+            }
+            continue;
+        }
+        out[w++] = (char)tolower(c);
+        in_space = false;
+    }
+    while (w > 0 && out[w - 1] == ' ') w--;
+    out[w] = '\0';
+    return out;
+}
+
+static bool parse_atx_heading(const char *line_start, const char *line_end,
+                              int *level_out, char **normalized_out) {
+    if (normalized_out) *normalized_out = NULL;
+    if (!line_start || !line_end || line_end < line_start) return false;
+
+    const char *p = line_start;
+    int leading_spaces = 0;
+    while (p < line_end && *p == ' ' && leading_spaces < 4) {
+        p++;
+        leading_spaces++;
+    }
+    if (leading_spaces > 3 || p >= line_end || *p != '#') return false;
+
+    int level = 0;
+    while (p < line_end && *p == '#' && level < 6) {
+        p++;
+        level++;
+    }
+    if (level == 0) return false;
+    if (p < line_end && !isspace((unsigned char)*p)) return false;
+
+    while (p < line_end && isspace((unsigned char)*p)) p++;
+    size_t text_len = (size_t)(line_end - p);
+
+    if (level_out) *level_out = level;
+    if (normalized_out) {
+        *normalized_out = normalize_heading_text(p, text_len, true);
+    }
+    return true;
+}
+
+static char *extract_markdown_section(const char *content, const char *section_name) {
+    if (!content || !section_name || !*section_name) {
+        return content ? strdup(content) : NULL;
+    }
+
+    char *target = normalize_heading_text(section_name, strlen(section_name), false);
+    if (!target || !*target) {
+        if (target) free(target);
+        return strdup("");
+    }
+
+    const char *cursor = content;
+    const char *section_start = NULL;
+    const char *section_end = NULL;
+    int target_level = 0;
+    bool found = false;
+
+    while (*cursor) {
+        const char *line_end = strchr(cursor, '\n');
+        if (!line_end) line_end = cursor + strlen(cursor);
+        const char *next = next_line_start(line_end);
+        const char *next_end = (*next) ? (strchr(next, '\n') ? strchr(next, '\n') : next + strlen(next)) : next;
+
+        int level = 0;
+        char *heading_norm = NULL;
+        bool heading_found = parse_atx_heading(cursor, line_end, &level, &heading_norm);
+        bool is_setext = false;
+
+        if (!heading_found && *next && next > cursor) {
+            int setext_level = 0;
+            size_t cur_len = (size_t)(line_end - cursor);
+            if (cur_len > 0 && parse_setext_underline(next, (size_t)(next_end - next), &setext_level)) {
+                heading_found = true;
+                is_setext = true;
+                level = setext_level;
+                heading_norm = normalize_heading_text(cursor, cur_len, false);
+            }
+        }
+
+        if (heading_found) {
+            if (!found) {
+                if (heading_norm && strcmp(heading_norm, target) == 0) {
+                    found = true;
+                    target_level = level;
+                    section_start = cursor;
+                    if (is_setext) {
+                        cursor = (*next_end == '\n') ? (next_end + 1) : next_end;
+                        free(heading_norm);
+                        continue;
+                    }
+                }
+            } else {
+                if (level <= target_level) {
+                    section_end = cursor;
+                    free(heading_norm);
+                    break;
+                }
+            }
+        }
+
+        if (heading_norm) free(heading_norm);
+        cursor = (*line_end == '\n') ? (line_end + 1) : line_end;
+    }
+
+    free(target);
+
+    if (!found || !section_start) return strdup("");
+    if (!section_end) section_end = content + strlen(content);
+
+    size_t out_len = (size_t)(section_end - section_start);
+    char *out = malloc(out_len + 1);
+    if (!out) return NULL;
+    memcpy(out, section_start, out_len);
+    out[out_len] = '\0';
+    return out;
+}
+
 /* Find closing "}}" for MMD transclusion, allowing embedded single-brace
  * segments inside filepath (e.g. {{data.csv{;}}}). */
 static const char *find_mmd_transclusion_end(const char *filepath_start) {
@@ -1266,7 +1502,7 @@ static const char *find_mmd_transclusion_end(const char *filepath_start) {
 /**
  * Process file includes in text
  */
-char *apex_process_includes(const char *text, const char *base_dir, apex_metadata_item *metadata, int depth) {
+char *apex_process_includes(const char *text, const char *base_dir, apex_metadata_item *metadata, int depth, const char *default_extension) {
     if (!text) return NULL;
     if (depth > MAX_INCLUDE_DEPTH) {
         return strdup(text);  /* Silently return original text */
@@ -1312,25 +1548,178 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
             in_code_span = !in_code_span;
         }
 
+        /* Obsidian embed syntax: ![[file]] or ![[file#Section]] */
+        if (!in_code_span && read_pos[0] == '!' && read_pos[1] == '[' && read_pos[2] == '[') {
+            const char *content_start = read_pos + 3;
+            const char *close = strstr(content_start, "]]");
+            if (close && (close - content_start) > 0 && (close - content_start) < 1024) {
+                char target[1024];
+                size_t target_len = (size_t)(close - content_start);
+                memcpy(target, content_start, target_len);
+                target[target_len] = '\0';
+
+                char *pipe = strchr(target, '|');
+                if (pipe) *pipe = '\0'; /* Ignore alias text for includes */
+
+                percent_decode_inplace(target);
+
+                char *section_name = NULL;
+                split_section_fragment(target, &section_name);
+
+                const char *effective_default_ext = default_extension;
+                while (effective_default_ext && *effective_default_ext == '.') {
+                    effective_default_ext++;
+                }
+                if (effective_default_ext && *effective_default_ext == '\0') {
+                    effective_default_ext = NULL;
+                }
+
+                bool had_explicit_ext = has_extension(target);
+                char *target_with_ext = with_default_extension(target, effective_default_ext ? effective_default_ext : "md");
+                char *resolved_path = apex_resolve_wildcard(target_with_ext ? target_with_ext : target, effective_base_dir);
+                if (!resolved_path) {
+                    resolved_path = resolve_path(target_with_ext ? target_with_ext : target, effective_base_dir);
+                }
+
+                /* If a non-md default extension was configured but didn't resolve,
+                 * fall back to .md to keep Obsidian-style embeds practical. */
+                if (!had_explicit_ext &&
+                    (!resolved_path || !apex_file_exists(resolved_path)) &&
+                    effective_default_ext &&
+                    strcasecmp(effective_default_ext, "md") != 0) {
+                    char *md_target = with_default_extension(target, "md");
+                    char *md_resolved = apex_resolve_wildcard(md_target ? md_target : target, effective_base_dir);
+                    if (!md_resolved) {
+                        md_resolved = resolve_path(md_target ? md_target : target, effective_base_dir);
+                    }
+                    if (md_target) free(md_target);
+                    if (md_resolved && apex_file_exists(md_resolved)) {
+                        if (resolved_path) free(resolved_path);
+                        resolved_path = md_resolved;
+                    } else if (md_resolved) {
+                        free(md_resolved);
+                    }
+                }
+
+                if (resolved_path && apex_file_exists(resolved_path)) {
+                    apex_file_type_t file_type = apex_detect_file_type(resolved_path);
+                    char *content = read_file_contents(resolved_path);
+                    if (content) {
+                        char *to_insert = NULL;
+                        bool free_to_insert = false;
+
+                        if (file_type == FILE_TYPE_IMAGE) {
+                            size_t buf_size = strlen(target_with_ext ? target_with_ext : target) + 10;
+                            to_insert = malloc(buf_size);
+                            if (to_insert) snprintf(to_insert, buf_size, "![](%s)\n", target_with_ext ? target_with_ext : target);
+                            free_to_insert = true;
+                        } else if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
+                            to_insert = apex_csv_to_table_with_delimiter(content, file_type == FILE_TYPE_TSV, '\0');
+                            free_to_insert = true;
+                        } else if (file_type == FILE_TYPE_CODE) {
+                            const char *ext = strrchr(target_with_ext ? target_with_ext : target, '.');
+                            const char *lang = ext ? ext + 1 : "";
+                            size_t buf_size = strlen(content) + strlen(lang) + 20;
+                            to_insert = malloc(buf_size);
+                            if (to_insert) snprintf(to_insert, buf_size, "\n```%s\n%s\n```\n", lang, content);
+                            free_to_insert = true;
+                        } else {
+                            char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
+                            char *base_content = section_content ? section_content : strdup(content);
+                            char *file_content_for_metadata = base_content ? strdup(base_content) : NULL;
+                            apex_metadata_item *file_metadata = NULL;
+                            char *file_text_after_metadata = file_content_for_metadata;
+                            if (file_content_for_metadata) {
+                                file_metadata = apex_extract_metadata(&file_text_after_metadata);
+                            }
+
+                            char *transclude_base = NULL;
+                            if (file_metadata) {
+                                transclude_base = get_transclude_base(get_directory(resolved_path), file_metadata);
+                            }
+                            if (!transclude_base) {
+                                transclude_base = get_directory(resolved_path);
+                            }
+
+                            to_insert = apex_process_includes(base_content ? base_content : "", transclude_base, file_metadata, depth + 1, default_extension);
+                            free_to_insert = true;
+
+                            if (transclude_base) free(transclude_base);
+                            if (file_metadata) apex_free_metadata(file_metadata);
+                            if (file_content_for_metadata) free(file_content_for_metadata);
+                            if (base_content) free(base_content);
+                        }
+
+                        if (to_insert) {
+                            size_t insert_len = strlen(to_insert);
+                            if (insert_len < remaining) {
+                                memcpy(write_pos, to_insert, insert_len);
+                                write_pos += insert_len;
+                                remaining -= insert_len;
+                            }
+                            if (free_to_insert) free(to_insert);
+                        }
+
+                        free(content);
+                        read_pos = close + 2;
+                        processed_include = true;
+                    }
+                }
+
+                if (target_with_ext) free(target_with_ext);
+                if (resolved_path) free(resolved_path);
+                if (section_name) free(section_name);
+            }
+        }
+
         /* Look for iA Writer transclusion /filename (at start of line only) */
         if (!in_code_span && read_pos[0] == '/' && (read_pos == text_to_process || read_pos[-1] == '\n')) {
             const char *filepath_start = read_pos + 1;
-            const char *filepath_end = filepath_start;
-
-            /* Find end of filename */
-            while (*filepath_end && *filepath_end != ' ' && *filepath_end != '\t' &&
-                   *filepath_end != '\n' && *filepath_end != '\r') {
-                filepath_end++;
+            const char *line_end = read_pos;
+            while (*line_end && *line_end != '\n' && *line_end != '\r') {
+                line_end++;
             }
 
-            if (filepath_end > filepath_start && (filepath_end - filepath_start) < 1024) {
+            if (line_end > filepath_start && (line_end - filepath_start) < 1024) {
                 char filepath[1024];
-                size_t filepath_len = filepath_end - filepath_start;
+                size_t filepath_len = (size_t)(line_end - filepath_start);
                 char ia_delimiter_override = '\0';
                 memcpy(filepath, filepath_start, filepath_len);
                 filepath[filepath_len] = '\0';
+
+                /* Trim leading/trailing whitespace for line-based iA include. */
+                char *trimmed = trim_copy(filepath, strlen(filepath));
+                if (!trimmed) {
+                    read_pos = line_end;
+                    processed_include = true;
+                    continue;
+                }
+                strncpy(filepath, trimmed, sizeof(filepath) - 1);
+                filepath[sizeof(filepath) - 1] = '\0';
+                free(trimmed);
+
+                /* Allow trailing delimiter override on iA syntax, e.g. /data.csv {delimiter=;} */
+                char *last_brace = strrchr(filepath, '{');
+                if (last_brace) {
+                    const char *after_override = NULL;
+                    char parsed = '\0';
+                    if (parse_include_delimiter_override(last_brace, &after_override, &parsed) &&
+                        after_override && *after_override == '\0') {
+                        ia_delimiter_override = parsed;
+                        *last_brace = '\0';
+                        size_t trim_len = strlen(filepath);
+                        while (trim_len > 0 && isspace((unsigned char)filepath[trim_len - 1])) {
+                            filepath[trim_len - 1] = '\0';
+                            trim_len--;
+                        }
+                    }
+                }
+
                 percent_decode_inplace(filepath);
                 parse_embedded_delimiter_override(filepath, &ia_delimiter_override);
+
+                char *section_name = NULL;
+                split_section_fragment(filepath, &section_name);
 
                 /* Resolve and check file exists */
                 char *resolved_path = resolve_path(filepath, effective_base_dir);
@@ -1349,11 +1738,6 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         } else if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
                             /* CSV/TSV: convert to table */
                             char delimiter_override = ia_delimiter_override;
-                            const char *override_end = filepath_end;
-                            if (delimiter_override == '\0' &&
-                                parse_include_delimiter_override(filepath_end, &override_end, &delimiter_override)) {
-                                filepath_end = override_end;
-                            }
                             to_insert = apex_csv_to_table_with_delimiter(content, file_type == FILE_TYPE_TSV, delimiter_override);
                         } else if (file_type == FILE_TYPE_CODE) {
                             /* Code: wrap in fenced code block */
@@ -1364,8 +1748,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             if (to_insert) snprintf(to_insert, buf_size, "\n```%s\n%s\n```\n", lang, content);
                         } else {
                             /* Text/Markdown: process and include */
+                            char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
+                            char *base_text = section_content ? section_content : strdup(content);
+
                             /* Extract metadata from transcluded file */
-                            char *file_content_for_metadata = strdup(content);
+                            char *file_content_for_metadata = base_text ? strdup(base_text) : NULL;
                             apex_metadata_item *file_metadata = NULL;
                             char *file_text_after_metadata = file_content_for_metadata;
                             if (file_content_for_metadata) {
@@ -1381,12 +1768,13 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                                 transclude_base = get_directory(resolved_path);
                             }
 
-                            to_insert = apex_process_includes(content, transclude_base, file_metadata, depth + 1);
+                            to_insert = apex_process_includes(base_text ? base_text : "", transclude_base, file_metadata, depth + 1, default_extension);
 
                             /* Cleanup */
                             if (transclude_base) free(transclude_base);
                             if (file_metadata) apex_free_metadata(file_metadata);
                             if (file_content_for_metadata) free(file_content_for_metadata);
+                            if (base_text) free(base_text);
                         }
 
                         if (to_insert) {
@@ -1401,13 +1789,16 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
                         free(content);
                         free(resolved_path);
-                        read_pos = filepath_end;
+                        read_pos = line_end;
                         processed_include = true;
+                        if (section_name) free(section_name);
                     } else {
                         free(resolved_path);
+                        if (section_name) free(section_name);
                     }
                 } else if (resolved_path) {
                     free(resolved_path);
+                    if (section_name) free(section_name);
                 }
             }
         }
@@ -1426,6 +1817,9 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                 filepath[filepath_len] = '\0';
                 percent_decode_inplace(filepath);
                 parse_embedded_delimiter_override(filepath, &mmd_delimiter_override);
+
+                char *section_name = NULL;
+                split_section_fragment(filepath, &section_name);
 
                 /* Check for address specification [address] */
                 const char *address_start = filepath_end + 2;
@@ -1457,8 +1851,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                     apex_file_type_t file_type = apex_detect_file_type(resolved_path);
                     char *content = read_file_contents(resolved_path);
                     if (content) {
+                        char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
+                        char *section_base = section_content ? section_content : strdup(content);
+
                         /* Extract metadata from original file content FIRST (before any processing) */
-                        char *file_content_for_metadata = strdup(content);
+                        char *file_content_for_metadata = section_base ? strdup(section_base) : NULL;
                         apex_metadata_item *file_metadata = NULL;
                         char *file_text_after_metadata = file_content_for_metadata;
                         if (file_content_for_metadata) {
@@ -1466,12 +1863,12 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         }
 
                         /* Apply address specification if present */
-                        char *extracted_content = content;
+                        char *extracted_content = section_base ? section_base : content;
                         bool free_extracted = false;
 
                         if (address_spec) {
-                            extracted_content = extract_lines(content, address_spec);
-                            if (extracted_content && extracted_content != content) {
+                            extracted_content = extract_lines(section_base ? section_base : content, address_spec);
+                            if (extracted_content && extracted_content != (section_base ? section_base : content)) {
                                 free_extracted = true;
                             }
                         }
@@ -1502,7 +1899,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         }
 
                         /* Recursively process with file's metadata and transclude base */
-                        char *processed = apex_process_includes(to_process, transclude_base, file_metadata, depth + 1);
+                        char *processed = apex_process_includes(to_process, transclude_base, file_metadata, depth + 1, default_extension);
 
                         /* Cleanup */
                         if (transclude_base) free(transclude_base);
@@ -1522,6 +1919,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         if (free_to_process) free(to_process);
                         if (free_extracted) free(extracted_content);
                         free(content);
+                        if (section_base) free(section_base);
 
                         if (address_end) {
                             read_pos = address_end + 1;
@@ -1531,12 +1929,15 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         free(resolved_path);
                         if (address_spec) free_address_spec(address_spec);
                         processed_include = true;
+                        if (section_name) free(section_name);
                     } else {
                         free(resolved_path);
                         if (address_spec) free_address_spec(address_spec);
+                        if (section_name) free(section_name);
                     }
                 } else {
                     if (address_spec) free_address_spec(address_spec);
+                    if (section_name) free(section_name);
                 }
             }
         }
@@ -1580,6 +1981,9 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         parse_embedded_delimiter_override(filepath, &marked_delimiter_override);
                     }
 
+                    char *section_name = NULL;
+                    split_section_fragment(filepath, &section_name);
+
                     /* Check for address specification [address] on the SAME line only.
                      * Do not skip across newlines, otherwise following reference
                      * definitions like "[^1]: ..." are misparsed as include addresses. */
@@ -1608,8 +2012,11 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         apex_file_type_t file_type = apex_detect_file_type(resolved_path);
                         char *content = read_file_contents(resolved_path);
                         if (content) {
+                            char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
+                            char *section_base = section_content ? section_content : strdup(content);
+
                             /* Extract metadata from original file content FIRST (before any processing) */
-                            char *file_content_for_metadata = strdup(content);
+                            char *file_content_for_metadata = section_base ? strdup(section_base) : NULL;
                             apex_metadata_item *file_metadata = NULL;
                             char *file_text_after_metadata = file_content_for_metadata;
                             if (file_content_for_metadata) {
@@ -1617,12 +2024,12 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             }
 
                             /* Apply address specification if present */
-                            char *extracted_content = content;
+                            char *extracted_content = section_base ? section_base : content;
                             bool free_extracted = false;
 
                             if (address_spec) {
-                                extracted_content = extract_lines(content, address_spec);
-                                if (extracted_content && extracted_content != content) {
+                                extracted_content = extract_lines(section_base ? section_base : content, address_spec);
+                                if (extracted_content && extracted_content != (section_base ? section_base : content)) {
                                     free_extracted = true;
                                 }
                             }
@@ -1656,7 +2063,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                                     transclude_base = get_directory(resolved_path);
                                 }
 
-                                char *processed = apex_process_includes(to_process, transclude_base, file_metadata, depth + 1);
+                                char *processed = apex_process_includes(to_process, transclude_base, file_metadata, depth + 1, default_extension);
 
                                 /* Cleanup */
                                 if (transclude_base) free(transclude_base);
@@ -1719,6 +2126,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
                             if (free_extracted) free(extracted_content);
                             free(content);
+                            if (section_base) free(section_base);
                         }
                         free(resolved_path);
                     }
@@ -1742,6 +2150,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         }
                     }
                     if (address_spec) free_address_spec(address_spec);
+                    if (section_name) free(section_name);
                     processed_include = true;
                 }
             }

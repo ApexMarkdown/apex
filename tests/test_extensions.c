@@ -715,6 +715,51 @@ void test_file_includes(void) {
     assert_not_contains(html, "Included Content", "Line range excludes header");
     apex_free_string(html);
 
+    /* Section extraction parity across include syntaxes */
+    const char *mmd_section_include = "{{sections.md#Section 2}}";
+    html = apex_markdown_to_html(mmd_section_include, strlen(mmd_section_include), &opts);
+    assert_contains(html, "Section 2 text.", "MMD section include: selected section content");
+    assert_contains(html, "Nested section 2.1 text.", "MMD section include: nested subsection included");
+    assert_not_contains(html, "Section 3 text.", "MMD section include: stops before next same-level heading");
+    apex_free_string(html);
+
+    const char *marked_section_include = "<<[sections.md#Section 2]";
+    html = apex_markdown_to_html(marked_section_include, strlen(marked_section_include), &opts);
+    assert_contains(html, "Section 2 text.", "Marked section include: selected section content");
+    assert_contains(html, "Nested section 2.1 text.", "Marked section include: nested subsection included");
+    assert_not_contains(html, "Section 3 text.", "Marked section include: stops before next same-level heading");
+    apex_free_string(html);
+
+    const char *ia_section_include = "/sections.md#Section 2";
+    html = apex_markdown_to_html(ia_section_include, strlen(ia_section_include), &opts);
+    assert_contains(html, "Section 2 text.", "iA Writer section include: selected section content");
+    assert_contains(html, "Nested section 2.1 text.", "iA Writer section include: nested subsection included");
+    assert_not_contains(html, "Section 3 text.", "iA Writer section include: stops before next same-level heading");
+    apex_free_string(html);
+
+    const char *obsidian_section_include = "![[sections#Section 2]]";
+    html = apex_markdown_to_html(obsidian_section_include, strlen(obsidian_section_include), &opts);
+    assert_contains(html, "Section 2 text.", "Obsidian embed include: selected section content");
+    assert_contains(html, "Nested section 2.1 text.", "Obsidian embed include: nested subsection included");
+    assert_not_contains(html, "Section 3 text.", "Obsidian embed include: stops before next same-level heading");
+    apex_free_string(html);
+
+    opts.wikilink_extension = "txt";
+    html = apex_markdown_to_html(obsidian_section_include, strlen(obsidian_section_include), &opts);
+    assert_contains(html, "Section 2 text from TXT fixture.", "Obsidian embed include: uses --wikilink-extension default");
+    assert_not_contains(html, "Nested section 2.1 text.", "Obsidian embed include: extension override changes source file");
+    assert_not_contains(html, "Section 3 text from TXT fixture.", "Obsidian embed include: extension override still trims to section");
+    apex_free_string(html);
+    opts.wikilink_extension = ".txt";
+    html = apex_markdown_to_html(obsidian_section_include, strlen(obsidian_section_include), &opts);
+    assert_contains(html, "Section 2 text from TXT fixture.", "Obsidian embed include: dot-prefixed wikilink extension works");
+    apex_free_string(html);
+    opts.wikilink_extension = "html";
+    html = apex_markdown_to_html(obsidian_section_include, strlen(obsidian_section_include), &opts);
+    assert_contains(html, "Section 2 text.", "Obsidian embed include: falls back to .md when configured extension file is missing");
+    apex_free_string(html);
+    opts.wikilink_extension = NULL;
+
     /* Test Marked code include with address syntax */
     html = apex_markdown_to_html("<<(code.py)[1,3]", 18, &opts);
     assert_contains(html, "def hello()", "Code include with line range");
@@ -729,7 +774,7 @@ void test_file_includes(void) {
     assert_not_contains(html, "Included Content", "Regex range excludes before first match");
     apex_free_string(html);
 
-    /* Verify iA Writer syntax is NOT affected (no address syntax) */
+    /* iA Writer plain include still includes full file when no section is requested */
     html = apex_markdown_to_html("/code.py", 8, &opts);
     assert_contains(html, "def hello()", "iA Writer syntax unchanged");
     assert_contains(html, "return True", "iA Writer includes full file");

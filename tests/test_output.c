@@ -1360,7 +1360,7 @@ void test_combine_gitbook_like(void) {
     }
 
     /* Process intro with includes (none here, just sanity) */
-    char *intro_md = apex_process_includes(intro_src, base_dir, NULL, 0);
+    char *intro_md = apex_process_includes(intro_src, base_dir, NULL, 0, NULL);
     char *intro_html = apex_markdown_to_html(intro_md ? intro_md : intro_src,
                                              strlen(intro_md ? intro_md : intro_src),
                                              &opts);
@@ -1393,7 +1393,7 @@ void test_combine_gitbook_like(void) {
         return;
     }
 
-    char *chapter_md = apex_process_includes(chapter_src, base_dir, NULL, 0);
+    char *chapter_md = apex_process_includes(chapter_src, base_dir, NULL, 0, NULL);
     const char *chapter_final = chapter_md ? chapter_md : chapter_src;
 
     /* Combined Markdown should contain both Chapter 1 and Section 1.1 headings */

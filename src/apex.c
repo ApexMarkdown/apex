@@ -4998,7 +4998,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *includes_processed = NULL;
     if (options->enable_file_includes) {
         PROFILE_START(includes);
-        includes_processed = apex_process_includes(text_ptr, options->base_directory, metadata, 0);
+        includes_processed = apex_process_includes(text_ptr, options->base_directory, metadata, 0, options->wikilink_extension);
         PROFILE_END(includes);
         if (includes_processed) {
             text_ptr = includes_processed;
