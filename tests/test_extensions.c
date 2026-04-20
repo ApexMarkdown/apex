@@ -9,16 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char *include_preparse_plugin_callback(const char *text,
-                                              __attribute__((unused)) const char *id_plugin,
-                                              apex_plugin_phase_mask phase,
-                                              __attribute__((unused)) const apex_options *options) {
-    if (!(phase & APEX_PLUGIN_PHASE_PRE_PARSE) || !text) {
-        return NULL;
-    }
-
-    const char *needle = "Included Content";
-    const char *replacement = "Plugin Included Content";
+static char *replace_first_substring(const char *text,
+                                     const char *needle,
+                                     const char *replacement) {
     const char *pos = strstr(text, needle);
     if (!pos) {
         return NULL;
@@ -37,6 +30,42 @@ static char *include_preparse_plugin_callback(const char *text,
     memcpy(result + prefix_len, replacement, replacement_len);
     memcpy(result + prefix_len + replacement_len, pos + needle_len, suffix_len + 1);
     return result;
+}
+
+static char *include_preparse_plugin_callback(const char *text,
+                                              __attribute__((unused)) const char *id_plugin,
+                                              apex_plugin_phase_mask phase,
+                                              __attribute__((unused)) const apex_options *options) {
+    if (!(phase & APEX_PLUGIN_PHASE_PRE_PARSE) || !text) {
+        return NULL;
+    }
+
+    char *current = strdup(text);
+    if (!current) {
+        return NULL;
+    }
+
+    bool changed = false;
+    char *next = replace_first_substring(current, "Included Content", "Plugin Included Content");
+    if (next) {
+        free(current);
+        current = next;
+        changed = true;
+    }
+
+    next = replace_first_substring(current, "## Section 2", "## Plugin Section 2");
+    if (next) {
+        free(current);
+        current = next;
+        changed = true;
+    }
+
+    if (!changed) {
+        free(current);
+        return NULL;
+    }
+
+    return current;
 }
 
 static void include_preparse_plugin_register(apex_plugin_manager *manager,
@@ -628,6 +657,13 @@ void test_file_includes(void) {
     plugin_opts.plugin_register = include_preparse_plugin_register;
     html = apex_markdown_to_html("Include: {{simple.md}}", 22, &plugin_opts);
     assert_contains(html, "Plugin Included Content", "Included file runs through pre-parse plugin pipeline");
+    apex_free_string(html);
+
+    const char *plugin_section_include = "![[sections#Section 2]]";
+    html = apex_markdown_to_html(plugin_section_include, strlen(plugin_section_include), &plugin_opts);
+    assert_contains(html, "Plugin Section 2", "Section include resolves before plugin rewrites section heading");
+    assert_contains(html, "Nested section 2.1 text.", "Section include with plugin keeps nested subsection");
+    assert_not_contains(html, "Section 3 text.", "Section include with plugin still stops at next same-level heading");
     apex_free_string(html);
 
     /* Test MMD wildcard transclusion: file.* (legacy behavior) */
