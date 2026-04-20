@@ -2,6 +2,21 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.11] - 2026-04-20
+
+### Changed
+
+- Homebrew installs now point to Apex 1.0.10 with the updated macOS release artifact checksum.
+
+### Improved
+
+- Included file content now runs through pre-parse plugins before section slicing, address extraction, and nested include processing so plugin transformations apply consistently to transclusions.
+
+### Fixed
+
+- Section-targeted includes now fall back to including the full source document when the requested section heading does not exist.
+- Obsidian ![[file#section]] and MultiMarkdown {{file#section}} now behave consistently when section names are missing or mistyped.
+
 ## [1.0.10] - 2026-04-20
 
 ### Changed
@@ -2892,6 +2907,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.11
 [1.0.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.10
 [1.0.9]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.9
 [1.0.8]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.8
