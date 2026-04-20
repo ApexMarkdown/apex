@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.10] - 2026-04-20
+
+### Changed
+
+- Homebrew installs now point to Apex 1.0.9 with the updated macOS release artifact checksum.
+
+### New
+
+- Supports Obsidian embed transclusion syntax ![[file]] and ![[file#Section]] with section extraction.
+- Section-targeted includes now work consistently across Marked, MultiMarkdown, and iA Writer include syntaxes.
+
+### Fixed
+
+- Obsidian embeds now respect --wikilink-extension for extensionless targets and fall back to .md when the configured extension file does not exist.
+- Wiki link parsing no longer rewrites ![[...]] embeds into !<a ...> output.
+
 ## [1.0.9] - 2026-04-19
 
 ### Changed
@@ -2876,6 +2892,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.10
 [1.0.9]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.9
 [1.0.8]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.8
 [1.0.7]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.7
