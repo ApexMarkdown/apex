@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.12] - 2026-04-20
+
+### Improved
+
+- Pre-parse plugin transforms now apply to the final selected include content (including section/address-filtered text) instead of rewriting source files before section matching.
+
+### Fixed
+
+- Section-targeted transclusions now extract the requested section before pre-parse plugins run, so ![[file#Section]] and other include syntaxes return the correct section content.
+
 ## [1.0.11] - 2026-04-20
 
 ### Changed
@@ -2907,6 +2917,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.12
 [1.0.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.11
 [1.0.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.10
 [1.0.9]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.9
