@@ -1403,7 +1403,7 @@ static char *extract_markdown_section(const char *content, const char *section_n
     char *target = normalize_heading_text(section_name, strlen(section_name), false);
     if (!target || !*target) {
         if (target) free(target);
-        return strdup("");
+        return NULL;
     }
 
     const char *cursor = content;
@@ -1461,7 +1461,7 @@ static char *extract_markdown_section(const char *content, const char *section_n
 
     free(target);
 
-    if (!found || !section_start) return strdup("");
+    if (!found || !section_start) return NULL;
     if (!section_end) section_end = content + strlen(content);
 
     size_t out_len = (size_t)(section_end - section_start);

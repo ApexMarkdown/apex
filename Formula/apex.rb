@@ -7,14 +7,14 @@
 class Apex < Formula
   desc "Unified Markdown processor supporting CommonMark, GFM, MultiMarkdown, and Kramdown"
   homepage "https://github.com/ApexMarkdown/apex"
-  version "1.0.9"
+  version "1.0.10"
   license "MIT"
 
   depends_on "libyaml"
 
   on_macos do
     url "https://github.com/ApexMarkdown/apex/releases/download/v#{version}/apex-#{version}-macos-universal.tar.gz"
-    sha256 "64ff7f3677831a0078f1432a68f316dfd1017675f9adba9934a45abadb700428"
+    sha256 "4780e42d38d16103f3c342fa000a823de38b635f9c4e29535e0e55c605210e48"
   end
 
   def install

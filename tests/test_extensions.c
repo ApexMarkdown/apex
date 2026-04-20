@@ -760,6 +760,18 @@ void test_file_includes(void) {
     apex_free_string(html);
     opts.wikilink_extension = NULL;
 
+    const char *missing_section_obsidian = "![[sections#Does Not Exist]]";
+    html = apex_markdown_to_html(missing_section_obsidian, strlen(missing_section_obsidian), &opts);
+    assert_contains(html, "Intro paragraph.", "Obsidian embed include: missing section falls back to full document");
+    assert_contains(html, "Section 3 text.", "Obsidian embed include: full document fallback includes later sections");
+    apex_free_string(html);
+
+    const char *missing_section_mmd = "{{sections.md#Does Not Exist}}";
+    html = apex_markdown_to_html(missing_section_mmd, strlen(missing_section_mmd), &opts);
+    assert_contains(html, "Intro paragraph.", "MMD include: missing section falls back to full document");
+    assert_contains(html, "Section 3 text.", "MMD include: full document fallback includes later sections");
+    apex_free_string(html);
+
     /* Test Marked code include with address syntax */
     html = apex_markdown_to_html("<<(code.py)[1,3]", 18, &opts);
     assert_contains(html, "def hello()", "Code include with line range");
