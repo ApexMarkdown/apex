@@ -31,7 +31,13 @@ extern "C" {
  * metadata: metadata for transclude base support (can be NULL)
  * depth: recursion depth (for preventing infinite loops)
  */
-char *apex_process_includes(const char *text, const char *base_dir, apex_metadata_item *metadata, int depth, const char *default_extension);
+char *apex_process_includes(const char *text,
+                            const char *base_dir,
+                            apex_metadata_item *metadata,
+                            int depth,
+                            const char *default_extension,
+                            apex_plugin_manager *plugin_manager,
+                            const apex_options *options);
 
 /**
  * Check if a file exists

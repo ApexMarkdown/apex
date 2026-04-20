@@ -5,6 +5,7 @@
 
 #include "includes.h"
 #include "metadata.h"
+#include "../plugins.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1502,7 +1503,13 @@ static const char *find_mmd_transclusion_end(const char *filepath_start) {
 /**
  * Process file includes in text
  */
-char *apex_process_includes(const char *text, const char *base_dir, apex_metadata_item *metadata, int depth, const char *default_extension) {
+char *apex_process_includes(const char *text,
+                            const char *base_dir,
+                            apex_metadata_item *metadata,
+                            int depth,
+                            const char *default_extension,
+                            apex_plugin_manager *plugin_manager,
+                            const apex_options *options) {
     if (!text) return NULL;
     if (depth > MAX_INCLUDE_DEPTH) {
         return strdup(text);  /* Silently return original text */
@@ -1605,6 +1612,17 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                     apex_file_type_t file_type = apex_detect_file_type(resolved_path);
                     char *content = read_file_contents(resolved_path);
                     if (content) {
+                        char *plugin_content = content;
+                        if (plugin_manager && options) {
+                            char *plugin_text = apex_plugins_run_text_phase(plugin_manager,
+                                                                            APEX_PLUGIN_PHASE_PRE_PARSE,
+                                                                            content,
+                                                                            options);
+                            if (plugin_text) {
+                                free(content);
+                                plugin_content = plugin_text;
+                            }
+                        }
                         char *to_insert = NULL;
                         bool free_to_insert = false;
 
@@ -1614,18 +1632,18 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             if (to_insert) snprintf(to_insert, buf_size, "![](%s)\n", target_with_ext ? target_with_ext : target);
                             free_to_insert = true;
                         } else if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
-                            to_insert = apex_csv_to_table_with_delimiter(content, file_type == FILE_TYPE_TSV, '\0');
+                            to_insert = apex_csv_to_table_with_delimiter(plugin_content, file_type == FILE_TYPE_TSV, '\0');
                             free_to_insert = true;
                         } else if (file_type == FILE_TYPE_CODE) {
                             const char *ext = strrchr(target_with_ext ? target_with_ext : target, '.');
                             const char *lang = ext ? ext + 1 : "";
-                            size_t buf_size = strlen(content) + strlen(lang) + 20;
+                            size_t buf_size = strlen(plugin_content) + strlen(lang) + 20;
                             to_insert = malloc(buf_size);
-                            if (to_insert) snprintf(to_insert, buf_size, "\n```%s\n%s\n```\n", lang, content);
+                            if (to_insert) snprintf(to_insert, buf_size, "\n```%s\n%s\n```\n", lang, plugin_content);
                             free_to_insert = true;
                         } else {
-                            char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
-                            char *base_content = section_content ? section_content : strdup(content);
+                            char *section_content = section_name ? extract_markdown_section(plugin_content, section_name) : NULL;
+                            char *base_content = section_content ? section_content : strdup(plugin_content);
                             char *file_content_for_metadata = base_content ? strdup(base_content) : NULL;
                             apex_metadata_item *file_metadata = NULL;
                             char *file_text_after_metadata = file_content_for_metadata;
@@ -1641,7 +1659,13 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                                 transclude_base = get_directory(resolved_path);
                             }
 
-                            to_insert = apex_process_includes(base_content ? base_content : "", transclude_base, file_metadata, depth + 1, default_extension);
+                            to_insert = apex_process_includes(base_content ? base_content : "",
+                                                              transclude_base,
+                                                              file_metadata,
+                                                              depth + 1,
+                                                              default_extension,
+                                                              plugin_manager,
+                                                              options);
                             free_to_insert = true;
 
                             if (transclude_base) free(transclude_base);
@@ -1660,7 +1684,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             if (free_to_insert) free(to_insert);
                         }
 
-                        free(content);
+                        free(plugin_content);
                         read_pos = close + 2;
                         processed_include = true;
                     }
@@ -1728,6 +1752,17 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                     char *content = read_file_contents(resolved_path);
 
                     if (content) {
+                        char *plugin_content = content;
+                        if (plugin_manager && options) {
+                            char *plugin_text = apex_plugins_run_text_phase(plugin_manager,
+                                                                            APEX_PLUGIN_PHASE_PRE_PARSE,
+                                                                            content,
+                                                                            options);
+                            if (plugin_text) {
+                                free(content);
+                                plugin_content = plugin_text;
+                            }
+                        }
                         char *to_insert = NULL;
 
                         if (file_type == FILE_TYPE_IMAGE) {
@@ -1738,18 +1773,18 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         } else if (file_type == FILE_TYPE_CSV || file_type == FILE_TYPE_TSV) {
                             /* CSV/TSV: convert to table */
                             char delimiter_override = ia_delimiter_override;
-                            to_insert = apex_csv_to_table_with_delimiter(content, file_type == FILE_TYPE_TSV, delimiter_override);
+                            to_insert = apex_csv_to_table_with_delimiter(plugin_content, file_type == FILE_TYPE_TSV, delimiter_override);
                         } else if (file_type == FILE_TYPE_CODE) {
                             /* Code: wrap in fenced code block */
                             const char *ext = strrchr(filepath, '.');
                             const char *lang = ext ? ext + 1 : "";
-                            size_t buf_size = strlen(content) + strlen(lang) + 20;
+                            size_t buf_size = strlen(plugin_content) + strlen(lang) + 20;
                             to_insert = malloc(buf_size);
-                            if (to_insert) snprintf(to_insert, buf_size, "\n```%s\n%s\n```\n", lang, content);
+                            if (to_insert) snprintf(to_insert, buf_size, "\n```%s\n%s\n```\n", lang, plugin_content);
                         } else {
                             /* Text/Markdown: process and include */
-                            char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
-                            char *base_text = section_content ? section_content : strdup(content);
+                            char *section_content = section_name ? extract_markdown_section(plugin_content, section_name) : NULL;
+                            char *base_text = section_content ? section_content : strdup(plugin_content);
 
                             /* Extract metadata from transcluded file */
                             char *file_content_for_metadata = base_text ? strdup(base_text) : NULL;
@@ -1768,7 +1803,13 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                                 transclude_base = get_directory(resolved_path);
                             }
 
-                            to_insert = apex_process_includes(base_text ? base_text : "", transclude_base, file_metadata, depth + 1, default_extension);
+                            to_insert = apex_process_includes(base_text ? base_text : "",
+                                                              transclude_base,
+                                                              file_metadata,
+                                                              depth + 1,
+                                                              default_extension,
+                                                              plugin_manager,
+                                                              options);
 
                             /* Cleanup */
                             if (transclude_base) free(transclude_base);
@@ -1787,7 +1828,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             if (to_insert != content) free(to_insert);
                         }
 
-                        free(content);
+                        free(plugin_content);
                         free(resolved_path);
                         read_pos = line_end;
                         processed_include = true;
@@ -1851,8 +1892,19 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                     apex_file_type_t file_type = apex_detect_file_type(resolved_path);
                     char *content = read_file_contents(resolved_path);
                     if (content) {
-                        char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
-                        char *section_base = section_content ? section_content : strdup(content);
+                        char *plugin_content = content;
+                        if (plugin_manager && options) {
+                            char *plugin_text = apex_plugins_run_text_phase(plugin_manager,
+                                                                            APEX_PLUGIN_PHASE_PRE_PARSE,
+                                                                            content,
+                                                                            options);
+                            if (plugin_text) {
+                                free(content);
+                                plugin_content = plugin_text;
+                            }
+                        }
+                        char *section_content = section_name ? extract_markdown_section(plugin_content, section_name) : NULL;
+                        char *section_base = section_content ? section_content : strdup(plugin_content);
 
                         /* Extract metadata from original file content FIRST (before any processing) */
                         char *file_content_for_metadata = section_base ? strdup(section_base) : NULL;
@@ -1863,12 +1915,12 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         }
 
                         /* Apply address specification if present */
-                        char *extracted_content = section_base ? section_base : content;
+                        char *extracted_content = section_base ? section_base : plugin_content;
                         bool free_extracted = false;
 
                         if (address_spec) {
-                            extracted_content = extract_lines(section_base ? section_base : content, address_spec);
-                            if (extracted_content && extracted_content != (section_base ? section_base : content)) {
+                            extracted_content = extract_lines(section_base ? section_base : plugin_content, address_spec);
+                            if (extracted_content && extracted_content != (section_base ? section_base : plugin_content)) {
                                 free_extracted = true;
                             }
                         }
@@ -1899,7 +1951,13 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         }
 
                         /* Recursively process with file's metadata and transclude base */
-                        char *processed = apex_process_includes(to_process, transclude_base, file_metadata, depth + 1, default_extension);
+                        char *processed = apex_process_includes(to_process,
+                                                                transclude_base,
+                                                                file_metadata,
+                                                                depth + 1,
+                                                                default_extension,
+                                                                plugin_manager,
+                                                                options);
 
                         /* Cleanup */
                         if (transclude_base) free(transclude_base);
@@ -1918,7 +1976,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
 
                         if (free_to_process) free(to_process);
                         if (free_extracted) free(extracted_content);
-                        free(content);
+                        free(plugin_content);
                         if (section_base) free(section_base);
 
                         if (address_end) {
@@ -2012,8 +2070,19 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                         apex_file_type_t file_type = apex_detect_file_type(resolved_path);
                         char *content = read_file_contents(resolved_path);
                         if (content) {
-                            char *section_content = section_name ? extract_markdown_section(content, section_name) : NULL;
-                            char *section_base = section_content ? section_content : strdup(content);
+                            char *plugin_content = content;
+                            if (plugin_manager && options) {
+                                char *plugin_text = apex_plugins_run_text_phase(plugin_manager,
+                                                                                APEX_PLUGIN_PHASE_PRE_PARSE,
+                                                                                content,
+                                                                                options);
+                                if (plugin_text) {
+                                    free(content);
+                                    plugin_content = plugin_text;
+                                }
+                            }
+                            char *section_content = section_name ? extract_markdown_section(plugin_content, section_name) : NULL;
+                            char *section_base = section_content ? section_content : strdup(plugin_content);
 
                             /* Extract metadata from original file content FIRST (before any processing) */
                             char *file_content_for_metadata = section_base ? strdup(section_base) : NULL;
@@ -2024,12 +2093,12 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             }
 
                             /* Apply address specification if present */
-                            char *extracted_content = section_base ? section_base : content;
+                            char *extracted_content = section_base ? section_base : plugin_content;
                             bool free_extracted = false;
 
                             if (address_spec) {
-                                extracted_content = extract_lines(section_base ? section_base : content, address_spec);
-                                if (extracted_content && extracted_content != (section_base ? section_base : content)) {
+                                extracted_content = extract_lines(section_base ? section_base : plugin_content, address_spec);
+                                if (extracted_content && extracted_content != (section_base ? section_base : plugin_content)) {
                                     free_extracted = true;
                                 }
                             }
@@ -2063,7 +2132,13 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                                     transclude_base = get_directory(resolved_path);
                                 }
 
-                                char *processed = apex_process_includes(to_process, transclude_base, file_metadata, depth + 1, default_extension);
+                                char *processed = apex_process_includes(to_process,
+                                                                        transclude_base,
+                                                                        file_metadata,
+                                                                        depth + 1,
+                                                                        default_extension,
+                                                                        plugin_manager,
+                                                                        options);
 
                                 /* Cleanup */
                                 if (transclude_base) free(transclude_base);
@@ -2125,7 +2200,7 @@ char *apex_process_includes(const char *text, const char *base_dir, apex_metadat
                             }
 
                             if (free_extracted) free(extracted_content);
-                            free(content);
+                            free(plugin_content);
                             if (section_base) free(section_base);
                         }
                         free(resolved_path);

@@ -9,6 +9,44 @@
 #include <stdlib.h>
 #include <string.h>
 
+static char *include_preparse_plugin_callback(const char *text,
+                                              __attribute__((unused)) const char *id_plugin,
+                                              apex_plugin_phase_mask phase,
+                                              __attribute__((unused)) const apex_options *options) {
+    if (!(phase & APEX_PLUGIN_PHASE_PRE_PARSE) || !text) {
+        return NULL;
+    }
+
+    const char *needle = "Included Content";
+    const char *replacement = "Plugin Included Content";
+    const char *pos = strstr(text, needle);
+    if (!pos) {
+        return NULL;
+    }
+
+    size_t prefix_len = (size_t)(pos - text);
+    size_t needle_len = strlen(needle);
+    size_t replacement_len = strlen(replacement);
+    size_t suffix_len = strlen(pos + needle_len);
+    char *result = malloc(prefix_len + replacement_len + suffix_len + 1);
+    if (!result) {
+        return NULL;
+    }
+
+    memcpy(result, text, prefix_len);
+    memcpy(result + prefix_len, replacement, replacement_len);
+    memcpy(result + prefix_len + replacement_len, pos + needle_len, suffix_len + 1);
+    return result;
+}
+
+static void include_preparse_plugin_register(apex_plugin_manager *manager,
+                                             __attribute__((unused)) const apex_options *options) {
+    apex_plugin_register(manager,
+                         "include-preparse-plugin",
+                         APEX_PLUGIN_PHASE_PRE_PARSE,
+                         include_preparse_plugin_callback);
+}
+
 void test_math(void) {
     int suite_failures = suite_start();
     print_suite_title("Math Support Tests", false, true);
@@ -582,6 +620,14 @@ void test_file_includes(void) {
     /* Test MMD transclusion */
     html = apex_markdown_to_html("Include: {{simple.md}}", 22, &opts);
     assert_contains(html, "Included Content", "MMD transclusion works");
+    apex_free_string(html);
+
+    apex_options plugin_opts = opts;
+    plugin_opts.enable_plugins = true;
+    plugin_opts.allow_external_plugin_detection = false;
+    plugin_opts.plugin_register = include_preparse_plugin_register;
+    html = apex_markdown_to_html("Include: {{simple.md}}", 22, &plugin_opts);
+    assert_contains(html, "Plugin Included Content", "Included file runs through pre-parse plugin pipeline");
     apex_free_string(html);
 
     /* Test MMD wildcard transclusion: file.* (legacy behavior) */
