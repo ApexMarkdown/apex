@@ -2,6 +2,25 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.13] - 2026-05-06
+
+### New
+
+- Add --py-callouts and --quarto-callouts CLI toggles to enable Python/markdown-callouts and Quarto callout parsing only when explicitly requested.
+- Support Python callouts in both !!! type "Title" blocks and NOTE: label style, including collapsed >? NOTE: syntax when --py-callouts is enabled.
+- Support Quarto callout fences (::: {.callout-*}) as callouts behind --quarto-callouts.
+
+### Improved
+
+- Fenced code examples with pipelines now render as code without unexpected table artifacts in highlighted HTML and markdown output.
+- Preserve normal fenced div behavior for non-callout ::: blocks while Quarto callouts are enabled.
+- Add dedicated fixtures and expanded tests for Obsidian, Python, and Quarto callout formats to prevent regressions.
+
+### Fixed
+
+- Relaxed table processing no longer injects ---|---|---| separator rows inside fenced code blocks that contain pipe-heavy shell commands.
+- Remove leading empty paragraph artifacts from converted Quarto callout content blocks.
+
 ## [1.0.12] - 2026-04-20
 
 ### Improved
@@ -2917,6 +2936,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.13]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.13
 [1.0.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.12
 [1.0.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.11
 [1.0.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.10

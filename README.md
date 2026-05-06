@@ -1,5 +1,5 @@
 
-[![Version: 1.0.11](https://img.shields.io/badge/Version-1.0.11-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1566](https://img.shields.io/badge/Tests-0/1566-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.0.12](https://img.shields.io/badge/Version-1.0.12-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1585](https://img.shields.io/badge/Tests-0/1585-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -48,7 +48,7 @@ one tool.
 
 - **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
 - **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
-- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
+- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.), plus optional Python-Markdown (`!!!`) and Quarto (`:::`) callout parsing behind explicit flags
 - **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
 
 ### Document Features
@@ -292,6 +292,10 @@ apex input.md --mode kramdown
 
   syntax (enabled by default in unified mode)
 
+- `--py-callouts` / `--no-py-callouts` - Enable/disable Python-Markdown callout syntax (`!!!`) plus markdown-callouts label syntax (`NOTE: ...`, `>? NOTE: ...`) (disabled by default)
+
+- `--quarto-callouts` / `--no-quarto-callouts` - Enable/disable Quarto `:::` callout syntax for `.callout-*` blocks (disabled by default; recognized callouts bypass generic div processing)
+
 `--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
 
 `--code-highlight TOOL` - Use external tool for syntax highlighting (supports `pygments`/`p`/`pyg`, `skylighting`/`s`/`sky`, or `shiki`/`sh`). Uses HTML or ANSI output based on destination format. Automatically includes GitHub-style CSS in standalone mode
@@ -301,7 +305,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v1.0.11
+Apex Markdown Processor v1.0.12
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -372,6 +376,8 @@ Options:
   --no-smart             Disable smart typography
   --no-sup-sub           Disable superscript/subscript syntax
   --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)
+  --[no-]py-callouts     Enable or disable Python-Markdown !!! callout syntax (default: disabled)
+  --[no-]quarto-callouts Enable or disable Quarto ::: {.callout-*} syntax (default: disabled)
   --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)
   --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)
   --no-tables            Disable table support
