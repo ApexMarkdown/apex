@@ -504,6 +504,23 @@ void test_relaxed_tables(void) {
     }
     apex_free_string(html);
 
+    /* Pipes inside fenced code blocks must not trigger relaxed table separators */
+    const char *fenced_code_with_pipes =
+        "```bash\n"
+        "update_widgets() {\n"
+        "  echo foo | sed 's/x/y/' | awk '{print $1}'\n"
+        "}\n"
+        "```";
+    html = apex_markdown_to_html(fenced_code_with_pipes, strlen(fenced_code_with_pipes), &opts);
+    assert_contains(html, "<code", "Fenced code block with pipes renders as code");
+    assert_contains(html, "echo foo | sed", "Code block content with pipes preserved");
+    if (strstr(html, "---|---|---|") == NULL) {
+        test_result(true, "No relaxed-table separator injected inside fenced code");
+    } else {
+        test_result(false, "Relaxed-table separator was injected inside fenced code");
+    }
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Relaxed Tables Tests", had_failures, false);
 }

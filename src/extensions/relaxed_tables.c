@@ -91,6 +91,64 @@ static bool is_blank_line(const char *line, size_t len) {
     return true;
 }
 
+/*
+ * Detect a fenced code marker line (` ``` ` or `~~~`) with up to 3 leading spaces.
+ * Returns true and fills fence_char/fence_len when a marker is present.
+ */
+static bool parse_fence_marker(const char *line, size_t len, char *fence_char, int *fence_len) {
+    if (!line || len == 0 || !fence_char || !fence_len) return false;
+
+    size_t i = 0;
+    int indent = 0;
+    while (i < len && line[i] == ' ' && indent < 4) {
+        i++;
+        indent++;
+    }
+    if (indent > 3 || i >= len) return false;
+
+    char c = line[i];
+    if (c != '`' && c != '~') return false;
+
+    size_t j = i;
+    while (j < len && line[j] == c) {
+        j++;
+    }
+    int run = (int)(j - i);
+    if (run < 3) return false;
+
+    *fence_char = c;
+    *fence_len = run;
+    return true;
+}
+
+/* Closing fence must be only fence chars followed by optional spaces/tabs. */
+static bool is_closing_fence(const char *line, size_t len, char fence_char, int fence_len) {
+    if (!line || len == 0 || !fence_char || fence_len < 3) return false;
+
+    size_t i = 0;
+    int indent = 0;
+    while (i < len && line[i] == ' ' && indent < 4) {
+        i++;
+        indent++;
+    }
+    if (indent > 3 || i >= len || line[i] != fence_char) return false;
+
+    size_t j = i;
+    while (j < len && line[j] == fence_char) {
+        j++;
+    }
+    if ((int)(j - i) < fence_len) return false;
+
+    while (j < len) {
+        if (line[j] != ' ' && line[j] != '\t') {
+            return false;
+        }
+        j++;
+    }
+
+    return true;
+}
+
 /**
  * Check if a line is a horizontal rule (--- on a line by itself)
  */
@@ -290,6 +348,9 @@ static char *apex_process_relaxed_tables_impl(const char *text,
     char *write = output;
     size_t remaining = output_capacity;
     size_t output_len = 0;
+    bool in_fenced_code = false;
+    char fenced_char = 0;
+    int fenced_len = 0;
 
     /* Track potential table rows */
     typedef struct {
@@ -316,6 +377,19 @@ static char *apex_process_relaxed_tables_impl(const char *text,
 
         size_t line_len = line_end - line_start;
         bool has_newline = (*line_end == '\n');
+        char marker_char = 0;
+        int marker_len = 0;
+        bool has_fence_marker = parse_fence_marker(line_start, line_len, &marker_char, &marker_len);
+
+        if (!in_fenced_code && has_fence_marker) {
+            in_fenced_code = true;
+            fenced_char = marker_char;
+            fenced_len = marker_len;
+        } else if (in_fenced_code && is_closing_fence(line_start, line_len, fenced_char, fenced_len)) {
+            in_fenced_code = false;
+            fenced_char = 0;
+            fenced_len = 0;
+        }
 
         /* Check if this is a blank line */
         if (is_blank_line(line_start, line_len)) {
@@ -455,7 +529,7 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         }
 
         /* Check if this is a separator row */
-        if (is_separator_row(line_start, line_len)) {
+        if (!in_fenced_code && is_separator_row(line_start, line_len)) {
             /* Separator row: if we have accumulated rows, write them as-is */
             if (rows_count > 0) {
                 for (size_t i = 0; i < rows_count; i++) {
@@ -637,7 +711,7 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         bool starts_with_pipe = (p < line_end && *p == '|');
 
         /* Check if this is a separator row - if so, skip relaxed table processing for previous rows */
-        if (is_separator_row(line_start, line_len)) {
+        if (!in_fenced_code && is_separator_row(line_start, line_len)) {
             /* Separator row found - if we have accumulated rows, they're already a valid table */
             /* Write them as-is and reset */
             if (rows_count > 0) {
@@ -724,7 +798,7 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         }
 
         /* Process rows with or without leading pipes - both need separators if missing */
-        int columns = count_columns(line_start, line_len);
+        int columns = in_fenced_code ? -1 : count_columns(line_start, line_len);
         if (columns > 0) {
             /* Potential table row - add to accumulator */
             if (rows_count == 0) {
