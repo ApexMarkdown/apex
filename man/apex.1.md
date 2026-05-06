@@ -395,6 +395,12 @@ relative paths.
 **--divs**, **--no-divs**
 :   Enable or disable Pandoc fenced divs syntax (`:::: {#id .class} ... :::::`). Fenced divs allow you to create HTML block elements with attributes using a special fence syntax. By default, fenced divs create `<div>` elements, but you can specify different block types using the `>blocktype` syntax (e.g., `:: >aside {.sidebar} ... :::` creates an `<aside>` element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
 
+**--py-callouts**, **--no-py-callouts**
+:   Enable or disable Python-Markdown callout syntax (`!!! note "Optional Title"` followed by indented content) and markdown-callouts label syntax (`NOTE: ...`, `>? NOTE: ...` for collapsed callouts). Disabled by default to avoid ambiguity with regular markdown prose.
+
+**--quarto-callouts**, **--no-quarto-callouts**
+:   Enable or disable Quarto callout syntax using fenced div markers (`::: {.callout-note}` ... `:::`). When enabled, recognized Quarto callout blocks bypass generic fenced-div conversion and are rendered as callouts; non-callout fenced divs continue to be processed as regular Pandoc fenced divs.
+
 **--spans**, **--no-spans**
 :   Enable or disable Pandoc-style bracketed spans syntax (`[text]{#id .class key="val"}`). Bracketed spans allow you to create HTML `<span>` elements with attributes. The text inside the brackets is processed as markdown. If the bracketed text matches a reference link definition, it will be treated as a link instead of a span. Default: enabled in unified mode only.
 
@@ -620,7 +626,7 @@ command-line invocations.
 directly.
 
 **Supported boolean options:**
-`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `strikethrough`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `ids`, `header-anchors`, `embed-images`, `image-captions`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`, `plugins`, `emoji-autocorrect`, `code-line-numbers`, `highlight-language-only`, `markdown-in-html`
+`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `strikethrough`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `callouts`, `py-callouts`, `quarto-callouts`, `divs`, `spans`, `ids`, `header-anchors`, `embed-images`, `image-captions`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`, `plugins`, `emoji-autocorrect`, `code-line-numbers`, `highlight-language-only`, `markdown-in-html`
 
 **Supported string options:**
 `bibliography`, `csl`, `title`, `style` (or `css`),

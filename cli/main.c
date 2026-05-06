@@ -57,6 +57,8 @@ typedef struct apex_cli_option_mask {
     bool unsafe;
     bool enable_sup_sub;
     bool enable_divs;
+    bool enable_py_callouts;
+    bool enable_quarto_callouts;
     bool enable_definition_lists;
     bool enable_spans;
     bool enable_autolink;
@@ -131,6 +133,8 @@ static void apex_cli_restore_argv_options(apex_options *opts,
     if (m->unsafe) opts->unsafe = snap->unsafe;
     if (m->enable_sup_sub) opts->enable_sup_sub = snap->enable_sup_sub;
     if (m->enable_divs) opts->enable_divs = snap->enable_divs;
+    if (m->enable_py_callouts) opts->enable_py_callouts = snap->enable_py_callouts;
+    if (m->enable_quarto_callouts) opts->enable_quarto_callouts = snap->enable_quarto_callouts;
     if (m->enable_definition_lists) opts->enable_definition_lists = snap->enable_definition_lists;
     if (m->enable_spans) opts->enable_spans = snap->enable_spans;
     if (m->enable_autolink) opts->enable_autolink = snap->enable_autolink;
@@ -1027,6 +1031,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-smart             Disable smart typography\n");
     fprintf(stderr, "  --no-sup-sub           Disable superscript/subscript syntax\n");
     fprintf(stderr, "  --[no-]divs            Enable or disable Pandoc fenced divs (Unified mode only)\n");
+    fprintf(stderr, "  --[no-]py-callouts     Enable or disable Python-Markdown !!! callout syntax (default: disabled)\n");
+    fprintf(stderr, "  --[no-]quarto-callouts Enable or disable Quarto ::: {.callout-*} syntax (default: disabled)\n");
     fprintf(stderr, "  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)\n");
     fprintf(stderr, "  --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
@@ -2505,6 +2511,18 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i], "--no-divs") == 0) {
             cli_opt_mask.enable_divs = true;
             options.enable_divs = false;
+        } else if (strcmp(argv[i], "--py-callouts") == 0) {
+            cli_opt_mask.enable_py_callouts = true;
+            options.enable_py_callouts = true;
+        } else if (strcmp(argv[i], "--no-py-callouts") == 0) {
+            cli_opt_mask.enable_py_callouts = true;
+            options.enable_py_callouts = false;
+        } else if (strcmp(argv[i], "--quarto-callouts") == 0) {
+            cli_opt_mask.enable_quarto_callouts = true;
+            options.enable_quarto_callouts = true;
+        } else if (strcmp(argv[i], "--no-quarto-callouts") == 0) {
+            cli_opt_mask.enable_quarto_callouts = true;
+            options.enable_quarto_callouts = false;
         } else if (strcmp(argv[i], "--one-line-definitions") == 0) {
             cli_opt_mask.enable_definition_lists = true;
             options.enable_definition_lists = true;

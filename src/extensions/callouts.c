@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <strings.h>
+#include <stdio.h>
 
 /**
  * Detect callout type from string (case-insensitive)
@@ -66,7 +67,7 @@ static const char *callout_type_name(callout_type_t type) {
  * Check if a blockquote is a Bear/Obsidian style callout
  * Pattern: > [!TYPE] Title or > [!TYPE]+ Title or > [!TYPE]- Title
  */
-static bool is_bear_callout(cmark_node *blockquote, callout_type_t *type,
+static bool is_bear_callout(cmark_node *blockquote, bool enable_py_callouts, callout_type_t *type,
                             char **title, bool *collapsible, bool *default_open) {
     if (cmark_node_get_type(blockquote) != CMARK_NODE_BLOCK_QUOTE) return false;
 
@@ -80,6 +81,34 @@ static bool is_bear_callout(cmark_node *blockquote, callout_type_t *type,
 
     const char *text = cmark_node_get_literal(text_node);
     if (!text) return false;
+
+    /* markdown-callouts collapsed syntax in blockquote: ? TYPE: Title */
+    if (enable_py_callouts && text[0] == '?' && text[1] == ' ') {
+        const char *type_start = text + 2;
+        const char *p = type_start;
+        while (*p && (isalnum((unsigned char)*p) || *p == '-' || *p == '_')) p++;
+        if (*p == ':') {
+            int type_len = (int)(p - type_start);
+            if (type_len > 0) {
+                *type = detect_callout_type(type_start, type_len);
+                if (*type != CALLOUT_NONE) {
+                    *collapsible = true;
+                    *default_open = false;
+                    const char *title_start = p + 1;
+                    while (*title_start == ' ' || *title_start == '\t') title_start++;
+                    if (*title_start) {
+                        const char *title_end = strchr(title_start, '\n');
+                        if (title_end) {
+                            *title = strndup(title_start, title_end - title_start);
+                        } else {
+                            *title = strdup(title_start);
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+    }
 
     /* Check for [!TYPE] pattern */
     if (text[0] != '[' || text[1] != '!') return false;
@@ -188,7 +217,7 @@ static void convert_blockquote_to_callout(cmark_node *blockquote, callout_type_t
 /**
  * Process callouts in AST
  */
-void apex_process_callouts_in_tree(cmark_node *node) {
+void apex_process_callouts_in_tree(cmark_node *node, bool enable_py_callouts) {
     if (!node) return;
 
     /* Check if current node is a blockquote callout */
@@ -197,7 +226,7 @@ void apex_process_callouts_in_tree(cmark_node *node) {
         char *title = NULL;
         bool collapsible, default_open;
 
-        if (is_bear_callout(node, &type, &title, &collapsible, &default_open)) {
+        if (is_bear_callout(node, enable_py_callouts, &type, &title, &collapsible, &default_open)) {
             convert_blockquote_to_callout(node, type, title, collapsible, default_open);
             free(title);
             return;  /* Don't recurse into modified node */
@@ -208,8 +237,375 @@ void apex_process_callouts_in_tree(cmark_node *node) {
     cmark_node *child = cmark_node_first_child(node);
     while (child) {
         cmark_node *next = cmark_node_next(child);
-        apex_process_callouts_in_tree(child);
+        apex_process_callouts_in_tree(child, enable_py_callouts);
         child = next;
     }
+}
+
+static bool append_chunk(char **out, size_t *len, size_t *cap, const char *chunk, size_t chunk_len) {
+    if (!out || !len || !cap || !chunk) return false;
+    if (*len + chunk_len + 1 > *cap) {
+        size_t new_cap = *cap ? *cap : 256;
+        while (*len + chunk_len + 1 > new_cap) {
+            new_cap *= 2;
+        }
+        char *new_out = realloc(*out, new_cap);
+        if (!new_out) return false;
+        *out = new_out;
+        *cap = new_cap;
+    }
+    memcpy(*out + *len, chunk, chunk_len);
+    *len += chunk_len;
+    (*out)[*len] = '\0';
+    return true;
+}
+
+static bool append_str(char **out, size_t *len, size_t *cap, const char *str) {
+    if (!str) return true;
+    return append_chunk(out, len, cap, str, strlen(str));
+}
+
+static char *trim_ascii_whitespace(char *s) {
+    if (!s) return s;
+    while (*s && (*s == ' ' || *s == '\t' || *s == '\r' || *s == '\n')) s++;
+    char *end = s + strlen(s);
+    while (end > s && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\r' || end[-1] == '\n')) {
+        end--;
+    }
+    *end = '\0';
+    return s;
+}
+
+char *apex_preprocess_py_callouts(const char *text) {
+    if (!text) return NULL;
+
+    size_t cap = strlen(text) * 2 + 256;
+    char *out = malloc(cap);
+    if (!out) return NULL;
+    size_t len = 0;
+    out[0] = '\0';
+
+    bool in_fenced_code = false;
+    const char *p = text;
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        bool has_nl = line_end != NULL;
+        size_t line_len = has_nl ? (size_t)(line_end - line_start) : strlen(line_start);
+
+        const char *content = line_start;
+        while ((size_t)(content - line_start) < line_len && (*content == ' ' || *content == '\t')) content++;
+        size_t content_len = line_len - (size_t)(content - line_start);
+
+        if (content_len >= 3 && strncmp(content, "```", 3) == 0) {
+            in_fenced_code = !in_fenced_code;
+        }
+
+        if (!in_fenced_code) {
+            if (content_len > 4 && strncmp(content, ">? ", 3) == 0) {
+                const char *spec = content + 3;
+                const char *spec_end = content + content_len;
+                const char *type_start = spec;
+                while (spec < spec_end && (isalnum((unsigned char)*spec) || *spec == '-' || *spec == '_')) spec++;
+                if (spec > type_start && spec < spec_end && *spec == ':') {
+                    int type_len = (int)(spec - type_start);
+                    callout_type_t ct = detect_callout_type(type_start, type_len);
+                    if (ct != CALLOUT_NONE) {
+                        spec++; /* skip : */
+                        while (spec < spec_end && *spec == ' ') spec++;
+
+                        char header[640];
+                        if (spec < spec_end) {
+                            snprintf(header, sizeof(header), "> [!%.*s]- %.*s",
+                                     type_len, type_start, (int)(spec_end - spec), spec);
+                        } else {
+                            snprintf(header, sizeof(header), "> [!%.*s]-", type_len, type_start);
+                        }
+                        if (!append_str(&out, &len, &cap, header)) goto fail;
+                        if (has_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+                        p = has_nl ? line_end + 1 : line_start + line_len;
+                        continue;
+                    }
+                }
+            }
+
+            const char *spec = content;
+            const char *spec_end = content + content_len;
+            const char *type_start = spec;
+            while (spec < spec_end && (isalnum((unsigned char)*spec) || *spec == '-' || *spec == '_')) spec++;
+            if (spec > type_start && spec < spec_end && *spec == ':') {
+                int type_len = (int)(spec - type_start);
+                callout_type_t ct = detect_callout_type(type_start, type_len);
+                if (ct != CALLOUT_NONE) {
+                    spec++; /* skip : */
+                    while (spec < spec_end && *spec == ' ') spec++;
+
+                    char header[128];
+                    snprintf(header, sizeof(header), "> [!%.*s]", type_len, type_start);
+                    if (!append_str(&out, &len, &cap, header)) goto fail;
+                    if (!append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+
+                    if (!append_str(&out, &len, &cap, "> ")) goto fail;
+                    if (spec < spec_end && !append_chunk(&out, &len, &cap, spec, (size_t)(spec_end - spec))) goto fail;
+                    if (has_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+
+                    p = has_nl ? line_end + 1 : line_start + line_len;
+                    if (!append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+                    while (*p) {
+                        const char *body_start = p;
+                        const char *body_end = strchr(p, '\n');
+                        bool body_nl = body_end != NULL;
+                        size_t body_len = body_nl ? (size_t)(body_end - body_start) : strlen(body_start);
+                        bool blank = true;
+                        for (size_t i = 0; i < body_len; i++) {
+                            if (body_start[i] != ' ' && body_start[i] != '\t' && body_start[i] != '\r') {
+                                blank = false;
+                                break;
+                            }
+                        }
+                        if (blank) break;
+                        if (!append_str(&out, &len, &cap, "> ")) goto fail;
+                        if (!append_chunk(&out, &len, &cap, body_start, body_len)) goto fail;
+                        if (body_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+                        p = body_nl ? body_end + 1 : body_start + body_len;
+                    }
+                    if (!append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+                    continue;
+                }
+            }
+        }
+
+        if (!in_fenced_code && content_len >= 4 && strncmp(content, "!!! ", 4) == 0) {
+            const char *spec = content + 4;
+            const char *spec_end = content + content_len;
+            while (spec < spec_end && *spec == ' ') spec++;
+            const char *type_start = spec;
+            while (spec < spec_end && (isalnum((unsigned char)*spec) || *spec == '-' || *spec == '_')) spec++;
+            if (spec > type_start) {
+                int type_len = (int)(spec - type_start);
+                callout_type_t ct = detect_callout_type(type_start, type_len);
+                if (ct != CALLOUT_NONE) {
+                    char title_buf[512];
+                    title_buf[0] = '\0';
+                    while (spec < spec_end && *spec == ' ') spec++;
+                    if (spec < spec_end) {
+                        if (*spec == '"' || *spec == '\'') {
+                            char quote = *spec++;
+                            const char *title_start = spec;
+                            while (spec < spec_end && *spec != quote) spec++;
+                            size_t tlen = (size_t)(spec - title_start);
+                            if (tlen >= sizeof(title_buf)) tlen = sizeof(title_buf) - 1;
+                            memcpy(title_buf, title_start, tlen);
+                            title_buf[tlen] = '\0';
+                        } else {
+                            size_t tlen = (size_t)(spec_end - spec);
+                            if (tlen >= sizeof(title_buf)) tlen = sizeof(title_buf) - 1;
+                            memcpy(title_buf, spec, tlen);
+                            title_buf[tlen] = '\0';
+                            trim_ascii_whitespace(title_buf);
+                        }
+                    }
+
+                    char header[640];
+                    if (title_buf[0]) {
+                        snprintf(header, sizeof(header), "> [!%.*s] %s", type_len, type_start, title_buf);
+                    } else {
+                        snprintf(header, sizeof(header), "> [!%.*s]", type_len, type_start);
+                    }
+                    if (!append_str(&out, &len, &cap, header)) goto fail;
+                    if (has_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+
+                    p = has_nl ? line_end + 1 : line_start + line_len;
+                    while (*p) {
+                        const char *body_start = p;
+                        const char *body_end = strchr(p, '\n');
+                        bool body_nl = body_end != NULL;
+                        size_t body_len = body_nl ? (size_t)(body_end - body_start) : strlen(body_start);
+
+                        size_t indent = 0;
+                        while (indent < body_len && body_start[indent] == ' ') indent++;
+                        bool blank = true;
+                        for (size_t i = 0; i < body_len; i++) {
+                            if (body_start[i] != ' ' && body_start[i] != '\t' && body_start[i] != '\r') {
+                                blank = false;
+                                break;
+                            }
+                        }
+
+                        if (!blank && indent < 4) break;
+
+                        if (!append_str(&out, &len, &cap, ">")) goto fail;
+                        if (!blank) {
+                            if (!append_str(&out, &len, &cap, " ")) goto fail;
+                            size_t strip = indent >= 4 ? 4 : indent;
+                            if (!append_chunk(&out, &len, &cap, body_start + strip, body_len - strip)) goto fail;
+                        }
+                        if (body_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+
+                        p = body_nl ? body_end + 1 : body_start + body_len;
+                    }
+                    if (!append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+                    continue;
+                }
+            }
+        }
+
+        if (!append_chunk(&out, &len, &cap, line_start, line_len)) goto fail;
+        if (has_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+        p = has_nl ? line_end + 1 : line_start + line_len;
+    }
+
+    return out;
+
+fail:
+    free(out);
+    return NULL;
+}
+
+char *apex_preprocess_quarto_callouts(const char *text) {
+    if (!text) return NULL;
+
+    size_t cap = strlen(text) * 2 + 256;
+    char *out = malloc(cap);
+    if (!out) return NULL;
+    size_t len = 0;
+    out[0] = '\0';
+
+    bool in_fenced_code = false;
+    const char *p = text;
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        bool has_nl = line_end != NULL;
+        size_t line_len = has_nl ? (size_t)(line_end - line_start) : strlen(line_start);
+
+        const char *content = line_start;
+        while ((size_t)(content - line_start) < line_len && (*content == ' ' || *content == '\t')) content++;
+        size_t content_len = line_len - (size_t)(content - line_start);
+
+        if (content_len >= 3 && strncmp(content, "```", 3) == 0) {
+            in_fenced_code = !in_fenced_code;
+        }
+
+        if (!in_fenced_code && content_len >= 3 && strncmp(content, ":::", 3) == 0) {
+            const char *after = content + 3;
+            while (after < content + content_len && *after == ' ') after++;
+            if (after < content + content_len && *after == '{') {
+                const char *close = content + content_len - 1;
+                while (close > after && *close != '}') close--;
+                if (*close == '}') {
+                    size_t attrs_len = (size_t)(close - (after + 1));
+                    char attrs[768];
+                    if (attrs_len >= sizeof(attrs)) attrs_len = sizeof(attrs) - 1;
+                    memcpy(attrs, after + 1, attrs_len);
+                    attrs[attrs_len] = '\0';
+
+                    char *attrs_work = strdup(attrs);
+                    if (!attrs_work) goto fail;
+                    char *token = strtok(attrs_work, " \t");
+                    char type_buf[64] = {0};
+                    char title_buf[256] = {0};
+                    bool collapsible = false;
+                    bool default_open = true;
+                    while (token) {
+                        if (strncmp(token, ".callout-", 9) == 0) {
+                            strncpy(type_buf, token + 9, sizeof(type_buf) - 1);
+                        } else if (strncmp(token, "title=", 6) == 0) {
+                            const char *v = token + 6;
+                            size_t vlen = strlen(v);
+                            if (vlen >= 2 && ((v[0] == '"' && v[vlen - 1] == '"') || (v[0] == '\'' && v[vlen - 1] == '\''))) {
+                                v++;
+                                vlen -= 2;
+                            }
+                            if (vlen >= sizeof(title_buf)) vlen = sizeof(title_buf) - 1;
+                            memcpy(title_buf, v, vlen);
+                            title_buf[vlen] = '\0';
+                        } else if (strncmp(token, "collapse=", 9) == 0) {
+                            const char *v = token + 9;
+                            if (strcasecmp(v, "\"true\"") == 0 || strcasecmp(v, "true") == 0) {
+                                collapsible = true;
+                                default_open = false;
+                            } else if (strcasecmp(v, "\"false\"") == 0 || strcasecmp(v, "false") == 0) {
+                                collapsible = true;
+                                default_open = true;
+                            }
+                        }
+                        token = strtok(NULL, " \t");
+                    }
+                    free(attrs_work);
+
+                    if (type_buf[0]) {
+                        callout_type_t ct = detect_callout_type(type_buf, (int)strlen(type_buf));
+                        if (ct != CALLOUT_NONE) {
+                            char header[512];
+                            char marker = collapsible ? (default_open ? '+' : '-') : ']';
+                            if (marker == ']') {
+                                if (title_buf[0]) snprintf(header, sizeof(header), "> [!%s] %s", type_buf, title_buf);
+                                else snprintf(header, sizeof(header), "> [!%s]", type_buf);
+                            } else {
+                                if (title_buf[0]) snprintf(header, sizeof(header), "> [!%s]%c %s", type_buf, marker, title_buf);
+                                else snprintf(header, sizeof(header), "> [!%s]%c", type_buf, marker);
+                            }
+                            if (!append_str(&out, &len, &cap, header)) goto fail;
+                            if (has_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+
+                            p = has_nl ? line_end + 1 : line_start + line_len;
+                            bool had_title_heading = false;
+                            bool emitted_body_content = false;
+                            while (*p) {
+                                const char *body_start = p;
+                                const char *body_end = strchr(p, '\n');
+                                bool body_nl = body_end != NULL;
+                                size_t body_len = body_nl ? (size_t)(body_end - body_start) : strlen(body_start);
+
+                                const char *body_content = body_start;
+                                while ((size_t)(body_content - body_start) < body_len && (*body_content == ' ' || *body_content == '\t')) body_content++;
+                                size_t body_content_len = body_len - (size_t)(body_content - body_start);
+
+                                if (body_content_len >= 3 && strncmp(body_content, ":::", 3) == 0) {
+                                    p = body_nl ? body_end + 1 : body_start + body_len;
+                                    break;
+                                }
+
+                                if (!title_buf[0] && !had_title_heading && body_content_len > 2 &&
+                                    body_content[0] == '#' && body_content[1] == '#') {
+                                    had_title_heading = true;
+                                    if (body_nl) p = body_end + 1;
+                                    else p = body_start + body_len;
+                                    continue;
+                                }
+
+                                /* Avoid emitting an empty leading paragraph after heading/title removal. */
+                                if (body_len == 0 && !emitted_body_content) {
+                                    p = body_nl ? body_end + 1 : body_start + body_len;
+                                    continue;
+                                }
+
+                                if (!append_str(&out, &len, &cap, ">")) goto fail;
+                                if (body_len > 0) {
+                                    if (!append_str(&out, &len, &cap, " ")) goto fail;
+                                    if (!append_chunk(&out, &len, &cap, body_start, body_len)) goto fail;
+                                    emitted_body_content = true;
+                                }
+                                if (body_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+                                p = body_nl ? body_end + 1 : body_start + body_len;
+                            }
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!append_chunk(&out, &len, &cap, line_start, line_len)) goto fail;
+        if (has_nl && !append_chunk(&out, &len, &cap, "\n", 1)) goto fail;
+        p = has_nl ? line_end + 1 : line_start + line_len;
+    }
+
+    return out;
+
+fail:
+    free(out);
+    return NULL;
 }
 

@@ -109,6 +109,8 @@ typedef struct apex_options {
     bool enable_task_lists;
     bool enable_attributes;
     bool enable_callouts;
+    bool enable_py_callouts;      /* Enable Python-Markdown !!! callout preprocessing */
+    bool enable_quarto_callouts;  /* Enable Quarto ::: callout preprocessing */
     bool enable_marked_extensions;
     bool enable_divs;  /* Enable Pandoc fenced divs (Unified mode only) */
     bool enable_spans;  /* Enable bracketed spans [text]{IAL} (Pandoc-style) */

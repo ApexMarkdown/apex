@@ -1151,6 +1151,68 @@ void test_callouts(void) {
     }
     apex_free_string(html);
 
+    /* Python-Markdown callouts are disabled by default */
+    const char *py_callout = "!!! note \"Py Title\"\n    Py body line";
+    html = apex_markdown_to_html(py_callout, strlen(py_callout), &opts);
+    assert_not_contains(html, "class=\"callout", "Python callout syntax ignored when flag disabled");
+    apex_free_string(html);
+
+    /* Python-Markdown callouts enabled behind flag */
+    opts.enable_py_callouts = true;
+    html = apex_markdown_to_html(py_callout, strlen(py_callout), &opts);
+    assert_contains(html, "class=\"callout", "Python callout recognized when enabled");
+    assert_contains(html, "callout-note", "Python note callout type");
+    assert_contains(html, "Py Title", "Python callout title preserved");
+    apex_free_string(html);
+    opts.enable_py_callouts = false;
+
+    /* markdown-callouts NOTE: syntax enabled behind py flag */
+    opts.enable_py_callouts = true;
+    html = apex_markdown_to_html("NOTE: Inline py callout body", 28, &opts);
+    assert_contains(html, "class=\"callout", "NOTE: syntax recognized with py-callouts");
+    assert_contains(html, "callout-note", "NOTE: maps to note callout");
+    assert_contains(html, "Inline py callout body", "NOTE: body preserved");
+    apex_free_string(html);
+
+    /* markdown-callouts collapsed syntax */
+    const char *collapsed_py = ">? NOTE: Collapsed note\n> Collapsed body";
+    html = apex_markdown_to_html(collapsed_py, strlen(collapsed_py), &opts);
+    assert_contains(html, "<details", ">? syntax creates collapsible callout");
+    assert_contains(html, "callout-note", ">? NOTE maps to note callout");
+    assert_contains(html, "Collapsed body", ">? NOTE body preserved");
+    apex_free_string(html);
+
+    opts.enable_py_callouts = false;
+
+    /* Quarto callouts are disabled by default */
+    const char *quarto_callout =
+        "::: {.callout-warning}\n"
+        "## Quarto Title\n"
+        "Quarto warning body.\n"
+        ":::\n";
+    html = apex_markdown_to_html(quarto_callout, strlen(quarto_callout), &opts);
+    assert_not_contains(html, "class=\"callout callout-warning\"", "Quarto callout syntax ignored when flag disabled");
+    apex_free_string(html);
+
+    /* Quarto callouts enabled behind flag */
+    opts.enable_quarto_callouts = true;
+    html = apex_markdown_to_html(quarto_callout, strlen(quarto_callout), &opts);
+    assert_contains(html, "class=\"callout", "Quarto callout recognized when enabled");
+    assert_contains(html, "callout-warning", "Quarto warning callout type");
+    assert_contains(html, "Quarto warning body", "Quarto callout body preserved");
+    apex_free_string(html);
+
+    /* Quarto flag should still allow non-callout divs to render as divs */
+    const char *regular_div =
+        "::: {.sidebar}\n"
+        "Regular div content.\n"
+        ":::\n";
+    html = apex_markdown_to_html(regular_div, strlen(regular_div), &opts);
+    assert_contains(html, "<div class=\"sidebar\"", "Non-callout fenced div still rendered with Quarto mode enabled");
+    assert_not_contains(html, "class=\"callout", "Non-callout fenced div not converted into callout");
+    apex_free_string(html);
+    opts.enable_quarto_callouts = false;
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Callouts Tests", had_failures, false);
 }

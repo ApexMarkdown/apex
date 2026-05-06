@@ -234,6 +234,27 @@ Use `^^` to merge cells vertically (rowspan):
 > This callout starts expanded but can be collapsed.
 > It contains multiple lines of content.
 
+### Python-Markdown Callouts (requires `--py-callouts`)
+
+!!! note "Python Note"
+    This callout uses Python-Markdown syntax.
+    The body is indented.
+
+!!! warning
+    This warning has no explicit title.
+
+### Quarto Callouts (requires `--quarto-callouts`)
+
+::: {.callout-tip}
+## Quarto Tip
+
+This callout uses Quarto fenced syntax and heading title extraction.
+:::
+
+::: {.callout-warning title="Quarto Warning" collapse="true"}
+This callout uses explicit title and collapse attributes.
+:::
+
 ## Definition Lists
 
 Markdown

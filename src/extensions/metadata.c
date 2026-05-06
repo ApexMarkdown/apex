@@ -2757,6 +2757,36 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->enable_math = false;
             }
+        } else if (strcasecmp(key, "callouts") == 0) {
+            if (is_true_value(value)) {
+                options->enable_callouts = true;
+            } else if (is_false_value(value)) {
+                options->enable_callouts = false;
+            }
+        } else if (strcasecmp(key, "py-callouts") == 0 || strcasecmp(key, "py_callouts") == 0) {
+            if (is_true_value(value)) {
+                options->enable_py_callouts = true;
+            } else if (is_false_value(value)) {
+                options->enable_py_callouts = false;
+            }
+        } else if (strcasecmp(key, "quarto-callouts") == 0 || strcasecmp(key, "quarto_callouts") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_callouts = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_callouts = false;
+            }
+        } else if (strcasecmp(key, "divs") == 0) {
+            if (is_true_value(value)) {
+                options->enable_divs = true;
+            } else if (is_false_value(value)) {
+                options->enable_divs = false;
+            }
+        } else if (strcasecmp(key, "spans") == 0) {
+            if (is_true_value(value)) {
+                options->enable_spans = true;
+            } else if (is_false_value(value)) {
+                options->enable_spans = false;
+            }
         } else if (strcasecmp(key, "ids") == 0 || strcasecmp(key, "header-ids") == 0) {
             if (is_true_value(value)) {
                 options->generate_header_ids = true;

@@ -48,7 +48,7 @@ one tool.
 
 - **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
 - **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
-- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.)
+- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.), plus optional Python-Markdown (`!!!`) and Quarto (`:::`) callout parsing behind explicit flags
 - **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
 
 ### Document Features
@@ -291,6 +291,10 @@ apex input.md --mode kramdown
 - `--divs` / `--no-divs` - Enable/disable Pandoc fenced divs
 
   syntax (enabled by default in unified mode)
+
+- `--py-callouts` / `--no-py-callouts` - Enable/disable Python-Markdown callout syntax (`!!!`) plus markdown-callouts label syntax (`NOTE: ...`, `>? NOTE: ...`) (disabled by default)
+
+- `--quarto-callouts` / `--no-quarto-callouts` - Enable/disable Quarto `:::` callout syntax for `.callout-*` blocks (disabled by default; recognized callouts bypass generic div processing)
 
 `--spans` / `--no-spans` - Enable/disable bracketed spans `[text]{IAL}` syntax (enabled by default in unified mode)
 

@@ -1,12 +1,9 @@
 /**
  * Callouts Extension for Apex
  *
- * Supports Bear/Obsidian and Xcode Playground callout syntax:
+ * Supports Bear/Obsidian callout syntax:
  * > [!NOTE] Title
  * > Content
- *
- * - Attention: Title
- * Content
  */
 
 #ifndef APEX_CALLOUTS_H
@@ -43,7 +40,20 @@ typedef enum {
 /**
  * Process callouts in AST (postprocessing)
  */
-void apex_process_callouts_in_tree(cmark_node *document);
+void apex_process_callouts_in_tree(cmark_node *document, bool enable_py_callouts);
+
+/**
+ * Preprocess Python-Markdown callouts into Obsidian-style blockquotes.
+ * Pattern: !!! type "Optional title" followed by indented content.
+ * Returns newly allocated string or NULL on allocation failure.
+ */
+char *apex_preprocess_py_callouts(const char *text);
+
+/**
+ * Preprocess Quarto ::: {.callout-*} callouts into Obsidian-style blockquotes.
+ * Returns newly allocated string or NULL on allocation failure.
+ */
+char *apex_preprocess_quarto_callouts(const char *text);
 
 #ifdef __cplusplus
 }

@@ -3028,6 +3028,8 @@ apex_options apex_options_default(void) {
     opts.enable_task_lists = true;
     opts.enable_attributes = true;
     opts.enable_callouts = true;
+    opts.enable_py_callouts = false;
+    opts.enable_quarto_callouts = false;
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
@@ -3191,6 +3193,8 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_task_lists = false;
             opts.enable_attributes = false;
             opts.enable_callouts = false;
+            opts.enable_py_callouts = false;
+            opts.enable_quarto_callouts = false;
             opts.enable_marked_extensions = false;
             opts.enable_divs = false;
             opts.enable_spans = false;
@@ -3226,6 +3230,8 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_wiki_links = false;
             opts.enable_attributes = false;
             opts.enable_callouts = false;
+            opts.enable_py_callouts = false;
+            opts.enable_quarto_callouts = false;
             opts.enable_marked_extensions = false;
             opts.enable_divs = false;
             opts.enable_spans = false;
@@ -3263,6 +3269,8 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_task_lists = false;
             opts.enable_attributes = false;
             opts.enable_callouts = false;
+            opts.enable_py_callouts = false;
+            opts.enable_quarto_callouts = false;
             opts.enable_marked_extensions = false;
             opts.enable_divs = false;
             opts.enable_spans = false;
@@ -3297,6 +3305,8 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_task_lists = false;
             opts.enable_attributes = true;
             opts.enable_callouts = false;
+            opts.enable_py_callouts = false;
+            opts.enable_quarto_callouts = false;
             /* Enable Marked-style extensions (including TOC) so that
              * Kramdown documents can use <!--TOC--> and {:toc} syntax
              * for table-of-contents generation. */
@@ -3338,6 +3348,8 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_mmark_index_syntax = true;  /* Unified: mmark index syntax */
             opts.enable_textindex_syntax = true;  /* Unified: TextIndex syntax enabled */
             opts.enable_leanpub_index_syntax = true;  /* Unified: Leanpub index syntax enabled */
+            opts.enable_py_callouts = false;  /* Unified default: off unless explicitly enabled */
+            opts.enable_quarto_callouts = false;  /* Unified default: off unless explicitly enabled */
             opts.enable_divs = true;  /* Unified: Pandoc fenced divs enabled */
             opts.enable_spans = true;  /* Unified: bracketed spans enabled */
             opts.enable_emoji_autocorrect = true;  /* Unified: emoji autocorrect enabled */
@@ -4757,6 +4769,19 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char **liquid_tags = NULL;
     size_t liquid_tag_count = 0;
     char *liquid_protected = NULL;
+    char *py_callouts_processed = NULL;
+    /* Process Python-Markdown/markdown-callouts syntax early so metadata parsing
+     * doesn't consume top-of-file TYPE: lines before they can be treated as callouts.
+     */
+    if (options->enable_py_callouts) {
+        PROFILE_START(py_callouts_preprocess);
+        py_callouts_processed = apex_preprocess_py_callouts(text_ptr);
+        PROFILE_END(py_callouts_preprocess);
+        if (py_callouts_processed) {
+            text_ptr = py_callouts_processed;
+        }
+    }
+
 
 
     if (getenv("APEX_DEBUG_PIPELINE")) {
@@ -5279,6 +5304,17 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         PROFILE_END(definition_lists);
         if (deflist_processed) {
             text_ptr = deflist_processed;
+        }
+    }
+
+    /* Process Quarto ::: callouts before fenced divs so recognized callouts bypass generic div conversion */
+    char *quarto_callouts_processed = NULL;
+    if (options->enable_quarto_callouts) {
+        PROFILE_START(quarto_callouts_preprocess);
+        quarto_callouts_processed = apex_preprocess_quarto_callouts(text_ptr);
+        PROFILE_END(quarto_callouts_preprocess);
+        if (quarto_callouts_processed) {
+            text_ptr = quarto_callouts_processed;
         }
     }
 
@@ -5854,7 +5890,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Postprocess callouts if enabled */
     if (options->enable_callouts) {
-        apex_process_callouts_in_tree(document);
+        apex_process_callouts_in_tree(document, options->enable_py_callouts);
     }
 
     /* Process IAL (Inline Attribute Lists) BEFORE manual header IDs.
@@ -6459,6 +6495,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     free(working_text);
     if (ial_preprocessed) free(ial_preprocessed);
     if (spans_preprocessed) free(spans_preprocessed);
+    if (quarto_callouts_processed) free(quarto_callouts_processed);
+    if (py_callouts_processed) free(py_callouts_processed);
     if (includes_processed) free(includes_processed);
     if (emoji_autocorrect_processed) free(emoji_autocorrect_processed);
     if (markers_processed_early) {
