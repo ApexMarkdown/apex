@@ -1965,6 +1965,26 @@ void test_special_markers(void) {
     assert_contains(html, "Section 3", "Last section");
     apex_free_string(html);
 
+    /* Special markers NOT converted inside inline code span */
+    html = apex_markdown_to_html("`<!--PAUSE:15-->`", 17, &opts);
+    assert_contains(html, "<code>&lt;!--PAUSE:15--&gt;</code>", "Pause marker preserved in inline code");
+    assert_not_contains(html, "data-pause", "Pause marker not rendered in inline code");
+    apex_free_string(html);
+
+    /* Special markers NOT converted inside indented code block */
+    const char *indented_break = "    <!--BREAK-->";
+    html = apex_markdown_to_html(indented_break, strlen(indented_break), &opts);
+    assert_contains(html, "&lt;!--BREAK--&gt;", "Break marker preserved in indented code");
+    assert_not_contains(html, "page-break-after", "Break marker not rendered in indented code");
+    apex_free_string(html);
+
+    /* Special markers NOT converted inside fenced code block */
+    const char *fenced = "```\n<!--BREAK-->\n```";
+    html = apex_markdown_to_html(fenced, strlen(fenced), &opts);
+    assert_contains(html, "&lt;!--BREAK--&gt;", "Break marker preserved in fenced code");
+    assert_not_contains(html, "page-break-after", "Break marker not rendered in fenced code");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Special Markers Tests", had_failures, false);
 }

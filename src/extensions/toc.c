@@ -9,6 +9,205 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <stdbool.h>
+
+/* Placeholders for backslash-escaped {{TOC...}} markers preserved through parsing. */
+static char **escaped_toc_originals = NULL;
+static size_t escaped_toc_count = 0;
+
+static void clear_escaped_toc_store(void) {
+    if (escaped_toc_originals) {
+        for (size_t i = 0; i < escaped_toc_count; i++) {
+            free(escaped_toc_originals[i]);
+        }
+        free(escaped_toc_originals);
+    }
+    escaped_toc_originals = NULL;
+    escaped_toc_count = 0;
+}
+
+static bool is_escaped_mmd_toc_start(const char *p) {
+    return p[0] == '\\' && p[1] == '{' && p[2] == '\\' && p[3] == '{' &&
+           strncmp(p + 4, "TOC", 3) == 0;
+}
+
+static const char *find_escaped_mmd_toc_end(const char *start) {
+    const char *p = start + 7;
+    while (*p) {
+        if (p[0] == '\\' && p[1] == '}' && p[2] == '\\' && p[3] == '}') {
+            return p + 3;
+        }
+        p++;
+    }
+    return NULL;
+}
+
+static char *build_unescaped_toc_marker(const char *escaped_start, const char *escaped_end) {
+    /* \{\{ ... \}\} -> {{ ... }} */
+    const char *inner = escaped_start + 4;
+    size_t inner_len = (size_t)(escaped_end - inner - 3);
+    size_t out_len = inner_len + 4;
+    char *out = malloc(out_len + 1);
+    if (!out) return NULL;
+    out[0] = '{';
+    out[1] = '{';
+    memcpy(out + 2, inner, inner_len);
+    out[2 + inner_len] = '}';
+    out[3 + inner_len] = '}';
+    out[out_len] = '\0';
+    return out;
+}
+
+char *apex_protect_escaped_toc_markers(const char *text) {
+    if (!text) return NULL;
+
+    clear_escaped_toc_store();
+
+    size_t len = strlen(text);
+    size_t capacity = len + 64;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+
+    const char *read = text;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        if (is_escaped_mmd_toc_start(read)) {
+            const char *end = find_escaped_mmd_toc_end(read);
+            if (end) {
+                char *original = build_unescaped_toc_marker(read, end);
+                if (!original) {
+                    free(output);
+                    clear_escaped_toc_store();
+                    return NULL;
+                }
+
+                char **new_store = realloc(escaped_toc_originals,
+                                           (escaped_toc_count + 1) * sizeof(char *));
+                if (!new_store) {
+                    free(original);
+                    free(output);
+                    clear_escaped_toc_store();
+                    return NULL;
+                }
+                escaped_toc_originals = new_store;
+                escaped_toc_originals[escaped_toc_count++] = original;
+
+                char placeholder[64];
+                int ph_len = snprintf(placeholder, sizeof(placeholder),
+                                      "@APEX_ESCAPED_TOC_%zu@", escaped_toc_count - 1);
+                if ((size_t)ph_len >= remaining) {
+                    size_t written = (size_t)(write - output);
+                    capacity = written + (size_t)ph_len + len + 64;
+                    char *new_output = realloc(output, capacity);
+                    if (!new_output) {
+                        free(output);
+                        clear_escaped_toc_store();
+                        return NULL;
+                    }
+                    output = new_output;
+                    write = output + written;
+                    remaining = capacity - written;
+                }
+                memcpy(write, placeholder, (size_t)ph_len);
+                write += ph_len;
+                remaining -= (size_t)ph_len;
+                read = end + 1;
+                continue;
+            }
+        }
+
+        if (remaining == 0) {
+            size_t written = (size_t)(write - output);
+            capacity = (written + len + 64) * 2;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                clear_escaped_toc_store();
+                return NULL;
+            }
+            output = new_output;
+            write = output + written;
+            remaining = capacity - written;
+        }
+        *write++ = *read++;
+        remaining--;
+    }
+
+    *write = '\0';
+    return output;
+}
+
+char *apex_restore_escaped_toc_markers(const char *html) {
+    if (!html) return NULL;
+    if (escaped_toc_count == 0) return strdup(html);
+
+    size_t len = strlen(html);
+    size_t capacity = len + escaped_toc_count * 32;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+
+    const char *read = html;
+    char *write = output;
+    size_t remaining = capacity;
+
+    while (*read) {
+        if (strncmp(read, "@APEX_ESCAPED_TOC_", 18) == 0) {
+            const char *idx_start = read + 18;
+            const char *idx_end = strchr(idx_start, '@');
+            if (idx_end && idx_end > idx_start) {
+                char idx_buf[32];
+                size_t idx_len = (size_t)(idx_end - idx_start);
+                if (idx_len < sizeof(idx_buf)) {
+                    memcpy(idx_buf, idx_start, idx_len);
+                    idx_buf[idx_len] = '\0';
+                    size_t index = (size_t)atoi(idx_buf);
+                    if (index < escaped_toc_count && escaped_toc_originals[index]) {
+                        const char *original = escaped_toc_originals[index];
+                        size_t orig_len = strlen(original);
+                        if (orig_len >= remaining) {
+                            size_t written = (size_t)(write - output);
+                            capacity = written + orig_len + 64;
+                            char *new_output = realloc(output, capacity);
+                            if (!new_output) {
+                                free(output);
+                                return NULL;
+                            }
+                            output = new_output;
+                            write = output + written;
+                            remaining = capacity - written;
+                        }
+                        memcpy(write, original, orig_len);
+                        write += orig_len;
+                        remaining -= orig_len;
+                        read = idx_end + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        if (remaining == 0) {
+            size_t written = (size_t)(write - output);
+            capacity = (written + len + 64) * 2;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+            write = output + written;
+            remaining = capacity - written;
+        }
+        *write++ = *read++;
+        remaining--;
+    }
+
+    *write = '\0';
+    clear_escaped_toc_store();
+    return output;
+}
 
 /**
  * Collect headers from AST

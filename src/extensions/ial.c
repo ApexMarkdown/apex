@@ -1571,6 +1571,45 @@ static bool is_ial_line(const char *line, size_t len) {
     return (after >= end);
 }
 
+/** True if content at p looks like a list marker (- , * , + , or digit+. ) */
+static int ial_looks_like_list_marker(const char *p) {
+    if (!*p) return 0;
+    if (*p == '-' || *p == '*' || *p == '+')
+        return (p[1] == ' ' || p[1] == '\t');
+    if (isdigit((unsigned char)*p)) {
+        while (isdigit((unsigned char)*p)) p++;
+        return (*p == '.' && (p[1] == ' ' || p[1] == '\t'));
+    }
+    return 0;
+}
+
+/** True if line is an indented code block (4+ spaces or tab at start). */
+static bool ial_line_is_indented_code_block(const char *line, size_t len) {
+    if (len == 0) return false;
+    if (line[0] == '\t')
+        return !ial_looks_like_list_marker(line + 1);
+    if (len < 4 || line[0] != ' ' || line[1] != ' ' || line[2] != ' ' || line[3] != ' ')
+        return false;
+    const char *content = line + 4;
+    while (content < line + len && *content == ' ') content++;
+    return content < line + len && !ial_looks_like_list_marker(content);
+}
+
+/** True if line is a fenced code fence (``` or ~~~) with up to 3 leading spaces. */
+static bool ial_line_is_fence(const char *line, size_t len) {
+    const char *p = line;
+    const char *end = line + len;
+    int spaces = 0;
+    while (p < end && *p == ' ' && spaces < 3) {
+        p++;
+        spaces++;
+    }
+    if (p + 2 >= end) return false;
+    if (p[0] == '`' && p[1] == '`' && p[2] == '`') return true;
+    if (p[0] == '~' && p[1] == '~' && p[2] == '~') return true;
+    return false;
+}
+
 /**
  * Preprocess text to separate IAL markers from preceding content.
  * Kramdown allows IAL on the line immediately following content,
@@ -1590,6 +1629,8 @@ char *apex_preprocess_ial(const char *text) {
     const char *p = text;
     bool prev_line_was_content = false;
     bool prev_line_was_blank = true;  /* Start as if there was a blank line before */
+    bool in_fenced_code = false;
+    bool in_indented_code = false;
 
     while (*p) {
         /* Find end of current line */
@@ -1613,6 +1654,18 @@ char *apex_preprocess_ial(const char *text) {
         /* Check if this line is an IAL */
         bool is_ial = is_ial_line(line_start, line_len);
 
+        if (ial_line_is_fence(line_start, line_len)) {
+            in_fenced_code = !in_fenced_code;
+        }
+        if (!in_fenced_code) {
+            if (ial_line_is_indented_code_block(line_start, line_len)) {
+                in_indented_code = true;
+            } else if (!is_blank) {
+                in_indented_code = false;
+            }
+        }
+        bool in_code = in_fenced_code || in_indented_code;
+
         /* Special case: Kramdown-style TOC marker "{:toc ...}".
          *
          * In Kramdown/Jekyll, a pure IAL paragraph containing only "{:toc}"
@@ -1622,7 +1675,7 @@ char *apex_preprocess_ial(const char *text) {
          * TOC extension.
          */
         bool handled_toc_marker = false;
-        if (is_ial) {
+        if (is_ial && !in_code) {
             const char *q = line_start;
             const char *end = line_start + line_len;
 

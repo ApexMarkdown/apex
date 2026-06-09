@@ -4994,6 +4994,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Preprocess IAL markers (insert blank lines before them so cmark parses correctly) */
     char *ial_preprocessed = NULL;
+    char *escaped_toc_protected = NULL;
     if (options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
         PROFILE_START(ial_preprocess);
         ial_preprocessed = apex_preprocess_ial(text_ptr);
@@ -5785,6 +5786,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Convert options to cmark-gfm format */
     int cmark_opts = apex_to_cmark_options(options);
 
+    /* Protect backslash-escaped {{TOC...}} markers before parsing */
+    if (options->enable_marked_extensions || options->mode == APEX_MODE_MULTIMARKDOWN) {
+        escaped_toc_protected = apex_protect_escaped_toc_markers(text_ptr);
+        if (escaped_toc_protected) {
+            text_ptr = escaped_toc_protected;
+            text_len = strlen(text_ptr);
+        }
+    }
+
     /* Create parser */
     PROFILE_START(parsing);
     cmark_parser *parser = cmark_parser_new(cmark_opts);
@@ -6311,6 +6321,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             free(html);
             html = with_toc;
         }
+        char *restored = apex_restore_escaped_toc_markers(html);
+        if (restored) {
+            free(html);
+            html = restored;
+        }
     }
 
     /* Apply ARIA labels if enabled */
@@ -6494,6 +6509,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     cmark_parser_free(parser);
     free(working_text);
     if (ial_preprocessed) free(ial_preprocessed);
+    if (escaped_toc_protected) free(escaped_toc_protected);
     if (spans_preprocessed) free(spans_preprocessed);
     if (quarto_callouts_processed) free(quarto_callouts_processed);
     if (py_callouts_processed) free(py_callouts_processed);

@@ -26,6 +26,17 @@ extern "C" {
  */
 char *apex_process_toc(const char *html, cmark_node *document, int id_format);
 
+/**
+ * Replace backslash-escaped {{TOC...}} markers with placeholders before parsing.
+ * Call before markdown parse when TOC processing will run later.
+ */
+char *apex_protect_escaped_toc_markers(const char *text);
+
+/**
+ * Restore placeholders to literal {{TOC...}} text in HTML after TOC processing.
+ */
+char *apex_restore_escaped_toc_markers(const char *html);
+
 #ifdef __cplusplus
 }
 #endif

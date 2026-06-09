@@ -10,6 +10,30 @@
 #include <ctype.h>
 #include <stdbool.h>
 
+/** True if content at p looks like a list marker (- , * , + , or digit+. ) */
+static int looks_like_list_marker(const char *p) {
+    if (!*p) return 0;
+    if (*p == '-' || *p == '*' || *p == '+')
+        return (p[1] == ' ' || p[1] == '\t');
+    if (isdigit((unsigned char)*p)) {
+        while (isdigit((unsigned char)*p)) p++;
+        return (*p == '.' && (p[1] == ' ' || p[1] == '\t'));
+    }
+    return 0;
+}
+
+/** True if we're at the start of a line that is an indented code block (4+ spaces or tab). */
+static int line_is_indented_code_block(const char *read) {
+    if (!*read) return 0;
+    if (*read == '\t')
+        return !looks_like_list_marker(read + 1);
+    if (read[0] != ' ' || read[1] != ' ' || read[2] != ' ' || read[3] != ' ')
+        return 0;
+    const char *content = read + 4;
+    while (*content == ' ') content++;
+    return *content && !looks_like_list_marker(content);
+}
+
 /**
  * Process special markers in text
  */
@@ -26,7 +50,36 @@ char *apex_process_special_markers(const char *text) {
     char *write = output;
     size_t remaining = capacity;
 
+    bool in_code_block = false;
+    bool in_inline_code = false;
+    bool in_indented_code_block = false;
+
     while (*read) {
+        /* At line start: indented code block only if 4+ spaces/tab and not a list line */
+        if (read == text || read[-1] == '\n') {
+            in_indented_code_block = line_is_indented_code_block(read);
+        }
+
+        /* Track fenced code blocks (```) and inline code (`) */
+        if (*read == '`') {
+            if (read[1] == '`' && read[2] == '`') {
+                in_code_block = !in_code_block;
+            } else if (!in_code_block) {
+                in_inline_code = !in_inline_code;
+            }
+        }
+
+        /* Skip special marker processing inside any code context */
+        if (in_code_block || in_inline_code || in_indented_code_block) {
+            if (remaining > 0) {
+                *write++ = *read++;
+                remaining--;
+            } else {
+                read++;
+            }
+            continue;
+        }
+
         /* Check for End of Block marker (Kramdown) */
         /* Pattern: ^ on a line by itself (with optional leading whitespace) */
         if (*read == '^') {

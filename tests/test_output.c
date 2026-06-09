@@ -116,6 +116,25 @@ void test_toc(void) {
     assert_contains(html, "Section", "TOC includes section");
     apex_free_string(html);
 
+    /* Escaped MMD TOC markers must not be expanded */
+    const char *escaped_toc =
+        "# Title\n\nMarked also recognizes MultiMarkdown-style \\{\\{TOC\\}\\}, "
+        "and Pandoc-style `{{TOC:2-6}}`.\n\n## Section";
+    html = apex_markdown_to_html(escaped_toc, strlen(escaped_toc), &opts);
+    assert_contains(html, "{{TOC}}", "Escaped MMD TOC marker preserved as literal text");
+    assert_not_contains(html, "<nav class=\"toc\">", "Escaped MMD TOC marker not expanded");
+    assert_contains(html, "<code>{{TOC:2-6}}</code>", "Pandoc-style TOC marker preserved in inline code");
+    apex_free_string(html);
+
+    /* Kramdown {:toc} inside indented code must not be converted */
+    apex_options kram_opts2 = apex_options_for_mode(APEX_MODE_KRAMDOWN);
+    kram_opts2.enable_marked_extensions = true;
+    const char *kramdown_toc_code = "# Title\n\n    {:toc}\n\n## Section";
+    html = apex_markdown_to_html(kramdown_toc_code, strlen(kramdown_toc_code), &kram_opts2);
+    assert_contains(html, "{:toc}", "Kramdown {:toc} preserved in indented code");
+    assert_not_contains(html, "<nav class=\"toc\">", "Kramdown {:toc} not expanded in indented code");
+    apex_free_string(html);
+
     /* Test document without TOC marker */
     const char *no_toc = "# Header\n\nContent";
     html = apex_markdown_to_html(no_toc, strlen(no_toc), &opts);
