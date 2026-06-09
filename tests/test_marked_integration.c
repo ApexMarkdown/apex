@@ -260,6 +260,31 @@ void test_marked_integration_features(void) {
     }
     apex_free_string(html);
 
+    /* Indented {::pagebreak /} must not break markdown-in-html blockquote processing */
+    opts = apex_options_default();
+    opts.enable_markdown_in_html = true;
+    opts.enable_marked_extensions = true;
+    const char *pagebreak_html =
+        "<blockquote class=\"tip\" markdown=\"1\">\n"
+        "Tip with [link](doc.html) and <span>HTML</span>.\n"
+        "</blockquote>\n"
+        "## Page breaks\n"
+        "    {::pagebreak /}";
+    html = apex_markdown_to_html(pagebreak_html, strlen(pagebreak_html), &opts);
+    assert_contains(html, "<blockquote", "Blockquote preserved with markdown-in-html");
+    assert_contains(html, "<a href=\"doc.html\">link</a>", "Blockquote markdown parsed inside markdown=\"1\"");
+    assert_contains(html, "<h2", "Heading after blockquote rendered");
+    assert_contains(html, "<pre><code>{::pagebreak /}", "Indented Leanpub pagebreak marker in code block");
+    assert_not_contains(html, "class=\"mkpagebreak", "Indented Leanpub pagebreak marker not converted");
+    const char *bq_h2 = strstr(html, "<h2");
+    const char *bq_pre = strstr(html, "<pre>");
+    if (bq_h2 && bq_pre && bq_h2 < bq_pre) {
+        test_result(true, "Heading before code block in markdown-in-html pagebreak repro");
+    } else {
+        test_result(false, "Heading should appear before code block in markdown-in-html pagebreak repro");
+    }
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Marked Integration Features Tests", had_failures, false);
 }

@@ -1084,6 +1084,22 @@ void test_definition_lists(void) {
     assert_not_contains(html, "<dt>term</dt>", "No definition list from multi-line inline code");
     apex_free_string(html);
 
+    /* Leanpub {::pagebreak /} must not trigger definition list reordering */
+    const char *heading_pagebreak = "## Page breaks\n    {::pagebreak /}";
+    html = apex_markdown_to_html(heading_pagebreak, strlen(heading_pagebreak), &opts);
+    assert_contains(html, "<h2", "Heading before indented Leanpub pagebreak marker");
+    assert_contains(html, "Page", "Heading text preserved");
+    assert_contains(html, "<pre><code>{::pagebreak /}", "Leanpub pagebreak marker in code block");
+    assert_not_contains(html, "<dl>", "Leanpub pagebreak marker did not create definition list");
+    const char *h2_pos = strstr(html, "<h2");
+    const char *pre_pos = strstr(html, "<pre>");
+    if (h2_pos && pre_pos && h2_pos < pre_pos) {
+        test_result(true, "Heading appears before code block with Leanpub pagebreak marker");
+    } else {
+        test_result(false, "Heading should appear before code block with Leanpub pagebreak marker");
+    }
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }

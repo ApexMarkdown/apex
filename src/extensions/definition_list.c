@@ -45,8 +45,10 @@ static int find_def_separator(const unsigned char *line, int len) {
         if (line[i] == ':' && line[i + 1] == ':') {
             /* Skip :: that's part of URL (://) */
             if (i + 3 <= len && line[i + 2] == '/') continue;
-            /* Skip :: that's part of div/custom element (::: or more) */
+            /* Skip ::: or more (div/custom element fence) */
             if (i > 0 && line[i - 1] == ':') continue;
+            /* Skip Leanpub {::marker /} syntax */
+            if (i > 0 && line[i - 1] == '{') continue;
             if (i + 2 < len && line[i + 2] == ':') continue;
             last_sep = i;
         }
@@ -138,6 +140,25 @@ static bool line_is_indented_code_block(const char *line, size_t len) {
     const char *content = line + 4;
     while (content < line + len && *content == ' ') content++;
     return (content < line + len) && !looks_like_list_marker(content);
+}
+
+/** True if :: at scan is part of Leanpub {::marker /} syntax, not a definition list. */
+static bool is_leanpub_marker_colons(const char *line_start, const char *colon_pos) {
+    return colon_pos > line_start && colon_pos[-1] == '{';
+}
+
+/** True if line is an ATX Markdown heading (# .. ######). */
+static bool is_atx_heading_line(const char *line, size_t len) {
+    size_t i = 0;
+    while (i < len && (line[i] == ' ' || line[i] == '\t')) i++;
+    if (i >= len || line[i] != '#') return false;
+    int hashes = 0;
+    while (i < len && line[i] == '#') {
+        hashes++;
+        i++;
+    }
+    if (hashes < 1 || hashes > 6) return false;
+    return i >= len || line[i] == ' ' || line[i] == '\t';
 }
 
 /**
@@ -247,6 +268,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             if (scan[2] == ':') { scan++; continue; }
             const char *line_start = scan;
             while (line_start > text && line_start[-1] != '\n') line_start--;
+            if (is_leanpub_marker_colons(line_start, scan)) { scan++; continue; }
             const char *p = line_start;
             while (p < scan && (*p == ' ' || *p == '\t')) p++;
             if (p >= scan || *p != '[') { has_pattern = true; break; }
@@ -347,6 +369,15 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
 
         /* Skip definition processing inside indented code blocks */
         if (in_indented_code_block) {
+            if (term_len > 0) {
+                ENSURE_SPACE((size_t)term_len + 2);
+                memcpy(write, term_buffer, (size_t)term_len);
+                write += term_len;
+                remaining -= (size_t)term_len;
+                *write++ = '\n';
+                remaining--;
+                term_len = 0;
+            }
             ENSURE_SPACE(line_length + 2);
             memcpy(write, line_start, line_length);
             write += line_length;
@@ -590,7 +621,8 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 const char *p = line_start;
                 while (p < line_end && (*p == ' ' || *p == '\t')) p++;
                 bool is_ref_def = (p < line_end && *p == '[' && memchr(p, ':', (size_t)(line_end - p)) != NULL);
-                if (is_ref_def || line_length >= sizeof(term_buffer) - 1) {
+                if (is_ref_def || is_atx_heading_line(line_start, line_length) ||
+                    line_length >= sizeof(term_buffer) - 1) {
                     ENSURE_SPACE(line_length + 2);
                     memcpy(write, line_start, line_length);
                     write += line_length;

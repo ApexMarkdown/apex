@@ -135,6 +135,33 @@ void test_toc(void) {
     assert_not_contains(html, "<nav class=\"toc\">", "Kramdown {:toc} not expanded in indented code");
     apex_free_string(html);
 
+    /* Pandoc-style {{TOC:2-6}} inside fenced code must not be rendered */
+    const char *toc_range_fenced = "# Title\n\n```\n{{TOC:2-6}}\n```\n\n## Section\n\n### Sub";
+    html = apex_markdown_to_html(toc_range_fenced, strlen(toc_range_fenced), &opts);
+    assert_contains(html, "{{TOC:2-6}}", "Pandoc-style TOC marker preserved in fenced code");
+    assert_not_contains(html, "<nav class=\"toc\">", "Pandoc-style TOC marker not expanded in fenced code");
+    apex_free_string(html);
+
+    /* Pandoc-style {{TOC:2-6}} inside indented code must not be rendered */
+    const char *toc_range_indented = "# Title\n\n    {{TOC:2-6}}\n\n## Section\n\n### Sub";
+    html = apex_markdown_to_html(toc_range_indented, strlen(toc_range_indented), &opts);
+    assert_contains(html, "{{TOC:2-6}}", "Pandoc-style TOC marker preserved in indented code");
+    assert_not_contains(html, "<nav class=\"toc\">", "Pandoc-style TOC marker not expanded in indented code");
+    apex_free_string(html);
+
+    /* HTML <!--TOC--> inside inline code must not be rendered */
+    html = apex_markdown_to_html("# Title\n\nUse `<!--TOC-->` here.\n\n## Section", 44, &opts);
+    assert_contains(html, "<code>&lt;!--TOC--&gt;</code>", "HTML TOC marker preserved in inline code");
+    assert_not_contains(html, "<nav class=\"toc\">", "HTML TOC marker not expanded in inline code");
+    apex_free_string(html);
+
+    /* Kramdown {:toc} inside fenced code must not be converted */
+    const char *kramdown_toc_fenced = "# Title\n\n```\n{:toc}\n```\n\n## Section";
+    html = apex_markdown_to_html(kramdown_toc_fenced, strlen(kramdown_toc_fenced), &kram_opts2);
+    assert_contains(html, "{:toc}", "Kramdown {:toc} preserved in fenced code");
+    assert_not_contains(html, "<nav class=\"toc\">", "Kramdown {:toc} not expanded in fenced code");
+    apex_free_string(html);
+
     /* Test document without TOC marker */
     const char *no_toc = "# Header\n\nContent";
     html = apex_markdown_to_html(no_toc, strlen(no_toc), &opts);

@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.14] - 2026-06-09
+
+### Fixed
+
+- Special markers (<!--BREAK-->, <!--PAUSE:N-->, {::pagebreak /}, {index}, and ^ end-of-block) are no longer converted inside fenced code blocks, indented code blocks, or inline code spans.
+- Backslash-escaped MultiMarkdown TOC markers like \{\{TOC\}\} are no longer expanded into a table of contents after markdown strips the escape backslashes.
+- Kramdown {:toc} markers inside fenced or indented code blocks are no longer converted to <!--TOC--> during IAL preprocessing.
+
 ## [1.0.13] - 2026-05-06
 
 ### New
@@ -2936,6 +2944,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.14]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.14
 [1.0.13]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.13
 [1.0.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.12
 [1.0.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.11
