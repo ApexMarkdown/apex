@@ -1355,6 +1355,17 @@ void test_html_markdown_attributes(void) {
     assert_contains(html, "<div>", "HTML preserved without markdown attribute");
     apex_free_string(html);
 
+    /* Reference-style links in markdown="1" blocks resolve definitions from full document */
+    const char *ref_in_block =
+        "<blockquote class=\"tip\" markdown=\"1\">\n"
+        "See the [extension page][ext] for details.\n"
+        "</blockquote>\n\n"
+        "[ext]: https://example.com/ext \"Extension page\"";
+    html = apex_markdown_to_html(ref_in_block, strlen(ref_in_block), &opts);
+    assert_contains(html, "<a href=\"https://example.com/ext\"", "markdown=\"1\" resolves reference-style links");
+    assert_contains(html, "extension page</a>", "markdown=\"1\" reference link text preserved");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("HTML Markdown Attributes Tests", had_failures, false);
 }

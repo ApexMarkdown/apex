@@ -13,6 +13,293 @@
 #include <ctype.h>
 #include <stdbool.h>
 
+typedef struct {
+    char **ids;
+    size_t count;
+    size_t capacity;
+} ref_id_list;
+
+static void ref_id_list_free(ref_id_list *list) {
+    if (!list) return;
+    if (list->ids) {
+        for (size_t i = 0; i < list->count; i++) {
+            free(list->ids[i]);
+        }
+        free(list->ids);
+    }
+    list->ids = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+static bool reference_id_matches(const char *ref_id, const char *text, size_t text_len) {
+    if (!ref_id || !text) return false;
+
+    const char *p = ref_id;
+    const char *t = text;
+    size_t remaining = text_len;
+
+    while (*p && isspace((unsigned char)*p)) p++;
+    while (remaining > 0 && isspace((unsigned char)*t)) {
+        t++;
+        remaining--;
+    }
+
+    while (*p && remaining > 0) {
+        if (tolower((unsigned char)*p) != tolower((unsigned char)*t)) {
+            if (isspace((unsigned char)*p) && isspace((unsigned char)*t)) {
+                while (*p && isspace((unsigned char)*p)) p++;
+                while (remaining > 0 && isspace((unsigned char)*t)) {
+                    t++;
+                    remaining--;
+                }
+                continue;
+            }
+            return false;
+        }
+        p++;
+        t++;
+        remaining--;
+    }
+
+    while (*p && isspace((unsigned char)*p)) p++;
+    while (remaining > 0 && isspace((unsigned char)*t)) {
+        t++;
+        remaining--;
+    }
+
+    return (*p == '\0' && remaining == 0);
+}
+
+static bool ref_id_list_contains(ref_id_list *list, const char *id, size_t id_len) {
+    for (size_t i = 0; i < list->count; i++) {
+        if (reference_id_matches(list->ids[i], id, id_len)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void ref_id_list_add(ref_id_list *list, const char *id, size_t id_len) {
+    if (!list || !id || id_len == 0) return;
+    if (ref_id_list_contains(list, id, id_len)) return;
+
+    char *copy = malloc(id_len + 1);
+    if (!copy) return;
+    memcpy(copy, id, id_len);
+    copy[id_len] = '\0';
+
+    if (list->count >= list->capacity) {
+        size_t new_capacity = list->capacity ? list->capacity * 2 : 16;
+        char **new_ids = realloc(list->ids, new_capacity * sizeof(char *));
+        if (!new_ids) {
+            free(copy);
+            return;
+        }
+        list->ids = new_ids;
+        list->capacity = new_capacity;
+    }
+
+    list->ids[list->count++] = copy;
+}
+
+static void collect_used_reference_ids(const char *text, ref_id_list *list) {
+    if (!text || !list) return;
+
+    bool in_code_block = false;
+    bool in_inline_code = false;
+    const char *p = text;
+
+    while (*p) {
+        if (!in_code_block && !in_inline_code && *p == '`') {
+            int backtick_count = 1;
+            const char *q = p + 1;
+            while (*q == '`') {
+                backtick_count++;
+                q++;
+            }
+            if (backtick_count >= 3) {
+                in_code_block = !in_code_block;
+            } else {
+                in_inline_code = !in_inline_code;
+            }
+            p = q;
+            continue;
+        }
+
+        if (!in_code_block && !in_inline_code && *p == '[') {
+            const char *label_start = p + 1;
+            const char *label_end = strchr(label_start, ']');
+            if (label_end && label_end[1] == '[') {
+                const char *ref_start = label_end + 2;
+                const char *ref_end = strchr(ref_start, ']');
+                if (ref_end) {
+                    if (ref_start == ref_end) {
+                        ref_id_list_add(list, label_start, (size_t)(label_end - label_start));
+                    } else {
+                        ref_id_list_add(list, ref_start, (size_t)(ref_end - ref_start));
+                    }
+                    p = ref_end + 1;
+                    continue;
+                }
+            }
+        }
+
+        p++;
+    }
+}
+
+static void collect_defined_reference_ids(const char *text, ref_id_list *list) {
+    if (!text || !list) return;
+
+    const char *p = text;
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        if (!line_end) line_end = p + strlen(p);
+
+        const char *content_start = line_start;
+        while (content_start < line_end && (*content_start == ' ' || *content_start == '\t')) {
+            content_start++;
+        }
+
+        if (content_start < line_end && *content_start == '[') {
+            const char *id_end = strchr(content_start + 1, ']');
+            if (id_end && id_end < line_end && id_end[1] == ':') {
+                ref_id_list_add(list, content_start + 1, (size_t)(id_end - (content_start + 1)));
+            }
+        }
+
+        p = (*line_end == '\n') ? line_end + 1 : line_end;
+    }
+}
+
+static char *extract_matching_reference_definitions(const char *full_doc, ref_id_list *needed) {
+    if (!full_doc || !needed || needed->count == 0) return NULL;
+
+    size_t capacity = 256;
+    size_t len = 0;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+
+    const char *p = full_doc;
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        if (!line_end) line_end = p + strlen(p);
+        size_t line_len = (size_t)(line_end - line_start);
+
+        const char *content_start = line_start;
+        while (content_start < line_end && (*content_start == ' ' || *content_start == '\t')) {
+            content_start++;
+        }
+
+        if (content_start < line_end && *content_start == '[') {
+            const char *id_end = strchr(content_start + 1, ']');
+            if (id_end && id_end < line_end && id_end[1] == ':') {
+                const char *id_start = content_start + 1;
+                size_t id_len = (size_t)(id_end - id_start);
+                bool needed_line = false;
+                for (size_t i = 0; i < needed->count; i++) {
+                    if (reference_id_matches(needed->ids[i], id_start, id_len)) {
+                        needed_line = true;
+                        break;
+                    }
+                }
+
+                if (needed_line) {
+                    if (len + line_len + 2 > capacity) {
+                        capacity = (len + line_len + 2) * 2;
+                        char *new_output = realloc(output, capacity);
+                        if (!new_output) {
+                            free(output);
+                            return NULL;
+                        }
+                        output = new_output;
+                    }
+                    if (len > 0) {
+                        output[len++] = '\n';
+                    }
+                    memcpy(output + len, line_start, line_len);
+                    len += line_len;
+                }
+            }
+        }
+
+        p = (*line_end == '\n') ? line_end + 1 : line_end;
+    }
+
+    if (len == 0) {
+        free(output);
+        return NULL;
+    }
+
+    output[len] = '\0';
+    return output;
+}
+
+/**
+ * Prepend reference definitions from the full document that are used in content
+ * but not already defined within content. Caller must free the returned string.
+ */
+static char *prepend_needed_reference_definitions(const char *full_doc, const char *content) {
+    if (!full_doc || !content || strcmp(full_doc, content) == 0) {
+        return NULL;
+    }
+
+    ref_id_list used = {0};
+    ref_id_list defined_in_content = {0};
+    collect_used_reference_ids(content, &used);
+    if (used.count == 0) {
+        return NULL;
+    }
+
+    collect_defined_reference_ids(content, &defined_in_content);
+
+    ref_id_list needed = {0};
+    for (size_t i = 0; i < used.count; i++) {
+        bool already_defined = false;
+        for (size_t j = 0; j < defined_in_content.count; j++) {
+            if (reference_id_matches(used.ids[i], defined_in_content.ids[j],
+                                     strlen(defined_in_content.ids[j]))) {
+                already_defined = true;
+                break;
+            }
+        }
+        if (!already_defined) {
+            ref_id_list_add(&needed, used.ids[i], strlen(used.ids[i]));
+        }
+    }
+
+    ref_id_list_free(&used);
+    ref_id_list_free(&defined_in_content);
+
+    if (needed.count == 0) {
+        ref_id_list_free(&needed);
+        return NULL;
+    }
+
+    char *defs = extract_matching_reference_definitions(full_doc, &needed);
+    ref_id_list_free(&needed);
+    if (!defs) return NULL;
+
+    size_t defs_len = strlen(defs);
+    size_t content_len = strlen(content);
+    char *result = malloc(defs_len + 2 + content_len + 1);
+    if (!result) {
+        free(defs);
+        return NULL;
+    }
+
+    memcpy(result, defs, defs_len);
+    result[defs_len] = '\n';
+    result[defs_len + 1] = '\n';
+    memcpy(result + defs_len + 2, content, content_len);
+    result[defs_len + 2 + content_len] = '\0';
+    free(defs);
+    return result;
+}
+
 /**
  * Find the next HTML tag with markdown attribute
  * Returns position of '<' or NULL if not found
@@ -142,9 +429,11 @@ static const char *find_closing_tag(const char *text, const char *tag_name) {
 /**
  * Process HTML tags with markdown attributes
  * If img_attrs is non-NULL, image attributes (e.g. width/height from ref defs) are applied to images in markdown="1" regions.
+ * full_doc is the original document used to resolve reference-style link definitions.
  */
-char *apex_process_html_markdown(const char *text, void *img_attrs) {
+static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, const char *full_doc) {
     if (!text) return NULL;
+    if (!full_doc) full_doc = text;
 
     image_attr_entry *attrs = (image_attr_entry *)img_attrs;
 
@@ -236,10 +525,17 @@ char *apex_process_html_markdown(const char *text, void *img_attrs) {
 
                 /* Recursively process nested divs with markdown="1" BEFORE parsing */
                 /* This ensures nested divs are processed before cmark-gfm sees them */
-                char *processed_content = apex_process_html_markdown(content, img_attrs);
+                char *processed_content = apex_process_html_markdown_impl(content, img_attrs, full_doc);
                 if (processed_content) {
                     free(content);
                     content = processed_content;
+                    content_len = strlen(content);
+                }
+
+                char *content_with_refs = prepend_needed_reference_definitions(full_doc, content);
+                if (content_with_refs) {
+                    free(content);
+                    content = content_with_refs;
                     content_len = strlen(content);
                 }
 
@@ -404,5 +700,9 @@ char *apex_process_html_markdown(const char *text, void *img_attrs) {
 
     *write_pos = '\0';
     return output;
+}
+
+char *apex_process_html_markdown(const char *text, void *img_attrs) {
+    return apex_process_html_markdown_impl(text, img_attrs, text);
 }
 
