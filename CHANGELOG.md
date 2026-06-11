@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.0.15] - 2026-06-11
+
+### Fixed
+
+- Reference-style links in markdown="1" HTML blocks (callouts, blockquotes, divs, etc.) now resolve link definitions from the full document instead of rendering as literal text.
+
 ## [1.0.14] - 2026-06-09
 
 ### Fixed
@@ -2944,6 +2950,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.0.15]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.15
 [1.0.14]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.14
 [1.0.13]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.13
 [1.0.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.12
