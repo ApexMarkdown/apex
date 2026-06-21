@@ -1159,6 +1159,40 @@ void test_grid_tables(void) {
     assert_not_contains(html, "<tr>\n<td>n1</td>\n<td>n2</td>", "Nested grid not separate top-level row");
     apex_free_string(html);
 
+    /* Fixture table 1: colspan + nested grid stays inside the table, not a stray paragraph */
+    const char *fixture_colspan_nested = "+-------------------+-------------------+\n"
+        "| Grid Tables       | Are Beautiful     |\n"
+        "+===================+===================+\n"
+        "| Easy to read      | In code and docs  |\n"
+        "+-------------------+-------------------+\n"
+        "| Exceptionally flexible and powerful   |\n"
+        "+-------+-------+-------+-------+-------+\n"
+        "| Col 1 | Col 2 | Col 3 | Col 4 | Col 5 |\n"
+        "+-------+-------+-------+-------+-------+\n";
+    html = apex_markdown_to_html(fixture_colspan_nested, strlen(fixture_colspan_nested), &opts);
+    assert_contains(html, "colspan=\"2\"", "Fixture colspan row in table");
+    assert_contains(html, "Exceptionally flexible and powerful", "Fixture colspan text in output");
+    assert_not_contains(html, "</table>\n<p>|", "Colspan row not leaked as paragraph after table");
+    assert_contains(html, "Col 1", "Nested grid Col 1 inside colspan cell");
+    assert_contains(html, "Col 5", "Nested grid Col 5 inside colspan cell");
+    apex_free_string(html);
+
+    /* Partial separator table (fixture table 2 pattern) */
+    const char *partial_grid = "+---------------------+----------+\n"
+        "| Property            | Earth    |\n"
+        "+=============+=======+==========+\n"
+        "|             | min   | -89.2 °C |\n"
+        "| Temperature +-------+----------+\n"
+        "| 1961-1990   | mean  | 14 °C    |\n"
+        "|             +-------+----------+\n"
+        "|             | min   | 56.7 °C  |\n"
+        "+-------------+-------+----------+\n";
+    html = apex_markdown_to_html(partial_grid, strlen(partial_grid), &opts);
+    assert_contains(html, "colspan=\"2\"", "Partial table Property spans two columns");
+    assert_contains(html, "rowspan=\"3\"", "Partial table Temperature rowspan");
+    assert_contains(html, "14 °C", "Partial table mean temperature");
+    apex_free_string(html);
+
     /* Multiline list cells */
     const char *list_cells = "+---+---+---+\n"
                              "| F | P | Notes |\n"
@@ -1167,8 +1201,9 @@ void test_grid_tables(void) {
                              "|     |    | - two |\n"
                              "+---+---+---+";
     html = apex_markdown_to_html(list_cells, strlen(list_cells), &opts);
-    assert_contains(html, "- one", "List item one in cell");
-    assert_contains(html, "- two", "List item two in cell");
+    assert_contains(html, "<ul>", "List cell renders as ul");
+    assert_contains(html, "<li>one</li>", "List item one in cell");
+    assert_contains(html, "<li>two</li>", "List item two in cell");
     assert_contains(html, "<table", "List cells table renders");
     apex_free_string(html);
 
