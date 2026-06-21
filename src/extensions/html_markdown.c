@@ -149,6 +149,57 @@ static void collect_used_reference_ids(const char *text, ref_id_list *list) {
     }
 }
 
+static void collect_used_footnote_ids(const char *text, ref_id_list *list) {
+    if (!text || !list) return;
+
+    bool in_code_block = false;
+    bool in_inline_code = false;
+    const char *p = text;
+
+    while (*p) {
+        if (!in_code_block && !in_inline_code && *p == '`') {
+            int backtick_count = 1;
+            const char *q = p + 1;
+            while (*q == '`') {
+                backtick_count++;
+                q++;
+            }
+            if (backtick_count >= 3) {
+                in_code_block = !in_code_block;
+            } else {
+                in_inline_code = !in_inline_code;
+            }
+            p = q;
+            continue;
+        }
+
+        if (!in_code_block && !in_inline_code && *p == '[' && p[1] == '^') {
+            const char *id_start = p + 1;
+            const char *id_end = strchr(p + 2, ']');
+            if (id_end) {
+                const char *line_start = p;
+                while (line_start > text && line_start[-1] != '\n') {
+                    line_start--;
+                }
+                const char *ws = line_start;
+                while (ws < p && (*ws == ' ' || *ws == '\t')) {
+                    ws++;
+                }
+                if (ws == p && id_end[1] == ':') {
+                    p = id_end + 1;
+                    continue;
+                }
+
+                ref_id_list_add(list, id_start, (size_t)(id_end - id_start));
+                p = id_end + 1;
+                continue;
+            }
+        }
+
+        p++;
+    }
+}
+
 static void collect_defined_reference_ids(const char *text, ref_id_list *list) {
     if (!text || !list) return;
 
@@ -238,11 +289,185 @@ static char *extract_matching_reference_definitions(const char *full_doc, ref_id
     return output;
 }
 
+static bool is_footnote_definition_line(const char *line_start, const char *line_end, const char *footnote_id) {
+    const char *content_start = line_start;
+    while (content_start < line_end && (*content_start == ' ' || *content_start == '\t')) {
+        content_start++;
+    }
+
+    if (content_start >= line_end || *content_start != '[') {
+        return false;
+    }
+
+    const char *id_end = strchr(content_start + 1, ']');
+    if (!id_end || id_end >= line_end || id_end[1] != ':') {
+        return false;
+    }
+
+    return reference_id_matches(footnote_id, content_start + 1, (size_t)(id_end - (content_start + 1)));
+}
+
+static bool is_footnote_definition_continuation(const char *line_start, size_t line_len) {
+    if (line_len == 0) {
+        return true;
+    }
+    if (*line_start == '\t') {
+        return true;
+    }
+    return line_len >= 4 && line_start[0] == ' ' && line_start[1] == ' ' &&
+           line_start[2] == ' ' && line_start[3] == ' ';
+}
+
+static char *extract_footnote_definition_block(const char *full_doc, const char *footnote_id) {
+    if (!full_doc || !footnote_id) return NULL;
+
+    const char *p = full_doc;
+    while (*p) {
+        const char *line_start = p;
+        const char *line_end = strchr(p, '\n');
+        if (!line_end) line_end = p + strlen(p);
+        size_t line_len = (size_t)(line_end - line_start);
+
+        if (is_footnote_definition_line(line_start, line_end, footnote_id)) {
+            size_t capacity = line_len + 64;
+            size_t len = 0;
+            char *output = malloc(capacity);
+            if (!output) return NULL;
+
+            if (len + line_len + 2 > capacity) {
+                capacity = line_len + 2;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+            }
+            memcpy(output + len, line_start, line_len);
+            len += line_len;
+
+            p = (*line_end == '\n') ? line_end + 1 : line_end;
+            while (*p) {
+                line_start = p;
+                line_end = strchr(p, '\n');
+                if (!line_end) line_end = p + strlen(p);
+                line_len = (size_t)(line_end - line_start);
+
+                if (!is_footnote_definition_continuation(line_start, line_len)) {
+                    break;
+                }
+
+                if (len + line_len + 2 > capacity) {
+                    capacity = (len + line_len + 2) * 2;
+                    char *new_output = realloc(output, capacity);
+                    if (!new_output) {
+                        free(output);
+                        return NULL;
+                    }
+                    output = new_output;
+                }
+                output[len++] = '\n';
+                memcpy(output + len, line_start, line_len);
+                len += line_len;
+
+                p = (*line_end == '\n') ? line_end + 1 : line_end;
+            }
+
+            output[len] = '\0';
+            return output;
+        }
+
+        p = (*line_end == '\n') ? line_end + 1 : line_end;
+    }
+
+    return NULL;
+}
+
+static char *extract_matching_footnote_definitions(const char *full_doc, ref_id_list *needed) {
+    if (!full_doc || !needed || needed->count == 0) return NULL;
+
+    size_t capacity = 256;
+    size_t len = 0;
+    char *output = malloc(capacity);
+    if (!output) return NULL;
+
+    for (size_t i = 0; i < needed->count; i++) {
+        if (needed->ids[i][0] != '^') {
+            continue;
+        }
+
+        char *block = extract_footnote_definition_block(full_doc, needed->ids[i]);
+        if (!block) continue;
+
+        size_t block_len = strlen(block);
+        if (len > 0) {
+            if (len + 1 >= capacity) {
+                capacity = (len + block_len + 2) * 2;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(block);
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+            }
+            output[len++] = '\n';
+        }
+
+        if (len + block_len + 2 > capacity) {
+            capacity = (len + block_len + 2) * 2;
+            char *new_output = realloc(output, capacity);
+            if (!new_output) {
+                free(block);
+                free(output);
+                return NULL;
+            }
+            output = new_output;
+        }
+
+        memcpy(output + len, block, block_len);
+        len += block_len;
+        free(block);
+    }
+
+    if (len == 0) {
+        free(output);
+        return NULL;
+    }
+
+    output[len] = '\0';
+    return output;
+}
+
+static ref_id_list filter_needed_ids(ref_id_list *used, ref_id_list *defined_in_content, bool footnotes_only) {
+    ref_id_list needed = {0};
+    for (size_t i = 0; i < used->count; i++) {
+        bool is_footnote = (used->ids[i][0] == '^');
+        if (footnotes_only != is_footnote) {
+            continue;
+        }
+
+        bool already_defined = false;
+        for (size_t j = 0; j < defined_in_content->count; j++) {
+            if (reference_id_matches(used->ids[i], defined_in_content->ids[j],
+                                     strlen(defined_in_content->ids[j]))) {
+                already_defined = true;
+                break;
+            }
+        }
+        if (!already_defined) {
+            ref_id_list_add(&needed, used->ids[i], strlen(used->ids[i]));
+        }
+    }
+    return needed;
+}
+
 /**
- * Prepend reference definitions from the full document that are used in content
- * but not already defined within content. Caller must free the returned string.
+ * Prepend reference and footnote definitions from the full document that are
+ * used in content but not already defined within content.
+ * Caller must free the returned string.
  */
-static char *prepend_needed_reference_definitions(const char *full_doc, const char *content) {
+static char *prepend_needed_definitions(const char *full_doc, const char *content) {
     if (!full_doc || !content || strcmp(full_doc, content) == 0) {
         return NULL;
     }
@@ -250,53 +475,69 @@ static char *prepend_needed_reference_definitions(const char *full_doc, const ch
     ref_id_list used = {0};
     ref_id_list defined_in_content = {0};
     collect_used_reference_ids(content, &used);
+    collect_used_footnote_ids(content, &used);
     if (used.count == 0) {
         return NULL;
     }
 
     collect_defined_reference_ids(content, &defined_in_content);
 
-    ref_id_list needed = {0};
-    for (size_t i = 0; i < used.count; i++) {
-        bool already_defined = false;
-        for (size_t j = 0; j < defined_in_content.count; j++) {
-            if (reference_id_matches(used.ids[i], defined_in_content.ids[j],
-                                     strlen(defined_in_content.ids[j]))) {
-                already_defined = true;
-                break;
-            }
-        }
-        if (!already_defined) {
-            ref_id_list_add(&needed, used.ids[i], strlen(used.ids[i]));
-        }
-    }
+    ref_id_list needed_links = filter_needed_ids(&used, &defined_in_content, false);
+    ref_id_list needed_footnotes = filter_needed_ids(&used, &defined_in_content, true);
 
     ref_id_list_free(&used);
     ref_id_list_free(&defined_in_content);
 
-    if (needed.count == 0) {
-        ref_id_list_free(&needed);
+    char *link_defs = needed_links.count > 0 ?
+        extract_matching_reference_definitions(full_doc, &needed_links) : NULL;
+    char *footnote_defs = needed_footnotes.count > 0 ?
+        extract_matching_footnote_definitions(full_doc, &needed_footnotes) : NULL;
+
+    ref_id_list_free(&needed_links);
+    ref_id_list_free(&needed_footnotes);
+
+    if (!link_defs && !footnote_defs) {
+        free(link_defs);
+        free(footnote_defs);
         return NULL;
     }
 
-    char *defs = extract_matching_reference_definitions(full_doc, &needed);
-    ref_id_list_free(&needed);
-    if (!defs) return NULL;
+    size_t defs_len = 0;
+    if (link_defs) defs_len += strlen(link_defs);
+    if (footnote_defs) {
+        if (defs_len > 0) defs_len++;
+        defs_len += strlen(footnote_defs);
+    }
 
-    size_t defs_len = strlen(defs);
     size_t content_len = strlen(content);
     char *result = malloc(defs_len + 2 + content_len + 1);
     if (!result) {
-        free(defs);
+        free(link_defs);
+        free(footnote_defs);
         return NULL;
     }
 
-    memcpy(result, defs, defs_len);
-    result[defs_len] = '\n';
-    result[defs_len + 1] = '\n';
-    memcpy(result + defs_len + 2, content, content_len);
-    result[defs_len + 2 + content_len] = '\0';
-    free(defs);
+    size_t offset = 0;
+    if (link_defs) {
+        size_t link_len = strlen(link_defs);
+        memcpy(result + offset, link_defs, link_len);
+        offset += link_len;
+        free(link_defs);
+    }
+    if (footnote_defs) {
+        if (offset > 0) {
+            result[offset++] = '\n';
+        }
+        size_t fn_len = strlen(footnote_defs);
+        memcpy(result + offset, footnote_defs, fn_len);
+        offset += fn_len;
+        free(footnote_defs);
+    }
+
+    result[offset++] = '\n';
+    result[offset++] = '\n';
+    memcpy(result + offset, content, content_len);
+    result[offset + content_len] = '\0';
     return result;
 }
 
@@ -446,6 +687,22 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
     char *write_pos = output;
     size_t remaining = output_capacity;
 
+#define ENSURE_OUTPUT_SPACE(needed) do { \
+    if ((needed) > remaining) { \
+        size_t used = (size_t)(write_pos - output); \
+        size_t min_capacity = used + (needed) + 1; \
+        output_capacity = (min_capacity < 1024) ? 2048 : min_capacity * 2; \
+        char *new_output = realloc(output, output_capacity + 1); \
+        if (!new_output) { \
+            free(output); \
+            return NULL; \
+        } \
+        output = new_output; \
+        write_pos = output + used; \
+        remaining = output_capacity - used; \
+    } \
+} while (0)
+
     while (*read_pos) {
         char tag_name[64];
         char markdown_attr[64];
@@ -532,7 +789,7 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
                     content_len = strlen(content);
                 }
 
-                char *content_with_refs = prepend_needed_reference_definitions(full_doc, content);
+                char *content_with_refs = prepend_needed_definitions(full_doc, content);
                 if (content_with_refs) {
                     free(content);
                     content = content_with_refs;
@@ -541,20 +798,17 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
 
                 /* Create parser and parse */
                 /* Use CMARK_OPT_UNSAFE to allow raw HTML (including nested divs) */
-                int cmark_opts = CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE;
+                int cmark_opts = CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE | CMARK_OPT_FOOTNOTES;
                 cmark_parser *parser = cmark_parser_new(cmark_opts);
                 if (parser) {
                     cmark_parser_feed(parser, content, content_len);
                     cmark_node *doc = cmark_parser_finish(parser);
 
                     if (doc) {
-                        /* Process IAL in inner content so block/span IAL (e.g. {: .lead }) are applied */
                         apex_process_ial_in_tree(doc, NULL);
-                        /* Apply image attributes (e.g. width/height from ref defs) so images in fenced divs get them */
                         if (attrs) {
                             apex_apply_image_attributes(doc, attrs);
                         }
-                        /* Render to HTML with IAL attributes injected */
                         char *html = apex_render_html_with_attributes(doc, cmark_opts);
                         if (html) {
                             /* Write opening tag (without markdown attribute) */
@@ -630,11 +884,10 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
                                 opening_tag[tag_written] = '\0';
                             }
 
-                            if (tag_written < remaining) {
-                                memcpy(write_pos, opening_tag, tag_written);
-                                write_pos += tag_written;
-                                remaining -= tag_written;
-                            }
+                            ENSURE_OUTPUT_SPACE(tag_written);
+                            memcpy(write_pos, opening_tag, tag_written);
+                            write_pos += tag_written;
+                            remaining -= tag_written;
 
                             /* Write parsed HTML (trim outer <p> tags if inline) */
                             char *html_content = html;
@@ -649,11 +902,10 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
                                 html_content[html_len] = '\0';
                             }
 
-                            if (html_len < remaining) {
-                                memcpy(write_pos, html_content, html_len);
-                                write_pos += html_len;
-                                remaining -= html_len;
-                            }
+                            ENSURE_OUTPUT_SPACE(html_len);
+                            memcpy(write_pos, html_content, html_len);
+                            write_pos += html_len;
+                            remaining -= html_len;
 
                             free(html);
                         }
@@ -699,6 +951,7 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
     }
 
     *write_pos = '\0';
+#undef ENSURE_OUTPUT_SPACE
     return output;
 }
 

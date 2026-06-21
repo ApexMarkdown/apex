@@ -36,6 +36,7 @@
 #include "extensions/sup_sub.h"
 #include "extensions/header_ids.h"
 #include "extensions/relaxed_tables.h"
+#include "extensions/grid_tables.h"
 #include "extensions/citations.h"
 #include "extensions/index.h"
 #include "extensions/fenced_divs.h"
@@ -3033,6 +3034,7 @@ apex_options apex_options_default(void) {
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
+    opts.enable_grid_tables = false;  /* Disabled by default - enable with --grid-tables */
 
     /* Critic markup mode (0=accept, 1=reject, 2=markup) */
     opts.critic_mode = 2;  /* Default: show markup */
@@ -5009,6 +5011,39 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Preprocess grid tables BEFORE spans/special_markers.
+     * Grid tables must process === separators before proofreader/highlight converts them.
+     * Converts Pandoc +---+ syntax to pipe tables for the normal table pipeline.
+     */
+    char *grid_tables_processed = NULL;
+    char *normalized_for_grid_tables = NULL;
+    if (options->enable_grid_tables && options->enable_tables) {
+        size_t pre_grid_len = strlen(text_ptr);
+        bool needs_newline_for_grid = (pre_grid_len > 0 &&
+                                       text_ptr[pre_grid_len - 1] != '\n' &&
+                                       text_ptr[pre_grid_len - 1] != '\r');
+        if (needs_newline_for_grid) {
+            normalized_for_grid_tables = malloc(pre_grid_len + 2);
+            if (normalized_for_grid_tables) {
+                memcpy(normalized_for_grid_tables, text_ptr, pre_grid_len);
+                normalized_for_grid_tables[pre_grid_len] = '\n';
+                normalized_for_grid_tables[pre_grid_len + 1] = '\0';
+            }
+        }
+
+        PROFILE_START(grid_tables_preprocess);
+        grid_tables_processed = apex_preprocess_grid_tables(normalized_for_grid_tables ? normalized_for_grid_tables : text_ptr);
+        PROFILE_END(grid_tables_preprocess);
+
+        if (normalized_for_grid_tables) {
+            free(normalized_for_grid_tables);
+        }
+
+        if (grid_tables_processed) {
+            text_ptr = grid_tables_processed;
+        }
+    }
+
     /* Preprocess bracketed spans [text]{IAL} */
     char *spans_preprocessed = NULL;
     if (options->enable_spans && (options->mode == APEX_MODE_UNIFIED || options->mode == APEX_MODE_KRAMDOWN)) {
@@ -6511,6 +6546,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (ial_preprocessed) free(ial_preprocessed);
     if (escaped_toc_protected) free(escaped_toc_protected);
     if (spans_preprocessed) free(spans_preprocessed);
+    if (grid_tables_processed) free(grid_tables_processed);
     if (quarto_callouts_processed) free(quarto_callouts_processed);
     if (py_callouts_processed) free(py_callouts_processed);
     if (includes_processed) free(includes_processed);

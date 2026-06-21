@@ -1005,6 +1005,177 @@ void test_inline_tables(void) {
     print_suite_title("Inline Tables Tests", had_failures, false);
 }
 
+void test_grid_tables(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Grid Tables Tests", false, true);
+
+    apex_options opts = apex_options_default();
+    opts.enable_tables = true;
+    opts.enable_grid_tables = true;
+    opts.relaxed_tables = false;
+    char *html;
+
+    /* Test basic grid table */
+    const char *basic_grid = "+---+---+\n"
+                             "| H1 | H2 |\n"
+                             "+===+===+\n"
+                             "| C1 | C2 |\n"
+                             "+---+---+";
+    html = apex_markdown_to_html(basic_grid, strlen(basic_grid), &opts);
+    assert_contains(html, "<table", "Basic grid table renders");
+    assert_contains(html, "<th>H1</th>", "Grid table header");
+    assert_contains(html, "<td>C1</td>", "Grid table cell");
+    apex_free_string(html);
+
+    /* Test grid table with header separator */
+    const char *header_sep_grid = "+---+---+\n"
+                                   "| H1 | H2 |\n"
+                                   "+===+===+\n"
+                                   "| C1 | C2 |\n"
+                                   "+---+---+";
+    html = apex_markdown_to_html(header_sep_grid, strlen(header_sep_grid), &opts);
+    assert_contains(html, "<table", "Grid table with header separator renders");
+    assert_contains(html, "<th>H1</th>", "Header separator table has header");
+    apex_free_string(html);
+
+    /* Test grid table with alignment */
+    const char *aligned_grid = "+:---+---+---:+\n"
+                                "| C  | L  |  R |\n"
+                                "+===+===+===+\n"
+                                "| A  | B  |  C |\n"
+                                "+---+---+---+";
+    html = apex_markdown_to_html(aligned_grid, strlen(aligned_grid), &opts);
+    assert_contains(html, "<table", "Aligned grid table renders");
+    apex_free_string(html);
+
+    /* Test grid table with footer separator */
+    const char *footer_grid = "+---+---+\n"
+                              "| H1 | H2 |\n"
+                              "+---+---+\n"
+                              "| C1 | C2 |\n"
+                              "+===+===+\n"
+                              "| F1 | F2 |\n"
+                              "+---+---+";
+    html = apex_markdown_to_html(footer_grid, strlen(footer_grid), &opts);
+    assert_contains(html, "<table", "Grid table with footer renders");
+    apex_free_string(html);
+
+    /* Test multi-line cells in grid table */
+    const char *multiline_grid = "+---+---+\n"
+                                  "| H1 | H2 |\n"
+                                  "+===+===+\n"
+                                  "| Line 1 | Cell 2 |\n"
+                                  "| Line 2 |        |\n"
+                                  "+---+---+";
+    html = apex_markdown_to_html(multiline_grid, strlen(multiline_grid), &opts);
+    assert_contains(html, "<table", "Multi-line grid table renders");
+    assert_contains(html, "Line 1", "Multi-line cell content preserved");
+    assert_contains(html, "Line 2", "Multi-line cell second line preserved");
+    apex_free_string(html);
+
+    /* Test grid table with caption (before) */
+    const char *caption_before = "[Grid Table Caption]\n\n"
+                                 "+---+---+\n"
+                                 "| H1 | H2 |\n"
+                                 "+===+===+\n"
+                                 "| C1 | C2 |\n"
+                                 "+---+---+";
+    html = apex_markdown_to_html(caption_before, strlen(caption_before), &opts);
+    assert_contains(html, "<table", "Grid table with caption before renders");
+    assert_contains(html, "<figure", "Grid table with caption wrapped in figure");
+    assert_contains(html, "Grid Table Caption", "Caption text present");
+    apex_free_string(html);
+
+    /* Test grid table with caption (after) */
+    const char *caption_after = "+---+---+\n"
+                                "| H1 | H2 |\n"
+                                "+===+===+\n"
+                                "| C1 | C2 |\n"
+                                "+---+---+\n\n"
+                                "[Grid Table Caption After]";
+    html = apex_markdown_to_html(caption_after, strlen(caption_after), &opts);
+    assert_contains(html, "<table", "Grid table with caption after renders");
+    assert_contains(html, "Grid Table Caption After", "Caption text after present");
+    apex_free_string(html);
+
+    /* Test grid table in code block (should not be parsed) */
+    const char *code_block_grid = "```\n"
+                                  "+---+---+\n"
+                                  "| H1 | H2 |\n"
+                                  "+===+===+\n"
+                                  "| C1 | C2 |\n"
+                                  "+---+---+\n"
+                                  "```";
+    html = apex_markdown_to_html(code_block_grid, strlen(code_block_grid), &opts);
+    assert_not_contains(html, "<table", "Grid table in code block not parsed");
+    assert_contains(html, "<code", "Code block preserved");
+    apex_free_string(html);
+
+    /* Test mixed grid and pipe tables */
+    const char *mixed_tables = "+---+---+\n"
+                               "| G1 | G2 |\n"
+                               "+===+===+\n"
+                               "| GC1 | GC2 |\n"
+                               "+---+---+\n\n"
+                               "| P1 | P2 |\n"
+                               "|----|----|\n"
+                               "| PC1 | PC2 |";
+    html = apex_markdown_to_html(mixed_tables, strlen(mixed_tables), &opts);
+    assert_contains(html, "<table", "Mixed tables render");
+    assert_contains(html, "G1", "Grid table content present");
+    assert_contains(html, "P1", "Pipe table content present");
+    apex_free_string(html);
+
+    /* Test grid table disabled */
+    opts.enable_grid_tables = false;
+    html = apex_markdown_to_html(basic_grid, strlen(basic_grid), &opts);
+    apex_free_string(html);
+
+    /* Complex colspan row spanning full table width (no closing table separator) */
+    opts.enable_grid_tables = true;
+    opts.enable_tables = true;
+    const char *colspan_grid = "+---+---+\n"
+                               "| H1 | H2 |\n"
+                               "+===+===+\n"
+                               "| C1 | C2 |\n"
+                               "+---+---+\n"
+                               "| Spans both columns here             |\n";
+    html = apex_markdown_to_html(colspan_grid, strlen(colspan_grid), &opts);
+    assert_contains(html, "colspan=\"2\"", "Colspan row spans both columns");
+    assert_contains(html, "Spans both columns", "Colspan cell content preserved");
+    apex_free_string(html);
+
+    /* Nested grid inside colspan cell stays in one cell */
+    const char *nested_in_colspan = "+---+---+\n"
+                                    "| A | B |\n"
+                                    "+===+===+\n"
+                                    "| Wide cell                           |\n"
+                                    "+---+---+---+\n"
+                                    "| n1 | n2 | n3 |\n"
+                                    "+---+---+---+";
+    html = apex_markdown_to_html(nested_in_colspan, strlen(nested_in_colspan), &opts);
+    assert_contains(html, "colspan=\"2\"", "Nested grid parent has colspan");
+    assert_contains(html, "Wide cell", "Wide cell text preserved");
+    assert_not_contains(html, "<tr>\n<td>n1</td>\n<td>n2</td>", "Nested grid not separate top-level row");
+    apex_free_string(html);
+
+    /* Multiline list cells */
+    const char *list_cells = "+---+---+---+\n"
+                             "| F | P | Notes |\n"
+                             "+===+===+===+\n"
+                             "| Ban | $1 | - one |\n"
+                             "|     |    | - two |\n"
+                             "+---+---+---+";
+    html = apex_markdown_to_html(list_cells, strlen(list_cells), &opts);
+    assert_contains(html, "- one", "List item one in cell");
+    assert_contains(html, "- two", "List item two in cell");
+    assert_contains(html, "<table", "List cells table renders");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Grid Tables Tests", had_failures, false);
+}
+
 /**
  * Test advanced footnotes
  */

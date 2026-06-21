@@ -1366,6 +1366,20 @@ void test_html_markdown_attributes(void) {
     assert_contains(html, "extension page</a>", "markdown=\"1\" reference link text preserved");
     apex_free_string(html);
 
+    /* Reference footnotes in markdown="1" blocks resolve definitions from full document */
+    const char *fn_in_block =
+        "<blockquote class=\"tip\" markdown=\"1\">\n"
+        "See footnote[^note] here.\n"
+        "</blockquote>\n\n"
+        "[^note]: Footnote text.";
+    html = apex_markdown_to_html(fn_in_block, strlen(fn_in_block), &opts);
+    assert_contains(html, "class=\"footnote-ref\"", "markdown=\"1\" resolves reference footnotes");
+    assert_contains(html, "href=\"#fn-note\"", "markdown=\"1\" footnote links to block anchor");
+    assert_contains(html, "<section class=\"footnotes\"", "markdown=\"1\" footnotes section rendered in block");
+    assert_contains(html, "Footnote text.", "markdown=\"1\" footnote definition rendered in block");
+    assert_not_contains(html, "See footnote[^note]", "markdown=\"1\" footnote not left literal");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("HTML Markdown Attributes Tests", had_failures, false);
 }

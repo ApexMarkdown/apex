@@ -132,6 +132,7 @@ let package = Package(
                 "src/extensions/sup_sub.c",
                 "src/extensions/header_ids.c",
                 "src/extensions/relaxed_tables.c",
+                "src/extensions/grid_tables.c",
                 "src/extensions/citations.c",
                 "src/extensions/index.c",
                 "src/extensions/syntax_highlight.c",

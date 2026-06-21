@@ -61,6 +61,7 @@ typedef struct apex_cli_option_mask {
     bool enable_quarto_callouts;
     bool enable_definition_lists;
     bool enable_spans;
+    bool enable_grid_tables;
     bool enable_autolink;
     bool enable_strikethrough;
     bool obfuscate_emails;
@@ -137,6 +138,7 @@ static void apex_cli_restore_argv_options(apex_options *opts,
     if (m->enable_quarto_callouts) opts->enable_quarto_callouts = snap->enable_quarto_callouts;
     if (m->enable_definition_lists) opts->enable_definition_lists = snap->enable_definition_lists;
     if (m->enable_spans) opts->enable_spans = snap->enable_spans;
+    if (m->enable_grid_tables) opts->enable_grid_tables = snap->enable_grid_tables;
     if (m->enable_autolink) opts->enable_autolink = snap->enable_autolink;
     if (m->enable_strikethrough) opts->enable_strikethrough = snap->enable_strikethrough;
     if (m->obfuscate_emails) opts->obfuscate_emails = snap->obfuscate_emails;
@@ -1036,6 +1038,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)\n");
     fprintf(stderr, "  --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
+    fprintf(stderr, "  --grid-tables          Enable Pandoc grid table syntax\n");
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
     fprintf(stderr, "  --no-unsafe            Disable raw HTML in output\n");
     fprintf(stderr, "  --no-wikilinks         Disable wiki link syntax\n");
@@ -2179,6 +2182,9 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i], "--no-tables") == 0) {
             cli_opt_mask.enable_tables = true;
             options.enable_tables = false;
+        } else if (strcmp(argv[i], "--grid-tables") == 0 || strcmp(argv[i], "--enable-grid-tables") == 0) {
+            cli_opt_mask.enable_grid_tables = true;
+            options.enable_grid_tables = true;
         } else if (strcmp(argv[i], "--no-footnotes") == 0) {
             cli_opt_mask.enable_footnotes = true;
             options.enable_footnotes = false;

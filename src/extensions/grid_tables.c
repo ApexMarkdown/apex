@@ -395,6 +395,28 @@ static bool has_same_column_structure(const char *line1, const char *line2) {
     return pipe_count1 > 0 && pipe_count1 == pipe_count2;
 }
 
+static char *str_append(char *dest, const char *add);
+
+/**
+ * Append a line to a string with newline separator
+ */
+static char *str_append_line(char *dest, const char *line) {
+    if (!line) return dest;
+    if (!dest) return str_append(NULL, line);
+    dest = str_append(dest, "\n");
+    return str_append(dest, line);
+}
+
+static char *str_append(char *dest, const char *add) {
+    if (!add) return dest;
+    size_t old_len = dest ? strlen(dest) : 0;
+    size_t add_len = strlen(add);
+    char *new_str = realloc(dest, old_len + add_len + 1);
+    if (!new_str) return dest;
+    memcpy(new_str + old_len, add, add_len + 1);
+    return new_str;
+}
+
 /**
  * Extract cell content from grid table row lines
  * Grid table rows can span multiple lines until the next separator
@@ -415,6 +437,13 @@ static char **extract_cells_from_row_lines(char **row_lines, size_t row_line_cou
 
         /* Skip separator lines - they shouldn't be in row_lines, but double-check */
         if (is_grid_table_separator(line)) {
+            /* Nested grid separator inside colspan cell: preserve as literal content */
+            if (*cell_count > 0) {
+                size_t idx = (*cell_count > 0) ? 0 : 0;
+                if (cells[idx]) {
+                    cells[idx] = str_append_line(cells[idx], line);
+                }
+            }
             continue;
         }
 
@@ -582,12 +611,113 @@ static char *create_pipe_separator(int *alignments, size_t column_count) {
     return sep;
 }
 
+static bool is_nested_grid_separator(const char *line, size_t table_cols) {
+    if (!line || !is_grid_table_separator(line)) return false;
+    if (is_header_separator(line)) return false;
+    size_t sep_cols = 0;
+    int tmp[MAX_COLUMNS] = {0};
+    parse_alignment(line, tmp, &sep_cols);
+    return sep_cols > table_cols;
+}
+
 /**
- * Convert grid table rows to pipe table format
- * Groups lines between separators into rows and handles multi-line cells
+ * Check if table contains partial separators (|...+...+...) that require HTML output.
  */
+static bool table_has_nested_grid(char **lines, size_t line_count, size_t table_cols) {
+    if (table_cols == 0) return false;
+    for (size_t i = 0; i < line_count; i++) {
+        if (lines[i] && is_nested_grid_separator(lines[i], table_cols)) return true;
+    }
+    return false;
+}
+
+static bool table_has_partial_separators(char **lines, size_t line_count) {
+    for (size_t i = 0; i < line_count; i++) {
+        if (!lines[i]) continue;
+        const char *p = lines[i];
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p != '+' && *p != '|') continue;
+        if (is_grid_table_separator(lines[i])) continue;
+        /* Mixed row: starts with | and contains internal +---+ pattern */
+        if (*p == '|') {
+            bool seen_pipe = false;
+            for (const char *q = p; *q && *q != '\n'; q++) {
+                if (*q == '|') seen_pipe = true;
+                if (seen_pipe && *q == '+' && q[1] == '-') return true;
+            }
+        }
+    }
+    return false;
+}
+
+char *apex_preprocess_grid_tables(const char *text);
+
+static char *preprocess_cell_grid_content(const char *content) {
+    if (!content || !strchr(content, '+')) return NULL;
+    return apex_preprocess_grid_tables(content);
+}
+
+static char *escape_pipes_in_multiline_cell(const char *content) {
+    if (!content || !strchr(content, '\n')) return NULL;
+    if (!strchr(content, '|') && !strchr(content, '-')) return NULL;
+
+    size_t len = strlen(content);
+    char *out = malloc(len * 6 + 1);
+    if (!out) return NULL;
+
+    char *p = out;
+    for (const char *s = content; *s; s++) {
+        if (*s == '|') {
+            memcpy(p, "&#124;", 6);
+            p += 6;
+        } else if (*s == '\n') {
+            memcpy(p, "<br>", 4);
+            p += 4;
+        } else {
+            *p++ = *s;
+        }
+    }
+    *p = '\0';
+    return out;
+}
+
+static char *trim_grid_cell_border_pipes(char *content) {
+    if (!content) return content;
+    char *start = content;
+    while (*start == ' ' || *start == '\t') start++;
+    char *end = content + strlen(content);
+    while (end > start && (end[-1] == ' ' || end[-1] == '\t' || end[-1] == '\n' || end[-1] == '\r')) end--;
+    if (*start == '|') start++;
+    while (end > start && (end[-1] == ' ' || end[-1] == '\t')) end--;
+    if (end > start && end[-1] == '|') end--;
+    while (end > start && end[-1] == ' ') end--;
+    size_t len = (size_t)(end - start);
+    char *out = malloc(len + 1);
+    if (!out) return content;
+    memcpy(out, start, len);
+    out[len] = '\0';
+    free(content);
+    return out;
+}
+
+static char *convert_grid_table(char **lines, size_t line_count,
+                                int *alignments, size_t column_count,
+                                bool as_html);
 static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
                                         int *alignments, size_t column_count) {
+    return convert_grid_table(lines, line_count, alignments, column_count, false);
+}
+static char *convert_grid_table_to_html(char **lines, size_t line_count,
+                                        int *alignments, size_t column_count) {
+    return convert_grid_table(lines, line_count, alignments, column_count, true);
+}
+
+/**
+ * Convert grid table rows to pipe or HTML format
+ */
+static char *convert_grid_table(char **lines, size_t line_count,
+                                int *alignments, size_t column_count,
+                                bool as_html) {
     if (!lines || line_count == 0 || !alignments || column_count == 0) {
         return NULL;
     }
@@ -599,7 +729,7 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
             total_size += strlen(lines[i]) + column_count * 4 + 10;
         }
     }
-    total_size += 200; /* Extra for separator and formatting */
+    total_size += as_html ? 4096 : 200;
 
     char *output = malloc(total_size);
     if (!output) return NULL;
@@ -607,14 +737,21 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
     char *p = output;
     size_t remaining = total_size;
 
-    /* Add blank lines at start of table for proper recognition */
-    *p++ = '\n';
-    *p++ = '\n';
-    remaining -= 2;
+    if (as_html) {
+        memcpy(p, "\n\n<table>\n", 10);
+        p += 10;
+        remaining -= 10;
+    } else {
+        /* Add blank lines at start of table for proper recognition */
+        *p++ = '\n';
+        *p++ = '\n';
+        remaining -= 2;
+    }
 
     bool separator_processed = false;
     bool header_written = false;
-    bool rows_written = false;  /* Track if we've written any rows */
+    bool rows_written = false;
+    bool in_thead = false;
 
     /* First, find the header separator to identify header vs body */
     size_t header_sep_idx = 0;
@@ -634,8 +771,8 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
         const char *line = lines[i];
         if (!line) continue;
 
-        /* Check if this is a separator line */
-        if (is_grid_table_separator(line)) {
+        /* Check if this is a separator line (table boundary, not nested grid in cell) */
+        if (is_grid_table_separator(line) && !is_nested_grid_separator(line, column_count)) {
             bool is_header_sep = is_header_separator(line);
             bool is_footer_sep = false;
 
@@ -669,27 +806,35 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
 
                     /* Collect lines that form a single logical row */
                     const char *first_line = NULL;
+                    bool colspan_block = false;
                     for (size_t j = line_idx; j < i; j++) {
-                        if (lines[j] && !is_grid_table_separator(lines[j]) && strchr(lines[j], '|')) {
+                        if (!lines[j]) continue;
+
+                        if (is_grid_table_separator(lines[j])) {
+                            if (is_nested_grid_separator(lines[j], column_count)) {
+                                if (first_line) row_line_count++;
+                                continue;
+                            }
+                            if (first_line) break;
+                            continue;
+                        }
+
+                        if (strchr(lines[j], '|')) {
                             if (!first_line) {
                                 first_line = lines[j];
                                 row_line_start = j;
                                 row_line_count = 1;
+                                colspan_block = (count_cells_in_line(first_line) < column_count);
+                            } else if (colspan_block) {
+                                row_line_count++;
                             } else if (has_same_column_structure(first_line, lines[j])) {
-                                /* Same column structure - part of multi-line cell */
                                 row_line_count++;
                             } else {
-                                /* Different column structure - new row */
-                                /* Note: Lines with nested separators (like +-------+ within cells) will be
-                                 * treated as separate rows, which is correct. The nested separator will be
-                                 * included as literal text in the cell content. */
                                 break;
                             }
                         } else if (first_line) {
-                            /* Blank line or separator - end of current row */
-                            break;
+                            row_line_count++;
                         } else {
-                            /* Skip blank lines before first content line */
                             line_idx++;
                         }
                     }
@@ -703,38 +848,239 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
                             }
 
                             size_t cell_count = 0;
-                            char **cells = extract_cells_from_row_lines(row_lines_array, row_line_count, &cell_count);
+                            char **cells = NULL;
+                            bool colspan_group = (count_cells_in_line(row_lines_array[0]) < column_count);
+
+                            if (colspan_group) {
+                                cells = malloc(MAX_COLUMNS * sizeof(char*));
+                                if (cells) {
+                                    char *merged = NULL;
+                                    for (size_t j = 0; j < row_line_count; j++) {
+                                        merged = str_append_line(merged, row_lines_array[j]);
+                                    }
+                                    cells[0] = merged;
+                                    cell_count = 1;
+                                }
+                                if (cells && cells[0] && cell_count == 1 && column_count > 1) {
+                                    cells[0] = trim_grid_cell_border_pipes(cells[0]);
+                                }
+                            } else {
+                                cells = extract_cells_from_row_lines(row_lines_array, row_line_count, &cell_count);
+                            }
 
                                 if (cells && cell_count > 0) {
+                                bool force_colspan = (row_line_count > 0 && row_lines_array[0] &&
+                                                      count_cells_in_line(row_lines_array[0]) < column_count);
                                 /* Write header separator after first header row, before first body row */
                                 if (is_header_section && !header_written && !separator_processed && !is_footer_sep) {
                                     header_written = true;
                                 } else if (!is_header_section && !separator_processed && !is_footer_sep) {
-                                    /* This is first body row - write separator before it */
-                                    char *sep = create_pipe_separator(alignments, column_count);
-                                    if (sep) {
-                                        size_t sep_len = strlen(sep);
-                                        if (sep_len < remaining) {
-                                            memcpy(p, sep, sep_len);
-                                            p += sep_len;
-                                            remaining -= sep_len;
-                                            *p++ = '\n';
-                                            remaining--;
+                                    if (!as_html) {
+                                        char *sep = create_pipe_separator(alignments, column_count);
+                                        if (sep) {
+                                            size_t sep_len = strlen(sep);
+                                            if (sep_len < remaining) {
+                                                memcpy(p, sep, sep_len);
+                                                p += sep_len;
+                                                remaining -= sep_len;
+                                                *p++ = '\n';
+                                                remaining--;
+                                            }
+                                            free(sep);
                                         }
-                                        free(sep);
                                     }
                                     separator_processed = true;
                                 }
 
-                                /* Convert to pipe table row */
+                                /* Convert to pipe or HTML table row */
                                 if (remaining > column_count * 50) {
+                                    bool use_colspan = false;
+                                    const char *colspan_content = NULL;
+                                    if (column_count > 1 && cells) {
+                                        size_t non_empty = 0;
+                                        for (size_t ci = 0; ci < cell_count; ci++) {
+                                            if (cells[ci]) {
+                                                const char *t = cells[ci];
+                                                while (*t && isspace((unsigned char)*t)) t++;
+                                                if (*t) {
+                                                    non_empty++;
+                                                    colspan_content = cells[ci];
+                                                }
+                                            }
+                                        }
+                                        use_colspan = (non_empty == 1) || force_colspan;
+                                    }
+                                    if (use_colspan && force_colspan && cells && cell_count > 0) {
+                                        /* Collapse to single cell for colspan row */
+                                        char *merged_one = NULL;
+                                        for (size_t ci = 0; ci < cell_count; ci++) {
+                                            if (cells[ci]) {
+                                                const char *t = cells[ci];
+                                                while (*t && isspace((unsigned char)*t)) t++;
+                                                if (*t) {
+                                                    merged_one = strdup(cells[ci]);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (!merged_one && cells[0]) merged_one = strdup(cells[0]);
+                                        if (merged_one) {
+                                            for (size_t ci = 0; ci < cell_count; ci++) free(cells[ci]);
+                                            cells[0] = trim_grid_cell_border_pipes(merged_one);
+                                            cell_count = 1;
+                                        }
+                                    }
+
+                                    char *colspan_processed = NULL;
+                                    if (as_html && use_colspan && cells[0]) {
+                                        colspan_processed = preprocess_cell_grid_content(cells[0]);
+                                    }
+
+                                    if (as_html) {
+                                        if (is_header_section && !separator_processed && !in_thead) {
+                                            const char *thead = "<thead>\n";
+                                            size_t tl = strlen(thead);
+                                            if (tl < remaining) {
+                                                memcpy(p, thead, tl);
+                                                p += tl;
+                                                remaining -= tl;
+                                                in_thead = true;
+                                            }
+                                        } else if (!is_header_section && in_thead) {
+                                            const char *end = "</thead>\n<tbody>\n";
+                                            size_t el = strlen(end);
+                                            if (el < remaining) {
+                                                memcpy(p, end, el);
+                                                p += el;
+                                                remaining -= el;
+                                                in_thead = false;
+                                            }
+                                        } else if (!is_header_section && !in_thead && !rows_written) {
+                                            const char *tbody = "<tbody>\n";
+                                            size_t bl = strlen(tbody);
+                                            if (bl < remaining) {
+                                                memcpy(p, tbody, bl);
+                                                p += bl;
+                                                remaining -= bl;
+                                            }
+                                        }
+
+                                        const char *tr = "<tr>\n";
+                                        size_t trl = strlen(tr);
+                                        if (trl < remaining) {
+                                            memcpy(p, tr, trl);
+                                            p += trl;
+                                            remaining -= trl;
+                                        }
+
+                                        for (size_t k = 0; k < column_count; k++) {
+                                            if (use_colspan && k > 0) continue;
+
+                                            const char *cell_content = (k < cell_count && cells[k]) ? cells[k] : "";
+                                            if (use_colspan && k == 0) {
+                                                cell_content = colspan_processed ? colspan_processed : cells[0];
+                                            }
+
+                                            const char *tag = (is_header_section && !separator_processed) ? "th" : "td";
+                                            char open[256];
+                                            if (use_colspan && column_count > 1) {
+                                                snprintf(open, sizeof(open),
+                                                         "<%s markdown=\"1\" colspan=\"%zu\">\n\n",
+                                                         tag, column_count);
+                                            } else {
+                                                snprintf(open, sizeof(open),
+                                                         "<%s markdown=\"1\">\n\n", tag);
+                                            }
+                                            size_t ol = strlen(open);
+                                            if (ol < remaining) {
+                                                memcpy(p, open, ol);
+                                                p += ol;
+                                                remaining -= ol;
+                                            }
+                                            size_t cl = strlen(cell_content);
+                                            if (cl < remaining) {
+                                                memcpy(p, cell_content, cl);
+                                                p += cl;
+                                                remaining -= cl;
+                                            }
+                                            char close[16];
+                                            snprintf(close, sizeof(close), "\n\n</%s>\n", tag);
+                                            size_t cll = strlen(close);
+                                            if (cll < remaining) {
+                                                memcpy(p, close, cll);
+                                                p += cll;
+                                                remaining -= cll;
+                                            }
+                                        }
+
+                                        const char *endtr = "</tr>\n";
+                                        size_t etl = strlen(endtr);
+                                        if (etl < remaining) {
+                                            memcpy(p, endtr, etl);
+                                            p += etl;
+                                            remaining -= etl;
+                                        }
+
+                                        if (colspan_processed) free(colspan_processed);
+                                        rows_written = true;
+                                    } else {
+                                    if (use_colspan && cells[0]) {
+                                        char *tmp_trim = strdup(cells[0]);
+                                        if (tmp_trim) tmp_trim = trim_grid_cell_border_pipes(tmp_trim);
+                                        const char *content = tmp_trim ? tmp_trim : cells[0];
+
+                                        *p++ = '|';
+                                        remaining--;
+                                        *p++ = ' ';
+                                        remaining--;
+                                        size_t cl = strlen(content);
+                                        if (cl < remaining - 10) {
+                                            memcpy(p, content, cl);
+                                            p += cl;
+                                            remaining -= cl;
+                                        }
+                                        *p++ = ' ';
+                                        remaining--;
+                                        *p++ = '|';
+                                        remaining--;
+                                        const char *marker = " << |";
+                                        size_t ml = strlen(marker);
+                                        if (ml < remaining) {
+                                            memcpy(p, marker, ml);
+                                            p += ml;
+                                            remaining -= ml;
+                                        }
+                                        *p++ = '\n';
+                                        remaining--;
+                                        if (tmp_trim) free(tmp_trim);
+                                        rows_written = true;
+                                    } else {
                                     *p++ = '|';
                                     remaining--;
 
                                     for (size_t k = 0; k < column_count; k++) {
-                                        const char *cell_content = (k < cell_count && cells[k]) ? cells[k] : "";
+                                        const char *cell_content = "";
+                                        char *escaped = NULL;
+                                        char *tmp_trim = NULL;
+                                        if (use_colspan) {
+                                            cell_content = (k == 0) ? cells[0] : "<<";
+                                        } else if (k < cell_count && cells[k]) {
+                                            cell_content = cells[k];
+                                        }
 
-                                        /* Trim leading/trailing whitespace from cell content */
+                                        if (use_colspan && k == 0 && cell_content && *cell_content) {
+                                            tmp_trim = strdup(cell_content);
+                                            if (tmp_trim) {
+                                                tmp_trim = trim_grid_cell_border_pipes(tmp_trim);
+                                                cell_content = tmp_trim;
+                                            }
+                                        }
+
+                                        if (cell_content && !use_colspan && strchr(cell_content, '\n')) {
+                                            escaped = escape_pipes_in_multiline_cell(cell_content);
+                                            if (escaped) cell_content = escaped;
+                                        }
+
                                         const char *content_start = cell_content;
                                         const char *content_end = cell_content + strlen(cell_content);
                                         while (content_start < content_end && isspace((unsigned char)*content_start)) {
@@ -745,26 +1091,26 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
                                         }
                                         size_t content_len = content_end - content_start;
 
-                                        if (content_len > 0 && content_len < remaining - 5) {
-                                            *p++ = ' ';
-                                            remaining--;
+                                        *p++ = ' ';
+                                        remaining--;
+                                        if (content_len > 0 && content_len < remaining - 2) {
                                             memcpy(p, content_start, content_len);
                                             p += content_len;
                                             remaining -= content_len;
-                                            *p++ = ' ';
-                                            remaining--;
-                                        } else {
-                                            *p++ = ' ';
-                                            remaining--;
                                         }
-
+                                        *p++ = ' ';
+                                        remaining--;
                                         *p++ = '|';
                                         remaining--;
+                                        if (escaped) free(escaped);
+                                        if (tmp_trim) free(tmp_trim);
                                     }
 
                                     *p++ = '\n';
                                     remaining--;
-                                    rows_written = true;  /* Mark that we've written a row */
+                                    rows_written = true;
+                                    }
+                                    }
                                 }
 
                                 /* Free cells */
@@ -786,23 +1132,64 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
 
             /* Write separator after header rows if this is the header separator */
             if (is_header_sep && !is_footer_sep && !separator_processed && header_written) {
-                char *sep = create_pipe_separator(alignments, column_count);
-                if (sep) {
-                    size_t sep_len = strlen(sep);
-                    if (sep_len < remaining) {
-                        memcpy(p, sep, sep_len);
-                        p += sep_len;
-                        remaining -= sep_len;
-                        *p++ = '\n';
-                        remaining--;
+                if (!as_html) {
+                    char *sep = create_pipe_separator(alignments, column_count);
+                    if (sep) {
+                        size_t sep_len = strlen(sep);
+                        if (sep_len < remaining) {
+                            memcpy(p, sep, sep_len);
+                            p += sep_len;
+                            remaining -= sep_len;
+                            *p++ = '\n';
+                            remaining--;
+                        }
+                        free(sep);
                     }
-                    free(sep);
                 }
                 separator_processed = true;
             } else if (!is_header_sep && !is_footer_sep && !separator_processed && rows_written) {
-                /* Regular separator (not header) - write separator after rows have been written */
-                /* But only if we haven't written header separator yet */
                 if (!has_header_sep || i > header_sep_idx) {
+                    if (!as_html) {
+                        char *sep = create_pipe_separator(alignments, column_count);
+                        if (sep) {
+                            size_t sep_len = strlen(sep);
+                            if (sep_len < remaining) {
+                                memcpy(p, sep, sep_len);
+                                p += sep_len;
+                                remaining -= sep_len;
+                                *p++ = '\n';
+                                remaining--;
+                            }
+                            free(sep);
+                        }
+                    }
+                    separator_processed = true;
+                }
+            }
+
+            row_start = i + 1;
+            continue;
+        }
+    }
+
+    /* Process final rows after last separator */
+    if (row_start < line_count) {
+        size_t first_content = row_start;
+        for (; first_content < line_count; first_content++) {
+            if (lines[first_content] && strchr(lines[first_content], '|')) break;
+        }
+
+        bool final_colspan = (first_content < line_count &&
+                              count_cells_in_line(lines[first_content]) < column_count);
+
+        if (final_colspan) {
+            char *merged = NULL;
+            for (size_t j = row_start; j < line_count; j++) {
+                if (lines[j]) merged = str_append_line(merged, lines[j]);
+            }
+
+            if (merged && remaining > column_count * 50) {
+                if (!as_html && rows_written) {
                     char *sep = create_pipe_separator(alignments, column_count);
                     if (sep) {
                         size_t sep_len = strlen(sep);
@@ -817,15 +1204,58 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
                     }
                     separator_processed = true;
                 }
+
+                char *escaped = escape_pipes_in_multiline_cell(merged);
+                const char *content = escaped ? escaped : merged;
+                char *trimmed = NULL;
+                trimmed = strdup(content);
+                if (trimmed) {
+                    trimmed = trim_grid_cell_border_pipes(trimmed);
+                    content = trimmed;
+                }
+
+                if (as_html) {
+                    const char *tr = "<tr>\n<td markdown=\"1\" colspan=\"";
+                    /* write html row - simplified */
+                    char open[64];
+                    snprintf(open, sizeof(open), "<tr>\n<td markdown=\"1\" colspan=\"%zu\">\n\n", column_count);
+                    size_t ol = strlen(open);
+                    if (ol < remaining) { memcpy(p, open, ol); p += ol; remaining -= ol; }
+                    size_t cl = strlen(content);
+                    if (cl < remaining) { memcpy(p, content, cl); p += cl; remaining -= cl; }
+                    const char *close = "\n\n</td>\n</tr>\n";
+                    size_t cll = strlen(close);
+                    if (cll < remaining) { memcpy(p, close, cll); p += cll; remaining -= cll; }
+                } else {
+                    *p++ = '|';
+                    remaining--;
+                    *p++ = ' ';
+                    remaining--;
+                    size_t cl = strlen(content);
+                    if (cl < remaining - 10) {
+                        memcpy(p, content, cl);
+                        p += cl;
+                        remaining -= cl;
+                    }
+                    *p++ = ' ';
+                    remaining--;
+                    *p++ = '|';
+                    remaining--;
+                    const char *marker = " << |";
+                    size_t ml = strlen(marker);
+                    if (ml < remaining) {
+                        memcpy(p, marker, ml);
+                        p += ml;
+                        remaining -= ml;
+                    }
+                    *p++ = '\n';
+                    remaining--;
+                }
+                if (escaped) free(escaped);
+                if (trimmed) free(trimmed);
+                free(merged);
             }
-
-            row_start = i + 1;
-            continue;
-        }
-    }
-
-    /* Process final rows after last separator */
-    if (row_start < line_count) {
+        } else {
         char **row_lines = malloc((line_count - row_start) * sizeof(char*));
         if (row_lines) {
             size_t row_line_count = 0;
@@ -888,23 +1318,40 @@ static char *convert_grid_table_to_pipe(char **lines, size_t line_count,
             }
             free(row_lines);
         }
+        }
     }
 
-    /* Add blank line at end of table */
-    if (p > output && p[-1] != '\n') {
+    if (as_html) {
+        if (in_thead) {
+            const char *end = "</thead>\n<tbody>\n";
+            size_t el = strlen(end);
+            if (el < remaining) {
+                memcpy(p, end, el);
+                p += el;
+                remaining -= el;
+            }
+        }
+        const char *close = "</tbody>\n</table>\n\n";
+        size_t cl = strlen(close);
+        if (cl < remaining) {
+            memcpy(p, close, cl);
+            p += cl;
+            remaining -= cl;
+        }
+    } else {
+        /* Add blank line at end of table */
+        if (p > output && p[-1] != '\n') {
+            *p++ = '\n';
+            remaining--;
+        }
         *p++ = '\n';
         remaining--;
     }
-    *p++ = '\n';
-    remaining--;
 
     *p = '\0';
     return output;
 }
 
-/**
- * Main preprocessing function
- */
 char *apex_preprocess_grid_tables(const char *text) {
     if (!text) return NULL;
 
@@ -1005,20 +1452,36 @@ char *apex_preprocess_grid_tables(const char *text) {
             }
 
             if (table_line_count > 0) {
-                /* Parse alignment from separator lines and find maximum column count */
                 int alignments[MAX_COLUMNS] = {0};
                 size_t column_count = 0;
+                size_t first_sep_cols = 0;
 
-                /* First pass: find maximum column count from all separators */
+                /* Column count: first separator defines base; header separator may widen */
                 for (size_t i = 0; i < table_line_count; i++) {
-                    if (is_grid_table_separator(table_lines[i])) {
+                    if (is_grid_table_separator(table_lines[i]) && first_sep_cols == 0) {
+                        parse_alignment(table_lines[i], alignments, &first_sep_cols);
+                        column_count = first_sep_cols;
+                    }
+                }
+
+                for (size_t i = 0; i < table_line_count; i++) {
+                    if (is_header_separator(table_lines[i])) {
                         size_t sep_cols = 0;
                         int sep_alignments[MAX_COLUMNS] = {0};
                         parse_alignment(table_lines[i], sep_alignments, &sep_cols);
                         if (sep_cols > column_count) {
                             column_count = sep_cols;
-                            /* Use alignments from the separator with most columns */
                             memcpy(alignments, sep_alignments, sizeof(sep_alignments));
+                        }
+                        break;
+                    }
+                }
+
+                if (column_count == 0) {
+                    for (size_t i = 0; i < table_line_count; i++) {
+                        if (is_grid_table_separator(table_lines[i])) {
+                            parse_alignment(table_lines[i], alignments, &column_count);
+                            if (column_count > 0) break;
                         }
                     }
                 }
@@ -1040,11 +1503,21 @@ char *apex_preprocess_grid_tables(const char *text) {
                 }
 
                 /* Convert grid table to pipe table */
-                char *pipe_table = convert_grid_table_to_pipe(table_lines, table_line_count,
-                                                              alignments, column_count);
+                char *pipe_table = NULL;
+                char *html_table = NULL;
 
-                if (pipe_table) {
-                    size_t pipe_len = strlen(pipe_table);
+                if (table_has_partial_separators(table_lines, table_line_count)) {
+                    html_table = convert_grid_table_to_html(table_lines, table_line_count,
+                                                            alignments, column_count);
+                } else {
+                    pipe_table = convert_grid_table_to_pipe(table_lines, table_line_count,
+                                                            alignments, column_count);
+                }
+
+                char *table_output = html_table ? html_table : pipe_table;
+
+                if (table_output) {
+                    size_t pipe_len = strlen(table_output);
 
                     /* Ensure we have enough space */
                     if (remaining < pipe_len) {
@@ -1060,12 +1533,12 @@ char *apex_preprocess_grid_tables(const char *text) {
 
                     /* Write the table (it already has blank lines at start and end) */
                     if (pipe_len <= remaining) {
-                        memcpy(write, pipe_table, pipe_len);
+                        memcpy(write, table_output, pipe_len);
                         write += pipe_len;
                         remaining -= pipe_len;
                     }
 
-                    free(pipe_table);
+                    free(table_output);
                 }
 
                 /* Free table lines */

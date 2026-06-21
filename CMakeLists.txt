@@ -6,7 +6,7 @@ if(POLICY CMP0000)
 endif()
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Minimum CMake policy version" FORCE)
 
-project(apex VERSION 1.0.15 LANGUAGES C)
+project(apex VERSION 1.1.0 LANGUAGES C)
 
 # Set C standard
 set(CMAKE_C_STANDARD 99)
@@ -141,6 +141,7 @@ set(APEX_LIB_SOURCES
     src/extensions/sup_sub.c
     src/extensions/header_ids.c
     src/extensions/relaxed_tables.c
+    src/extensions/grid_tables.c
     src/extensions/citations.c
     src/extensions/index.c
     src/extensions/syntax_highlight.c

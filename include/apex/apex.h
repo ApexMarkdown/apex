@@ -20,9 +20,9 @@ typedef struct cmark_node cmark_node;
 #endif
 
 #define APEX_VERSION_MAJOR 1
-#define APEX_VERSION_MINOR 0
-#define APEX_VERSION_PATCH 15
-#define APEX_VERSION_STRING "1.0.15"
+#define APEX_VERSION_MINOR 1
+#define APEX_VERSION_PATCH 0
+#define APEX_VERSION_STRING "1.1.0"
 
 /**
  * Processor compatibility modes
@@ -114,6 +114,7 @@ typedef struct apex_options {
     bool enable_marked_extensions;
     bool enable_divs;  /* Enable Pandoc fenced divs (Unified mode only) */
     bool enable_spans;  /* Enable bracketed spans [text]{IAL} (Pandoc-style) */
+    bool enable_grid_tables;  /* Enable Pandoc grid table syntax (preprocess to pipe tables) */
 
     /* Critic markup mode */
     int critic_mode;  /* 0=markup (default), 1=accept, 2=reject */

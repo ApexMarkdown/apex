@@ -391,6 +391,46 @@ static char *apex_process_relaxed_tables_impl(const char *text,
             fenced_len = 0;
         }
 
+        /* Skip grid tables (lines starting with +) so relaxed table detection
+         * does not treat grid borders as pipe table rows. */
+        if (!in_fenced_code) {
+            const char *line_check = line_start;
+            while (line_check < line_end && (*line_check == ' ' || *line_check == '\t')) {
+                line_check++;
+            }
+            if (line_check < line_end && *line_check == '+') {
+                if (rows_count > 0) {
+                    for (size_t i = 0; i < rows_count; i++) {
+                        if (rows[i].len < remaining) {
+                            memcpy(write, rows[i].start, rows[i].len);
+                            write += rows[i].len;
+                            remaining -= rows[i].len;
+                            output_len += rows[i].len;
+                            if (has_newline && remaining > 0) {
+                                *write++ = '\n';
+                                remaining--;
+                                output_len++;
+                            }
+                        }
+                    }
+                    rows_count = 0;
+                }
+                if (line_len < remaining) {
+                    memcpy(write, line_start, line_len);
+                    write += line_len;
+                    remaining -= line_len;
+                    output_len += line_len;
+                    if (has_newline && remaining > 0) {
+                        *write++ = '\n';
+                        remaining--;
+                        output_len++;
+                    }
+                }
+                read = has_newline ? line_end + 1 : line_end;
+                continue;
+            }
+        }
+
         /* Check if this is a blank line */
         if (is_blank_line(line_start, line_len)) {
             /* Blank line: if we have accumulated table rows, process them */
