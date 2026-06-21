@@ -1,5 +1,5 @@
 
-[![Version: 1.0.14](https://img.shields.io/badge/Version-1.0.14-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1617](https://img.shields.io/badge/Tests-0/1617-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.0.15](https://img.shields.io/badge/Version-1.0.15-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1667](https://img.shields.io/badge/Tests-0/1667-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -305,7 +305,7 @@ apex input.md --mode kramdown
 ### All Options
 
 ```
-Apex Markdown Processor v1.0.14
+Apex Markdown Processor v1.1.0
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -394,6 +394,7 @@ Options:
   --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml. Same as -t strict-xhtml.
   --reject               Reject all Critic Markup changes (revert edits)
   --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)
+  --[no-]grid-tables     Enable or disable Pandoc grid table syntax (+---+ borders; disabled by default)
   --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)
   --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).
                           VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.

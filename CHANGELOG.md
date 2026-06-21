@@ -2,6 +2,37 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.1] - 2026-06-21
+
+### Changed
+
+- Version bumped to 1.1.0.
+
+### New
+
+- Pandoc grid table syntax via --grid-tables / --enable-grid-tables (opt-in; converts +---+ grids to tables before parsing).
+- Enable_grid_tables API option (default off; requires enable_tables).
+- --no-grid-tables explicitly disables Pandoc grid table preprocessing (grid tables remain off by default in unified mode).
+- Grid-tables / grid_tables metadata key enables or disables Pandoc grid tables per document.
+
+### Improved
+
+- Grid tables support colspan rows, nested grids inside cells, multiline list content in cells, and HTML output for tables with partial in-cell separators.
+- Embedded nested grids inside grid table cells convert to HTML tables so they display inside markdown="1" cells (pipe tables are not parsed there).
+- Headerless single-row grid tables emit a valid pipe-table header row instead of a lone delimiter line.
+
+### Fixed
+
+- Reference-style links in markdown="1" HTML blocks (callouts, blockquotes, divs, etc.) now resolve definitions from the full document instead of rendering as literal text.
+- Reference footnotes [^id] in markdown="1" blocks now resolve definitions from the full document and render footnote refs and a footnotes section inside the block.
+- Markdown="1" blocks with footnotes no longer render as empty elements when parsed HTML exceeds the initial output buffer.
+- Grid tables no longer treat every row with fewer pipe cells than columns as a full-row colspan (e.g. Property | Earth headers now render as separate cells with correct colspan, not one merged cell).
+- Colspan rows with nested grids no longer leak raw pipe or grid syntax as paragraphs after the table; nested grids inside colspan cells render as HTML tables.
+- Grid tables with in-row partial separators (+---+ inside a row) now parse Pandoc-style layouts with rowspan/colspan (e.g. Temperature / 1961-1990 spanning rows with min/mean/min data).
+- Multiline grid table cells (lists, multiple lines) now render markdown correctly via HTML cells instead of literal text with <br> tags.
+- Lines starting with "+" alone (e.g. list items) are no longer mistaken for grid tables; only "+---" / "+===" border rows start a grid block.
+- Invalid or unconvertible grid blocks now preserve the original source lines instead of silently dropping content.
+
 ## [1.0.15] - 2026-06-11
 
 ### Fixed
@@ -2950,6 +2981,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.1]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.1
 [1.0.15]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.15
 [1.0.14]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.14
 [1.0.13]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.13
