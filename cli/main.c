@@ -1038,7 +1038,6 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]one-line-definitions  Enable or disable one-line definition lists (Term :: Definition)\n");
     fprintf(stderr, "  --[no-]spans           Enable or disable bracketed spans [text]{IAL} (Pandoc-style, enabled by default in unified mode)\n");
     fprintf(stderr, "  --no-tables            Disable table support\n");
-    fprintf(stderr, "  --grid-tables          Enable Pandoc grid table syntax\n");
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
     fprintf(stderr, "  --no-unsafe            Disable raw HTML in output\n");
     fprintf(stderr, "  --no-wikilinks         Disable wiki link syntax\n");
@@ -1052,6 +1051,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --strict-xhtml         Polyglot XHTML/XML for parsers (xmlns, application/xhtml+xml meta; implies --xhtml). Mutually exclusive with --xhtml. Same as -t strict-xhtml.\n");
     fprintf(stderr, "  --reject               Reject all Critic Markup changes (revert edits)\n");
     fprintf(stderr, "  --[no-]relaxed-tables  Enable or disable relaxed table parsing (no separator rows required)\n");
+    fprintf(stderr, "  --[no-]grid-tables     Enable or disable Pandoc grid table syntax (+---+ borders; disabled by default)\n");
     fprintf(stderr, "  --[no-]per-cell-alignment  Enable or disable per-cell alignment markers (colons at start/end of cells, enabled by default in unified mode)\n");
     fprintf(stderr, "  --script VALUE         Inject <script> tags before </body> (standalone) or at end of HTML (snippet).\n");
     fprintf(stderr, "                          VALUE can be a path, URL, or shorthand (mermaid, mathjax, katex). Can be used multiple times or as a comma-separated list.\n");
@@ -2185,6 +2185,9 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i], "--grid-tables") == 0 || strcmp(argv[i], "--enable-grid-tables") == 0) {
             cli_opt_mask.enable_grid_tables = true;
             options.enable_grid_tables = true;
+        } else if (strcmp(argv[i], "--no-grid-tables") == 0) {
+            cli_opt_mask.enable_grid_tables = true;
+            options.enable_grid_tables = false;
         } else if (strcmp(argv[i], "--no-footnotes") == 0) {
             cli_opt_mask.enable_footnotes = true;
             options.enable_footnotes = false;

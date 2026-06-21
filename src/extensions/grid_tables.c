@@ -16,18 +16,24 @@
 #define MAX_COLUMNS 64
 
 /**
- * Check if a line starts with '+' (after whitespace)
- * This indicates a potential grid table
+ * Check if a line starts a grid table block (separator row: +---+ or +===+).
+ * Bare lines starting with '+' alone are not grid tables.
  */
 static bool is_grid_table_start(const char *line) {
     if (!line) return false;
 
-    /* Skip whitespace */
     while (*line == ' ' || *line == '\t') {
         line++;
     }
 
-    return *line == '+';
+    if (*line != '+') return false;
+    line++;
+
+    while (*line == ' ' || *line == '\t') {
+        line++;
+    }
+
+    return *line == '-' || *line == '=';
 }
 
 /**
@@ -95,6 +101,24 @@ static bool is_grid_table_separator(const char *line) {
     }
 
     return has_dash_or_equal;
+}
+
+static bool grid_block_has_separator(char **lines, size_t line_count) {
+    for (size_t i = 0; i < line_count; i++) {
+        if (lines[i] && is_grid_table_separator(lines[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool grid_block_has_content_rows(char **lines, size_t line_count) {
+    for (size_t i = 0; i < line_count; i++) {
+        if (lines[i] && strchr(lines[i], '|') && !is_grid_table_separator(lines[i])) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -1919,13 +1943,16 @@ static char *preprocess_grid_text(const char *text, bool embed_as_html) {
             }
 
             if (table_line_count > 0) {
-                char *table_output = convert_collected_grid_table(table_lines, table_line_count,
-                                                                    embed_as_html);
+                char *table_output = NULL;
+                if (grid_block_has_separator(table_lines, table_line_count) &&
+                    grid_block_has_content_rows(table_lines, table_line_count)) {
+                    table_output = convert_collected_grid_table(table_lines, table_line_count,
+                                                                embed_as_html);
+                }
 
                 if (table_output) {
                     size_t pipe_len = strlen(table_output);
 
-                    /* Ensure we have enough space */
                     if (remaining < pipe_len) {
                         size_t written = write - output;
                         cap = (written + pipe_len + 100) * 2;
@@ -1944,6 +1971,31 @@ static char *preprocess_grid_text(const char *text, bool embed_as_html) {
                     }
 
                     free(table_output);
+                } else {
+                    /* Not a valid grid or conversion failed: preserve source lines */
+                    for (size_t i = 0; i < table_line_count; i++) {
+                        if (!table_lines[i]) continue;
+                        size_t tl = strlen(table_lines[i]);
+                        if (remaining < tl + 2) {
+                            size_t written = write - output;
+                            cap = (written + tl + 100) * 2;
+                            char *new_output = realloc(output, cap);
+                            if (new_output) {
+                                output = new_output;
+                                write = output + written;
+                                remaining = cap - written;
+                            }
+                        }
+                        if (tl <= remaining) {
+                            memcpy(write, table_lines[i], tl);
+                            write += tl;
+                            remaining -= tl;
+                        }
+                        if (remaining > 0) {
+                            *write++ = '\n';
+                            remaining--;
+                        }
+                    }
                 }
 
                 for (size_t i = 0; i < table_line_count; i++) {

@@ -1207,6 +1207,39 @@ void test_grid_tables(void) {
     assert_contains(html, "<table", "List cells table renders");
     apex_free_string(html);
 
+    /* Plus-prefixed prose lines are not mistaken for grid tables */
+    const char *plus_prose = "+ Item one\n+ Item two\n\nParagraph after.";
+    html = apex_markdown_to_html(plus_prose, strlen(plus_prose), &opts);
+    assert_contains(html, "Item one", "Plus prose lines preserved as list items");
+    assert_contains(html, "Paragraph after", "Text after plus lines preserved");
+    assert_not_contains(html, "<table", "Plus prose is not converted to a table");
+    apex_free_string(html);
+
+    /* Block with +---+ lines but no valid grid content is preserved on failure */
+    const char *invalid_grid = "+---+\nThis line has no pipes\n+---+";
+    html = apex_markdown_to_html(invalid_grid, strlen(invalid_grid), &opts);
+    assert_contains(html, "This line has no pipes", "Invalid grid block content preserved");
+    apex_free_string(html);
+
+    /* Grid tables disabled by default in unified mode */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    html = apex_markdown_to_html(basic_grid, strlen(basic_grid), &unified_opts);
+    assert_not_contains(html, "<th>H1</th>", "Grid tables off by default in unified mode");
+    apex_free_string(html);
+
+    /* Pandoc-style simple grid (manual example pattern) */
+    const char *pandoc_simple = "+---------------+---------------+\n"
+        "| Fruit         | Price         |\n"
+        "+:==============+==============:+\n"
+        "| Bananas       | $1.34         |\n"
+        "| Oranges       | $2.10         |\n"
+        "+---------------+---------------+\n";
+    html = apex_markdown_to_html(pandoc_simple, strlen(pandoc_simple), &opts);
+    assert_contains(html, "Bananas", "Pandoc-style aligned grid renders");
+    assert_contains(html, "$1.34", "Pandoc-style grid cell content");
+    assert_contains(html, "<table", "Pandoc-style grid produces table");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Grid Tables Tests", had_failures, false);
 }

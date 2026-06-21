@@ -2679,6 +2679,12 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->relaxed_tables = false;
             }
+        } else if (strcasecmp(key, "grid-tables") == 0 || strcasecmp(key, "grid_tables") == 0) {
+            if (is_true_value(value)) {
+                options->enable_grid_tables = true;
+            } else if (is_false_value(value)) {
+                options->enable_grid_tables = false;
+            }
         } else if (strcasecmp(key, "alpha-lists") == 0 || strcasecmp(key, "alpha_lists") == 0) {
             if (is_true_value(value)) {
                 options->allow_alpha_lists = true;
