@@ -443,8 +443,30 @@ char *apex_apply_syntax_highlighting(const char *html, const char *tool, bool li
                 continue;
             }
 
+            /* Per-block line numbers from Quarto/Pandoc fence attr markers */
+            bool block_line_numbers = line_numbers;
+            if (!block_line_numbers && pre_start > html) {
+                size_t lookback = (size_t)(pre_start - html);
+                if (lookback > 512) {
+                    lookback = 512;
+                }
+                const char *region_start = pre_start - lookback;
+                char region_buf[513];
+                memcpy(region_buf, region_start, lookback);
+                region_buf[lookback] = '\0';
+                if (strstr(region_buf, "data-linenos=\"true\"")) {
+                    block_line_numbers = true;
+                }
+            }
+            if (!block_line_numbers) {
+                const char *linenos_attr = strstr(pre_start, "data-linenos=\"true\"");
+                if (linenos_attr && linenos_attr < pre_tag_end) {
+                    block_line_numbers = true;
+                }
+            }
+
             /* Run syntax highlighter */
-            char *highlighted = highlight_code_block(code, language, tool, line_numbers, ansi_output, theme);
+            char *highlighted = highlight_code_block(code, language, tool, block_line_numbers, ansi_output, theme);
             free(code);
 
             if (highlighted && *highlighted) {

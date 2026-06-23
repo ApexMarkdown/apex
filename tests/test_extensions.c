@@ -378,6 +378,31 @@ void test_quarto_mode(void) {
     assert_contains(html, "class=\"line\">Line three", "line block third line");
     apex_free_string(html);
 
+    const char *code_fence_attrs =
+        "```{.python filename=\"run.py\"}\n"
+        "print(\"hello\")\n"
+        "```\n";
+    html = apex_markdown_to_html(code_fence_attrs, strlen(code_fence_attrs), &opts);
+    assert_contains(html, "data-filename=\"run.py\"", "code fence filename attribute on pre");
+    assert_contains(html, "print", "code fence body preserved");
+    assert_not_contains(html, "{.python", "code fence braced info string normalized");
+    assert_not_contains(html, "apex-code-fence-attrs", "code fence marker comment stripped");
+    apex_free_string(html);
+
+    const char *code_fence_linenos =
+        "```{.python linenos=true}\n"
+        "print(\"hi\")\n"
+        "```\n";
+    html = apex_markdown_to_html(code_fence_linenos, strlen(code_fence_linenos), &opts);
+    assert_contains(html, "data-linenos=\"true\"", "code fence linenos attribute on pre");
+    apex_free_string(html);
+
+    apex_options unified_opts2 = apex_options_for_mode(APEX_MODE_UNIFIED);
+    unified_opts2.enable_quarto_extensions = false;
+    html = apex_markdown_to_html("```{.python}\nx\n```", 18, &unified_opts2);
+    assert_contains(html, "{.python}", "non-quarto mode keeps braced fence info string");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Quarto Mode Tests", had_failures, false);
 }

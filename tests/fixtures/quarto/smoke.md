@@ -52,3 +52,9 @@ ii) Beta
 |   preserved spaces
 | Line three
 
+## Code fence attributes
+
+```{.python filename="run.py"}
+print("hello")
+```
+

@@ -20,6 +20,7 @@
 #include "extensions/critic.h"
 #include "extensions/callouts.h"
 #include "extensions/raw_content.h"
+#include "extensions/code_fence_attrs.h"
 #include "extensions/quarto_lists.h"
 #include "extensions/includes.h"
 #include "extensions/toc.h"
@@ -5390,12 +5391,20 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Pandoc/Quarto raw content ({=format}) before other fence preprocessors */
     char *raw_content_processed = NULL;
+    char *code_fence_attrs_processed = NULL;
     if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
         PROFILE_START(raw_content_preprocess);
         raw_content_processed = apex_preprocess_raw_content(text_ptr, options->unsafe);
         PROFILE_END(raw_content_preprocess);
         if (raw_content_processed) {
             text_ptr = raw_content_processed;
+        }
+
+        PROFILE_START(code_fence_attrs_preprocess);
+        code_fence_attrs_processed = apex_preprocess_code_fence_attrs(text_ptr);
+        PROFILE_END(code_fence_attrs_preprocess);
+        if (code_fence_attrs_processed) {
+            text_ptr = code_fence_attrs_processed;
         }
     }
 
@@ -6447,6 +6456,16 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    if ((options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) && html) {
+        PROFILE_START(code_fence_attrs_postprocess);
+        char *fence_html = apex_postprocess_code_fence_attrs_html(html);
+        PROFILE_END(code_fence_attrs_postprocess);
+        if (fence_html) {
+            free(html);
+            html = fence_html;
+        }
+    }
+
     /* Replace abbreviations if any were found */
     if (abbreviations && html) {
         PROFILE_START(abbreviations);
@@ -6614,6 +6633,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (spans_preprocessed) free(spans_preprocessed);
     if (grid_tables_processed) free(grid_tables_processed);
     if (raw_content_processed) free(raw_content_processed);
+    if (code_fence_attrs_processed) free(code_fence_attrs_processed);
     if (example_lists_processed) free(example_lists_processed);
     if (line_blocks_processed) free(line_blocks_processed);
     if (roman_lists_processed) free(roman_lists_processed);
