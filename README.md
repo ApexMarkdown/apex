@@ -1,5 +1,5 @@
 
-[![Version: 1.1.1](https://img.shields.io/badge/Version-1.1.1-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1667](https://img.shields.io/badge/Tests-0/1667-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.2](https://img.shields.io/badge/Version-1.1.2-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1667](https://img.shields.io/badge/Tests-0/1667-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -21,22 +21,41 @@ flavor. So I'm building Apex with the goal of making all of
 the most popular features of various processors available in
 one tool.
 
+## Table of Contents
+
+- [Features](#features)
+  - [Compatibility Modes](#compatibility-modes)
+  - [Markdown Extensions](#markdown-extensions)
+  - [Document Features](#document-features)
+  - [Citations and Bibliography](#citations-and-bibliography)
+  - [Indices](#indices)
+  - [Critic Markup](#critic-markup)
+  - [Output Options](#output-options)
+  - [Advanced Features](#advanced-features)
+  - [Extensibility and Plugins](#extensibility-and-plugins)
+- [Installation](#installation)
+- [Basic Usage](#basic-usage)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
+
 ## Features
 
 ### Compatibility Modes
 
-- **Multiple compatibility modes**: CommonMark, GFM, MultiMarkdown, Kramdown, and Unified (all features)
-- **Mode-specific features**: Each mode enables appropriate extensions for maximum compatibility
+- **Multiple compatibility modes**: [CommonMark, GFM, MultiMarkdown, Kramdown, and Unified](https://github.com/ApexMarkdown/apex/wiki/Modes) (all features)
+- **Mode-specific features**: Each mode enables appropriate extensions for maximum compatibility ([more info](https://github.com/ApexMarkdown/apex/wiki/Modes))
 
 ### Markdown Extensions
 
-- **Tables**: GitHub Flavored Markdown tables with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, captions before/after tables including Pandoc-style `Table: Caption` and `: Caption` syntax, and individual cell alignment using colons `:Left`, `Right:`, `:Center:`)
+- **Tables**: [GitHub Flavored Markdown tables](https://github.com/ApexMarkdown/apex/wiki/Tables) with advanced features (rowspan via `^^`, colspan via empty cells/`<<`, captions before/after tables including Pandoc-style `Table: Caption` and `: Caption` syntax, and individual cell alignment using colons `:Left`, `Right:`, `:Center:`)
+- **Grid tables**: Pandoc-style `+---+` grid tables (opt-in with `--grid-tables`; [more info](https://github.com/ApexMarkdown/apex/wiki/Tables#grid-tables-pandoc-style))
 - **Table caption positioning**: Control caption placement with `--captions above` or `--captions below` (default: below)
 - **Table caption IAL**: IAL attributes in table captions (e.g., `: Caption {#id .class}`) are extracted and applied to the table element
 - **Relaxed tables**: Support for tables without separator rows (Kramdown-style)
 - **Headerless tables**: Support for tables that start with alignment rows (separator rows) without header rows; column alignment is automatically applied
-- **Footnotes**: Three syntaxes supported (reference-style, Kramdown inline, MultiMarkdown inline)
-- **Definition lists**: Kramdown-style definition lists with Markdown content support
+- **Footnotes**: Three syntaxes supported (reference-style, Kramdown inline, MultiMarkdown inline) ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
+- **Definition lists**: Kramdown-style definition lists with Markdown content support ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
 - **Task lists**: GitHub-style checkboxes (`- [ ]` and `- [x]`)
 - **Strikethrough**: `~~text~~` syntax from GFM
 - **Smart typography**: Automatic conversion of quotes, dashes, ellipses, and more
@@ -44,50 +63,52 @@ one tool.
 
 - **Syntax highlighting**: External syntax highlighting for fenced code blocks via Pygments, Skylighting, or Shiki with `--code-highlight` flag.
 
-  Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers`
+  Supports language-aware highlighting, auto-detection, and line numbers with `--code-line-numbers` ([more info](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options))
 
-- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension`
+- **Wiki links**: `[[Page Name]]`, `[[Page Name|Display Text]]`, and `[[Page Name#Section]]` syntax with configurable link targets via `--wikilink-space` and `--wikilink-extension` ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
 - **Abbreviations**: Three syntaxes (classic MMD, MMD 6 reference, MMD 6 inline)
-- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.), plus optional Python-Markdown (`!!!`) and Quarto (`:::`) callout parsing behind explicit flags
+- **Callouts**: Bear/Obsidian-style callouts with collapsible support (`> [!NOTE]`, `> [!WARNING]`, etc.), plus optional Python-Markdown (`!!!`) and Quarto (`:::`) callout parsing behind explicit flags ([more info](https://github.com/ApexMarkdown/apex/wiki/Callouts))
 - **GitHub emoji**: 350+ emoji support (`:rocket:`, `:heart:`, etc.)
 
 ### Document Features
 
 
 
-- **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks
-- **Metadata variables**: Insert metadata values with `[%key]` syntax
+- **Metadata blocks**: YAML front matter, MultiMarkdown metadata, and Pandoc title blocks ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
+- **Metadata variables**: Insert metadata values with `[%key]` syntax ([more info](https://github.com/ApexMarkdown/apex/wiki/Configuration))
 - **Metadata transforms**: Transform metadata values with `[%key:transform]` syntax
 
   Supports case conversion, string manipulation, regex replacement, date formatting, and more.
 
   See [Metadata Transforms](https://github.com/ApexMarkdown/apex/wiki/Metadata-Transforms) for complete documentation
-- **Metadata control of options**: Control command-line options via metadata
+- **Metadata control of options**: [Control command-line options via metadata](https://github.com/ApexMarkdown/apex/wiki/Configuration)
   - set boolean flags (`indices: false`, `wikilinks: true`) and string options (`bibliography: refs.bib`, `title: My Document`, `wikilink-space: dash`, `wikilink-extension: html`) directly in document metadata for per-document configuration
-- **Table of Contents**: Automatic TOC generation with depth control using HTML (`<!--TOC-->`), MMD (`{{TOC}}` / `{{TOC:2-4}}`), and Kramdown `{:toc}` markers. Headings marked with `{:.no_toc}` are excluded from the generated TOC.
-- **File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`), with support for address ranges and wildcard/glob patterns such as `{{file.*}}`, `{{*.md}}`, and `{{c?de.py}}`.
+- **Table of Contents**: Automatic TOC generation with depth control using HTML (`<!--TOC-->`), MMD (`{{TOC}}` / `{{TOC:2-4}}`), and Kramdown `{:toc}` markers. Headings marked with `{:.no_toc}` are excluded from the generated TOC. ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
+- **File includes**: Three syntaxes (Marked `<<[file]`, MultiMarkdown `{{file}}`, iA Writer `/file`), with support for address ranges and wildcard/glob patterns such as `{{file.*}}`, `{{*.md}}`, and `{{c?de.py}}`. ([more info](https://github.com/ApexMarkdown/apex/wiki/Multi-File-Documents))
 - **Markdown combiner (`--combine`)**: Concatenate one or more Markdown files into a single Markdown stream, expanding all include syntaxes.
 
-  When a `SUMMARY.md` file is provided, Apex treats it as a GitBook-style index and combines the linked files in order, perfect for building books, multi-file indices, and shared tables of contents that can then be piped back into Apex for final rendering.
+  When a `SUMMARY.md` file is provided, Apex treats it as a GitBook-style index and combines the linked files in order, perfect for building books, multi-file indices, and shared tables of contents that can then be piped back into Apex for final rendering. ([more info](https://github.com/ApexMarkdown/apex/wiki/Multi-File-Documents))
 - **MultiMarkdown merge (`--mmd-merge`)**: Read one or more mmd_merge-style index files and stitch their referenced documents into a single Markdown stream.
 
   Each non-empty, non-comment line specifies a file to include; indentation with tabs or four-space groups shifts all headings in that file down by one level per indent, mirroring the original `mmd_merge.pl` behavior.
 
-  Output is raw Markdown that can be piped into Apex (e.g., `apex --mmd-merge index.txt | apex --mode mmd`).
+  Output is raw Markdown that can be piped into Apex (e.g., `apex --mmd-merge index.txt | apex --mode mmd`). ([more info](https://github.com/ApexMarkdown/apex/wiki/Multi-File-Documents))
 
-- **CSV/TSV support**: Automatic table conversion from CSV and TSV files
-- **Inline Attribute Lists (IAL)**: Kramdown-style attributes `{: #id .class}` and Pandoc-style attributes `{#id .class}`
+- **CSV/TSV support**: Automatic table conversion from CSV and TSV files ([more info](https://github.com/ApexMarkdown/apex/wiki/Tables))
+- **Inline Attribute Lists (IAL)**: [Kramdown-style attributes](https://github.com/ApexMarkdown/apex/wiki/Inline-Attribute-Lists) `{: #id .class}` and Pandoc-style attributes `{#id .class}`
 
   Both formats work in all contexts (block-level, inline, paragraphs, headings, table captions)
-- **Bracketed spans**: Convert `[text]{IAL}` syntax to HTML span elements with attributes, enabled by default in unified mode
+- **Bracketed spans**: Convert `[text]{IAL}` syntax to HTML span elements with attributes, enabled by default in unified mode ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
 - **Fenced divs**: Pandoc-style fenced divs `::::: {#id .class} ... :::::` for creating custom block containers, enabled by default in unified mode.
 
-  Supports block type syntax `>blocktype` to create different HTML elements (e.g., `::: >aside {.sidebar}` creates `<aside>` instead of `<div>`). Common block types include `aside`, `article`, `section`, `details`, `summary`, `header`, `footer`, `nav`, and custom elements
-- **Image IAL support**: Inline and reference-style images support IAL syntax with automatic width/height conversion (percentages and non-integer/non-px values convert to style attributes, Xpx values convert to integer width/height attributes, bare integers remain as width/height attributes)
+  Supports block type syntax `>blocktype` to create different HTML elements (e.g., `::: >aside {.sidebar}` creates `<aside>` instead of `<div>`). Common block types include `aside`, `article`, `section`, `details`, `summary`, `header`, `footer`, `nav`, and custom elements ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
+- **Image IAL support**: Inline and reference-style images support IAL syntax with automatic width/height conversion (percentages and non-integer/non-px values convert to style attributes, Xpx values convert to integer width/height attributes, bare integers remain as width/height attributes) ([more info](https://github.com/ApexMarkdown/apex/wiki/Multi-Format-Images))
 - **Special markers**: Page breaks (`<!--BREAK-->`), autoscroll pauses (`<!--PAUSE:N-->`), end-of-block markers
 
 
 ### Citations and Bibliography
+
+See the [Citations and Bibliography](https://github.com/ApexMarkdown/apex/wiki/Citations) wiki page for a complete guide.
 
 - **Multiple citation syntaxes**: Pandoc (`[@key]`), MultiMarkdown (`[#key]`), and mmark (`[@RFC1234]`) styles
 - **Bibliography formats**: Support for BibTeX (`.bib`), CSL JSON (`.json`), and CSL YAML (`.yml`, `.yaml`) formats
@@ -100,6 +121,8 @@ one tool.
 
 ### Indices
 
+See the [Indices](https://github.com/ApexMarkdown/apex/wiki/Indices) wiki page for syntax and examples.
+
 - **mmark syntax**: `(!item)`, `(!item, subitem)`, `(!!item, subitem)` for primary entries
 - **TextIndex syntax**: `{^}`, `[term]{^}`, `{^params}` for flexible indexing
 - **Automatic index generation**: Index automatically generated at end of document or at `<!--INDEX-->` marker
@@ -109,7 +132,7 @@ one tool.
 
 ### Critic Markup
 
-- **Change tracking**: Additions (`{++text++}`), deletions (`{--text--}`), substitutions (`{~~old~>new~~}`)
+- **Change tracking**: Additions (`{++text++}`), deletions (`{--text--}`), substitutions (`{~~old~>new~~}`) ([more info](https://github.com/ApexMarkdown/apex/wiki/Syntax))
 - **Annotations**: Highlights (`{==text==}`) and comments (`{>>text<<}`)
 - **Accept mode**: `--accept` flag to apply all changes for final output
 - **Reject mode**: `--reject` flag to revert all changes to original
@@ -121,11 +144,12 @@ one tool.
 - **Custom styling**: Link multiple external CSS files in standalone mode (use `--css` multiple times or comma-separated list)
 - **Syntax highlighting**: External syntax highlighting via Pygments, Skylighting, or Shiki with `--code-highlight` flag, includes automatic GitHub-style CSS in standalone mode
 - **Pretty-print**: Formatted HTML with proper indentation for readability
-- **XHTML output**: `--xhtml` writes void/empty elements in XML form (`<br />`, `<meta ... />`). `--strict-xhtml` adds polyglot XHTML document scaffolding when used with `--standalone` (XML declaration, XHTML namespace, `Content-Type` meta). You can also select the same behavior with `-t xhtml` or `-t strict-xhtml` (aliases for HTML output with those flags). In **fragment** mode, strict mode does not validate or repair all markup as XML???raw HTML can still be ill-formed; see the main README.
-- **Header ID generation**: Automatic or manual header IDs with multiple format options (GFM, MMD, Kramdown)
+- **XHTML output**: `--xhtml` writes void/empty elements in XML form (`<br />`, `<meta ... />`). `--strict-xhtml` adds polyglot XHTML document scaffolding when used with `--standalone` (XML declaration, XHTML namespace, `Content-Type` meta). You can also select the same behavior with `-t xhtml` or `-t strict-xhtml` (aliases for HTML output with those flags). In **fragment** mode, strict mode does not validate or repair all markup as XML; raw HTML can still be ill-formed.
+- **Header ID generation**: [Automatic or manual header IDs](https://github.com/ApexMarkdown/apex/wiki/Header-IDs) with multiple format options (GFM, MMD, Kramdown)
 - **Emoji-to-name conversion**: In GFM mode, emojis in headers are converted to their textual names in IDs (e.g., `# ???? Support` ??? `id="smile-support"`), matching Pandoc's GFM behavior
 - **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
 - **ARIA accessibility**: Add ARIA labels and accessibility attributes (`--aria`) for better screen reader support, including aria-label on TOC navigation, role attributes on figures and tables, and aria-describedby linking tables to their captions
+- **Terminal output**: Render Markdown in the terminal with `-t terminal` / `-t terminal256`, themes, pagination, and optional inline images ([more info](https://github.com/ApexMarkdown/apex/wiki/Rendering-Markdown-In-Terminal))
 - **Terminal inline images**: With `-t terminal` / `-t terminal256`, when stdout is a TTY and a viewer is available on `PATH`, Markdown images are rendered as inline terminal graphics (viewer order: `imgcat`, `chafa`, `viu`, `catimg`). Width is controlled with `--terminal-image-width` (default 50 character cells). HTTP(S) URLs are downloaded with `curl` (60s timeout, 10 MiB max) to a temp file under `TMPDIR` or `/tmp`. Use `--no-terminal-images` to always show images as styled link text plus URL instead. Metadata: `terminal.inline_images` / `terminal_inline_images`, `terminal.image_width` / `terminal_image_width`.
 
 ### Advanced Features
@@ -155,9 +179,13 @@ When installing from a direct Git URL or GitHub repo name,
 Apex will prompt with a security warning before cloning,
 since plugins execute unverified code.
 
-For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki.
+For a complete guide to writing, installing, and publishing plugins, see the [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) page in the Apex Wiki. App developers can also use the [plugin catalog API](https://github.com/ApexMarkdown/apex/wiki/Xcode-Integration#plugin-catalog-and-installation) from Swift or Objective-C ([C API](https://github.com/ApexMarkdown/apex/wiki/C-API#plugin-catalog-api)).
+
+**AST filters** (Pandoc-style JSON filters) are also supported via `--filter`, `--filters`, and `--lua-filter`. See [Filters](https://github.com/ApexMarkdown/apex/wiki/Filters).
 
 ## Installation
+
+See the [Installation](https://github.com/ApexMarkdown/apex/wiki/Installation) wiki page for additional build options and platform notes.
 
 ### Homebrew (macOS/Linux)
 
@@ -197,6 +225,8 @@ Download pre-built binaries from the [latest release](https://github.com/ApexMar
 
 ## Basic Usage
 
+See [Usage](https://github.com/ApexMarkdown/apex/wiki/Usage) and [Getting Started](https://github.com/ApexMarkdown/apex/wiki/Getting-Started) for more examples.
+
 ### Command Line
 
 ```bash
@@ -216,7 +246,7 @@ apex input.md --pretty
 
 ### Processing Modes
 
-Apex supports multiple compatibility modes:
+Apex supports multiple [compatibility modes](https://github.com/ApexMarkdown/apex/wiki/Modes):
 
 - `--mode commonmark` - Pure CommonMark specification
 - `--mode gfm` - GitHub Flavored Markdown
@@ -236,6 +266,8 @@ apex input.md --mode kramdown
 ```
 
 ### Common Options
+
+See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options) for the full reference.
 
 - `--pretty` - Pretty-print HTML with indentation
 
@@ -438,6 +470,8 @@ different settings when processing batches. Boolean options
 accept `true`/`false`, `yes`/`no`, or `1`/`0`
 (case-insensitive). String options use the value directly.
 
+See [Configuration](https://github.com/ApexMarkdown/apex/wiki/Configuration) for the complete list of metadata-controlled options.
+
 **Example:**
 
 ```yaml
@@ -460,11 +494,24 @@ For complete documentation, see the [Apex Wiki](https://github.com/ApexMarkdown/
 
 Key documentation pages:
 
-[Citations and Bibliography](https://github.com/ApexMarkdown/apex/wiki/Citations) - Complete guide to citations and bibliographies
-
-[Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options) - All CLI flags explained
-
-[Syntax Reference](https://github.com/ApexMarkdown/apex/wiki/Syntax) - Complete syntax reference
+- [Getting Started](https://github.com/ApexMarkdown/apex/wiki/Getting-Started) - Your first steps with Apex
+- [Installation](https://github.com/ApexMarkdown/apex/wiki/Installation) - Build and install options
+- [Usage](https://github.com/ApexMarkdown/apex/wiki/Usage) - Basic usage examples
+- [Syntax](https://github.com/ApexMarkdown/apex/wiki/Syntax) - Complete syntax reference
+- [Modes](https://github.com/ApexMarkdown/apex/wiki/Modes) - Processor compatibility modes
+- [Tables](https://github.com/ApexMarkdown/apex/wiki/Tables) - Table syntax, captions, rowspan/colspan
+- [Callouts](https://github.com/ApexMarkdown/apex/wiki/Callouts) - Callout formats and flags
+- [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options) - All CLI flags explained
+- [Configuration](https://github.com/ApexMarkdown/apex/wiki/Configuration) - Metadata-controlled options
+- [Multi-File Documents](https://github.com/ApexMarkdown/apex/wiki/Multi-File-Documents) - `--combine`, `--mmd-merge`, includes
+- [Citations](https://github.com/ApexMarkdown/apex/wiki/Citations) - Citations and bibliographies
+- [Indices](https://github.com/ApexMarkdown/apex/wiki/Indices) - Index generation
+- [Plugins](https://github.com/ApexMarkdown/apex/wiki/Plugins) - Plugin system and recipes
+- [Filters](https://github.com/ApexMarkdown/apex/wiki/Filters) - AST filters
+- [Xcode Integration](https://github.com/ApexMarkdown/apex/wiki/Xcode-Integration) - Swift Package Manager and app integration
+- [C API](https://github.com/ApexMarkdown/apex/wiki/C-API) - Programmatic API
+- [Pandoc Integration](https://github.com/ApexMarkdown/apex/wiki/Pandoc-Integration) - Use Apex with Pandoc
+- [Troubleshooting](https://github.com/ApexMarkdown/apex/wiki/Troubleshooting) - Common issues
 
 ## Contributing
 
@@ -481,4 +528,4 @@ Please note the [tests requirement for new features](https://github.com/ApexMark
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE]([LICENSE](https://github.com/ApexMarkdown/apex/blob/main/LICENSE)) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/ApexMarkdown/apex/blob/main/LICENSE) file for details.
