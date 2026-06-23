@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.2] - 2026-06-23
+
+### New
+
+- Public C API (apex/plugins.h) to fetch the plugin directory, list installed plugins, and install or uninstall plugins programmatically.
+- ApexPluginManager Swift API and ApexPluginCatalog Objective-C wrappers for building plugin picker UIs in Xcode apps.
+- EnablePlugins option in ApexOptions and the NSString options dictionary to turn on external plugin processing during conversion.
+
 ## [1.1.1] - 2026-06-21
 
 ### Changed
@@ -2981,6 +2989,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.2]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.2
 [1.1.1]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.1
 [1.0.15]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.15
 [1.0.14]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.14
