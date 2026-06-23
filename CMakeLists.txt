@@ -124,6 +124,7 @@ set(APEX_LIB_SOURCES
     src/extensions/math.c
     src/extensions/critic.c
     src/extensions/callouts.c
+    src/extensions/raw_content.c
     src/extensions/includes.c
     src/extensions/inline_tables.c
     src/extensions/toc.c

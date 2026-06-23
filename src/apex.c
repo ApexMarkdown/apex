@@ -19,6 +19,7 @@
 #include "extensions/math.h"
 #include "extensions/critic.h"
 #include "extensions/callouts.h"
+#include "extensions/raw_content.h"
 #include "extensions/includes.h"
 #include "extensions/toc.h"
 #include "extensions/abbreviations.h"
@@ -5359,6 +5360,17 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    /* Pandoc/Quarto raw content ({=format}) before other fence preprocessors */
+    char *raw_content_processed = NULL;
+    if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
+        PROFILE_START(raw_content_preprocess);
+        raw_content_processed = apex_preprocess_raw_content(text_ptr, options->unsafe);
+        PROFILE_END(raw_content_preprocess);
+        if (raw_content_processed) {
+            text_ptr = raw_content_processed;
+        }
+    }
+
     /* Process Quarto ::: callouts before fenced divs so recognized callouts bypass generic div conversion */
     char *quarto_callouts_processed = NULL;
     if (options->enable_quarto_callouts) {
@@ -6563,6 +6575,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (escaped_toc_protected) free(escaped_toc_protected);
     if (spans_preprocessed) free(spans_preprocessed);
     if (grid_tables_processed) free(grid_tables_processed);
+    if (raw_content_processed) free(raw_content_processed);
     if (quarto_callouts_processed) free(quarto_callouts_processed);
     if (py_callouts_processed) free(py_callouts_processed);
     if (includes_processed) free(includes_processed);

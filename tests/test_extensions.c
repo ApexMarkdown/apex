@@ -290,6 +290,41 @@ void test_quarto_mode(void) {
     assert_contains(html, "class=\"sidebar\"", "Quarto mode renders fenced divs");
     apex_free_string(html);
 
+    const char *raw_html_block =
+        "Before\n\n"
+        "```{=html}\n"
+        "<strong>raw</strong>\n"
+        "```\n\n"
+        "After";
+    html = apex_markdown_to_html(raw_html_block, strlen(raw_html_block), &opts);
+    assert_contains(html, "<strong>raw</strong>", "raw {=html} block passthrough");
+    assert_not_contains(html, "**raw**", "raw {=html} block not markdown-processed");
+    assert_not_contains(html, "<code", "raw {=html} block not wrapped in code");
+    apex_free_string(html);
+
+    const char *raw_latex_block =
+        "```{=latex}\n"
+        "\\textbf{Bold}\n"
+        "```";
+    html = apex_markdown_to_html(raw_latex_block, strlen(raw_latex_block), &opts);
+    assert_contains(html, "<!-- raw format=latex -->", "raw {=latex} block wrapped in comment");
+    assert_contains(html, "\\textbf{Bold}", "raw {=latex} body preserved in comment");
+    assert_not_contains(html, "<code", "raw {=latex} block not wrapped in code");
+    apex_free_string(html);
+
+    const char *raw_html_inline = "Text `<em>inline</em>`{=html} end.";
+    html = apex_markdown_to_html(raw_html_inline, strlen(raw_html_inline), &opts);
+    assert_contains(html, "<em>inline</em>", "inline {=html} passthrough");
+    assert_not_contains(html, "`{=html}`", "inline {=html} marker stripped");
+    apex_free_string(html);
+
+    /* Unified mode without quarto extensions leaves {=html} fences intact */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    unified_opts.enable_quarto_extensions = false;
+    html = apex_markdown_to_html("```{=html}\n<b>x</b>\n```", 18, &unified_opts);
+    assert_contains(html, "<code", "non-quarto mode keeps {=html} as code fence");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Quarto Mode Tests", had_failures, false);
 }

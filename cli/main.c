@@ -99,7 +99,16 @@ typedef struct apex_cli_option_mask {
 static void apex_cli_restore_argv_options(apex_options *opts,
                                           const apex_options *snap,
                                           const apex_cli_option_mask *m) {
-    if (m->mode) opts->mode = snap->mode;
+    if (m->mode) {
+        opts->mode = snap->mode;
+        /* Global/project config may reset quarto defaults when mode is overridden via metadata. */
+        if (snap->mode == APEX_MODE_QUARTO) {
+            opts->enable_quarto_extensions = snap->enable_quarto_extensions;
+            if (!m->enable_quarto_callouts) {
+                opts->enable_quarto_callouts = snap->enable_quarto_callouts;
+            }
+        }
+    }
     if (m->output_format) opts->output_format = snap->output_format;
     if (m->xhtml) opts->xhtml = snap->xhtml;
     if (m->strict_xhtml) opts->strict_xhtml = snap->strict_xhtml;
