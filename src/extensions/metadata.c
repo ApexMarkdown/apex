@@ -2789,6 +2789,12 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->enable_quarto_diagrams = false;
             }
+        } else if (strcasecmp(key, "quarto-shortcodes") == 0 || strcasecmp(key, "quarto_shortcodes") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_shortcodes = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_shortcodes = false;
+            }
         } else if (strcasecmp(key, "divs") == 0) {
             if (is_true_value(value)) {
                 options->enable_divs = true;

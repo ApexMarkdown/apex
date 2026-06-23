@@ -68,3 +68,14 @@ flowchart LR
 ```{dot}
 digraph { A -> B; }
 ```
+
+## Shortcodes
+
+Page 1
+
+{{< pagebreak >}}
+
+Page 2
+
+Press {{< kbd $@3 >}} to save.
+

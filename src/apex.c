@@ -22,6 +22,7 @@
 #include "extensions/raw_content.h"
 #include "extensions/code_fence_attrs.h"
 #include "extensions/quarto_diagrams.h"
+#include "extensions/quarto_shortcodes.h"
 #include "extensions/quarto_lists.h"
 #include "extensions/includes.h"
 #include "extensions/toc.h"
@@ -3037,6 +3038,7 @@ apex_options apex_options_default(void) {
     opts.enable_quarto_callouts = false;
     opts.enable_quarto_extensions = false;
     opts.enable_quarto_diagrams = false;
+    opts.enable_quarto_shortcodes = false;
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
@@ -3370,6 +3372,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.mode = APEX_MODE_QUARTO;
             opts.enable_quarto_extensions = true;
             opts.enable_quarto_diagrams = true;
+            opts.enable_quarto_shortcodes = true;
             opts.enable_quarto_callouts = true;
             opts.enable_wiki_links = false;
             opts.enable_marked_extensions = false;
@@ -4768,6 +4771,20 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     apex_plugin_manager *plugin_manager = NULL;
     if (options->enable_plugins) {
         plugin_manager = apex_plugins_load(options);
+    }
+
+    char *quarto_shortcodes_processed = NULL;
+    if (options->enable_quarto_shortcodes &&
+        (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO)) {
+        bool warn_unknown = getenv("APEX_VERBOSE") != NULL;
+        PROFILE_START(quarto_shortcodes_preprocess);
+        quarto_shortcodes_processed = apex_preprocess_quarto_shortcodes(working_text, warn_unknown, options->unsafe);
+        PROFILE_END(quarto_shortcodes_preprocess);
+        if (quarto_shortcodes_processed) {
+            free(working_text);
+            working_text = quarto_shortcodes_processed;
+            len = strlen(working_text);
+        }
     }
 
     /* Optional pre-parse plugin hook: run all configured pre_parse plugins

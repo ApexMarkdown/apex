@@ -247,6 +247,7 @@ void test_processor_modes(void) {
     test_result(quarto_opts.enable_quarto_callouts == true, "Quarto mode enables quarto callouts by default");
     test_result(quarto_opts.enable_quarto_extensions == true, "Quarto mode enables quarto extensions by default");
     test_result(quarto_opts.enable_quarto_diagrams == true, "Quarto mode enables quarto diagrams by default");
+    test_result(quarto_opts.enable_quarto_shortcodes == true, "Quarto mode enables quarto shortcodes by default");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -458,6 +459,45 @@ void test_quarto_mode(void) {
     assert_contains(html, "<!-- mermaid already -->", "standalone preserves user script_tags");
     apex_free_string(html);
     free(standalone_with_script.script_tags[0]);
+
+    const char *pagebreak_shortcode = "Page 1\n\n{{< pagebreak >}}\n\nPage 2";
+    html = apex_markdown_to_html(pagebreak_shortcode, strlen(pagebreak_shortcode), &opts);
+    assert_contains(html, "page-break-after", "pagebreak shortcode renders page break");
+    assert_contains(html, "Page 2", "content after pagebreak shortcode preserved");
+    assert_not_contains(html, "{{< pagebreak >}}", "pagebreak shortcode marker stripped");
+    apex_free_string(html);
+
+    const char *kbd_shortcode = "Press {{< kbd $@3 >}} to save.";
+    html = apex_markdown_to_html(kbd_shortcode, strlen(kbd_shortcode), &opts);
+    assert_contains(html, "{% kbd $@3 %}", "kbd shortcode converts to liquid tag");
+    assert_not_contains(html, "{{< kbd", "kbd shortcode marker stripped");
+    apex_free_string(html);
+
+    apex_options include_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    include_opts.enable_file_includes = true;
+#ifdef TEST_FIXTURES_DIR
+    include_opts.base_directory = TEST_FIXTURES_DIR;
+#else
+    include_opts.base_directory = "tests/fixtures/includes";
+#endif
+    const char *include_shortcode = "Before\n\n{{< include simple.md >}}\n\nAfter";
+    html = apex_markdown_to_html(include_shortcode, strlen(include_shortcode), &include_opts);
+    assert_contains(html, "Included Content", "include shortcode expands file content");
+    assert_contains(html, "After", "content after include shortcode preserved");
+    assert_not_contains(html, "{{< include", "include shortcode marker stripped");
+    apex_free_string(html);
+
+    apex_options no_shortcodes_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    no_shortcodes_opts.enable_quarto_shortcodes = false;
+    html = apex_markdown_to_html(pagebreak_shortcode, strlen(pagebreak_shortcode), &no_shortcodes_opts);
+    assert_contains(html, "{{< pagebreak", "disabled quarto shortcodes leave marker in output");
+    assert_not_contains(html, "page-break-after", "disabled quarto shortcodes skip pagebreak expansion");
+    apex_free_string(html);
+
+    const char *unknown_shortcode = "Text {{< widget foo >}} end.";
+    html = apex_markdown_to_html(unknown_shortcode, strlen(unknown_shortcode), &opts);
+    assert_contains(html, "{{< widget foo", "unknown shortcode left unchanged");
+    apex_free_string(html);
 
     apex_options unified_opts2 = apex_options_for_mode(APEX_MODE_UNIFIED);
     unified_opts2.enable_quarto_extensions = false;
