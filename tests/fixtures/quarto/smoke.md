@@ -58,3 +58,13 @@ ii) Beta
 print("hello")
 ```
 
+## Diagram fences
+
+```{mermaid}
+flowchart LR
+  A --> B
+```
+
+```{dot}
+digraph { A -> B; }
+```

@@ -21,6 +21,7 @@
 #include "extensions/callouts.h"
 #include "extensions/raw_content.h"
 #include "extensions/code_fence_attrs.h"
+#include "extensions/quarto_diagrams.h"
 #include "extensions/quarto_lists.h"
 #include "extensions/includes.h"
 #include "extensions/toc.h"
@@ -3035,6 +3036,7 @@ apex_options apex_options_default(void) {
     opts.enable_py_callouts = false;
     opts.enable_quarto_callouts = false;
     opts.enable_quarto_extensions = false;
+    opts.enable_quarto_diagrams = false;
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
@@ -3367,6 +3369,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts = apex_options_for_mode(APEX_MODE_UNIFIED);
             opts.mode = APEX_MODE_QUARTO;
             opts.enable_quarto_extensions = true;
+            opts.enable_quarto_diagrams = true;
             opts.enable_quarto_callouts = true;
             opts.enable_wiki_links = false;
             opts.enable_marked_extensions = false;
@@ -5392,6 +5395,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Pandoc/Quarto raw content ({=format}) before other fence preprocessors */
     char *raw_content_processed = NULL;
     char *code_fence_attrs_processed = NULL;
+    char *quarto_diagrams_processed = NULL;
     if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
         PROFILE_START(raw_content_preprocess);
         raw_content_processed = apex_preprocess_raw_content(text_ptr, options->unsafe);
@@ -5405,6 +5409,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         PROFILE_END(code_fence_attrs_preprocess);
         if (code_fence_attrs_processed) {
             text_ptr = code_fence_attrs_processed;
+        }
+
+        if (options->enable_quarto_diagrams) {
+            PROFILE_START(quarto_diagrams_preprocess);
+            quarto_diagrams_processed = apex_preprocess_quarto_diagrams(text_ptr, options->unsafe);
+            PROFILE_END(quarto_diagrams_preprocess);
+            if (quarto_diagrams_processed) {
+                text_ptr = quarto_diagrams_processed;
+            }
         }
     }
 
@@ -6634,6 +6647,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (grid_tables_processed) free(grid_tables_processed);
     if (raw_content_processed) free(raw_content_processed);
     if (code_fence_attrs_processed) free(code_fence_attrs_processed);
+    if (quarto_diagrams_processed) free(quarto_diagrams_processed);
     if (example_lists_processed) free(example_lists_processed);
     if (line_blocks_processed) free(line_blocks_processed);
     if (roman_lists_processed) free(roman_lists_processed);
@@ -6692,14 +6706,35 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Build script HTML (if any) from script_tags before wrapping or appending */
     char *scripts_html = NULL;
-    if (local_opts.script_tags) {
+    const char *auto_mermaid_script = NULL;
+    if (local_opts.standalone && html && local_opts.enable_quarto_diagrams &&
+        apex_html_has_mermaid_diagram(html)) {
+        bool has_mermaid_script = false;
+        if (local_opts.script_tags) {
+            for (char **p = local_opts.script_tags; *p; ++p) {
+                if (*p && strstr(*p, "mermaid")) {
+                    has_mermaid_script = true;
+                    break;
+                }
+            }
+        }
+        if (!has_mermaid_script) {
+            auto_mermaid_script = apex_mermaid_script_tag();
+        }
+    }
+
+    if (local_opts.script_tags || auto_mermaid_script) {
         /* Join script tag snippets with newlines */
         size_t total_len = 0;
         size_t count = 0;
-        for (char **p = local_opts.script_tags; *p; ++p) {
+        for (char **p = local_opts.script_tags; p && *p; ++p) {
             size_t len = strlen(*p);
             if (len == 0) continue;
             total_len += len + 1; /* +1 for newline */
+            count++;
+        }
+        if (auto_mermaid_script) {
+            total_len += strlen(auto_mermaid_script) + 1;
             count++;
         }
 
@@ -6707,10 +6742,16 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             scripts_html = malloc(total_len + 1); /* +1 for null terminator */
             if (scripts_html) {
                 size_t pos = 0;
-                for (char **p = local_opts.script_tags; *p; ++p) {
+                for (char **p = local_opts.script_tags; p && *p; ++p) {
                     size_t len = strlen(*p);
                     if (len == 0) continue;
                     memcpy(scripts_html + pos, *p, len);
+                    pos += len;
+                    scripts_html[pos++] = '\n';
+                }
+                if (auto_mermaid_script) {
+                    size_t len = strlen(auto_mermaid_script);
+                    memcpy(scripts_html + pos, auto_mermaid_script, len);
                     pos += len;
                     scripts_html[pos++] = '\n';
                 }

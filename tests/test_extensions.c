@@ -246,6 +246,7 @@ void test_processor_modes(void) {
     assert_contains(html, "<h1", "Quarto mode works");
     test_result(quarto_opts.enable_quarto_callouts == true, "Quarto mode enables quarto callouts by default");
     test_result(quarto_opts.enable_quarto_extensions == true, "Quarto mode enables quarto extensions by default");
+    test_result(quarto_opts.enable_quarto_diagrams == true, "Quarto mode enables quarto diagrams by default");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -396,6 +397,67 @@ void test_quarto_mode(void) {
     html = apex_markdown_to_html(code_fence_linenos, strlen(code_fence_linenos), &opts);
     assert_contains(html, "data-linenos=\"true\"", "code fence linenos attribute on pre");
     apex_free_string(html);
+
+    const char *mermaid_fence =
+        "```{mermaid}\n"
+        "flowchart LR\n"
+        "  A --> B\n"
+        "```\n";
+    html = apex_markdown_to_html(mermaid_fence, strlen(mermaid_fence), &opts);
+    assert_contains(html, "<pre class=\"mermaid\">", "mermaid fence renders pre.mermaid");
+    assert_contains(html, "flowchart LR", "mermaid fence body preserved");
+    assert_contains(html, "A --> B", "mermaid fence diagram content preserved");
+    assert_not_contains(html, "{mermaid}", "mermaid fence marker stripped");
+    assert_not_contains(html, "<code", "mermaid fence not wrapped in code");
+    apex_free_string(html);
+
+    const char *dot_fence =
+        "```{dot}\n"
+        "digraph { A -> B; }\n"
+        "```\n";
+    html = apex_markdown_to_html(dot_fence, strlen(dot_fence), &opts);
+    assert_contains(html, "<pre class=\"graphviz\">", "dot fence renders pre.graphviz");
+    assert_contains(html, "digraph", "dot fence body preserved");
+    apex_free_string(html);
+
+    const char *graphviz_fence =
+        "```{graphviz}\n"
+        "graph { A -- B; }\n"
+        "```\n";
+    html = apex_markdown_to_html(graphviz_fence, strlen(graphviz_fence), &opts);
+    assert_contains(html, "<pre class=\"graphviz\">", "graphviz fence renders pre.graphviz");
+    assert_contains(html, "graph { A -- B", "graphviz fence body preserved");
+    apex_free_string(html);
+
+    apex_options no_diagrams_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    no_diagrams_opts.enable_quarto_diagrams = false;
+    html = apex_markdown_to_html(mermaid_fence, strlen(mermaid_fence), &no_diagrams_opts);
+    assert_contains(html, "<code", "disabled quarto diagrams keeps mermaid as code fence");
+    assert_not_contains(html, "class=\"mermaid\"", "disabled quarto diagrams skips pre.mermaid");
+    apex_free_string(html);
+
+    apex_options no_unsafe_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    no_unsafe_opts.unsafe = false;
+    html = apex_markdown_to_html(mermaid_fence, strlen(mermaid_fence), &no_unsafe_opts);
+    assert_contains(html, "<code", "no-unsafe keeps mermaid fence as code block");
+    assert_not_contains(html, "class=\"mermaid\"", "no-unsafe skips raw pre.mermaid");
+    apex_free_string(html);
+
+    apex_options standalone_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    standalone_opts.standalone = true;
+    html = apex_markdown_to_html(mermaid_fence, strlen(mermaid_fence), &standalone_opts);
+    assert_contains(html, "mermaid.min.js", "standalone quarto auto-injects mermaid script");
+    assert_contains(html, "</body>", "standalone mermaid output is full document");
+    apex_free_string(html);
+
+    apex_options standalone_with_script = apex_options_for_mode(APEX_MODE_QUARTO);
+    standalone_with_script.standalone = true;
+    standalone_with_script.script_tags = (char *[]){ strdup("<!-- mermaid already -->"), NULL };
+    html = apex_markdown_to_html(mermaid_fence, strlen(mermaid_fence), &standalone_with_script);
+    assert_not_contains(html, "mermaid.min.js", "standalone skips auto mermaid when script_tags mention mermaid");
+    assert_contains(html, "<!-- mermaid already -->", "standalone preserves user script_tags");
+    apex_free_string(html);
+    free(standalone_with_script.script_tags[0]);
 
     apex_options unified_opts2 = apex_options_for_mode(APEX_MODE_UNIFIED);
     unified_opts2.enable_quarto_extensions = false;
