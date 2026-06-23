@@ -418,7 +418,7 @@ char *apex_process_citations(const char *text, apex_citation_registry *registry,
 
     /* Citations only enabled in certain modes */
     if (options->mode != APEX_MODE_MULTIMARKDOWN &&
-        options->mode != APEX_MODE_UNIFIED) {
+        !apex_mode_is_unified_family(options->mode)) {
         return NULL;  /* Citations not enabled in this mode */
     }
 
@@ -487,17 +487,17 @@ char *apex_process_citations(const char *text, apex_citation_registry *registry,
         int consumed = 0;
 
         /* Try mmark first (most specific pattern) */
-        if (options->mode == APEX_MODE_UNIFIED) {
+        if (apex_mode_is_unified_family(options->mode)) {
             consumed = parse_mmark_citation(text, pos, apex_size_to_int(len), &citation, options);
         }
 
         /* Try MultiMarkdown */
-        if (!citation && (options->mode == APEX_MODE_MULTIMARKDOWN || options->mode == APEX_MODE_UNIFIED)) {
+        if (!citation && (options->mode == APEX_MODE_MULTIMARKDOWN || apex_mode_is_unified_family(options->mode))) {
             consumed = parse_mmd_citation(text, pos, apex_size_to_int(len), &citation, options);
         }
 
         /* Try Pandoc (most common) */
-        if (!citation && (options->mode == APEX_MODE_UNIFIED)) {
+        if (!citation && apex_mode_is_unified_family(options->mode)) {
             consumed = parse_pandoc_citation(text, pos, apex_size_to_int(len), &citation, options);
         }
 

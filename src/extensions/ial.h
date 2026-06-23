@@ -22,7 +22,8 @@ typedef enum {
     APEX_MODE_GFM = 1,
     APEX_MODE_MULTIMARKDOWN = 2,
     APEX_MODE_KRAMDOWN = 3,
-    APEX_MODE_UNIFIED = 4
+    APEX_MODE_UNIFIED = 4,
+    APEX_MODE_QUARTO = 5
 } apex_mode_t;
 #endif
 

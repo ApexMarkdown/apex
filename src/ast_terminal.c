@@ -1595,7 +1595,7 @@ static void serialize_inline(terminal_buffer *buf,
                 char *emoji_replaced = NULL;
                 if (options &&
                     (options->mode == APEX_MODE_GFM ||
-                     options->mode == APEX_MODE_UNIFIED)) {
+                     apex_mode_is_unified_family(options->mode))) {
                     emoji_replaced = apex_replace_emoji_text(literal);
                     if (emoji_replaced) {
                         text_src = emoji_replaced;

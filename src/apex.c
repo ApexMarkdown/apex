@@ -3031,6 +3031,7 @@ apex_options apex_options_default(void) {
     opts.enable_callouts = true;
     opts.enable_py_callouts = false;
     opts.enable_quarto_callouts = false;
+    opts.enable_quarto_extensions = false;
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
@@ -3357,6 +3358,21 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_emoji_autocorrect = true;  /* Unified: emoji autocorrect enabled */
             opts.enable_image_captions = true;     /* Unified: image captions enabled by default */
             break;
+
+        case APEX_MODE_QUARTO:
+            /* Pandoc/Quarto markdown: unified-family defaults tuned for Quarto docs */
+            opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+            opts.mode = APEX_MODE_QUARTO;
+            opts.enable_quarto_extensions = true;
+            opts.enable_quarto_callouts = true;
+            opts.enable_wiki_links = false;
+            opts.enable_marked_extensions = false;
+            opts.enable_py_callouts = false;
+            opts.enable_indices = false;
+            opts.enable_mmark_index_syntax = false;
+            opts.enable_textindex_syntax = false;
+            opts.enable_leanpub_index_syntax = false;
+            break;
     }
 
     return opts;
@@ -3440,7 +3456,7 @@ static void apex_register_extensions(cmark_parser *parser, const apex_options *o
     }
 
     /* GFM autolink - enable for GFM and Unified modes if autolink is enabled */
-    if (options->enable_autolink && (options->mode == APEX_MODE_GFM || options->mode == APEX_MODE_UNIFIED)) {
+    if (options->enable_autolink && (options->mode == APEX_MODE_GFM || apex_mode_is_unified_family(options->mode))) {
         cmark_syntax_extension *autolink_ext = cmark_find_syntax_extension("autolink");
         if (autolink_ext) {
             cmark_parser_attach_syntax_extension(parser, autolink_ext);
@@ -4797,7 +4813,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     if (options->mode == APEX_MODE_MULTIMARKDOWN ||
         options->mode == APEX_MODE_KRAMDOWN ||
-        options->mode == APEX_MODE_UNIFIED) {
+        apex_mode_is_unified_family(options->mode)) {
         /* Extract metadata FIRST */
         PROFILE_START(metadata);
         metadata = apex_extract_metadata_for_mode(&text_ptr, options->mode);
@@ -4809,7 +4825,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
 
         /* Extract ALDs for Kramdown */
-        if (options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
+        if (apex_mode_is_kramdown_or_unified_family(options->mode)) {
             alds = apex_extract_alds(&text_ptr);
             if (getenv("APEX_DEBUG_PIPELINE")) {
                 size_t len = strlen(text_ptr);
@@ -4978,7 +4994,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Preprocess image attributes and URL-encode all link URLs */
     image_attr_entry *img_attrs = NULL;
     char *image_attrs_processed = NULL;
-    if (options->mode == APEX_MODE_UNIFIED ||
+    if (apex_mode_is_unified_family(options->mode) ||
         options->mode == APEX_MODE_MULTIMARKDOWN ||
         options->mode == APEX_MODE_KRAMDOWN) {
         PROFILE_START(image_attrs_preprocess);
@@ -4997,7 +5013,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Preprocess IAL markers (insert blank lines before them so cmark parses correctly) */
     char *ial_preprocessed = NULL;
     char *escaped_toc_protected = NULL;
-    if (options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
+    if (options->mode == APEX_MODE_KRAMDOWN || apex_mode_is_unified_family(options->mode)) {
         PROFILE_START(ial_preprocess);
         ial_preprocessed = apex_preprocess_ial(text_ptr);
         PROFILE_END(ial_preprocess);
@@ -5046,7 +5062,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Preprocess bracketed spans [text]{IAL} */
     char *spans_preprocessed = NULL;
-    if (options->enable_spans && (options->mode == APEX_MODE_UNIFIED || options->mode == APEX_MODE_KRAMDOWN)) {
+    if (options->enable_spans && apex_mode_is_kramdown_or_unified_family(options->mode)) {
         PROFILE_START(spans_preprocess);
         spans_preprocessed = apex_preprocess_bracketed_spans(text_ptr);
         PROFILE_END(spans_preprocess);
@@ -5116,7 +5132,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Process emoji autocorrect before parsing (preprocessing) */
     char *emoji_autocorrect_processed = NULL;
-    if (options->enable_emoji_autocorrect && (options->mode == APEX_MODE_UNIFIED || options->mode == APEX_MODE_GFM)) {
+    if (options->enable_emoji_autocorrect && (options->mode == APEX_MODE_GFM || apex_mode_is_unified_family(options->mode))) {
         PROFILE_START(emoji_autocorrect);
         emoji_autocorrect_processed = apex_autocorrect_emoji_names(text_ptr);
         PROFILE_END(emoji_autocorrect);
@@ -5357,7 +5373,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* Process fenced divs before parsing (preprocessing) */
     /* Only enabled in Unified mode */
     char *fenced_divs_processed = NULL;
-    if (options->enable_divs && options->mode == APEX_MODE_UNIFIED) {
+    if (options->enable_divs && apex_mode_is_unified_family(options->mode)) {
         PROFILE_START(fenced_divs);
         fenced_divs_processed = apex_process_fenced_divs(text_ptr);
         PROFILE_END(fenced_divs);
@@ -5764,7 +5780,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     /* Keep this late so later preprocessors do not collapse inserted separation. */
-    if (options->mode == APEX_MODE_UNIFIED) {
+    if (apex_mode_is_unified_family(options->mode)) {
         PROFILE_START(nested_ordered_sublists);
         nested_ordered_sublists_processed = apex_preprocess_nested_ordered_sublists(
             text_ptr,
@@ -5942,7 +5958,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
        IAL handles {: #id}, {#id}, and {.class} - running first ensures these
        are extracted and removed from heading text before manual header ID
        looks for MMD [id] or Kramdown {#id}. Avoids duplicate handling. */
-    if (alds || options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
+    if (alds || apex_mode_is_kramdown_or_unified_family(options->mode)) {
         /* Fast path: skip AST walk if no IAL markers present */
         /* Check for both Kramdown-style ({:) and Pandoc-style ({# or {.) IALs */
         if (strstr(text_ptr, "{:") != NULL ||
@@ -5980,7 +5996,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (options->allow_mixed_list_markers) {
         apex_merge_mixed_list_markers(document);
     }
-    if (options->mode == APEX_MODE_UNIFIED &&
+    if (apex_mode_is_unified_family(options->mode) &&
         ((inserted_synthetic_nested_ordered_break && !saw_explicit_nested_ordered_break) ||
          (inserted_synthetic_nested_alpha_break && !saw_explicit_nested_alpha_break))) {
         apex_tighten_nested_ordered_list_items(document);
@@ -6044,7 +6060,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      */
     PROFILE_START(rendering);
     char *html;
-    if (img_attrs || alds || options->mode == APEX_MODE_KRAMDOWN || options->mode == APEX_MODE_UNIFIED) {
+    if (img_attrs || alds || apex_mode_is_kramdown_or_unified_family(options->mode)) {
         /* Use custom renderer to inject attributes */
         html = apex_render_html_with_attributes(document, cmark_opts);
     } else {
@@ -6070,7 +6086,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     /* Restore custom element tags from fenced-div wrappers (fixes out-of-order HTML) */
-    if (html && options->enable_divs && options->mode == APEX_MODE_UNIFIED) {
+    if (html && options->enable_divs && apex_mode_is_unified_family(options->mode)) {
         char *fenced_divs_html = apex_postprocess_fenced_divs_html(html);
         if (fenced_divs_html) {
             free(html);
@@ -6403,7 +6419,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     /* Replace GitHub emoji if in GFM or Unified mode */
-    if ((options->mode == APEX_MODE_GFM || options->mode == APEX_MODE_UNIFIED) && html) {
+    if ((options->mode == APEX_MODE_GFM || apex_mode_is_unified_family(options->mode)) && html) {
         PROFILE_START(emoji);
         char *with_emoji = apex_replace_emoji(html);
         PROFILE_END(emoji);
@@ -7334,6 +7350,9 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
             "    ins { background: #d4fcbc; text-decoration: none; }\n"
             "    del { background: #fbb6c2; text-decoration: line-through; }\n"
             "    mark { background: #fff3cd; }\n"
+            "    .smallcaps { font-variant: small-caps; }\n"
+            "    .underline { text-decoration: underline; }\n"
+            "    span.mark { background: #fff3cd; }\n"
             "    .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }\n"
             "    .mkhashtag { color: #666; }\n"
             "    .mkstyledtag {\n"

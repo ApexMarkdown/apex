@@ -2660,17 +2660,17 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
     }
 
     /* Check if we should do URL encoding */
-    bool do_url_encoding = (mode == APEX_MODE_UNIFIED ||
+    bool do_url_encoding = apex_mode_is_unified_family(mode) ||
                             mode == APEX_MODE_MULTIMARKDOWN ||
-                            mode == APEX_MODE_KRAMDOWN);
+                            mode == APEX_MODE_KRAMDOWN;
 
     /* Check if we should process image attributes.
      * Enabled for Unified, MultiMarkdown, and GFM modes so that width/height/style
      * and @2x markers on images and reference definitions are honored consistently.
      */
-    bool do_image_attrs = (mode == APEX_MODE_UNIFIED ||
+    bool do_image_attrs = apex_mode_is_unified_family(mode) ||
                            mode == APEX_MODE_MULTIMARKDOWN ||
-                           mode == APEX_MODE_GFM);
+                           mode == APEX_MODE_GFM;
 
     if (!do_url_encoding && !do_image_attrs) {
         /* Nothing to do */
@@ -4431,12 +4431,20 @@ char *apex_preprocess_bracketed_spans(const char *text) {
                                         if (needs_markdown_span) {
                                             /* Write <span markdown="span" ...> for spans that
                                              * genuinely need inline markdown processing. */
-                                            written = snprintf(write, remaining, "<span markdown=\"span\"%s>", attr_str);
+                                            if (attr_str && attr_str[0]) {
+                                                written = snprintf(write, remaining, "<span markdown=\"span\" %s>", attr_str);
+                                            } else {
+                                                written = snprintf(write, remaining, "<span markdown=\"span\">");
+                                            }
                                         } else {
                                             /* For simple text-only spans, omit markdown=\"span\"
                                              * so that content like a lone '-' is not reparsed
                                              * as a list item by the markdown-in-HTML pipeline. */
-                                            written = snprintf(write, remaining, "<span%s>", attr_str);
+                                            if (attr_str && attr_str[0]) {
+                                                written = snprintf(write, remaining, "<span %s>", attr_str);
+                                            } else {
+                                                written = snprintf(write, remaining, "<span>");
+                                            }
                                         }
 
                                         if (written > 0 && (size_t)written < remaining) {

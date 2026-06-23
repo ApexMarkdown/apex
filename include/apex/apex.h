@@ -34,9 +34,20 @@ typedef enum {
     APEX_MODE_GFM = 1,              /* GitHub Flavored Markdown */
     APEX_MODE_MULTIMARKDOWN = 2,    /* MultiMarkdown compatibility */
     APEX_MODE_KRAMDOWN = 3,         /* Kramdown compatibility */
-    APEX_MODE_UNIFIED = 4           /* All features enabled */
+    APEX_MODE_UNIFIED = 4,          /* All features enabled */
+    APEX_MODE_QUARTO = 5            /* Pandoc/Quarto markdown (HTML-oriented) */
 } apex_mode_t;
 #endif
+
+/** True for unified and quarto processor modes. */
+static inline bool apex_mode_is_unified_family(apex_mode_t mode) {
+    return mode == APEX_MODE_UNIFIED || mode == APEX_MODE_QUARTO;
+}
+
+/** True for kramdown, unified, or quarto processor modes. */
+static inline bool apex_mode_is_kramdown_or_unified_family(apex_mode_t mode) {
+    return mode == APEX_MODE_KRAMDOWN || apex_mode_is_unified_family(mode);
+}
 
 /**
  * Output format options
@@ -111,8 +122,9 @@ typedef struct apex_options {
     bool enable_callouts;
     bool enable_py_callouts;      /* Enable Python-Markdown !!! callout preprocessing */
     bool enable_quarto_callouts;  /* Enable Quarto ::: callout preprocessing */
+    bool enable_quarto_extensions; /* Enable Pandoc/Quarto-specific preprocessors ({=raw}, (@), etc.) */
     bool enable_marked_extensions;
-    bool enable_divs;  /* Enable Pandoc fenced divs (Unified mode only) */
+    bool enable_divs;  /* Enable Pandoc fenced divs (unified/quarto modes) */
     bool enable_spans;  /* Enable bracketed spans [text]{IAL} (Pandoc-style) */
     bool enable_grid_tables;  /* Enable Pandoc grid table syntax (preprocess to pipe tables) */
 

@@ -2627,6 +2627,8 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
                     *options = apex_options_for_mode(APEX_MODE_KRAMDOWN);
                 } else if (strcmp(lower, "unified") == 0) {
                     *options = apex_options_for_mode(APEX_MODE_UNIFIED);
+                } else if (strcmp(lower, "quarto") == 0) {
+                    *options = apex_options_for_mode(APEX_MODE_QUARTO);
                 }
                 free(lower);
             }

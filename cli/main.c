@@ -1003,7 +1003,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]mixed-lists     Allow mixed list markers at same level (inherit type from first item)\n");
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
-    fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)\n");
+    fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified, quarto (default)\n");
     fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
@@ -1985,6 +1985,8 @@ int main(int argc, char *argv[]) {
                 options = apex_options_for_mode(APEX_MODE_KRAMDOWN);
             } else if (strcmp(argv[i], "unified") == 0) {
                 options = apex_options_for_mode(APEX_MODE_UNIFIED);
+            } else if (strcmp(argv[i], "quarto") == 0) {
+                options = apex_options_for_mode(APEX_MODE_QUARTO);
             } else {
                 fprintf(stderr, "Error: Unknown mode '%s'\n", argv[i]);
                 return 1;
@@ -3855,7 +3857,7 @@ int main(int argc, char *argv[]) {
 
     if (options.mode == APEX_MODE_MULTIMARKDOWN ||
         options.mode == APEX_MODE_KRAMDOWN ||
-        options.mode == APEX_MODE_UNIFIED) {
+        apex_mode_is_unified_family(options.mode)) {
         /* Make a copy to extract metadata without modifying original */
         char *doc_copy = malloc(input_len + 1);
         if (doc_copy) {
