@@ -86,6 +86,7 @@ extern NSString * const ApexModeUnified;
  *   - @"headerAnchors": NSNumber (BOOL) - Generate anchor tags instead of IDs
  *   - @"obfuscateEmails": NSNumber (BOOL) - Obfuscate email links
  *   - @"embedImages": NSNumber (BOOL) - Embed images as base64 data URLs
+ *   - @"enablePlugins": NSNumber (BOOL) - Enable external plugin processing
  * @return HTML string
  */
 + (NSString *)convertWithApex:(NSString *)inputString

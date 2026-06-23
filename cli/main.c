@@ -197,24 +197,8 @@ static void apex_cli_restore_argv_options(apex_options *opts,
     }
 }
 
-    /* Remote plugin directory helpers (from plugins_remote.c) */
-typedef struct apex_remote_plugin apex_remote_plugin;
-typedef struct apex_remote_plugin_list apex_remote_plugin_list;
-
-apex_remote_plugin_list *apex_remote_fetch_directory(const char *url);
-apex_remote_plugin_list *apex_remote_fetch_filters_directory(const char *url);
-void apex_remote_print_plugins(apex_remote_plugin_list *list);
-void apex_remote_print_plugins_filtered(apex_remote_plugin_list *list,
-                                        const char **installed_ids,
-                                        size_t installed_count,
-                                        const char *noun);
-apex_remote_plugin *apex_remote_find_plugin(apex_remote_plugin_list *list, const char *id);
-void apex_remote_free_plugins(apex_remote_plugin_list *list);
-const char *apex_remote_plugin_repo(apex_remote_plugin *p);
-
-/* Shared JSON helpers used for filters as well */
-char *apex_remote_fetch_json(const char *url);
-char *apex_remote_extract_string(const char *obj, const char *key);
+#include "plugins_remote.h"
+#include <apex/plugins.h>
 
 /* ------------------------------------------------------------------------- */
 /* Syntax highlighting theme listing                                         */

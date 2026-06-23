@@ -93,6 +93,7 @@ endif()
 # Include directories
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/vendor/cmark-gfm/src
     ${CMAKE_SOURCE_DIR}/vendor/cmark-gfm/extensions
     ${CMAKE_BINARY_DIR}/vendor/cmark-gfm/src  # For generated headers
@@ -116,6 +117,7 @@ set(APEX_LIB_SOURCES
     src/plugins_env.c
     src/plugins.c
     src/plugins_remote.c
+    src/plugin_catalog.c
     src/html_renderer.c
     src/extensions/metadata.c
     src/extensions/wiki_links.c

@@ -107,6 +107,7 @@ let package = Package(
                 "src/plugins_env.c",
                 "src/plugins.c",
                 "src/plugins_remote.c",
+                "src/plugin_catalog.c",
                 "src/html_renderer.c",
                 "src/extensions/metadata.c",
                 "src/extensions/wiki_links.c",
@@ -157,8 +158,8 @@ let package = Package(
             name: "ApexObjC",
             dependencies: ["ApexC"],
             path: "objc",
-            exclude: ["Apex.swift"],  // Exclude Swift file from ObjC target
-            sources: ["NSString+Apex.m"],
+            exclude: ["Apex.swift", "ApexPlugins.swift"],
+            sources: ["NSString+Apex.m", "NSString+ApexPlugins.m"],
             publicHeadersPath: ".",
             cSettings: [
                 .headerSearchPath("../include"),
@@ -170,8 +171,8 @@ let package = Package(
             name: "Apex",
             dependencies: ["ApexObjC", "ApexC"],
             path: "objc",
-            exclude: ["NSString+Apex.m", "NSString+Apex.h"],  // Exclude ObjC files from Swift target
-            sources: ["Apex.swift"],
+            exclude: ["NSString+Apex.m", "NSString+Apex.h", "NSString+ApexPlugins.m", "NSString+ApexPlugins.h"],
+            sources: ["Apex.swift", "ApexPlugins.swift"],
             publicHeadersPath: ".",
             swiftSettings: [
                 .define("APEX_HAVE_LIBYAML"),  // Always enabled when bundled

@@ -1,5 +1,6 @@
 module ApexHeaders {
     umbrella header "apex.h"
+    header "plugins.h"
     explicit module parser {
         header "parser.h"
         export *

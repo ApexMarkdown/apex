@@ -56,6 +56,9 @@ public struct ApexOptions {
     /// Embed local images as base64 data URLs
     public var embedImages: Bool = false
 
+    /// Enable external plugin processing during conversion.
+    public var enablePlugins: Bool = false
+
     /// Default initializer
     public init() {}
     
@@ -95,6 +98,9 @@ public struct ApexOptions {
         }
         if embedImages {
             dict["embedImages"] = true
+        }
+        if enablePlugins {
+            dict["enablePlugins"] = true
         }
 
         return dict

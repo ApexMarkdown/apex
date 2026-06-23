@@ -267,6 +267,12 @@ NSString *const ApexModeUnified = @"unified";
     if (embedImagesValue && [embedImagesValue isKindOfClass:[NSNumber class]]) {
       options.embed_images = [embedImagesValue boolValue];
     }
+
+    /* Plugins */
+    id enablePluginsValue = optionsDict[@"enablePlugins"];
+    if (enablePluginsValue && [enablePluginsValue isKindOfClass:[NSNumber class]]) {
+      options.enable_plugins = [enablePluginsValue boolValue];
+    }
   }
 
   /* Convert to HTML */

@@ -3,21 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "plugins_remote.h"
+
 /* Simple structures for remote plugin directory entries */
-
-typedef struct apex_remote_plugin {
-    char *id;
-    char *title;
-    char *description;
-    char *author;
-    char *homepage;
-    char *repo;
-    struct apex_remote_plugin *next;
-} apex_remote_plugin;
-
-typedef struct apex_remote_plugin_list {
-    apex_remote_plugin *head;
-} apex_remote_plugin_list;
 
 void apex_remote_free_plugins(apex_remote_plugin_list *list) {
     if (!list) return;
@@ -285,5 +273,91 @@ apex_remote_plugin *apex_remote_find_plugin(apex_remote_plugin_list *list, const
 const char *apex_remote_plugin_repo(apex_remote_plugin *p) {
     if (!p) return NULL;
     return p->repo;
+}
+
+static char *apex_plugin_dup_optional(const char *s) {
+    return s ? strdup(s) : NULL;
+}
+
+static apex_plugin_info apex_plugin_info_from_remote(const apex_remote_plugin *p) {
+    apex_plugin_info info;
+    memset(&info, 0, sizeof(info));
+    if (!p) return info;
+    info.id = apex_plugin_dup_optional(p->id);
+    info.title = apex_plugin_dup_optional(p->title);
+    info.description = apex_plugin_dup_optional(p->description);
+    info.author = apex_plugin_dup_optional(p->author);
+    info.homepage = apex_plugin_dup_optional(p->homepage);
+    info.repo = apex_plugin_dup_optional(p->repo);
+    return info;
+}
+
+static apex_plugin_catalog *apex_plugin_catalog_from_remote_list(apex_remote_plugin_list *list) {
+    if (!list) return NULL;
+
+    size_t count = 0;
+    for (apex_remote_plugin *p = list->head; p; p = p->next) {
+        count++;
+    }
+    if (count == 0) {
+        apex_plugin_catalog *empty = calloc(1, sizeof(apex_plugin_catalog));
+        return empty;
+    }
+
+    apex_plugin_catalog *catalog = calloc(1, sizeof(apex_plugin_catalog));
+    if (!catalog) return NULL;
+
+    catalog->items = calloc(count, sizeof(apex_plugin_info));
+    if (!catalog->items) {
+        free(catalog);
+        return NULL;
+    }
+
+    /* Linked list is built head-first; reverse into stable array order. */
+    apex_remote_plugin **nodes = calloc(count, sizeof(apex_remote_plugin *));
+    if (!nodes) {
+        free(catalog->items);
+        free(catalog);
+        return NULL;
+    }
+    size_t i = 0;
+    for (apex_remote_plugin *p = list->head; p; p = p->next) {
+        nodes[i++] = p;
+    }
+    for (size_t j = 0; j < count; j++) {
+        catalog->items[j] = apex_plugin_info_from_remote(nodes[count - 1 - j]);
+    }
+    catalog->count = count;
+    free(nodes);
+    return catalog;
+}
+
+void apex_plugin_catalog_free(apex_plugin_catalog *catalog) {
+    if (!catalog) return;
+    if (catalog->items) {
+        for (size_t i = 0; i < catalog->count; i++) {
+            free(catalog->items[i].id);
+            free(catalog->items[i].title);
+            free(catalog->items[i].description);
+            free(catalog->items[i].author);
+            free(catalog->items[i].homepage);
+            free(catalog->items[i].repo);
+        }
+        free(catalog->items);
+    }
+    free(catalog);
+}
+
+apex_plugin_catalog *apex_plugin_catalog_fetch_url(const char *url) {
+    if (!url) return NULL;
+    apex_remote_plugin_list *list = apex_remote_fetch_directory(url);
+    if (!list) return NULL;
+    apex_plugin_catalog *catalog = apex_plugin_catalog_from_remote_list(list);
+    apex_remote_free_plugins(list);
+    return catalog;
+}
+
+apex_plugin_catalog *apex_plugin_catalog_fetch_default(void) {
+    return apex_plugin_catalog_fetch_url(APEX_PLUGIN_DIRECTORY_URL);
 }
 
