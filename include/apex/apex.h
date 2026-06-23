@@ -122,7 +122,7 @@ typedef struct apex_options {
     bool enable_callouts;
     bool enable_py_callouts;      /* Enable Python-Markdown !!! callout preprocessing */
     bool enable_quarto_callouts;  /* Enable Quarto ::: callout preprocessing */
-    bool enable_quarto_extensions; /* Enable Pandoc/Quarto-specific preprocessors ({=raw}, (@), etc.) */
+    bool enable_quarto_extensions; /* Enable Pandoc/Quarto-specific preprocessors ({=raw}, example lists, etc.) */
     bool enable_marked_extensions;
     bool enable_divs;  /* Enable Pandoc fenced divs (unified/quarto modes) */
     bool enable_spans;  /* Enable bracketed spans [text]{IAL} (Pandoc-style) */

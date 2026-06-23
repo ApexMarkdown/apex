@@ -325,32 +325,35 @@ void test_quarto_mode(void) {
     assert_contains(html, "<code", "non-quarto mode keeps {=html} as code fence");
     apex_free_string(html);
 
-    const char *list_continue_simple =
-        "1. First item\n"
-        "(@)\n"
-        "2. Second item\n";
-    html = apex_markdown_to_html(list_continue_simple, strlen(list_continue_simple), &opts);
-    assert_contains(html, "<ol>", "list continuation (@) produces single ordered list");
-    assert_contains(html, "First item", "list continuation preserves first item");
-    assert_contains(html, "Second item", "list continuation preserves second item");
-    assert_not_contains(html, "(@)", "list continuation marker stripped");
-    assert_not_contains(html, "<ol start=\"2\"", "list continuation avoids split list");
+    const char *example_lists =
+        "(@)  My first example will be numbered (1).\n"
+        "(@)  My second example will be numbered (2).\n";
+    html = apex_markdown_to_html(example_lists, strlen(example_lists), &opts);
+    assert_contains(html, "<ol>", "example list (@) produces ordered list");
+    assert_contains(html, "My first example", "example list first item");
+    assert_contains(html, "My second example", "example list second item");
+    assert_not_contains(html, "(@)", "example list marker stripped");
     apex_free_string(html);
 
-    const char *list_continue_break =
-        "1. First item\n"
+    const char *example_lists_break =
+        "(@)  My first example will be numbered (1).\n"
+        "(@)  My second example will be numbered (2).\n"
         "\n"
-        "Interruption paragraph.\n"
+        "Explanation of examples.\n"
         "\n"
-        "(@)\n"
-        "\n"
-        "2. Second item\n";
-    html = apex_markdown_to_html(list_continue_break, strlen(list_continue_break), &opts);
-    assert_contains(html, "Interruption paragraph", "list continuation keeps interruption text");
-    assert_contains(html, "First item", "list continuation break keeps first item");
-    assert_contains(html, "Second item", "list continuation break keeps second item");
-    assert_not_contains(html, "(@)", "list continuation break strips marker");
-    assert_not_contains(html, "apex-list-continue", "list continuation merge marker stripped from output");
+        "(@)  My third example will be numbered (3).\n";
+    html = apex_markdown_to_html(example_lists_break, strlen(example_lists_break), &opts);
+    assert_contains(html, "Explanation of examples", "example list keeps interruption text");
+    assert_contains(html, "My third example", "example list third item after break");
+    assert_contains(html, "start=\"3\"", "example list continues numbering after interruption");
+    assert_not_contains(html, "(@)", "example list break strips marker");
+    apex_free_string(html);
+
+    const char *example_lists_labeled =
+        "(@good)  This is a good example.\n";
+    html = apex_markdown_to_html(example_lists_labeled, strlen(example_lists_labeled), &opts);
+    assert_contains(html, "This is a good example", "labeled example list item content");
+    assert_not_contains(html, "(@good)", "labeled example list marker stripped");
     apex_free_string(html);
 
     const char *roman_list =

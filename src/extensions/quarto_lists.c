@@ -1,5 +1,5 @@
 /**
- * Quarto/Pandoc list extensions: (@) continuation, line blocks, roman markers
+ * Quarto/Pandoc list extensions: example lists (@), line blocks, roman markers
  */
 
 #include "quarto_lists.h"
@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char LIST_CONTINUE_MARKER[] = "<!-- apex-list-continue -->";
 static const char ROMAN_COMMENT_LOWER[] = "<!-- apex-alpha-list-lower-roman -->";
 static const char ROMAN_COMMENT_UPPER[] = "<!-- apex-alpha-list-upper-roman -->";
 
@@ -63,47 +62,98 @@ static bool line_is_blank(const char *line_start, const char *line_end) {
     return p >= line_end;
 }
 
-static bool parse_ordered_list_marker(const char *p, const char *line_end, size_t *indent_out) {
-    const char *content = skip_indent(p, line_end, indent_out);
-    if (content >= line_end || *content < '0' || *content > '9') {
-        return false;
-    }
-    const char *num_p = content;
-    while (num_p < line_end && *num_p >= '0' && *num_p <= '9') {
-        num_p++;
-    }
-    if (num_p >= line_end || *num_p != '.') {
-        return false;
-    }
-    num_p++;
-    return num_p >= line_end || *num_p == ' ' || *num_p == '\t';
-}
-
-static bool is_list_continuation_marker(const char *line_start, const char *line_end) {
+static bool parse_example_list_marker(const char *line_start, const char *line_end,
+                                      const char **body_start) {
     const char *p = skip_indent(line_start, line_end, NULL);
-    if (p + 3 > line_end) {
+    if (p >= line_end || *p != '(') {
         return false;
     }
-    if (p[0] != '(' || p[1] != '@' || p[2] != ')') {
+    p++;
+    if (p >= line_end || *p != '@') {
         return false;
     }
-    p += 3;
+    p++;
+    while (p < line_end &&
+           (isalnum((unsigned char)*p) || *p == '_' || *p == '-')) {
+        p++;
+    }
+    if (p >= line_end || *p != ')') {
+        return false;
+    }
+    p++;
+    if (p < line_end && *p != ' ' && *p != '\t') {
+        return false;
+    }
     while (p < line_end && (*p == ' ' || *p == '\t')) {
         p++;
     }
-    return p >= line_end;
+    if (body_start) {
+        *body_start = p;
+    }
+    return true;
 }
 
-static const char *next_non_blank_line(const char *read) {
+char *apex_preprocess_example_lists(const char *text) {
+    if (!text) {
+        return NULL;
+    }
+
+    size_t cap = strlen(text) * 2 + 256;
+    char *out = malloc(cap);
+    if (!out) {
+        return NULL;
+    }
+    size_t len = 0;
+    out[0] = '\0';
+    bool changed = false;
+    int example_num = 1;
+
+    const char *read = text;
     while (*read) {
         const char *line_start = read;
         const char *line_end = line_end_ptr(read);
-        if (!line_is_blank(line_start, line_end)) {
-            return line_start;
+        bool has_newline = (*line_end == '\n');
+
+        const char *body_start = NULL;
+        if (parse_example_list_marker(line_start, line_end, &body_start)) {
+            const char *indent_end = skip_indent(line_start, line_end, NULL);
+            char num_buf[32];
+            int num_len = snprintf(num_buf, sizeof(num_buf), "%d. ", example_num++);
+            if (num_len <= 0 || num_len >= (int)sizeof(num_buf)) {
+                free(out);
+                return NULL;
+            }
+
+            if (!append_chunk(&out, &len, &cap, line_start, (size_t)(indent_end - line_start)) ||
+                !append_chunk(&out, &len, &cap, num_buf, (size_t)num_len)) {
+                free(out);
+                return NULL;
+            }
+
+            size_t body_len = (size_t)(line_end - body_start) + (has_newline ? 1 : 0);
+            if (!append_chunk(&out, &len, &cap, body_start, body_len)) {
+                free(out);
+                return NULL;
+            }
+
+            changed = true;
+            read = has_newline ? line_end + 1 : line_end;
+            continue;
         }
-        read = (*line_end == '\n') ? line_end + 1 : line_end;
+
+        size_t line_len = (size_t)(line_end - line_start) + (has_newline ? 1 : 0);
+        if (!append_chunk(&out, &len, &cap, line_start, line_len)) {
+            free(out);
+            return NULL;
+        }
+        read = has_newline ? line_end + 1 : line_end;
     }
-    return NULL;
+
+    if (!changed) {
+        free(out);
+        return NULL;
+    }
+    return out;
 }
 
 static bool is_line_block_line(const char *line_start, const char *line_end) {
@@ -220,197 +270,6 @@ static bool parse_roman_list_marker(const char *line_start, const char *line_end
         return false;
     }
     return roman_to_int(digits_start, p - 1, is_upper, value_out);
-}
-
-static const char *prev_line_start(const char *text, const char *line_start) {
-    if (line_start <= text) {
-        return NULL;
-    }
-    const char *p = line_start - 1;
-    while (p >= text && *p == '\n') {
-        p--;
-    }
-    while (p >= text && *p != '\n') {
-        p--;
-    }
-    return (p < text) ? text : p + 1;
-}
-
-static const char *find_prev_ordered_list(const char *text, const char *before,
-                                          size_t target_indent, size_t *indent_out) {
-    const char *line_start = before;
-    while (line_start && line_start >= text) {
-        const char *line_end = line_end_ptr(line_start);
-        if (is_list_continuation_marker(line_start, line_end)) {
-            line_start = prev_line_start(text, line_start);
-            continue;
-        }
-        if (line_is_blank(line_start, line_end)) {
-            line_start = prev_line_start(text, line_start);
-            continue;
-        }
-        size_t indent = 0;
-        if (parse_ordered_list_marker(line_start, line_end, &indent) && indent == target_indent) {
-            if (indent_out) {
-                *indent_out = indent;
-            }
-            return line_start;
-        }
-        size_t line_indent = 0;
-        skip_indent(line_start, line_end, &line_indent);
-        if (line_indent <= target_indent) {
-            /* Paragraph or other block between list items; keep scanning backward. */
-            line_start = prev_line_start(text, line_start);
-            continue;
-        }
-        line_start = prev_line_start(text, line_start);
-    }
-    return NULL;
-}
-
-static const char *find_next_ordered_list(const char *text, size_t target_indent, size_t *indent_out) {
-    const char *read = text;
-    while (*read) {
-        const char *line_start = read;
-        const char *line_end = line_end_ptr(read);
-        if (!line_is_blank(line_start, line_end) &&
-            !is_list_continuation_marker(line_start, line_end)) {
-            size_t indent = 0;
-            if (parse_ordered_list_marker(line_start, line_end, &indent) && indent == target_indent) {
-                if (indent_out) {
-                    *indent_out = indent;
-                }
-                return line_start;
-            }
-            size_t line_indent = 0;
-            skip_indent(line_start, line_end, &line_indent);
-            if (line_indent <= target_indent) {
-                return NULL;
-            }
-        }
-        read = (*line_end == '\n') ? line_end + 1 : line_end;
-    }
-    return NULL;
-}
-
-static bool only_blanks_between(const char *start, const char *end) {
-    const char *read = start;
-    while (read < end) {
-        const char *line_start = read;
-        const char *line_end = line_end_ptr(read);
-        if (!line_is_blank(line_start, line_end)) {
-            return false;
-        }
-        read = (*line_end == '\n') ? line_end + 1 : line_end;
-    }
-    return true;
-}
-
-char *apex_preprocess_list_continuation(const char *text) {
-    if (!text) {
-        return NULL;
-    }
-
-    size_t cap = strlen(text) * 2 + 256;
-    char *out = malloc(cap);
-    if (!out) {
-        return NULL;
-    }
-    size_t len = 0;
-    out[0] = '\0';
-    bool changed = false;
-
-    const char *read = text;
-    char pending_blanks[512];
-    size_t pending_blanks_len = 0;
-
-    while (*read) {
-        const char *line_start = read;
-        const char *line_end = line_end_ptr(read);
-        bool has_newline = (*line_end == '\n');
-
-        if (is_list_continuation_marker(line_start, line_end)) {
-            changed = true;
-            size_t marker_indent = 0;
-            skip_indent(line_start, line_end, &marker_indent);
-
-            const char *prev_line = prev_line_start(text, line_start);
-            size_t prev_indent = 0;
-            const char *prev_ordered = prev_line
-                ? find_prev_ordered_list(text, prev_line, marker_indent, &prev_indent)
-                : NULL;
-
-            const char *next_line = has_newline ? line_end + 1 : line_end;
-            size_t next_indent = 0;
-            const char *next_ordered = find_next_ordered_list(next_line, marker_indent, &next_indent);
-
-            if (prev_ordered && next_ordered && prev_indent == next_indent) {
-                const char *after_prev = line_end_ptr(prev_ordered);
-                after_prev = (*after_prev == '\n') ? after_prev + 1 : after_prev;
-                bool collapse = only_blanks_between(after_prev, line_start);
-                if (!collapse) {
-                    for (const char *scan = after_prev; scan < line_start; ) {
-                        const char *ls = scan;
-                        const char *le = line_end_ptr(scan);
-                        if (!line_is_blank(ls, le) && !is_list_continuation_marker(ls, le)) {
-                            size_t indent = 0;
-                            if (parse_ordered_list_marker(ls, le, &indent) && indent == marker_indent) {
-                                collapse = true;
-                                break;
-                            }
-                            collapse = false;
-                            break;
-                        }
-                        scan = (*le == '\n') ? le + 1 : le;
-                    }
-                }
-
-                if (collapse) {
-                    pending_blanks_len = 0;
-                } else {
-                    pending_blanks_len = 0;
-                    if (!append_str(&out, &len, &cap, LIST_CONTINUE_MARKER) ||
-                        !append_str(&out, &len, &cap, "\n")) {
-                        free(out);
-                        return NULL;
-                    }
-                }
-            }
-
-            read = has_newline ? line_end + 1 : line_end;
-            continue;
-        }
-
-        if (line_is_blank(line_start, line_end)) {
-            if (pending_blanks_len + (has_newline ? 1 : 0) < sizeof(pending_blanks) && has_newline) {
-                pending_blanks[pending_blanks_len++] = '\n';
-            }
-            read = has_newline ? line_end + 1 : line_end;
-            continue;
-        }
-
-        if (pending_blanks_len > 0) {
-            if (!append_chunk(&out, &len, &cap, pending_blanks, pending_blanks_len)) {
-                free(out);
-                return NULL;
-            }
-            pending_blanks_len = 0;
-        }
-
-        size_t line_len = (size_t)(line_end - line_start) + (has_newline ? 1 : 0);
-        if (!append_chunk(&out, &len, &cap, line_start, line_len)) {
-            free(out);
-            return NULL;
-        }
-
-        read = has_newline ? line_end + 1 : line_end;
-    }
-
-    if (!changed) {
-        free(out);
-        return NULL;
-    }
-    return out;
 }
 
 char *apex_preprocess_line_blocks(const char *text, bool unsafe) {
@@ -762,150 +621,4 @@ char *apex_postprocess_roman_lists_html(const char *html) {
         return upper;
     }
     return upper ? upper : lower;
-}
-
-static bool extract_ol_inner(const char *ol_open, const char *html_end,
-                             const char **inner_start, size_t *inner_len,
-                             const char **after_ol) {
-    const char *close = strstr(ol_open, "</ol>");
-    if (!close || close >= html_end) {
-        return false;
-    }
-    const char *gt = strchr(ol_open, '>');
-    if (!gt || gt >= close) {
-        return false;
-    }
-    *inner_start = gt + 1;
-    *inner_len = (size_t)(close - *inner_start);
-    *after_ol = close + 5;
-    return true;
-}
-
-char *apex_postprocess_list_continuation_html(const char *html) {
-    if (!html || !strstr(html, LIST_CONTINUE_MARKER)) {
-        return NULL;
-    }
-
-    size_t cap = strlen(html) + 256;
-    char *out = malloc(cap);
-    if (!out) {
-        return NULL;
-    }
-    size_t len = 0;
-    out[0] = '\0';
-    bool changed = false;
-
-    const char *read = html;
-    const char *html_end = html + strlen(html);
-    const size_t marker_len = sizeof(LIST_CONTINUE_MARKER) - 1;
-
-    while (read < html_end) {
-        const char *marker = strstr(read, LIST_CONTINUE_MARKER);
-        if (!marker) {
-            break;
-        }
-
-        const char *prev_close = NULL;
-        for (const char *p = marker - 1; p >= html + 4; p--) {
-            if (strncmp(p, "</ol>", 5) == 0) {
-                prev_close = p;
-                break;
-            }
-        }
-
-        const char *after_marker = marker + marker_len;
-        while (after_marker < html_end &&
-               (*after_marker == ' ' || *after_marker == '\t' ||
-                *after_marker == '\n' || *after_marker == '\r')) {
-            after_marker++;
-        }
-
-        const char *next_ol = NULL;
-        if (after_marker + 3 <= html_end && strncmp(after_marker, "<ol", 3) == 0) {
-            next_ol = after_marker;
-        }
-
-        if (prev_close && next_ol) {
-            const char *between = prev_close + 5;
-            while (between < next_ol &&
-                   (*between == ' ' || *between == '\t' ||
-                    *between == '\n' || *between == '\r')) {
-                between++;
-            }
-            if ((size_t)(next_ol - between) >= marker_len &&
-                strncmp(between, LIST_CONTINUE_MARKER, marker_len) == 0) {
-                between += marker_len;
-                while (between < next_ol &&
-                       (*between == ' ' || *between == '\t' ||
-                        *between == '\n' || *between == '\r')) {
-                    between++;
-                }
-            }
-
-            const char *inner = NULL;
-            size_t inner_len = 0;
-            const char *after_next_ol = NULL;
-            if (between >= next_ol &&
-                extract_ol_inner(next_ol, html_end, &inner, &inner_len, &after_next_ol)) {
-                size_t segment_len = (size_t)(prev_close - read);
-                if (len + segment_len + inner_len + 1 > cap) {
-                    cap = (len + segment_len + inner_len + 1) * 2;
-                    char *grown = realloc(out, cap);
-                    if (!grown) {
-                        free(out);
-                        return NULL;
-                    }
-                    out = grown;
-                }
-                if (segment_len > 0) {
-                    memcpy(out + len, read, segment_len);
-                    len += segment_len;
-                }
-                if (inner_len > 0) {
-                    memcpy(out + len, inner, inner_len);
-                    len += inner_len;
-                }
-                read = after_next_ol;
-                changed = true;
-                continue;
-            }
-        }
-
-        size_t skip_len = (size_t)(marker - read);
-        if (len + skip_len + 1 > cap) {
-            cap = (len + skip_len + 1) * 2;
-            char *grown = realloc(out, cap);
-            if (!grown) {
-                free(out);
-                return NULL;
-            }
-            out = grown;
-        }
-        if (skip_len > 0) {
-            memcpy(out + len, read, skip_len);
-            len += skip_len;
-        }
-        read = marker + marker_len;
-        changed = true;
-    }
-
-    if (!changed) {
-        free(out);
-        return NULL;
-    }
-
-    size_t tail_len = (size_t)(html_end - read);
-    if (len + tail_len + 1 > cap) {
-        cap = len + tail_len + 2;
-        char *grown = realloc(out, cap);
-        if (!grown) {
-            free(out);
-            return NULL;
-        }
-        out = grown;
-    }
-    memcpy(out + len, read, tail_len);
-    len += tail_len;
-    out[len] = '\0';
-    return out;
 }

@@ -81,7 +81,7 @@ New steps run **only when `enable_quarto_extensions`** is true. Proposed order (
 
 1. apex_preprocess_raw_content()      # {=format} blocks + inline
 2. apex_preprocess_code_fence_attrs() # ```{.python filename="..."}
-3. apex_preprocess_list_continuation()  # (@)
+3. apex_preprocess_example_lists()  # (@) example list markers
 4. apex_preprocess_line_blocks()    # | line blocks
 5. apex_preprocess_roman_lists()    # i) ii) iii)
 6. apex_preprocess_quarto_shortcodes()  # {{< ... >}} (optional/plugin)
@@ -192,18 +192,24 @@ Inline:
 
 ## Phase 3 — List extensions (2–3 days)
 
-### 3a. List continuation `(@)`
+### 3a. Example lists `(@)`
+
+Pandoc `example_lists` extension — `(@)` is a **list marker**, not a standalone continuation line. See [Pandoc example lists](https://pandoc.org/MANUAL.html#extension-example_lists).
 
 ```markdown
-1. First item
-(@)
-2. Continues numbering
+(@)  My first example will be numbered (1).
+(@)  My second example will be numbered (2).
+
+Explanation of examples.
+
+(@)  My third example will be numbered (3).
 ```
 
-**Implementation:** Preprocessor strips standalone `(@)` lines and ensures list continuity. Options:
+Labeled markers `(@good)` are also supported; labels are stripped and items are numbered sequentially.
 
-- **Simple:** Remove `(@)` lines; rely on cmark list continuation (may need blank-line handling)
-- **Robust:** Replace `(@)` with HTML comment marker + post-AST list merge (like mixed-list handling)
+**Implementation:** Preprocessor converts `(@)` / `(@label)` line-start markers to `1.`, `2.`, `3.`, … with document-wide sequential numbering. Interrupted lists rely on cmark's `start` attribute on continued `<ol>` blocks.
+
+**Not yet implemented:** repeating a prior example by reusing its label (`(@foo)` twice).
 
 ### 3b. Roman numeral markers `i)`, `ii)`, `I)`, etc.
 

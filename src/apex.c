@@ -5112,15 +5112,15 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     /* Pandoc/Quarto list extensions before alpha/roman marker normalization */
-    char *list_continuation_processed = NULL;
+    char *example_lists_processed = NULL;
     char *line_blocks_processed = NULL;
     char *roman_lists_processed = NULL;
     if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
-        PROFILE_START(list_continuation_preprocess);
-        list_continuation_processed = apex_preprocess_list_continuation(text_ptr);
-        PROFILE_END(list_continuation_preprocess);
-        if (list_continuation_processed) {
-            text_ptr = list_continuation_processed;
+        PROFILE_START(example_lists_preprocess);
+        example_lists_processed = apex_preprocess_example_lists(text_ptr);
+        PROFILE_END(example_lists_preprocess);
+        if (example_lists_processed) {
+            text_ptr = example_lists_processed;
         }
 
         PROFILE_START(line_blocks_preprocess);
@@ -6589,14 +6589,6 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             free(html);
             html = roman_html;
         }
-
-        PROFILE_START(list_continuation_postprocess);
-        char *merged_html = apex_postprocess_list_continuation_html(html);
-        PROFILE_END(list_continuation_postprocess);
-        if (merged_html) {
-            free(html);
-            html = merged_html;
-        }
     }
 
     /* Remove empty paragraphs created by ^ marker (zero-width space only) */
@@ -6622,7 +6614,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (spans_preprocessed) free(spans_preprocessed);
     if (grid_tables_processed) free(grid_tables_processed);
     if (raw_content_processed) free(raw_content_processed);
-    if (list_continuation_processed) free(list_continuation_processed);
+    if (example_lists_processed) free(example_lists_processed);
     if (line_blocks_processed) free(line_blocks_processed);
     if (roman_lists_processed) free(roman_lists_processed);
     if (quarto_callouts_processed) free(quarto_callouts_processed);

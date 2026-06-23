@@ -1,5 +1,5 @@
 /**
- * Quarto/Pandoc list extensions: (@) continuation, line blocks, roman markers
+ * Quarto/Pandoc list extensions: example lists (@), line blocks, roman markers
  */
 
 #ifndef APEX_QUARTO_LISTS_H
@@ -8,10 +8,11 @@
 #include <stdbool.h>
 
 /**
- * Remove Pandoc list continuation markers (@) and insert merge hints when needed.
+ * Convert Pandoc example list markers (@) to sequentially numbered ordered lists.
+ * Supports (@) and (@label) markers per the example_lists extension.
  * Returns newly allocated text, or NULL if unchanged.
  */
-char *apex_preprocess_list_continuation(const char *text);
+char *apex_preprocess_example_lists(const char *text);
 
 /**
  * Convert Pandoc line blocks (lines starting with |) to HTML div.line-block.
@@ -24,12 +25,6 @@ char *apex_preprocess_line_blocks(const char *text, bool unsafe);
  * Returns NULL if unchanged.
  */
 char *apex_preprocess_roman_lists(const char *text);
-
-/**
- * Merge split ordered lists marked with <!-- apex-list-continue -->.
- * Returns NULL if unchanged.
- */
-char *apex_postprocess_list_continuation_html(const char *html);
 
 /**
  * Add list-style-type for roman list HTML comment markers.

@@ -32,11 +32,14 @@ Bordered div content.
 
 Text `<span class="x">inline</span>`{=html} after.
 
-## List continuation
+## Example lists
 
-1. First item
-(@)
-2. Continues numbering
+(@)  My first example will be numbered (1).
+(@)  My second example will be numbered (2).
+
+Explanation of examples.
+
+(@)  My third example will be numbered (3).
 
 ## Roman list
 
