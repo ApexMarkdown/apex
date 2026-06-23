@@ -4,6 +4,7 @@
 
 #include "test_helpers.h"
 #include "apex/apex.h"
+#include "../src/html_renderer.h"
 #include "../src/extensions/advanced_footnotes.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -239,8 +240,58 @@ void test_processor_modes(void) {
     assert_contains(html, "<h1", "Unified mode works");
     apex_free_string(html);
 
+    /* Test Quarto mode */
+    apex_options quarto_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    html = apex_markdown_to_html(markdown, strlen(markdown), &quarto_opts);
+    assert_contains(html, "<h1", "Quarto mode works");
+    test_result(quarto_opts.enable_quarto_callouts == true, "Quarto mode enables quarto callouts by default");
+    test_result(quarto_opts.enable_quarto_extensions == true, "Quarto mode enables quarto extensions by default");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Processor Modes Tests", had_failures, false);
+}
+
+void test_quarto_mode(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Quarto Mode Tests", false, true);
+
+    apex_options opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    char *html;
+
+    const char *callout =
+        "::: {.callout-warning}\n"
+        "Warning body.\n"
+        "::: ";
+    html = apex_markdown_to_html(callout, strlen(callout), &opts);
+    assert_contains(html, "class=\"callout", "Quarto mode renders callout blocks");
+    assert_contains(html, "Warning body", "Quarto callout body preserved");
+    apex_free_string(html);
+
+    const char *fig_alt = "![Caption](elephant.png){fig-alt=\"Alt text\"}";
+    html = apex_markdown_to_html(fig_alt, strlen(fig_alt), &opts);
+    assert_contains(html, "<figure>", "fig-alt image wrapped in figure");
+    assert_contains(html, "<figcaption>Caption</figcaption>", "fig-alt uses markdown alt as caption");
+    assert_contains(html, "alt=\"Alt text\"", "fig-alt maps to img alt attribute");
+    assert_not_contains(html, "fig-alt=", "fig-alt attribute stripped from output");
+    apex_free_string(html);
+
+    /* Direct convert test: fig-alt rewrites img alt for accessibility */
+    {
+        const char *in = "<p><img src=\"elephant.png\" alt=\"Caption\" fig-alt=\"Alt text\" /></p>";
+        char *out = apex_convert_image_captions(in, true, false);
+        assert_contains(out, "alt=\"Alt text\"", "fig-alt maps to img alt attribute (direct convert)");
+        assert_contains(out, "<figcaption>Caption</figcaption>", "fig-alt caption from markdown alt (direct convert)");
+        free(out);
+    }
+
+    const char *div_block = "::: {.sidebar}\nSidebar content.\n:::";
+    html = apex_markdown_to_html(div_block, strlen(div_block), &opts);
+    assert_contains(html, "class=\"sidebar\"", "Quarto mode renders fenced divs");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Quarto Mode Tests", had_failures, false);
 }
 
 /**

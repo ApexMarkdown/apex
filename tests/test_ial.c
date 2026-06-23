@@ -259,6 +259,13 @@ void test_bracketed_spans(void) {
     assert_not_contains(html, "[Text with [nested brackets]]{.nested}", "Bracketed span syntax removed");
     apex_free_string(html);
 
+    /* Class-only span must not produce <spanclass=...> (space before class attribute) */
+    const char *class_only = "[smallcaps text]{.smallcaps}";
+    html = apex_markdown_to_html(class_only, strlen(class_only), &opts);
+    assert_contains(html, "<span class=\"smallcaps\">", "Class-only bracketed span has valid class attribute");
+    assert_not_contains(html, "<spanclass", "Class-only bracketed span does not merge tag and class");
+    apex_free_string(html);
+
     /* Test that spans are disabled when flag is off */
     apex_options no_spans = apex_options_default();
     no_spans.enable_spans = false;

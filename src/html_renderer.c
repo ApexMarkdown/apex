@@ -2839,6 +2839,164 @@ static void apex_trim_attr_value(const char *s, size_t len,
 }
 
 /**
+ * Rewrite img alt text and optionally strip fig-alt attribute.
+ * alt_val/alt_len and new_alt/new_alt_len are the inner text (no quotes).
+ * Caller must free.
+ */
+static char *apex_img_rewrite_alt_and_strip(const char *tag_start, const char *tag_end,
+                                            const char *alt_val, size_t alt_len,
+                                            const char *new_alt, size_t new_alt_len,
+                                            const char *strip_start, const char *strip_end) {
+    if (!tag_start || !tag_end || tag_end < tag_start || !alt_val || alt_len == 0 ||
+        !new_alt || new_alt_len == 0) {
+        return NULL;
+    }
+
+    const char *alt_value_end = alt_val + alt_len;
+    if (alt_value_end > tag_end + 1) {
+        return NULL;
+    }
+
+    size_t head_len = (size_t)(alt_val - tag_start);
+    const char *suffix_start;
+    size_t suffix_len;
+
+    if (strip_start && strip_end && strip_end > strip_start &&
+        strip_start >= alt_value_end && strip_end <= tag_end + 1) {
+        /* fig-alt attribute removed: emit closing quote then skip to after it */
+        suffix_start = strip_end;
+        suffix_len = (size_t)(tag_end + 1 - suffix_start);
+        size_t out_len = head_len + new_alt_len + 1 + suffix_len;
+
+        char *out = malloc(out_len + 1);
+        if (!out) {
+            return NULL;
+        }
+
+        char *w = out;
+        memcpy(w, tag_start, head_len);
+        w += head_len;
+        memcpy(w, new_alt, new_alt_len);
+        w += new_alt_len;
+        *w++ = '"';
+        memcpy(w, suffix_start, suffix_len);
+        w[suffix_len] = '\0';
+        return out;
+    }
+
+    suffix_start = alt_value_end;
+    suffix_len = (size_t)(tag_end + 1 - suffix_start);
+    size_t out_len = head_len + new_alt_len + suffix_len;
+
+    char *out = malloc(out_len + 1);
+    if (!out) {
+        return NULL;
+    }
+
+    char *w = out;
+    memcpy(w, tag_start, head_len);
+    w += head_len;
+    memcpy(w, new_alt, new_alt_len);
+    w += new_alt_len;
+    memcpy(w, suffix_start, suffix_len);
+    w[suffix_len] = '\0';
+    return out;
+}
+
+/**
+ * Copy an <img> tag, remove fig-alt attribute, and set alt to the fig-alt value.
+ * Caller must free the returned string.
+ */
+static char *apex_img_tag_with_fig_alt(const char *tag_start, const char *tag_end,
+                                       const char *fig_alt_val, size_t fig_alt_len,
+                                       const char *strip_start, const char *strip_end,
+                                       const char *alt_val, size_t alt_len) {
+    if (!tag_start || !tag_end || tag_end < tag_start || !fig_alt_val || fig_alt_len == 0) {
+        return NULL;
+    }
+
+    if (alt_val && alt_len > 0) {
+        return apex_img_rewrite_alt_and_strip(tag_start, tag_end, alt_val, alt_len,
+                                              fig_alt_val, fig_alt_len,
+                                              strip_start, strip_end);
+    }
+
+    /* No existing alt: strip fig-alt and insert alt="..." before closing > */
+    size_t tag_len = (size_t)(tag_end - tag_start + 1);
+    size_t strip_len = 0;
+    if (strip_start && strip_end && strip_end > strip_start &&
+        strip_start >= tag_start && strip_end <= tag_end + 1) {
+        strip_len = (size_t)(strip_end - strip_start);
+    }
+
+    size_t cap = tag_len + fig_alt_len + 64;
+    if (strip_len > 0 && strip_len < tag_len) {
+        cap = tag_len - strip_len + fig_alt_len + 64;
+    }
+    char *buf = malloc(cap);
+    if (!buf) {
+        return NULL;
+    }
+
+    char *p = buf;
+    if (strip_len > 0) {
+        size_t head = (size_t)(strip_start - tag_start);
+        memcpy(p, tag_start, head);
+        p += head;
+        size_t tail = (size_t)(tag_end + 1 - strip_end);
+        memcpy(p, strip_end, tail);
+        p += tail;
+        *p = '\0';
+    } else {
+        memcpy(buf, tag_start, tag_len);
+        buf[tag_len] = '\0';
+        p = buf + tag_len;
+    }
+
+    char *gt = strrchr(buf, '>');
+    if (!gt) {
+        free(buf);
+        return NULL;
+    }
+
+    char fig_alt_buf[512];
+    size_t use_len = fig_alt_len;
+    if (use_len >= sizeof(fig_alt_buf)) {
+        use_len = sizeof(fig_alt_buf) - 1;
+    }
+    memcpy(fig_alt_buf, fig_alt_val, use_len);
+    fig_alt_buf[use_len] = '\0';
+
+    char insert[600];
+    int n = snprintf(insert, sizeof(insert), " alt=\"%s\"", fig_alt_buf);
+    if (n < 0 || (size_t)n >= sizeof(insert)) {
+        free(buf);
+        return NULL;
+    }
+
+    size_t tail_len = strlen(gt);
+    size_t new_len = (size_t)(gt - buf) + (size_t)n + tail_len;
+    if (new_len + 1 > cap) {
+        char *grown = realloc(buf, new_len + 32);
+        if (!grown) {
+            free(buf);
+            return NULL;
+        }
+        buf = grown;
+        gt = strrchr(buf, '>');
+        if (!gt) {
+            free(buf);
+            return NULL;
+        }
+        tail_len = strlen(gt);
+    }
+
+    memmove(gt + n, gt, tail_len + 1);
+    memcpy(gt, insert, (size_t)n);
+    return buf;
+}
+
+/**
  * Convert <img> tags to <figure> with <figcaption> when alt/title/caption are present.
  * If caption="TEXT" is present, always wrap. Otherwise when enable_image_captions,
  * use title or alt (unless title_captions_only, then only title).
@@ -3022,6 +3180,10 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
             size_t caption_len = 0;
             const char *caption_attr_start = NULL; /* start of caption attr (for stripping) */
             const char *caption_attr_end = NULL;
+            const char *fig_alt_val = NULL;
+            size_t fig_alt_len = 0;
+            const char *fig_alt_attr_start = NULL;
+            const char *fig_alt_attr_end = NULL;
 
             const char *q = attr_start;
             while (q < attr_end) {
@@ -3075,6 +3237,12 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
                         (strncasecmp(name_start, "title", 5) == 0)) {
                         title_val = value_start;
                         title_len = (size_t)(value_end - value_start);
+                    } else if (name_len == 7 &&
+                               (strncasecmp(name_start, "fig-alt", 7) == 0)) {
+                        fig_alt_val = value_start;
+                        fig_alt_len = (size_t)(value_end - value_start);
+                        fig_alt_attr_start = (name_start > attr_start && isspace((unsigned char)name_start[-1])) ? name_start - 1 : name_start;
+                        fig_alt_attr_end = q;
                     } else if (name_len == 3 &&
                                (strncasecmp(name_start, "alt", 3) == 0)) {
                         alt_val = value_start;
@@ -3117,8 +3285,42 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
                 }
             }
 
+            /* Quarto/Pandoc: fig-alt is accessibility alt; markdown alt text is the caption */
+            if (fig_alt_val && fig_alt_len > 0 && alt_val && alt_len > 0 && !use_caption_attr) {
+                apex_trim_attr_value(alt_val, alt_len, &caption, &caption_text_len);
+            }
+
+            char *fig_alt_tag = NULL;
+            if (fig_alt_val && fig_alt_len > 0) {
+                fig_alt_tag = apex_img_tag_with_fig_alt(tag_start, tag_end, fig_alt_val, fig_alt_len,
+                                                        fig_alt_attr_start, fig_alt_attr_end,
+                                                        alt_val, alt_len);
+            }
+
             if (!caption || caption_text_len == 0) {
-                /* No caption - copy tag as-is */
+                /* No caption - copy tag as-is (apply fig-alt alt rewrite when present) */
+                if (fig_alt_tag) {
+                    size_t tag_len = strlen(fig_alt_tag);
+                    if (tag_len >= remaining) {
+                        size_t used = write - output;
+                        size_t new_cap = (used + tag_len + 1) * 2;
+                        char *new_out = realloc(output, new_cap);
+                        if (!new_out) {
+                            free(fig_alt_tag);
+                            free(output);
+                            return NULL;
+                        }
+                        output = new_out;
+                        write = output + used;
+                        remaining = new_cap - used;
+                    }
+                    memcpy(write, fig_alt_tag, tag_len);
+                    write += tag_len;
+                    remaining -= tag_len;
+                    free(fig_alt_tag);
+                    read = tag_end + 1;
+                    continue;
+                }
                 size_t tag_len = (size_t)(tag_end - tag_start + 1);
                 if (tag_len >= remaining) {
                     size_t used = write - output;
@@ -3160,6 +3362,28 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
                 }
                 if (figure_depth > 0) {
                     /* Already inside a figure - copy img tag as-is, no extra wrap */
+                    if (fig_alt_tag) {
+                        size_t tag_len = strlen(fig_alt_tag);
+                        if (tag_len >= remaining) {
+                            size_t used = write - output;
+                            size_t new_cap = (used + tag_len + 1) * 2;
+                            char *new_out = realloc(output, new_cap);
+                            if (!new_out) {
+                                free(fig_alt_tag);
+                                free(output);
+                                return NULL;
+                            }
+                            output = new_out;
+                            write = output + used;
+                            remaining = new_cap - used;
+                        }
+                        memcpy(write, fig_alt_tag, tag_len);
+                        write += tag_len;
+                        remaining -= tag_len;
+                        free(fig_alt_tag);
+                        read = tag_end + 1;
+                        continue;
+                    }
                     size_t tag_len = (size_t)(tag_end - tag_start + 1);
                     if (tag_len >= remaining) {
                         size_t used = write - output;
@@ -3189,7 +3413,9 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
 
             /* When we have caption= attribute, output img tag without it (strip caption attr) */
             size_t img_tag_output_len;
-            if (caption_attr_start != NULL && caption_attr_end != NULL) {
+            if (fig_alt_tag) {
+                img_tag_output_len = strlen(fig_alt_tag);
+            } else if (caption_attr_start != NULL && caption_attr_end != NULL) {
                 img_tag_output_len = (size_t)(caption_attr_start - tag_start) +
                     (size_t)(tag_end + 1 - caption_attr_end);
             } else {
@@ -3219,7 +3445,13 @@ char *apex_convert_image_captions(const char *html, bool enable_image_captions, 
             remaining -= strlen(figure_open);
 
             /* Write <img ...> tag (omitting caption attribute if present) */
-            if (caption_attr_start != NULL && caption_attr_end != NULL) {
+            if (fig_alt_tag) {
+                memcpy(write, fig_alt_tag, img_tag_output_len);
+                write += img_tag_output_len;
+                remaining -= img_tag_output_len;
+                free(fig_alt_tag);
+                fig_alt_tag = NULL;
+            } else if (caption_attr_start != NULL && caption_attr_end != NULL) {
                 size_t part1 = (size_t)(caption_attr_start - tag_start);
                 memcpy(write, tag_start, part1);
                 write += part1;
