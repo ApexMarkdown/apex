@@ -125,6 +125,7 @@ set(APEX_LIB_SOURCES
     src/extensions/critic.c
     src/extensions/callouts.c
     src/extensions/raw_content.c
+    src/extensions/quarto_lists.c
     src/extensions/includes.c
     src/extensions/inline_tables.c
     src/extensions/toc.c

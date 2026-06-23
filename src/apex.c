@@ -20,6 +20,7 @@
 #include "extensions/critic.h"
 #include "extensions/callouts.h"
 #include "extensions/raw_content.h"
+#include "extensions/quarto_lists.h"
 #include "extensions/includes.h"
 #include "extensions/toc.h"
 #include "extensions/abbreviations.h"
@@ -5110,6 +5111,33 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         text_ptr = inline_tables_processed;
     }
 
+    /* Pandoc/Quarto list extensions before alpha/roman marker normalization */
+    char *list_continuation_processed = NULL;
+    char *line_blocks_processed = NULL;
+    char *roman_lists_processed = NULL;
+    if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
+        PROFILE_START(list_continuation_preprocess);
+        list_continuation_processed = apex_preprocess_list_continuation(text_ptr);
+        PROFILE_END(list_continuation_preprocess);
+        if (list_continuation_processed) {
+            text_ptr = list_continuation_processed;
+        }
+
+        PROFILE_START(line_blocks_preprocess);
+        line_blocks_processed = apex_preprocess_line_blocks(text_ptr, options->unsafe);
+        PROFILE_END(line_blocks_preprocess);
+        if (line_blocks_processed) {
+            text_ptr = line_blocks_processed;
+        }
+
+        PROFILE_START(roman_lists_preprocess);
+        roman_lists_processed = apex_preprocess_roman_lists(text_ptr);
+        PROFILE_END(roman_lists_preprocess);
+        if (roman_lists_processed) {
+            text_ptr = roman_lists_processed;
+        }
+    }
+
     /* Process alpha lists before parsing (preprocessing) */
     char *alpha_lists_processed = NULL;
     bool inserted_synthetic_nested_alpha_break = false;
@@ -6553,6 +6581,24 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
+    if ((options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) && html) {
+        PROFILE_START(roman_lists_postprocess);
+        char *roman_html = apex_postprocess_roman_lists_html(html);
+        PROFILE_END(roman_lists_postprocess);
+        if (roman_html) {
+            free(html);
+            html = roman_html;
+        }
+
+        PROFILE_START(list_continuation_postprocess);
+        char *merged_html = apex_postprocess_list_continuation_html(html);
+        PROFILE_END(list_continuation_postprocess);
+        if (merged_html) {
+            free(html);
+            html = merged_html;
+        }
+    }
+
     /* Remove empty paragraphs created by ^ marker (zero-width space only) */
     if (html && options->enable_marked_extensions) {
         PROFILE_START(remove_empty_paragraphs);
@@ -6576,6 +6622,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (spans_preprocessed) free(spans_preprocessed);
     if (grid_tables_processed) free(grid_tables_processed);
     if (raw_content_processed) free(raw_content_processed);
+    if (list_continuation_processed) free(list_continuation_processed);
+    if (line_blocks_processed) free(line_blocks_processed);
+    if (roman_lists_processed) free(roman_lists_processed);
     if (quarto_callouts_processed) free(quarto_callouts_processed);
     if (py_callouts_processed) free(py_callouts_processed);
     if (includes_processed) free(includes_processed);

@@ -32,3 +32,20 @@ Bordered div content.
 
 Text `<span class="x">inline</span>`{=html} after.
 
+## List continuation
+
+1. First item
+(@)
+2. Continues numbering
+
+## Roman list
+
+i) Alpha
+ii) Beta
+
+## Line block
+
+| Line one
+|   preserved spaces
+| Line three
+

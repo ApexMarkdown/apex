@@ -325,6 +325,56 @@ void test_quarto_mode(void) {
     assert_contains(html, "<code", "non-quarto mode keeps {=html} as code fence");
     apex_free_string(html);
 
+    const char *list_continue_simple =
+        "1. First item\n"
+        "(@)\n"
+        "2. Second item\n";
+    html = apex_markdown_to_html(list_continue_simple, strlen(list_continue_simple), &opts);
+    assert_contains(html, "<ol>", "list continuation (@) produces single ordered list");
+    assert_contains(html, "First item", "list continuation preserves first item");
+    assert_contains(html, "Second item", "list continuation preserves second item");
+    assert_not_contains(html, "(@)", "list continuation marker stripped");
+    assert_not_contains(html, "<ol start=\"2\"", "list continuation avoids split list");
+    apex_free_string(html);
+
+    const char *list_continue_break =
+        "1. First item\n"
+        "\n"
+        "Interruption paragraph.\n"
+        "\n"
+        "(@)\n"
+        "\n"
+        "2. Second item\n";
+    html = apex_markdown_to_html(list_continue_break, strlen(list_continue_break), &opts);
+    assert_contains(html, "Interruption paragraph", "list continuation keeps interruption text");
+    assert_contains(html, "First item", "list continuation break keeps first item");
+    assert_contains(html, "Second item", "list continuation break keeps second item");
+    assert_not_contains(html, "(@)", "list continuation break strips marker");
+    assert_not_contains(html, "apex-list-continue", "list continuation merge marker stripped from output");
+    apex_free_string(html);
+
+    const char *roman_list =
+        "i) First\n"
+        "ii) Second\n"
+        "iii) Third\n";
+    html = apex_markdown_to_html(roman_list, strlen(roman_list), &opts);
+    assert_contains(html, "list-style-type: lower-roman", "roman list lower-roman style");
+    assert_contains(html, "First", "roman list first item");
+    assert_contains(html, "Second", "roman list second item");
+    assert_not_contains(html, "<!-- apex-alpha-list-", "roman list marker comment stripped");
+    apex_free_string(html);
+
+    const char *line_block =
+        "| Line one\n"
+        "|   preserved spaces\n"
+        "| Line three\n";
+    html = apex_markdown_to_html(line_block, strlen(line_block), &opts);
+    assert_contains(html, "class=\"line-block\"", "line block wrapper");
+    assert_contains(html, "class=\"line\">Line one", "line block first line");
+    assert_contains(html, "class=\"line\">  preserved spaces", "line block preserves inner spaces");
+    assert_contains(html, "class=\"line\">Line three", "line block third line");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Quarto Mode Tests", had_failures, false);
 }
