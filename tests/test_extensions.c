@@ -248,6 +248,8 @@ void test_processor_modes(void) {
     test_result(quarto_opts.enable_quarto_extensions == true, "Quarto mode enables quarto extensions by default");
     test_result(quarto_opts.enable_quarto_diagrams == true, "Quarto mode enables quarto diagrams by default");
     test_result(quarto_opts.enable_quarto_shortcodes == true, "Quarto mode enables quarto shortcodes by default");
+    test_result(quarto_opts.enable_quarto_xrefs == true, "Quarto mode enables quarto xrefs by default");
+    test_result(quarto_opts.enable_quarto_strict_lists == false, "Quarto mode keeps strict lists off by default");
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -497,6 +499,30 @@ void test_quarto_mode(void) {
     const char *unknown_shortcode = "Text {{< widget foo >}} end.";
     html = apex_markdown_to_html(unknown_shortcode, strlen(unknown_shortcode), &opts);
     assert_contains(html, "{{< widget foo", "unknown shortcode left unchanged");
+    apex_free_string(html);
+
+    const char *empty_div_reset =
+        "1. First\n\n::: {}\n\n1. Second\n";
+    html = apex_markdown_to_html(empty_div_reset, strlen(empty_div_reset), &opts);
+    assert_contains(html, "<ol>", "empty div list reset produces ordered lists");
+    {
+        const char *first_ol = strstr(html, "<ol>");
+        const char *second_ol = first_ol ? strstr(first_ol + 1, "<ol>") : NULL;
+        test_result(second_ol != NULL, "empty div separates two ordered lists");
+    }
+    apex_free_string(html);
+
+    const char *cross_ref = "See @fig-elephant and @sec-intro for details.";
+    html = apex_markdown_to_html(cross_ref, strlen(cross_ref), &opts);
+    assert_contains(html, "<span class=\"quarto-xref\">@fig-elephant</span>", "fig cross-ref wrapped");
+    assert_contains(html, "<span class=\"quarto-xref\">@sec-intro</span>", "sec cross-ref wrapped");
+    apex_free_string(html);
+
+    apex_options hidden_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    hidden_opts.standalone = true;
+    html = apex_markdown_to_html("::: {.hidden}\nHidden content.\n:::", 35, &hidden_opts);
+    assert_contains(html, "class=\"hidden\"", "hidden div class preserved");
+    assert_contains(html, ".hidden { display: none; }", "standalone quarto CSS hides .hidden");
     apex_free_string(html);
 
     apex_options unified_opts2 = apex_options_for_mode(APEX_MODE_UNIFIED);

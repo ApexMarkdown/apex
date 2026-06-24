@@ -123,8 +123,15 @@ typedef struct apex_options {
     bool enable_py_callouts;      /* Enable Python-Markdown !!! callout preprocessing */
     bool enable_quarto_callouts;  /* Enable Quarto ::: callout preprocessing */
     bool enable_quarto_extensions; /* Enable Pandoc/Quarto-specific preprocessors ({=raw}, example lists, etc.) */
+    bool enable_quarto_raw;        /* Enable {=format} raw content preprocessing */
+    bool enable_quarto_example_lists; /* Enable (@) example list markers (quarto-list-continuation) */
+    bool enable_quarto_line_blocks;  /* Enable | line blocks */
+    bool enable_quarto_roman_lists;  /* Enable i) ii) roman list markers */
+    bool enable_quarto_code_attrs;   /* Enable ```{.lang attr="val"} fence attributes */
     bool enable_quarto_diagrams;   /* Enable Quarto diagram fences ({mermaid}, {dot}, {graphviz}) */
     bool enable_quarto_shortcodes; /* Enable Quarto shortcode shim ({{< ... >}}) */
+    bool enable_quarto_strict_lists; /* Require blank line before list blocks (Pandoc strict) */
+    bool enable_quarto_xrefs;      /* Wrap @fig-/@sec- cross-refs in span.quarto-xref */
     bool enable_marked_extensions;
     bool enable_divs;  /* Enable Pandoc fenced divs (unified/quarto modes) */
     bool enable_spans;  /* Enable bracketed spans [text]{IAL} (Pandoc-style) */

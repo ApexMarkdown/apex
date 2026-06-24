@@ -2777,6 +2777,55 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->enable_py_callouts = false;
             }
+        } else if (strcasecmp(key, "quarto-extensions") == 0 || strcasecmp(key, "quarto_extensions") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_extensions = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_extensions = false;
+            }
+        } else if (strcasecmp(key, "quarto-raw") == 0 || strcasecmp(key, "quarto_raw") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_raw = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_raw = false;
+            }
+        } else if (strcasecmp(key, "quarto-list-continuation") == 0 || strcasecmp(key, "quarto_list_continuation") == 0 ||
+                   strcasecmp(key, "quarto-example-lists") == 0 || strcasecmp(key, "quarto_example_lists") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_example_lists = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_example_lists = false;
+            }
+        } else if (strcasecmp(key, "quarto-line-blocks") == 0 || strcasecmp(key, "quarto_line_blocks") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_line_blocks = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_line_blocks = false;
+            }
+        } else if (strcasecmp(key, "quarto-roman-lists") == 0 || strcasecmp(key, "quarto_roman_lists") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_roman_lists = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_roman_lists = false;
+            }
+        } else if (strcasecmp(key, "quarto-code-attrs") == 0 || strcasecmp(key, "quarto_code_attrs") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_code_attrs = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_code_attrs = false;
+            }
+        } else if (strcasecmp(key, "quarto-strict-lists") == 0 || strcasecmp(key, "quarto_strict_lists") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_strict_lists = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_strict_lists = false;
+            }
+        } else if (strcasecmp(key, "quarto-xrefs") == 0 || strcasecmp(key, "quarto_xrefs") == 0) {
+            if (is_true_value(value)) {
+                options->enable_quarto_xrefs = true;
+            } else if (is_false_value(value)) {
+                options->enable_quarto_xrefs = false;
+            }
         } else if (strcasecmp(key, "quarto-callouts") == 0 || strcasecmp(key, "quarto_callouts") == 0) {
             if (is_true_value(value)) {
                 options->enable_quarto_callouts = true;

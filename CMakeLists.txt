@@ -128,6 +128,7 @@ set(APEX_LIB_SOURCES
     src/extensions/code_fence_attrs.c
     src/extensions/quarto_diagrams.c
     src/extensions/quarto_shortcodes.c
+    src/extensions/quarto_polish.c
     src/extensions/quarto_lists.c
     src/extensions/includes.c
     src/extensions/inline_tables.c

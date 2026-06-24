@@ -23,6 +23,7 @@
 #include "extensions/code_fence_attrs.h"
 #include "extensions/quarto_diagrams.h"
 #include "extensions/quarto_shortcodes.h"
+#include "extensions/quarto_polish.h"
 #include "extensions/quarto_lists.h"
 #include "extensions/includes.h"
 #include "extensions/toc.h"
@@ -3037,8 +3038,15 @@ apex_options apex_options_default(void) {
     opts.enable_py_callouts = false;
     opts.enable_quarto_callouts = false;
     opts.enable_quarto_extensions = false;
+    opts.enable_quarto_raw = false;
+    opts.enable_quarto_example_lists = false;
+    opts.enable_quarto_line_blocks = false;
+    opts.enable_quarto_roman_lists = false;
+    opts.enable_quarto_code_attrs = false;
     opts.enable_quarto_diagrams = false;
     opts.enable_quarto_shortcodes = false;
+    opts.enable_quarto_strict_lists = false;
+    opts.enable_quarto_xrefs = false;
     opts.enable_marked_extensions = true;
     opts.enable_divs = true;  /* Enabled by default in unified mode */
     opts.enable_spans = true;  /* Enabled by default in unified mode */
@@ -3371,8 +3379,15 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts = apex_options_for_mode(APEX_MODE_UNIFIED);
             opts.mode = APEX_MODE_QUARTO;
             opts.enable_quarto_extensions = true;
+            opts.enable_quarto_raw = true;
+            opts.enable_quarto_example_lists = true;
+            opts.enable_quarto_line_blocks = true;
+            opts.enable_quarto_roman_lists = true;
+            opts.enable_quarto_code_attrs = true;
             opts.enable_quarto_diagrams = true;
             opts.enable_quarto_shortcodes = true;
+            opts.enable_quarto_xrefs = true;
+            opts.enable_quarto_strict_lists = false;
             opts.enable_quarto_callouts = true;
             opts.enable_wiki_links = false;
             opts.enable_marked_extensions = false;
@@ -3385,6 +3400,11 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
     }
 
     return opts;
+}
+
+static bool apex_quarto_feature(const apex_options *options, bool feature_enabled) {
+    return feature_enabled &&
+           (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO);
 }
 
 /**
@@ -4774,8 +4794,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     char *quarto_shortcodes_processed = NULL;
-    if (options->enable_quarto_shortcodes &&
-        (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO)) {
+    if (apex_quarto_feature(options, options->enable_quarto_shortcodes)) {
         bool warn_unknown = getenv("APEX_VERBOSE") != NULL;
         PROFILE_START(quarto_shortcodes_preprocess);
         quarto_shortcodes_processed = apex_preprocess_quarto_shortcodes(working_text, warn_unknown, options->unsafe);
@@ -5136,26 +5155,40 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *example_lists_processed = NULL;
     char *line_blocks_processed = NULL;
     char *roman_lists_processed = NULL;
-    if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
+    char *strict_lists_processed = NULL;
+    if (apex_quarto_feature(options, options->enable_quarto_example_lists)) {
         PROFILE_START(example_lists_preprocess);
         example_lists_processed = apex_preprocess_example_lists(text_ptr);
         PROFILE_END(example_lists_preprocess);
         if (example_lists_processed) {
             text_ptr = example_lists_processed;
         }
+    }
 
+    if (apex_quarto_feature(options, options->enable_quarto_line_blocks)) {
         PROFILE_START(line_blocks_preprocess);
         line_blocks_processed = apex_preprocess_line_blocks(text_ptr, options->unsafe);
         PROFILE_END(line_blocks_preprocess);
         if (line_blocks_processed) {
             text_ptr = line_blocks_processed;
         }
+    }
 
+    if (apex_quarto_feature(options, options->enable_quarto_roman_lists)) {
         PROFILE_START(roman_lists_preprocess);
         roman_lists_processed = apex_preprocess_roman_lists(text_ptr);
         PROFILE_END(roman_lists_preprocess);
         if (roman_lists_processed) {
             text_ptr = roman_lists_processed;
+        }
+    }
+
+    if (apex_quarto_feature(options, options->enable_quarto_strict_lists)) {
+        PROFILE_START(quarto_strict_lists_preprocess);
+        strict_lists_processed = apex_preprocess_quarto_strict_lists(text_ptr);
+        PROFILE_END(quarto_strict_lists_preprocess);
+        if (strict_lists_processed) {
+            text_ptr = strict_lists_processed;
         }
     }
 
@@ -5413,28 +5446,30 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *raw_content_processed = NULL;
     char *code_fence_attrs_processed = NULL;
     char *quarto_diagrams_processed = NULL;
-    if (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) {
+    if (apex_quarto_feature(options, options->enable_quarto_raw)) {
         PROFILE_START(raw_content_preprocess);
         raw_content_processed = apex_preprocess_raw_content(text_ptr, options->unsafe);
         PROFILE_END(raw_content_preprocess);
         if (raw_content_processed) {
             text_ptr = raw_content_processed;
         }
+    }
 
+    if (apex_quarto_feature(options, options->enable_quarto_code_attrs)) {
         PROFILE_START(code_fence_attrs_preprocess);
         code_fence_attrs_processed = apex_preprocess_code_fence_attrs(text_ptr);
         PROFILE_END(code_fence_attrs_preprocess);
         if (code_fence_attrs_processed) {
             text_ptr = code_fence_attrs_processed;
         }
+    }
 
-        if (options->enable_quarto_diagrams) {
-            PROFILE_START(quarto_diagrams_preprocess);
-            quarto_diagrams_processed = apex_preprocess_quarto_diagrams(text_ptr, options->unsafe);
-            PROFILE_END(quarto_diagrams_preprocess);
-            if (quarto_diagrams_processed) {
-                text_ptr = quarto_diagrams_processed;
-            }
+    if (apex_quarto_feature(options, options->enable_quarto_diagrams)) {
+        PROFILE_START(quarto_diagrams_preprocess);
+        quarto_diagrams_processed = apex_preprocess_quarto_diagrams(text_ptr, options->unsafe);
+        PROFILE_END(quarto_diagrams_preprocess);
+        if (quarto_diagrams_processed) {
+            text_ptr = quarto_diagrams_processed;
         }
     }
 
@@ -6486,7 +6521,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    if ((options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) && html) {
+    if (apex_quarto_feature(options, options->enable_quarto_code_attrs) && html) {
         PROFILE_START(code_fence_attrs_postprocess);
         char *fence_html = apex_postprocess_code_fence_attrs_html(html);
         PROFILE_END(code_fence_attrs_postprocess);
@@ -6630,13 +6665,23 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    if ((options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO) && html) {
+    if (apex_quarto_feature(options, options->enable_quarto_roman_lists) && html) {
         PROFILE_START(roman_lists_postprocess);
         char *roman_html = apex_postprocess_roman_lists_html(html);
         PROFILE_END(roman_lists_postprocess);
         if (roman_html) {
             free(html);
             html = roman_html;
+        }
+    }
+
+    if (apex_quarto_feature(options, options->enable_quarto_xrefs) && html) {
+        PROFILE_START(quarto_xrefs_postprocess);
+        char *xref_html = apex_postprocess_quarto_xrefs_html(html);
+        PROFILE_END(quarto_xrefs_postprocess);
+        if (xref_html) {
+            free(html);
+            html = xref_html;
         }
     }
 
@@ -6668,6 +6713,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (example_lists_processed) free(example_lists_processed);
     if (line_blocks_processed) free(line_blocks_processed);
     if (roman_lists_processed) free(roman_lists_processed);
+    if (strict_lists_processed) free(strict_lists_processed);
     if (quarto_callouts_processed) free(quarto_callouts_processed);
     if (py_callouts_processed) free(py_callouts_processed);
     if (includes_processed) free(includes_processed);
@@ -7485,6 +7531,8 @@ char *apex_wrap_html_document(const char *content, const char *title, const char
             "    .smallcaps { font-variant: small-caps; }\n"
             "    .underline { text-decoration: underline; }\n"
             "    span.mark { background: #fff3cd; }\n"
+            "    .hidden { display: none; }\n"
+            "    .quarto-xref { font-variant: normal; }\n"
             "    .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }\n"
             "    .mkhashtag { color: #666; }\n"
             "    .mkstyledtag {\n"

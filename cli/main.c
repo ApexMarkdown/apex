@@ -104,8 +104,15 @@ static void apex_cli_restore_argv_options(apex_options *opts,
         /* Global/project config may reset quarto defaults when mode is overridden via metadata. */
         if (snap->mode == APEX_MODE_QUARTO) {
             opts->enable_quarto_extensions = snap->enable_quarto_extensions;
+            opts->enable_quarto_raw = snap->enable_quarto_raw;
+            opts->enable_quarto_example_lists = snap->enable_quarto_example_lists;
+            opts->enable_quarto_line_blocks = snap->enable_quarto_line_blocks;
+            opts->enable_quarto_roman_lists = snap->enable_quarto_roman_lists;
+            opts->enable_quarto_code_attrs = snap->enable_quarto_code_attrs;
             opts->enable_quarto_diagrams = snap->enable_quarto_diagrams;
             opts->enable_quarto_shortcodes = snap->enable_quarto_shortcodes;
+            opts->enable_quarto_strict_lists = snap->enable_quarto_strict_lists;
+            opts->enable_quarto_xrefs = snap->enable_quarto_xrefs;
             if (!m->enable_quarto_callouts) {
                 opts->enable_quarto_callouts = snap->enable_quarto_callouts;
             }
