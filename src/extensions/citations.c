@@ -108,11 +108,28 @@ static bool is_mmark_pattern(const char *text, int pos, int len) {
 }
 
 /**
+ * Quarto cross-ref keys (fig-/sec-/tbl-/eq-) use bare @ syntax and must not be
+ * parsed as author-in-text citations when quarto-xrefs is enabled.
+ */
+static bool apex_citation_key_is_quarto_xref(const char *key) {
+    if (!key) {
+        return false;
+    }
+    static const char *prefixes[] = { "fig-", "sec-", "tbl-", "eq-", NULL };
+    for (int i = 0; prefixes[i]; i++) {
+        size_t n = strlen(prefixes[i]);
+        if (strncmp(key, prefixes[i], n) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Parse Pandoc citation: [@key] or @key or [see @key, pp. 33-35]
  */
 static int parse_pandoc_citation(const char *text, int pos, int len,
                                   apex_citation **citation_out, const apex_options *options) {
-    (void)options;  /* Unused for now */
     if (pos >= len) return 0;
 
     const char *p = text + pos;
@@ -128,6 +145,10 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
         p++;
         int key_len = extract_citation_key(text, apex_ptrdiff_to_int(p - text), len, &key);
         if (key_len > 0 && key) {
+            if (options && options->enable_quarto_xrefs && apex_citation_key_is_quarto_xref(key)) {
+                free(key);
+                return 0;
+            }
             /* Check if there's a locator after: @key [p. 33] */
             const char *after_key = p + key_len;
             while (after_key < text + len && isspace(*after_key)) after_key++;

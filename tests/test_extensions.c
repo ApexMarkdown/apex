@@ -518,6 +518,36 @@ void test_quarto_mode(void) {
     assert_contains(html, "<span class=\"quarto-xref\">@sec-intro</span>", "sec cross-ref wrapped");
     apex_free_string(html);
 
+    {
+        apex_options cite_opts = apex_options_for_mode(APEX_MODE_QUARTO);
+        cite_opts.base_directory = "tests";
+        const char *bib_files[] = { "test_refs.bib", NULL };
+        cite_opts.bibliography_files = (char **)bib_files;
+        const char *mixed_cite_xref =
+            "See [@doe99] and @fig-elephant.";
+        html = apex_markdown_to_html(mixed_cite_xref, strlen(mixed_cite_xref), &cite_opts);
+        assert_contains(html, "citation", "bracket citation processed with bibliography");
+        assert_contains(html, "doe99", "bracket citation key preserved with bibliography");
+        assert_contains(html, "<span class=\"quarto-xref\">@fig-elephant</span>",
+                        "bare fig xref not parsed as citation when bibliography set");
+        assert_not_contains(html, "data-cites=\"fig-elephant\"", "fig xref not in citation data-cites");
+        apex_free_string(html);
+
+        const char *bracket_fig = "See [@fig-elephant].";
+        html = apex_markdown_to_html(bracket_fig, strlen(bracket_fig), &cite_opts);
+        assert_contains(html, "citation", "bracketed @fig- key still processed as citation");
+        assert_contains(html, "fig-elephant", "bracketed fig- citation key preserved");
+        apex_free_string(html);
+
+        apex_options no_xref_opts = cite_opts;
+        no_xref_opts.enable_quarto_xrefs = false;
+        const char *bare_fig = "See @fig-elephant.";
+        html = apex_markdown_to_html(bare_fig, strlen(bare_fig), &no_xref_opts);
+        assert_contains(html, "citation", "bare @fig- treated as citation when quarto-xrefs off");
+        assert_not_contains(html, "quarto-xref", "no xref wrapper when quarto-xrefs off");
+        apex_free_string(html);
+    }
+
     apex_options hidden_opts = apex_options_for_mode(APEX_MODE_QUARTO);
     hidden_opts.standalone = true;
     html = apex_markdown_to_html("::: {.hidden}\nHidden content.\n:::", 35, &hidden_opts);

@@ -179,9 +179,13 @@ static size_t xref_token_len(const char *start) {
     }
     p += 4;
     size_t len = (size_t)(p - start);
-    while (*p && (isalnum((unsigned char)*p) || *p == '_' || *p == '-' || *p == '.' || *p == ':')) {
+    while (*p && (isalnum((unsigned char)*p) || *p == '_' || *p == '-' || *p == ':')) {
         p++;
         len++;
+    }
+    while (len > 6 && strchr(".,;:!?", p[-1])) {
+        p--;
+        len--;
     }
     return len >= 6 ? len : 0;
 }
