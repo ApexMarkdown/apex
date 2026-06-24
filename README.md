@@ -1,5 +1,5 @@
 
-[![Version: 1.1.2](https://img.shields.io/badge/Version-1.1.2-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1667](https://img.shields.io/badge/Tests-0/1667-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.2](https://img.shields.io/badge/Version-1.1.2-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1760](https://img.shields.io/badge/Tests-0/1760-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -337,7 +337,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.1
+Apex Markdown Processor v1.1.2
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -394,7 +394,7 @@ Options:
   --[no-]mixed-lists     Allow mixed list markers at same level (inherit type from first item)
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
-  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified (default)
+  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified, quarto (default)
   -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support

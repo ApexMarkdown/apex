@@ -2,6 +2,55 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.3] - 2026-06-24
+
+### Changed
+
+- Quarto mode enables callouts and image captions, disables wiki links, marked extensions, py callouts, and index generation
+
+### New
+
+- Add APEX_MODE_QUARTO and --mode quarto / mode: quarto metadata for Quarto-compatible processing with unified-family defaults
+- Add apex_mode_is_unified_family() and apex_mode_is_kramdown_or_unified_family() helpers to share unified/quarto code paths
+- Add enable_quarto_extensions flag for future Pandoc/Quarto preprocessors
+- Images with {fig-alt="..."} use markdown alt text as figure caption and fig-alt as accessible img alt attribute
+- Add .smallcaps, .underline, and span.mark CSS in quarto standalone output
+- Add quarto mode test suite and smoke fixtures (callouts, spans, fig-alt, fenced divs)
+- Quarto mode preprocesses Pandoc/Quarto raw content: fenced ```{=html} blocks and inline `content`{=html} passthrough HTML when unsafe is enabled; non-html formats are wrapped in <!-- raw format=... --> comments
+- Add raw content examples to quarto smoke fixture and quarto mode test suite
+- Quarto mode supports Pandoc list continuation markers: standalone (@) lines are stripped and split ordered lists merge when only blank lines interrupt them; interrupted lists keep intervening content and continue numbering with start attribute
+- Quarto mode supports roman list markers (i), ii), I), etc.) with lower-roman and upper-roman list-style-type in HTML output
+- Quarto mode converts Pandoc line blocks (lines starting with |) to div.line-block with preserved spacing
+- Add list extension tests and smoke fixture examples for (@), roman lists, and line blocks
+- Quarto mode supports labeled example list markers such as (@good) with labels stripped from output
+- Quarto mode preprocesses Pandoc/Quarto fenced code block attributes ({.python filename="run.py" linenos=true}): normalizes to plain language fences and preserves filename, linenos, and other keys as data-* attributes on the rendered pre element
+- Per-block linenos=true on fenced code blocks enables line numbers during external syntax highlighting even when global --code-line-numbers is off
+- Add code fence attribute tests and smoke fixture example
+- Quarto mode preprocesses {mermaid}, {dot}, and {graphviz} fenced blocks into raw pre elements with matching diagram classes (requires unsafe)
+- Standalone Quarto output auto-injects mermaid.js when mermaid diagrams are present and no mermaid script is already configured
+- Add quarto-diagrams metadata key, diagram tests, and smoke fixture examples
+- Quarto mode converts {{< pagebreak >}} shortcodes to page breaks in HTML output (raw HTML when unsafe, Leanpub marker otherwise)
+- Quarto mode converts {{< kbd ... >}} and {{% kbd ... %}} shortcodes to {% kbd %} liquid tags for use with the kbd plugin
+- Quarto mode converts {{< include path >}} shortcodes to <<[path]> Marked file include syntax
+- Add enable_quarto_shortcodes option (enabled by default in --mode quarto) and quarto-shortcodes metadata key to toggle the shortcode preprocessor
+- Unknown Quarto shortcodes are left unchanged; set APEX_VERBOSE=1 to log warnings for unrecognized shortcode names
+- Wrap Quarto cross-ref tokens (@fig-id, @sec-id, @tbl-id, @eq-id) in span.quarto-xref in HTML output
+- Add per-feature Quarto metadata toggles (quarto-raw, quarto-list-continuation, quarto-line-blocks, quarto-roman-lists, quarto-code-attrs, quarto-strict-lists, quarto-xrefs, quarto-extensions)
+- Add optional quarto-strict-lists preprocessor for Pandoc strict blank-line-before-list behavior
+- Add .hidden and .quarto-xref rules to standalone default CSS
+- Split Quarto test fixtures by topic and add wiki Quarto-Mode documentation
+
+### Improved
+
+- CLI --mode quarto restores quarto extension flags after global/project config metadata merge
+
+### Fixed
+
+- Bracketed span IAL class attributes now emit valid HTML (class="..." instead of class="...")
+- Quarto mode treats (@) and (@label) as Pandoc example_lists list markers (line-start markers with item text), not as standalone list-continuation lines between numbered items
+- Example lists interrupted by paragraphs continue document-wide numbering with ol start on resumed lists
+- When quarto-xrefs is enabled, bare @fig-/@sec-/@tbl-/@eq- tokens are no longer parsed as author-in-text citations (bracketed [@key] citations unchanged)
+
 ## [1.1.2] - 2026-06-23
 
 ### New
@@ -2989,6 +3038,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.3]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.3
 [1.1.2]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.2
 [1.1.1]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.1
 [1.0.15]: https://github.com/ApexMarkdown/apex/releases/tag/v1.0.15
