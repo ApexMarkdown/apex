@@ -556,6 +556,15 @@ void test_terminal_output(void) {
     test_result(strstr(out, "![") == NULL, "Missing local image uses link style not markdown image");
     apex_free_string(out);
 
+    /* paginate_symbols: must not crash; non-TTY uses link-style images */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    opts.paginate = true;
+    opts.paginate_symbols = true;
+    out = apex_markdown_to_html("![z](local.png)", 17, &opts);
+    test_result(out != NULL, "paginate_symbols terminal256 produces output");
+    apex_free_string(out);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Terminal Output Tests", had_failures, false);
 }

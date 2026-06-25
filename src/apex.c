@@ -3185,6 +3185,7 @@ apex_options apex_options_default(void) {
     opts.theme_name = NULL;
     opts.terminal_width = 0;
     opts.paginate = false;
+    opts.paginate_symbols = false;
     opts.terminal_inline_images = true;
     opts.terminal_image_width = 50;
 

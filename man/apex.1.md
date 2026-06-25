@@ -77,6 +77,24 @@ Pagination is ignored when the output format is not a terminal format or when
 `-o/--output` is used to write to a file. You can also enable pagination via
 metadata or config by setting `paginate: true`.
 
+When pagination is enabled and the rendered output contains inline terminal
+graphics (iTerm **imgcat** / OSC 1337 sequences or Kitty graphics), Apex
+automatically skips the pager and writes directly to stdout, because **`less -R`**
+and most pagers only support ANSI color, not inline image protocols. A short
+notice is printed to stderr.
+
+**--paginate-symbols**
+: Page terminal output (same pager selection as **--paginate**) and render
+Markdown images as **chafa** ANSI block art (`chafa -f symbols`) so images
+display correctly in **`less -R`**. Requires **chafa** on **PATH**. With
+**--to terminal256**, Apex passes `-c 256` to chafa; with **--to terminal**,
+`-c 16`. Equivalent to metadata `paginate: symbols`. Implies pagination is
+enabled.
+
+**--no-paginate**
+: Do not page terminal output. Overrides **-p** / **--paginate** and
+`paginate: true` or `paginate: symbols` from metadata or config.
+
 **--theme** *NAME*
 : Terminal theme name for **--to terminal** / **--to terminal256**. Themes are YAML files under `~/.config/apex/terminal/themes/` (see the Apex wiki).
 
@@ -84,7 +102,24 @@ metadata or config by setting `paginate: true`.
 : Disable inline terminal rendering of Markdown images for **--to terminal** / **--to terminal256**. Default is to render when **stdout** is a TTY, a supported viewer exists on **PATH**, and inline images are enabled (see **METADATA CONTROL OF OPTIONS** for `terminal.inline_images`).
 
 **--terminal-image-width** *N*
-: Maximum width in character cells passed to the image viewer (default: 50). The first of **imgcat**, **chafa**, **viu**, **catimg** found on **PATH** is used, in that order. For `http://` and `https://` image URLs, Apex downloads with **curl** (60 second timeout, 10 MiB maximum size) to a file under **$TMPDIR** or `/tmp`, then displays it. If **curl** is missing, download fails, no viewer is found, **stdout** is not a TTY, or **--no-terminal-images** is set, images are emitted as styled link text and URL (like hyperlinks), not as Markdown `![alt](url)` syntax.
+: Maximum width in character cells passed to the image viewer (default: 50).
+When **stdout** is a TTY and inline images are enabled, Apex selects a viewer
+on **PATH** as follows:
+
+- **imgcat** — only when **TERM_PROGRAM** indicates iTerm2 (iTerm inline-image protocol).
+- **chafa** — otherwise, if available (`-f` format depends on terminal: **iterm** on iTerm/WezTerm, **kitty** on Kitty, **symbols** on other terminals).
+- **catimg** — if chafa is not found.
+- **viu** — if neither chafa nor catimg is found.
+
+For `http://` and `https://` image URLs, Apex downloads with **curl** (60 second
+timeout, 10 MiB maximum size) to a file under **$TMPDIR** or `/tmp`, then
+displays it. If **curl** is missing, download fails, no viewer is found,
+**stdout** is not a TTY, or **--no-terminal-images** is set, images are emitted
+as styled link text and URL (like hyperlinks), not as Markdown `![alt](url)` syntax.
+
+When **--paginate-symbols** or `paginate: symbols` is active, Apex always uses
+**chafa** with `-f symbols` for images so pager output remains compatible with
+**less -R**.
 
 **--code-highlight** *TOOL*
 : Use external tool for syntax highlighting of code blocks.
@@ -633,7 +668,7 @@ directly.
 `id-format`, `base-dir`, `mode`, `wikilink-space`,
 `wikilink-extension`
 
-**Terminal output metadata** (for **--to terminal** / **terminal256**): `terminal.theme` (`terminal_theme`), `terminal.width` (`terminal_width`, wrap width), `terminal.inline_images` (`terminal_inline_images`, boolean), `terminal.image_width` (`terminal_image_width`, viewer width in character cells), `terminal.paginate` (`terminal_paginate`), `paginate`, `code-highlight`, `code-highlight-theme`.
+**Terminal output metadata** (for **--to terminal** / **terminal256**): `terminal.theme` (`terminal_theme`), `terminal.width` (`terminal_width`, wrap width), `terminal.inline_images` (`terminal_inline_images`, boolean), `terminal.image_width` (`terminal_image_width`, viewer width in character cells), `terminal.paginate` (`terminal_paginate`), `paginate` (`true`, `false`, or `symbols` for pager-friendly chafa ANSI images), `code-highlight`, `code-highlight-theme`.
 
 **Example YAML front matter:**
 ```
@@ -709,6 +744,24 @@ Apex supports a wide range of Markdown extensions:
   [Inline Attribute Lists](https://github.com/ttscoff/apex/wiki/Inline-Attribute-Lists)
   for complete documentation
 
+
+# ENVIRONMENT
+
+**APEX_PAGER**
+: When set and non-empty, used as the pager command for **-p** / **--paginate**
+and **--paginate-symbols** before **$PAGER**.
+
+**PAGER**
+: Fallback pager command when **APEX_PAGER** is unset.
+
+**APEX_DEBUG_TERMINAL**
+: When set to any non-empty value, Apex prints terminal rendering diagnostics
+to stderr: selected image viewer, full viewer command lines, **TERM_PROGRAM**,
+pagination mode, and syntax highlighter commands.
+
+**TMPDIR**
+: Directory for temporary files when downloading remote images for terminal
+display (falls back to `/tmp` when unset).
 
 # SEE ALSO
 

@@ -3,6 +3,7 @@
  */
 
 #include "../include/apex/apex.h"
+#include "../include/apex/ast_terminal.h"
 #include "../src/extensions/metadata.h"
 #include "../src/extensions/includes.h"
 #include <stdio.h>
@@ -1084,6 +1085,8 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-terminal-images    Do not render local images via imgcat/chafa/viu/catimg on terminal output\n");
     fprintf(stderr, "  --terminal-image-width N  Max width/cells for terminal image tools (default: 50)\n");
     fprintf(stderr, "  -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)\n");
+    fprintf(stderr, "  --paginate-symbols      Page output and render images as chafa ANSI art (compatible with less -R)\n");
+    fprintf(stderr, "  --no-paginate           Do not page terminal output (overrides -p and paginate: true in config/metadata)\n");
     fprintf(stderr, "\n");
     fprintf(stderr, "If no file is specified, reads from stdin.\n");
 }
@@ -1229,16 +1232,34 @@ static int add_script_tag(char ***tags, size_t *count, size_t *capacity, const c
     return 0;
 }
 
+/* Detect inline terminal graphics that pagers (less -R, etc.) cannot render. */
+static bool terminal_output_has_graphics(const char *buf, size_t len) {
+    if (!buf || len == 0) {
+        return false;
+    }
+    /* iTerm / WezTerm inline images (also chafa -f iterm). */
+    if (memmem(buf, len, "]1337;", 6) != NULL) {
+        return true;
+    }
+    /* Kitty graphics protocol. */
+    if (memmem(buf, len, "\033_G", 3) != NULL) {
+        return true;
+    }
+    return false;
+}
+
 /* Wrap ANSI-colored output to a fixed column width.
  * This operates on the final rendered string and counts only visible
  * characters toward the width, skipping over ANSI CSI sequences.
  */
-static char *wrap_ansi_to_width(const char *input, int width) {
+static char *wrap_ansi_to_width(const char *input, size_t in_len, int width) {
     if (!input || width <= 0) {
         return NULL;
     }
+    if (in_len == 0) {
+        in_len = strlen(input);
+    }
 
-    size_t in_len = strlen(input);
     /* Heuristic for output capacity: input length plus space for added newlines. */
     size_t cap = in_len + (in_len / (size_t)width + 2) * 2 + 1;
     char *out = malloc(cap);
@@ -1282,6 +1303,62 @@ static char *wrap_ansi_to_width(const char *input, int width) {
             }
             out[oi++] = c;
             i++;
+            continue;
+        }
+
+        /* Preserve OSC sequences (e.g. iTerm inline images: ESC ] ... BEL or ST). */
+        if (c == '\x1b' && i + 1 < in_len && input[i + 1] == ']') {
+            size_t start = i;
+            i += 2;
+            while (i < in_len) {
+                if (input[i] == '\x07') {
+                    i++;
+                    break;
+                }
+                if (input[i] == '\x1b' && i + 1 < in_len && input[i + 1] == '\\') {
+                    i += 2;
+                    break;
+                }
+                i++;
+            }
+            size_t seq_len = i - start;
+            if (oi + seq_len + 1 >= cap) {
+                cap = cap + seq_len + 16;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            memcpy(out + oi, input + start, seq_len);
+            oi += seq_len;
+            continue;
+        }
+
+        /* Preserve DCS (sixel) and kitty graphics (ESC _ ... ST). */
+        if (c == '\x1b' && i + 1 < in_len && (input[i + 1] == 'P' || input[i + 1] == '_')) {
+            size_t start = i;
+            i += 2;
+            while (i < in_len) {
+                if (input[i] == '\x1b' && i + 1 < in_len && input[i + 1] == '\\') {
+                    i += 2;
+                    break;
+                }
+                i++;
+            }
+            size_t seq_len = i - start;
+            if (oi + seq_len + 1 >= cap) {
+                cap = cap + seq_len + 16;
+                char *nb = realloc(out, cap);
+                if (!nb) {
+                    free(out);
+                    return NULL;
+                }
+                out = nb;
+            }
+            memcpy(out + oi, input + start, seq_len);
+            oi += seq_len;
             continue;
         }
 
@@ -1964,6 +2041,8 @@ int main(int argc, char *argv[]) {
 
     /* Pagination for terminal/terminal256 output */
     bool paginate_cli = false;
+    bool paginate_symbols_cli = false;
+    bool no_paginate_cli = false;
 
     /* Terminal inline images: --no-terminal-images / --terminal-image-width N */
     bool no_terminal_images_cli = false;
@@ -2076,6 +2155,10 @@ int main(int argc, char *argv[]) {
             }
         } else if (strcmp(argv[i], "-p") == 0 || strcmp(argv[i], "--paginate") == 0) {
             paginate_cli = true;
+        } else if (strcmp(argv[i], "--paginate-symbols") == 0) {
+            paginate_symbols_cli = true;
+        } else if (strcmp(argv[i], "--no-paginate") == 0) {
+            no_paginate_cli = true;
         } else if (strcmp(argv[i], "--no-terminal-images") == 0) {
             no_terminal_images_cli = true;
         } else if (strcmp(argv[i], "--terminal-image-width") == 0) {
@@ -4255,6 +4338,16 @@ int main(int argc, char *argv[]) {
     if (terminal_image_width_cli > 0) {
         options.terminal_image_width = terminal_image_width_cli;
     }
+    if (no_paginate_cli) {
+        options.paginate = false;
+        options.paginate_symbols = false;
+    } else if (paginate_symbols_cli) {
+        options.paginate = true;
+        options.paginate_symbols = true;
+    } else if (paginate_cli) {
+        options.paginate = true;
+        options.paginate_symbols = false;
+    }
 
     /* Convert to output (HTML, Markdown, terminal, etc.) */
     char *html = apex_markdown_to_html(final_markdown, final_len, &options);
@@ -4283,12 +4376,21 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    bool is_terminal_output = (options.output_format == APEX_OUTPUT_TERMINAL ||
+                               options.output_format == APEX_OUTPUT_TERMINAL256);
+    size_t html_len = 0;
+    if (html) {
+        html_len = is_terminal_output ? apex_terminal_output_length() : strlen(html);
+        if (html_len == 0) {
+            html_len = strlen(html);
+        }
+    }
+
     /* For terminal output, optionally wrap to a fixed width when requested.
      * Precedence: CLI --width > metadata/config terminal.width > theme default.
      * (Theme files are currently not consulted for width.)
      */
-    if (options.output_format == APEX_OUTPUT_TERMINAL ||
-        options.output_format == APEX_OUTPUT_TERMINAL256) {
+    if (is_terminal_output) {
         int effective_width = 0;
         if (width_override > 0) {
             effective_width = width_override;
@@ -4296,10 +4398,11 @@ int main(int argc, char *argv[]) {
             effective_width = options.terminal_width;
         }
         if (effective_width > 0) {
-            char *wrapped = wrap_ansi_to_width(html, effective_width);
+            char *wrapped = wrap_ansi_to_width(html, html_len, effective_width);
             if (wrapped) {
                 apex_free_string(html);
                 html = wrapped;
+                html_len = strlen(html);
             }
         }
     }
@@ -4312,9 +4415,20 @@ int main(int argc, char *argv[]) {
     if (!output_file &&
         (options.output_format == APEX_OUTPUT_TERMINAL ||
          options.output_format == APEX_OUTPUT_TERMINAL256)) {
-        if (paginate_cli || options.paginate) {
+        if (!no_paginate_cli && (paginate_cli || options.paginate)) {
             paginate_effective = true;
         }
+    }
+
+    if (paginate_effective && is_terminal_output && !options.paginate_symbols &&
+        terminal_output_has_graphics(html, html_len)) {
+        if (getenv("APEX_DEBUG_TERMINAL")) {
+            fprintf(stderr, "[APEX_DEBUG_TERMINAL] pager disabled (inline graphics in output)\n");
+        }
+        fprintf(stderr,
+                "apex: skipping pager (inline terminal graphics require direct TTY output; "
+                "less and most pagers only support ANSI color)\n");
+        paginate_effective = false;
     }
 
     /* Write output (optionally via pager) */
@@ -4329,7 +4443,6 @@ int main(int argc, char *argv[]) {
         }
 
         FILE *pager = popen(pager_cmd, "w");
-        size_t html_len = strlen(html);
         if (!pager) {
             /* Fall back to direct stdout if pager cannot be started */
             fwrite(html, 1, html_len, stdout);
@@ -4344,11 +4457,9 @@ int main(int argc, char *argv[]) {
             apex_free_string(html);
             return 1;
         }
-        size_t html_len = strlen(html);
         fwrite(html, 1, html_len, fp);
         fclose(fp);
     } else {
-        size_t html_len = strlen(html);
         fwrite(html, 1, html_len, stdout);
         /* Don't fflush - let the system buffer for better performance */
     }

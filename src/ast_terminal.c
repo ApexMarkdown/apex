@@ -1221,6 +1221,94 @@ typedef enum {
 static term_img_tool_t g_term_img_tool = TERM_IMG_NONE;
 static int g_term_img_width = 50;
 static bool g_term_has_curl = false;
+static bool g_term_use_256 = false;
+static bool g_term_paginate_symbols = false;
+static size_t g_terminal_output_len = 0;
+
+static bool terminal_debug_enabled(void) {
+    return getenv("APEX_DEBUG_TERMINAL") != NULL;
+}
+
+static const char *term_img_tool_name(term_img_tool_t tool) {
+    switch (tool) {
+        case TERM_IMG_IMGCAT: return "imgcat";
+        case TERM_IMG_CHAFA: return "chafa";
+        case TERM_IMG_VIU: return "viu";
+        case TERM_IMG_CATIMG: return "catimg";
+        default: return "(none)";
+    }
+}
+
+static void terminal_debug_log_tool_path(const char *name) {
+    if (!terminal_debug_enabled()) {
+        return;
+    }
+    char path[PATH_MAX];
+    const char *pathenv = getenv("PATH");
+    bool found = false;
+    if (pathenv && *pathenv) {
+        const char *p = pathenv;
+        while (*p) {
+            const char *colon = strchr(p, ':');
+            size_t dirlen = colon ? (size_t)(colon - p) : strlen(p);
+            if (dirlen > 0 && dirlen + strlen(name) + 2 < sizeof(path)) {
+                memcpy(path, p, dirlen);
+                path[dirlen] = '\0';
+                snprintf(path + dirlen, sizeof(path) - dirlen, "/%s", name);
+                if (access(path, X_OK) == 0) {
+                    fprintf(stderr, "[APEX_DEBUG_TERMINAL]   %s: %s\n", name, path);
+                    found = true;
+                    break;
+                }
+            }
+            if (!colon) {
+                break;
+            }
+            p = colon + 1;
+        }
+    }
+    if (!found) {
+        fprintf(stderr, "[APEX_DEBUG_TERMINAL]   %s: (not on PATH)\n", name);
+    }
+}
+
+static void terminal_debug_log_argv(const char *const *argv) {
+    if (!terminal_debug_enabled() || !argv || !argv[0]) {
+        return;
+    }
+    fprintf(stderr, "[APEX_DEBUG_TERMINAL] exec:");
+    for (int i = 0; argv[i]; i++) {
+        fprintf(stderr, " %s", argv[i]);
+    }
+    fputc('\n', stderr);
+}
+
+static bool terminal_is_iterm(void) {
+    const char *tp = getenv("TERM_PROGRAM");
+    return tp && strstr(tp, "iTerm") != NULL;
+}
+
+static bool terminal_is_kitty(void) {
+    return getenv("KITTY_WINDOW_ID") != NULL;
+}
+
+static bool terminal_is_wezterm(void) {
+    return getenv("WEZTERM_EXECUTABLE") != NULL || getenv("WEZTERM_PANE") != NULL;
+}
+
+static bool terminal_supports_inline_graphics(void) {
+    return terminal_is_iterm() || terminal_is_kitty() || terminal_is_wezterm();
+}
+
+static const char *terminal_chafa_format(void) {
+    if (terminal_is_iterm() || terminal_is_wezterm()) {
+        return "iterm";
+    }
+    if (terminal_is_kitty()) {
+        return "kitty";
+    }
+    return "symbols";
+}
 
 static bool terminal_url_is_http(const char *url) {
     if (!url || !*url) {
@@ -1346,17 +1434,24 @@ static bool executable_on_path(const char *name) {
 }
 
 static term_img_tool_t probe_terminal_image_tool(void) {
-    if (executable_on_path("imgcat")) {
+    if (g_term_paginate_symbols) {
+        if (executable_on_path("chafa")) {
+            return TERM_IMG_CHAFA;
+        }
+        return TERM_IMG_NONE;
+    }
+    /* imgcat only works in iTerm2; using it elsewhere emits opaque escape data. */
+    if (terminal_is_iterm() && executable_on_path("imgcat")) {
         return TERM_IMG_IMGCAT;
     }
     if (executable_on_path("chafa")) {
         return TERM_IMG_CHAFA;
     }
-    if (executable_on_path("viu")) {
-        return TERM_IMG_VIU;
-    }
     if (executable_on_path("catimg")) {
         return TERM_IMG_CATIMG;
+    }
+    if (executable_on_path("viu")) {
+        return TERM_IMG_VIU;
     }
     return TERM_IMG_NONE;
 }
@@ -1458,7 +1553,7 @@ static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, 
     char wstr[32];
     snprintf(wstr, sizeof(wstr), "%d", width);
 
-    const char *argv[8];
+    const char *argv[16];
     int argc = 0;
     switch (tool) {
         case TERM_IMG_IMGCAT:
@@ -1467,14 +1562,24 @@ static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, 
             argv[argc++] = wstr;
             argv[argc++] = (char *)abspath;
             break;
-        case TERM_IMG_CHAFA:
+        case TERM_IMG_CHAFA: {
+            const char *colors = g_term_use_256 ? "256" : "16";
+            const char *format = g_term_paginate_symbols ? "symbols" : terminal_chafa_format();
             argv[argc++] = "chafa";
+            argv[argc++] = "-f";
+            argv[argc++] = format;
+            argv[argc++] = "-c";
+            argv[argc++] = colors;
             argv[argc++] = "-s";
             argv[argc++] = wstr;
             argv[argc++] = (char *)abspath;
             break;
+        }
         case TERM_IMG_VIU:
             argv[argc++] = "viu";
+            if (!terminal_supports_inline_graphics()) {
+                argv[argc++] = "-b";
+            }
             argv[argc++] = "-w";
             argv[argc++] = wstr;
             argv[argc++] = (char *)abspath;
@@ -1489,6 +1594,8 @@ static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, 
             return false;
     }
     argv[argc] = NULL;
+
+    terminal_debug_log_argv(argv);
 
     int out_pipe[2];
     if (pipe(out_pipe) != 0) {
@@ -1559,8 +1666,15 @@ static bool run_terminal_image_tool(terminal_buffer *buf, term_img_tool_t tool, 
     waitpid(pid, &status, 0);
 
     if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        if (terminal_debug_enabled()) {
+            fprintf(stderr, "[APEX_DEBUG_TERMINAL] image tool exit status=%d\n", status);
+        }
         free(out);
         return false;
+    }
+
+    if (terminal_debug_enabled()) {
+        fprintf(stderr, "[APEX_DEBUG_TERMINAL] image tool wrote %zu bytes\n", size);
     }
 
     bool need_nl = (size == 0 || out[size - 1] != '\n');
@@ -1745,6 +1859,11 @@ static void serialize_inline(terminal_buffer *buf,
                     char altbuf[512];
                     collect_image_alt_text(node, altbuf, sizeof(altbuf));
                     const char *title = cmark_node_get_title(node);
+                    if (terminal_debug_enabled()) {
+                        fprintf(stderr,
+                                "[APEX_DEBUG_TERMINAL] image url=%s path=%s tool=%s\n",
+                                url, path_to_show, term_img_tool_name(g_term_img_tool));
+                    }
                     if (run_terminal_image_tool(buf, g_term_img_tool, g_term_img_width, path_to_show)) {
                         append_terminal_image_caption(buf, path_to_show, title, altbuf, options, theme,
                                                       use_256_color);
@@ -1758,6 +1877,21 @@ static void serialize_inline(terminal_buffer *buf,
                 }
             }
             if (!did_inline) {
+                if (terminal_debug_enabled() && url) {
+                    const char *reason = "unknown";
+                    if (!options || !options->terminal_inline_images) {
+                        reason = "terminal_inline_images disabled";
+                    } else if (!isatty(STDOUT_FILENO)) {
+                        reason = "stdout is not a TTY";
+                    } else if (g_term_img_tool == TERM_IMG_NONE) {
+                        reason = "no image viewer on PATH";
+                    } else {
+                        reason = "path resolve or viewer failed";
+                    }
+                    fprintf(stderr,
+                            "[APEX_DEBUG_TERMINAL] image fallback (%s) url=%s\n",
+                            reason, url);
+                }
                 serialize_terminal_image_as_link(buf, node, url, options, theme, use_256_color);
             }
             break;
@@ -2589,6 +2723,9 @@ static void serialize_block(terminal_buffer *buf,
                     }
 
                     if (cmd[0]) {
+                        if (terminal_debug_enabled()) {
+                            fprintf(stderr, "[APEX_DEBUG_TERMINAL] highlight: %s\n", cmd);
+                        }
                         /* Reuse run_command-style helper from syntax_highlight.c (local copy) */
                         int in_pipe[2];
                         int out_pipe[2];
@@ -2933,10 +3070,44 @@ char *apex_cmark_to_terminal(cmark_node *document,
     g_term_img_tool = TERM_IMG_NONE;
     g_term_img_width = 50;
     g_term_has_curl = executable_on_path("curl");
+    g_term_use_256 = use_256;
+    g_term_paginate_symbols = (options && options->paginate_symbols);
+    g_terminal_output_len = 0;
     if (options && options->terminal_inline_images && isatty(STDOUT_FILENO)) {
         int w = options->terminal_image_width > 0 ? options->terminal_image_width : 50;
         g_term_img_width = w;
         g_term_img_tool = probe_terminal_image_tool();
+    }
+
+    if (terminal_debug_enabled()) {
+        fprintf(stderr,
+                "[APEX_DEBUG_TERMINAL] use_256=%d stdout_tty=%d paginate=%d paginate_symbols=%d inline_images=%d\n",
+                use_256 ? 1 : 0,
+                isatty(STDOUT_FILENO) ? 1 : 0,
+                (options && options->paginate) ? 1 : 0,
+                g_term_paginate_symbols ? 1 : 0,
+                (options && options->terminal_inline_images) ? 1 : 0);
+        fprintf(stderr,
+                "[APEX_DEBUG_TERMINAL] TERM_PROGRAM=%s iterm=%d kitty=%d wezterm=%d chafa_format=%s\n",
+                getenv("TERM_PROGRAM") ? getenv("TERM_PROGRAM") : "(unset)",
+                terminal_is_iterm() ? 1 : 0,
+                terminal_is_kitty() ? 1 : 0,
+                terminal_is_wezterm() ? 1 : 0,
+                g_term_paginate_symbols ? "symbols" : terminal_chafa_format());
+        terminal_debug_log_tool_path("imgcat");
+        terminal_debug_log_tool_path("chafa");
+        terminal_debug_log_tool_path("catimg");
+        terminal_debug_log_tool_path("viu");
+        terminal_debug_log_tool_path("curl");
+        fprintf(stderr,
+                "[APEX_DEBUG_TERMINAL] selected image tool: %s (width=%d)\n",
+                term_img_tool_name(g_term_img_tool), g_term_img_width);
+        if (options && options->code_highlighter) {
+            fprintf(stderr,
+                    "[APEX_DEBUG_TERMINAL] code_highlighter=%s theme=%s\n",
+                    options->code_highlighter,
+                    options->code_highlight_theme ? options->code_highlight_theme : "(default)");
+        }
     }
 
     terminal_theme *theme = load_theme(options);
@@ -2959,9 +3130,15 @@ char *apex_cmark_to_terminal(cmark_node *document,
         /* Fallback: empty string */
         char *empty = (char *)malloc(1);
         if (empty) empty[0] = '\0';
+        g_terminal_output_len = 0;
         return empty;
     }
 
+    g_terminal_output_len = buf.len;
     return buf.buf;
+}
+
+size_t apex_terminal_output_length(void) {
+    return g_terminal_output_len;
 }
 

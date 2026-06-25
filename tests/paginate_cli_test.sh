@@ -47,6 +47,22 @@ fi
 echo "paginate_cli_test: paginate: true config matches baseline output with APEX_PAGER=cat."
 
 echo
+echo "== Testing paginate: symbols via config metadata with APEX_PAGER=cat =="
+
+CFG_SYM="$TMPDIR/config-symbols.yml"
+cat >"$CFG_SYM" <<'YAML'
+paginate: symbols
+YAML
+
+SYM_OUT=$(APEX_PAGER=cat "$APEX_BIN" --meta-file "$CFG_SYM" -t terminal <<< "$DOC")
+if [[ "$BASE_OUT" != "$SYM_OUT" ]]; then
+	echo "paginate_cli_test: paginate: symbols output differs from baseline when using APEX_PAGER=cat" >&2
+	exit 1
+fi
+
+echo "paginate_cli_test: paginate: symbols config matches baseline output with APEX_PAGER=cat."
+
+echo
 echo "== Testing that --paginate is ignored for non-terminal formats =="
 
 HTML_BASE=$("$APEX_BIN" -t html <<< "$DOC")

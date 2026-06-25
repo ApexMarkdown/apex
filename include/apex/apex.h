@@ -167,6 +167,7 @@ typedef struct apex_options {
     const char *theme_name;      /* Optional terminal theme name (for -t terminal/terminal256) */
     int terminal_width;          /* Optional fixed wrapping width for terminal output (0 = auto / none) */
     bool paginate;               /* When true and output_format is terminal/terminal256, page output via pager */
+    bool paginate_symbols;       /* When paginating, render images as chafa ANSI symbols (less -R compatible) */
     bool terminal_inline_images; /* When true, render local images via imgcat/chafa/viu/catimg on a TTY */
     int terminal_image_width;    /* Max width/cells for terminal image tools (default 50; 0 = use 50) */
 

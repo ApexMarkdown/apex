@@ -32,6 +32,12 @@ char *apex_cmark_to_terminal(cmark_node *document,
                              const struct apex_options *options,
                              bool use_256);
 
+/**
+ * Byte length of the most recent apex_cmark_to_terminal() result.
+ * Use instead of strlen() because inline image escape sequences may contain NUL bytes.
+ */
+size_t apex_terminal_output_length(void);
+
 #ifdef __cplusplus
 }
 #endif

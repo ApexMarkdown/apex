@@ -912,6 +912,20 @@ void test_syntax_highlight_options(void) {
     apex_free_metadata(metadata);
     metadata = NULL;
 
+    /* paginate: symbols */
+    opts = apex_options_default();
+    item = malloc(sizeof(apex_metadata_item));
+    item->key = strdup("paginate");
+    item->value = strdup("symbols");
+    item->next = NULL;
+    metadata = item;
+
+    apex_apply_metadata_to_options(metadata, &opts);
+    assert_option_bool(opts.paginate, true, "paginate: symbols enables paginate");
+    assert_option_bool(opts.paginate_symbols, true, "paginate: symbols enables paginate_symbols");
+    apex_free_metadata(metadata);
+    metadata = NULL;
+
     /* Test code_line_numbers option with underscore (alternate key format) */
     opts = apex_options_default();
     item = malloc(sizeof(apex_metadata_item));

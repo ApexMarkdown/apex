@@ -42,7 +42,17 @@ If \fR$APEX_PAGER\f[] is set and non\-empty, Apex uses its value as the pager.
 Otherwise, if \fR$PAGER\f[] is set and non\-empty, Apex uses that.
 
 .IP \(bu 2
-Otherwise, Apex falls back to \fRless \-R\f[]. Pagination is ignored when the output format is not a terminal format or when \fR\-o/\-\-output\f[] is used to write to a file. You can also enable pagination via metadata or config by setting \fRpaginate: true\f[].
+Otherwise, Apex falls back to \fRless \-R\f[]. Pagination is ignored when the output format is not a terminal format or when \fR\-o/\-\-output\f[] is used to write to a file. You can also enable pagination via metadata or config by setting \fRpaginate: true\f[]. When pagination is enabled and the rendered output contains inline terminal graphics (iTerm \f[B]imgcat\f[] / OSC 1337 sequences or Kitty graphics), Apex automatically skips the pager and writes directly to stdout, because \f[B]\fRless \-R\f[]\f[] and most pagers only support ANSI color, not inline image protocols. A short notice is printed to stderr.
+
+.TP
+\f[B]\-\-paginate\-symbols\f[]
+Page terminal output (same pager selection as \f[B]\-\-paginate\f[]) and render
+Markdown images as \f[B]chafa\f[] ANSI block art (\fRchafa \-f symbols\f[]) so images display correctly in \f[B]\fRless \-R\f[]\f[]. Requires \f[B]chafa\f[] on \f[B]PATH\f[]. With \f[B]\-\-to terminal256\f[], Apex passes \fR\-c 256\f[] to chafa; with \f[B]\-\-to terminal\f[], \fR\-c 16\f[]. Equivalent to metadata \fRpaginate: symbols\f[]. Implies pagination is enabled.
+
+.TP
+\f[B]\-\-no\-paginate\f[]
+Do not page terminal output. Overrides \f[B]\-p\f[] / \f[B]\-\-paginate\f[] and
+\fRpaginate: true\f[] or \fRpaginate: symbols\f[] from metadata or config.
 
 .TP
 \f[B]\-\-theme\f[] NAME
@@ -54,7 +64,20 @@ Disable inline terminal rendering of Markdown images for \f[B]\-\-to terminal\f[
 
 .TP
 \f[B]\-\-terminal\-image\-width\f[] N
-Maximum width in character cells passed to the image viewer (default: 50). The first of \f[B]imgcat\f[], \f[B]chafa\f[], \f[B]viu\f[], \f[B]catimg\f[] found on \f[B]PATH\f[] is used, in that order. For \fRhttp://\f[] and \fRhttps://\f[] image URLs, Apex downloads with \f[B]curl\f[] (60 second timeout, 10 MiB maximum size) to a file under \f[B]$TMPDIR\f[] or \fR/tmp\f[], then displays it. If \f[B]curl\f[] is missing, download fails, no viewer is found, \f[B]stdout\f[] is not a TTY, or \f[B]\-\-no\-terminal\-images\f[] is set, images are emitted as styled link text and URL (like hyperlinks), not as Markdown \fR![alt](url)\f[] syntax.
+Maximum width in character cells passed to the image viewer (default: 50).
+When \f[B]stdout\f[] is a TTY and inline images are enabled, Apex selects a viewer on \f[B]PATH\f[] as follows:
+
+.IP \(bu 2
+\f[B]imgcat\f[] \[em] only when \f[B]TERM_PROGRAM\f[] indicates iTerm2 (iTerm inline\-image protocol).
+
+.IP \(bu 2
+\f[B]chafa\f[] \[em] otherwise, if available (\fR\-f\f[] format depends on terminal: \f[B]iterm\f[] on iTerm/WezTerm, \f[B]kitty\f[] on Kitty, \f[B]symbols\f[] on other terminals).
+
+.IP \(bu 2
+\f[B]catimg\f[] \[em] if chafa is not found.
+
+.IP \(bu 2
+\f[B]viu\f[] \[em] if neither chafa nor catimg is found. For \fRhttp://\f[] and \fRhttps://\f[] image URLs, Apex downloads with \f[B]curl\f[] (60 second timeout, 10 MiB maximum size) to a file under \f[B]$TMPDIR\f[] or \fR/tmp\f[], then displays it. If \f[B]curl\f[] is missing, download fails, no viewer is found, \f[B]stdout\f[] is not a TTY, or \f[B]\-\-no\-terminal\-images\f[] is set, images are emitted as styled link text and URL (like hyperlinks), not as Markdown \fR![alt](url)\f[] syntax. When \f[B]\-\-paginate\-symbols\f[] or \fRpaginate: symbols\f[] is active, Apex always uses \f[B]chafa\f[] with \fR\-f symbols\f[] for images so pager output remains compatible with \f[B]less \-R\f[].
 
 .TP
 \f[B]\-\-code\-highlight\f[] TOOL
@@ -92,14 +115,13 @@ Pretty\-print HTML with indentation and whitespace.
 .TP
 \f[B]\-\-aria\f[]
 Add ARIA labels and accessibility attributes to HTML
-output. When enabled, adds: \fRaria\-label="Table of contents"\f[] to TOC navigation elements (\fR<nav class="toc">\f[]) \- \fRrole="figure"\f[] to \fR<figure>\f[] elements \- \fRrole="table"\f[] to \fR<table>\f[] elements table figures (if missing)
+output. When enabled, adds: \fRaria\-label="Table of contents"\f[] to TOC navigation elements (\fR<nav class="toc">\f[]) \- \fRrole="figure"\f[] to \fR<figure>\f[] elements \- \fRrole="table"\f[] to \fR<table>\f[] elements \- \fRid\f[] attributes to \fR<figcaption>\f[] elements within table figures (if missing)
 
 .PP
 .nf
 \fR
-\- `id` attributes to `<figcaption>` elements within
-  to their captions
 \- `aria\-describedby` attributes to tables linking them
+  to their captions
 
 \f[]
 .fi
@@ -245,17 +267,10 @@ first item).
 \f[B]\-\-relaxed\-tables\f[], \f[B]\-\-no\-relaxed\-tables\f[]
 Enable relaxed table parsing (no separator rows required).
 
-.TP
-\f[B]\-\-grid\-tables\f[], \f[B]\-\-no\-grid\-tables\f[], \f[B]\-\-enable\-grid\-tables\f[]
-Enable or disable Pandoc grid table syntax (tables bordered with \fR+---+ \f[] and \fR+===+ \f[] rows). Disabled by default in unified mode. \fR\-\-enable\-grid\-tables\f[] is an alias for \fR\-\-grid\-tables\f[]. Requires table support (see \fR\-\-no\-tables\f[]).
-
 .SS HTML and Links
 
 .PP
-\fRdash\f[] \- Convert spaces to dashes: \fR[[Home Page]]\f[] → \fRhref="Home\-Page"\f[] \fRnone\f[] \- Remove spaces: \fR[[Home Page]]\f[] → \fRhref="HomePage"\f[] \fRunderscore\f[] \- Convert spaces to underscores: \fR[[Home Page]]\f[] → \fRhref="Home_Page"\f[] Default: \fRdash\f[].
-
-.PP
-\fRspace\f[] \- Keep spaces (rendered as \fR%%20\f[] in HTML): \fR[[Home Page]]\f[] → \fRhref="Home%20Page"\f[]
+\fRdash\f[] \- Convert spaces to dashes: \fR[[Home Page]]\f[] → \fRhref="Home\-Page"\f[] \fRnone\f[] \- Remove spaces: \fR[[Home Page]]\f[] → \fRhref="HomePage"\f[] \fRunderscore\f[] \- Convert spaces to underscores: \fR[[Home Page]]\f[] → \fRhref="Home_Page"\f[] \fRspace\f[] \- Keep spaces (rendered as \fR%%20\f[] in HTML): \fR[[Home Page]]\f[] → \fRhref="Home%20Page"\f[] Default: \fRdash\f[].
 
 .TP
 \f[B]\-\-wikilink\-sanitize\f[], \f[B]\-\-no\-wikilink\-sanitize\f[]
@@ -287,15 +302,7 @@ Removes leading and trailing space\-mode characters For example, with \fR\-\-wik
 .SS Path Resolution
 
 .PP
-\f[B]\-\-base\-dir\f[] \f[I]DIR\f[] :   Base directory for resolving relative paths. Used for: \- Image embedding (with \f[B]\-\-embed\-images\f[]) \- File includes/transclusions when the working directory differs from the document location
-
-.PP
-.nf
-\fR
-\- Relative path resolution when reading from stdin or
-
-\f[]
-.fi
+\f[B]\-\-base\-dir\f[] \f[I]DIR\f[] :   Base directory for resolving relative paths. Used for: \- Image embedding (with \f[B]\-\-embed\-images\f[]) \- File includes/transclusions \- Relative path resolution when reading from stdin or when the working directory differs from the document location
 
 .PP
 If not specified and reading from a file, the base directory is automatically set to the input file's directory. When reading from stdin, this flag must be used to resolve relative paths.
@@ -311,7 +318,7 @@ If not specified and reading from a file, the base directory is automatically se
 aside {.sidebar} … :::\fRcreates an\f[]` element instead). Opening fences must have at least 3 colons and attributes; closing fences need at least 3 colons. Fenced divs can be nested, including different block types. Default: enabled in unified mode only.
 
 
-\f[B]\-\-spans\f[], \f[B]\-\-no\-spans\f[] :   Enable or disable Pandoc\-style bracketed spans syntax (\fR[text]{#id .class key="val"}\f[]). Bracketed spans allow you to create HTML \fR<span>\f[] elements with attributes. The text inside the brackets is processed as markdown. If the bracketed text matches a reference link definition, it will be treated as a link instead of a span. Default: enabled in unified mode only.
+\f[B]\-\-py\-callouts\f[], \f[B]\-\-no\-py\-callouts\f[] :   Enable or disable Python\-Markdown callout syntax (\fR!!! note "Optional Title"\f[] followed by indented content) and markdown\-callouts label syntax (\fRNOTE: ...\f[], \fR>? NOTE: ...\f[] for collapsed callouts). Disabled by default to avoid ambiguity with regular markdown prose. \f[B]\-\-quarto\-callouts\f[], \f[B]\-\-no\-quarto\-callouts\f[] :   Enable or disable Quarto callout syntax using fenced div markers (\fR::: {.callout\-note}\f[] ... \fR:::\f[]). When enabled, recognized Quarto callout blocks bypass generic fenced\-div conversion and are rendered as callouts; non\-callout fenced divs continue to be processed as regular Pandoc fenced divs. \f[B]\-\-spans\f[], \f[B]\-\-no\-spans\f[] :   Enable or disable Pandoc\-style bracketed spans syntax (\fR[text]{#id .class key="val"}\f[]). Bracketed spans allow you to create HTML \fR<span>\f[] elements with attributes. The text inside the brackets is processed as markdown. If the bracketed text matches a reference link definition, it will be treated as a link instead of a span. Default: enabled in unified mode only.
 
 .SS Citations and Bibliography
 
@@ -330,143 +337,117 @@ mmark: \fR[@RFC1234]\f[] Bibliography is inserted at the \fR<!\-\- REFERENCES \-
 .SS Indices
 
 .PP
-\f[B]\-\-indices\f[] syntax. Default: enabled in MultiMarkdown and unified modes.
+\f[B]\-\-indices\f[] : Enable index processing. Supports both mmark and TextIndex syntax. Default: enabled in MultiMarkdown and unified modes.
 
 .PP
-: Enable index processing. Supports both mmark and TextIndex \f[B]\-\-no\-indices\f[] :   Disable index processing. \f[B]\-\-no\-index\f[] Index markers are still created in the document, but the index section is not generated.
+\f[B]\-\-no\-indices\f[] :   Disable index processing. \f[B]\-\-no\-index\f[] : Suppress index generation at the end of the document. Index markers are still created in the document, but the index section is not generated.
 
 .PP
-: Suppress index generation at the end of the document. Index syntax is supported in MultiMarkdown and unified modes:
+Index syntax is supported in MultiMarkdown and unified modes:
 
 .IP \(bu 2
-\f[B]mmark syntax\f[]: \fR(!item)\f[], \fR(!item, subitem)\f[], \fR(!!item, subitem)\f[] for primary entries
+\f[B]mmark syntax\f[]: \fR<!\-\-IDX:idxref\-0\-\->\f[], \fR<!\-\-IDX:idxref\-1\-\->\f[], \fR<!\-\-IDX:idxref\-2\-\->\f[] for primary entries
 
 .IP \(bu 2
-\f[B]TextIndex syntax\f[]: \fRword{^}\f[], \fR[term]{^}\f[], \fR{^params}\f[] The index is automatically generated at the end of the document or at the \fR<!\-\-INDEX\-\->\f[] marker if present. Entries are sorted alphabetically and can be grouped by first letter.
+\f[B]TextIndex syntax\f[]: \fRword<!\-\-IDX:idxref\-3\-\->\f[], \fR[term]<!\-\-IDX:idxref\-4\-\->\f[], \fR{^params}\f[] The index is automatically generated at the end of the document or at the \fR<!\-\-INDEX\-\->\f[] marker if present. Entries are sorted alphabetically and can be grouped by first letter.
 
 .SS AST Filters
 
 .PP
-\f[B]\-\-filter\f[] \f[I]NAME\f[] (\fR$XDG_CONFIG_HOME/apex/filters\f[] or \fR~/.config/apex/filters\f[]). \f[I]NAME\f[] is the basename of an executable that reads Pandoc JSON from stdin and writes Pandoc JSON to stdout.
+\f[B]\-\-filter\f[] \f[I]NAME\f[] : Run a single AST filter from the user filters directory (\fR$XDG_CONFIG_HOME/apex/filters\f[] or \fR~/.config/apex/filters\f[]). \f[I]NAME\f[] is the basename of an executable that reads Pandoc JSON from stdin and writes Pandoc JSON to stdout.
 
 .PP
-: Run a single AST filter from the user filters directory \f[B]\-\-filters\f[] filename order. Directory filters run first if \f[B]\-\-filter\f[] is also used.
+\f[B]\-\-filters\f[] : Run all executable files in the user filters directory, in sorted filename order. Directory filters run first if \f[B]\-\-filter\f[] is also used.
 
 .PP
-: Run all executable files in the user filters directory, in sorted \f[B]\-\-lua\-filter\f[] \f[I]FILE\f[] interpreter with \f[I]FILE\f[]. The script reads a Pandoc JSON document from stdin and must write a Pandoc JSON document to stdout. A JSON library (e.g. dkjson) is required; see the Filters documentation for details.
+\f[B]\-\-lua\-filter\f[] \f[I]FILE\f[] : Run a Lua script as an AST filter. Apex invokes the system \f[B]lua\f[] interpreter with \f[I]FILE\f[]. The script reads a Pandoc JSON document from stdin and must write a Pandoc JSON document to stdout. A JSON library (e.g. dkjson) is required; see the Filters documentation for details.
 
 .PP
-: Run a Lua script as an AST filter. Apex invokes the system \f[B]lua\f[] \f[B]\-\-no\-strict\-filters\f[] warning and continue with the previous AST. Default: abort on error.
+\f[B]\-\-no\-strict\-filters\f[] : Do not abort when a filter fails or returns invalid JSON; log a warning and continue with the previous AST. Default: abort on error.
 
 .PP
-: Do not abort when a filter fails or returns invalid JSON; log a \f[B]\-\-list\-filters\f[] apex\-filters directory. Shows filter IDs; available filters show title, author, description, and homepage.
+\f[B]\-\-list\-filters\f[] : List installed filters and available filters from the central apex\-filters directory. Shows filter IDs; available filters show title, author, description, and homepage.
 
 .PP
-: List installed filters and available filters from the central \f[B]\-\-install\-filter\f[] \f[I]ID\-or\-URL\f[] may be a filter ID from the central apex\-filters directory (e.g. \f[B]unwrap\f[]) or a Git URL / GitHub shorthand. When installing from a URL, Apex may prompt for confirmation.
+\f[B]\-\-install\-filter\f[] \f[I]ID\-or\-URL\f[] : Install an AST filter into the user filters directory. \f[I]ID\-or\-URL\f[] may be a filter ID from the central apex\-filters directory (e.g. \f[B]unwrap\f[]) or a Git URL / GitHub shorthand. When installing from a URL, Apex may prompt for confirmation.
 
 .PP
-: Install an AST filter into the user filters directory. \f[I]ID\-or\-URL\f[] \f[B]\-\-uninstall\-filter\f[] \f[I]ID\f[] from the user filters directory. Apex prompts for confirmation.
-
-.PP
-: Uninstall a filter by ID. Removes the filter (file or directory)
+\f[B]\-\-uninstall\-filter\f[] \f[I]ID\f[] : Uninstall a filter by ID. Removes the filter (file or directory) from the user filters directory. Apex prompts for confirmation.
 
 .SS Plugins
 
 .PP
-\f[B]\-\-plugins\f[], \f[B]\-\-no\-plugins\f[] extend Apex with custom processing capabilities.
+\f[B]\-\-plugins\f[], \f[B]\-\-no\-plugins\f[] : Enable or disable external/plugin processing. Plugins extend Apex with custom processing capabilities.
 
 .PP
-: Enable or disable external/plugin processing. Plugins \f[B]\-\-list\-plugins\f[] remote directory. Shows both locally installed plugins and plugins available for installation from the Apex plugin directory.
+\f[B]\-\-list\-plugins\f[] : List installed plugins and available plugins from the remote directory. Shows both locally installed plugins and plugins available for installation from the Apex plugin directory.
 
 .PP
-: List installed plugins and available plugins from the \f[B]\-\-install\-plugin\f[] \f[I]ID\f[] :   Install a plugin by ID from the remote directory, or by Git URL/GitHub shorthand (user/repo). Plugins are installed to \fR$XDG_CONFIG_HOME/apex/plugins\f[] (or \fR<sub>/</sub>.config/apex/plugins\f[] when \fRXDG_CONFIG_HOME\f[] is not set). When installing from a URL or GitHub shorthand, Apex will prompt for confirmation since plugins execute unverified code. \f[B]\-\-uninstall\-plugin\f[] \f[I]ID\f[] from the plugins folder. Apex will prompt for confirmation before removing the plugin.
-
-.PP
-: Uninstall a plugin by ID. Removes the plugin directory
+\f[B]\-\-install\-plugin\f[] \f[I]ID\f[] :   Install a plugin by ID from the remote directory, or by Git URL/GitHub shorthand (user/repo). Plugins are installed to \fR$XDG_CONFIG_HOME/apex/plugins\f[] (or \fR<sub>/</sub>.config/apex/plugins\f[] when \fRXDG_CONFIG_HOME\f[] is not set). When installing from a URL or GitHub shorthand, Apex will prompt for confirmation since plugins execute unverified code. \f[B]\-\-uninstall\-plugin\f[] \f[I]ID\f[] : Uninstall a plugin by ID. Removes the plugin directory from the plugins folder. Apex will prompt for confirmation before removing the plugin.
 
 .SS General Options
 
 .PP
 \f[B]\-h\f[], \f[B]\-\-help\f[] :   Show help message and exit. \f[B]\-v\f[], \f[B]\-\-version\f[] :   Show version information and exit. \f[B]\-\-progress\f[], \f[B]\-\-no\-progress\f[] :   Show progress indicator during processing. Default: enabled when stderr is a TTY.
 
-.PP
-\f[B]\-i\f[], \f[B]\-\-info\f[] :   Print version, merged config metadata (global and project \fRconfig.yml\f[], plus \f[B]\-\-meta\-file\f[] and \f[B]\-\-meta\f[] when given) as YAML, and the plugin IDs that would load when plugins are enabled. Without input files, writes to stdout and exits. With files or \f[B]\-\-combine\f[]/\f[B]\-\-mmd\-merge\f[], writes to stderr first, then continues.
-
-.PP
-\f[B]\-\-extract\-meta\f[] :   Merge document metadata from input files in order (later overrides; respects \f[B]\-\-mode\f[]), print YAML to stdout, and exit. Requires at least one file (\f[B]\-\-combine\f[] file list counts). Incompatible with \f[B]\-\-mmd\-merge\f[].
-
-.PP
-\f[B]\-e\f[], \f[B]\-\-extract\-meta\-value\f[] \f[I]KEY\f[] :   Same merge as \f[B]\-\-extract\-meta\f[] but print only the value for \f[I]KEY\f[]. Exit status is non\-zero if the key is absent.
-
 .SS Multi\-file Utilities
 
 .PP
-\f[B]\-\-combine\f[] \f[I]files...\f[] Markdown stream, expanding all supported include syntaxes. When a \fRSUMMARY.md\f[] file is provided, Apex treats it as a GitBook\-style index and combines the linked files in order. Output is raw Markdown suitable for piping back into Apex.
+\f[B]\-\-combine\f[] \f[I]files...\f[] : Concatenate one or more Markdown files into a single Markdown stream, expanding all supported include syntaxes. When a \fRSUMMARY.md\f[] file is provided, Apex treats it as a GitBook\-style index and combines the linked files in order. Output is raw Markdown suitable for piping back into Apex.
 
 .PP
-: Concatenate one or more Markdown files into a single \f[B]\-\-mmd\-merge\f[] \f[I]index files...\f[] apex \-\-mmd\-merge index.txt | apex \-\-mode mmd \-\-standalone \-o book.html
-
-.PP
-:   Merge files from one or more MultiMarkdown \fRmmd_merge\f[]\-style index files into a  single Markdown stream. Each non\-empty, non\-comment line in an index file specifies a document to include. Lines whose first non\-whitespace character is \fR#\f[] are treated as comments and ignored. Indentation (tabs or groups of four spaces) before the filename increases the header level of the included document (each indent level shifts all Markdown headings in that file down one level). Output is raw Markdown suitable for piping into Apex, for example:
+\f[B]\-\-mmd\-merge\f[] \f[I]index files...\f[] :   Merge files from one or more MultiMarkdown \fRmmd_merge\f[]\-style index files into a  single Markdown stream. Each non\-empty, non\-comment line in an index file specifies a document to include. Lines whose first non\-whitespace character is \fR#\f[] are treated as comments and ignored. Indentation (tabs or groups of four spaces) before the filename increases the header level of the included document (each indent level shifts all Markdown headings in that file down one level). Output is raw Markdown suitable for piping into Apex, for example: apex \-\-mmd\-merge index.txt | apex \-\-mode mmd \-\-standalone \-o book.html
 
 .SH EXAMPLES
 
 .PP
-.nf
-\fR
-apex input.md
-
-\f[]
-.fi
+Process a markdown file: apex input.md
 
 .PP
-Process a markdown file: apex input.md \-o output.html
+Output to a file: apex input.md \-o output.html
 
 .PP
-Output to a file: apex input.md \-\-standalone \-\-title "My Document"
+Generate standalone HTML document: apex input.md \-\-standalone \-\-title "My Document"
 
 .PP
-Generate standalone HTML document: apex input.md \-\-pretty
+Pretty\-print HTML output: apex input.md \-\-pretty
 
 .PP
-Pretty\-print HTML output: apex input.md \-\-mode gfm
+Use GFM mode: apex input.md \-\-mode gfm
 
 .PP
-Use GFM mode: apex document.md \-\-bibliography refs.bib
+Process document with citations and bibliography: apex document.md \-\-bibliography refs.bib
 
 .PP
-Process document with citations and bibliography: apex document.md
+Use metadata to specify bibliography: apex document.md
 
 .PP
-Use metadata to specify bibliography: (With bibliography specified in YAML front matter) apex input.md \-\-mode kramdown
+(With bibliography specified in YAML front matter) Use Kramdown mode with relaxed tables: apex input.md \-\-mode kramdown
 
 .PP
-Use Kramdown mode with relaxed tables: echo "# Hello" | apex
-
-.PP
-Process from stdin:
+Process from stdin: echo "# Hello" | apex
 
 .SH PROCESSING MODES
 
 .PP
-\f[B]commonmark\f[] compatibility.
+\f[B]commonmark\f[] : Pure CommonMark specification. Minimal features, maximum compatibility.
 
 .PP
-: Pure CommonMark specification. Minimal features, maximum \f[B]gfm\f[] task lists, autolinks, and more.
+\f[B]gfm\f[] : GitHub Flavored Markdown. Includes tables, strikethrough, task lists, autolinks, and more.
 
 .PP
-: GitHub Flavored Markdown. Includes tables, strikethrough, \f[B]mmd\f[], \f[B]multimarkdown\f[] lists, footnotes, and more.
+\f[B]mmd\f[], \f[B]multimarkdown\f[] : MultiMarkdown compatibility. Includes metadata, definition lists, footnotes, and more.
 
 .PP
-: MultiMarkdown compatibility. Includes metadata, definition \f[B]kramdown\f[] (Inline Attribute Lists) for adding HTML attributes to elements, and more.
+\f[B]kramdown\f[] : Kramdown compatibility. Includes relaxed tables, IAL (Inline Attribute Lists) for adding HTML attributes to elements, and more.
 
 .PP
-: Kramdown compatibility. Includes relaxed tables, IAL \f[B]unified\f[] (default) :   All features enabled. Combines features from all modes.
+\f[B]unified\f[] (default) :   All features enabled. Combines features from all modes.
 
 .SH METADATA CONTROL OF OPTIONS
 
 .PP
-Most command\-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per\-document configuration without needing separate command\-line invocations. \f[B]Boolean options\f[] accept \fRtrue\f[]/\fRfalse\f[], \fRyes\f[]/\fRno\f[], or \fR1\f[]/\fR0\f[] (case\-insensitive). \f[B]String options\f[] use the value directly. \f[B]Supported boolean options:\f[] \fRindices\f[], \fRwikilinks\f[], \fRwikilink\-sanitize\f[], \fRincludes\f[], \fRrelaxed\-tables\f[], \fRgrid\-tables\f[], \fRper\-cell\-alignment\f[], \fRalpha\-lists\f[], \fRmixed\-lists\f[], \fRsup\-sub\f[], \fRstrikethrough\f[], \fRautolink\f[], \fRtransforms\f[], \fRunsafe\f[], \fRtables\f[], \fRfootnotes\f[], \fRsmart\f[], \fRmath\f[], \fRids\f[], \fRheader\-anchors\f[], \fRembed\-images\f[], \fRimage\-captions\f[], \fRlink\-citations\f[], \fRshow\-tooltips\f[], \fRsuppress\-bibliography\f[], \fRsuppress\-index\f[], \fRgroup\-index\-by\-letter\f[], \fRobfuscate\-emails\f[], \fRpretty\f[], \fRstandalone\f[], \fRhardbreaks\f[], \fRplugins\f[], \fRemoji\-autocorrect\f[], \fRcode\-line\-numbers\f[], \fRhighlight\-language\-only\f[], \fRmarkdown\-in\-html\f[] \f[B]Supported string options:\f[] \fRbibliography\f[], \fRcsl\f[], \fRtitle\f[], \fRstyle\f[] (or \fRcss\f[]), \fRid\-format\f[], \fRbase\-dir\f[], \fRmode\f[], \fRwikilink\-space\f[], \fRwikilink\-extension\f[] \f[B]Terminal output metadata\f[] (for \f[B]\-\-to terminal\f[] / \f[B]terminal256\f[]): \fRterminal.theme\f[] (\fRterminal_theme\f[]), \fRterminal.width\f[] (\fRterminal_width\f[], wrap width), \fRterminal.inline_images\f[] (\fRterminal_inline_images\f[], boolean), \fRterminal.image_width\f[] (\fRterminal_image_width\f[], viewer width in character cells), \fRterminal.paginate\f[] (\fRterminal_paginate\f[]), \fRpaginate\f[], \fRcode\-highlight\f[], \fRcode\-highlight\-theme\f[].
+Most command\-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per\-document configuration without needing separate command\-line invocations. \f[B]Boolean options\f[] accept \fRtrue\f[]/\fRfalse\f[], \fRyes\f[]/\fRno\f[], or \fR1\f[]/\fR0\f[] (case\-insensitive). \f[B]String options\f[] use the value directly. \f[B]Supported boolean options:\f[] \fRindices\f[], \fRwikilinks\f[], \fRwikilink\-sanitize\f[], \fRincludes\f[], \fRrelaxed\-tables\f[], \fRper\-cell\-alignment\f[], \fRalpha\-lists\f[], \fRmixed\-lists\f[], \fRsup\-sub\f[], \fRstrikethrough\f[], \fRautolink\f[], \fRtransforms\f[], \fRunsafe\f[], \fRtables\f[], \fRfootnotes\f[], \fRsmart\f[], \fRmath\f[], \fRcallouts\f[], \fRpy\-callouts\f[], \fRquarto\-callouts\f[], \fRdivs\f[], \fRspans\f[], \fRids\f[], \fRheader\-anchors\f[], \fRembed\-images\f[], \fRimage\-captions\f[], \fRlink\-citations\f[], \fRshow\-tooltips\f[], \fRsuppress\-bibliography\f[], \fRsuppress\-index\f[], \fRgroup\-index\-by\-letter\f[], \fRobfuscate\-emails\f[], \fRpretty\f[], \fRstandalone\f[], \fRhardbreaks\f[], \fRplugins\f[], \fRemoji\-autocorrect\f[], \fRcode\-line\-numbers\f[], \fRhighlight\-language\-only\f[], \fRmarkdown\-in\-html\f[] \f[B]Supported string options:\f[] \fRbibliography\f[], \fRcsl\f[], \fRtitle\f[], \fRstyle\f[] (or \fRcss\f[]), \fRid\-format\f[], \fRbase\-dir\f[], \fRmode\f[], \fRwikilink\-space\f[], \fRwikilink\-extension\f[] \f[B]Terminal output metadata\f[] (for \f[B]\-\-to terminal\f[] / \f[B]terminal256\f[]): \fRterminal.theme\f[] (\fRterminal_theme\f[]), \fRterminal.width\f[] (\fRterminal_width\f[], wrap width), \fRterminal.inline_images\f[] (\fRterminal_inline_images\f[], boolean), \fRterminal.image_width\f[] (\fRterminal_image_width\f[], viewer width in character cells), \fRterminal.paginate\f[] (\fRterminal_paginate\f[]), \fRpaginate\f[] (\fRtrue\f[], \fRfalse\f[], or \fRsymbols\f[] for pager\-friendly chafa ANSI images), \fRcode\-highlight\f[], \fRcode\-highlight\-theme\f[].
 
 .PP
 .nf
@@ -561,6 +542,11 @@ Apex supports a wide range of Markdown extensions:
 
 .IP \(bu 2
 \f[B]Inline Attribute Lists (IAL)\f[]: Kramdown\-style syntax for adding HTML attributes (IDs, classes, key\-value pairs) to block\-level and inline elements. Supports Attribute List Definitions (ALDs) for reusable attribute sets. Available in kramdown and unified modes. See Inline Attribute Lists (https://github.com/ttscoff/apex/wiki/Inline\-Attribute\-Lists) for complete documentation
+
+.SH ENVIRONMENT
+
+.PP
+\f[B]APEX_PAGER\f[] : When set and non\-empty, used as the pager command for \f[B]\-p\f[] / \f[B]\-\-paginate\f[] and \f[B]\-\-paginate\-symbols\f[] before \f[B]$PAGER\f[]. \f[B]PAGER\f[] : Fallback pager command when \f[B]APEX_PAGER\f[] is unset. \f[B]APEX_DEBUG_TERMINAL\f[] : When set to any non\-empty value, Apex prints terminal rendering diagnostics to stderr: selected image viewer, full viewer command lines, \f[B]TERM_PROGRAM\f[], pagination mode, and syntax highlighter commands. \f[B]TMPDIR\f[] : Directory for temporary files when downloading remote images for terminal display (falls back to \fR/tmp\f[] when unset).
 
 .SH SEE ALSO
 

@@ -3100,10 +3100,15 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
         } else if (strcasecmp(key, "paginate") == 0 ||
                    strcasecmp(key, "terminal.paginate") == 0 ||
                    strcasecmp(key, "terminal_paginate") == 0) {
-            if (is_true_value(value)) {
+            if (strcasecmp(value, "symbols") == 0) {
                 options->paginate = true;
+                options->paginate_symbols = true;
+            } else if (is_true_value(value)) {
+                options->paginate = true;
+                options->paginate_symbols = false;
             } else if (is_false_value(value)) {
                 options->paginate = false;
+                options->paginate_symbols = false;
             }
         }
         /* Syntax highlighting options */
