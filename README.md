@@ -1,5 +1,5 @@
 
-[![Version: 1.1.2](https://img.shields.io/badge/Version-1.1.2-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1760](https://img.shields.io/badge/Tests-0/1760-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.3](https://img.shields.io/badge/Version-1.1.3-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1763](https://img.shields.io/badge/Tests-0/1763-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -337,7 +337,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.2
+Apex Markdown Processor v1.1.3
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -457,6 +457,8 @@ Options:
   --no-terminal-images    Do not render local images via imgcat/chafa/viu/catimg on terminal output
   --terminal-image-width N  Max width/cells for terminal image tools (default: 50)
   -p, --paginate          Page terminal/cli/terminal256 output through a pager (APEX_PAGER, then PAGER, then less -R)
+  --paginate-symbols      Page output and render images as chafa ANSI art (compatible with less -R)
+  --no-paginate           Do not page terminal output (overrides -p and paginate: true in config/metadata)
 
 If no file is specified, reads from stdin.
 

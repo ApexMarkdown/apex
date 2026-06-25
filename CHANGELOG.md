@@ -2,6 +2,29 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.4] - 2026-06-25
+
+### Changed
+
+- Homebrew formula bumped to 1.1.3
+
+### New
+
+- --paginate-symbols renders images as chafa ANSI art compatible with less -R when paging terminal output
+- --no-paginate disables terminal pagination, overriding -p/--paginate and paginate settings from config or metadata
+- Paginate: symbols metadata enables pager-friendly terminal images (chafa -f symbols) alongside normal pagination
+- APEX_DEBUG_TERMINAL environment variable logs terminal image viewer selection, exec commands, and syntax highlighter invocations to stderr
+
+### Improved
+
+- Terminal image tools use terminal-aware chafa formats (iterm, kitty, symbols) with 256- or 16-color levels matching terminal256 vs terminal
+- --width wrapping preserves OSC, DCS, and Kitty graphics escape sequences instead of breaking inline image output
+
+### Fixed
+
+- Imgcat is only used in iTerm2 so inline images no longer appear as raw binary garbage in Cursor and other non-iTerm terminals
+- Apex automatically skips the pager when inline terminal graphics are present, since less -R and most pagers only support ANSI color
+
 ## [1.1.3] - 2026-06-24
 
 ### Changed
@@ -3038,6 +3061,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.4]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.4
 [1.1.3]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.3
 [1.1.2]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.2
 [1.1.1]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.1
