@@ -213,6 +213,15 @@ public struct Apex {
     }
 
     /**
+     * Convert Markdown to HTML using Apex with source file URL for includes
+     */
+    public static func convert(
+        _ markdown: String, mode: ApexMode = .unified, sourceURL: URL
+    ) -> String {
+        return NSString.convert(withApex: markdown, mode: mode.rawValue, sourceURL: sourceURL)
+    }
+
+    /**
      * Convert Markdown to HTML using Apex with standalone document options
      */
     public static func convert(

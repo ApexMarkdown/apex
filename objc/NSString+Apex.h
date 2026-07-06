@@ -105,9 +105,20 @@ extern NSString * const ApexModeUnified;
  */
 + (NSString *)convertWithApex:(NSString *)inputString
                          mode:(NSString *)mode
-              generateHeaderIDs:(BOOL)generateHeaderIDs
-                    hardBreaks:(BOOL)hardBreaks
-                        pretty:(BOOL)pretty;
+            generateHeaderIDs:(BOOL)generateHeaderIDs
+                   hardBreaks:(BOOL)hardBreaks
+                       pretty:(BOOL)pretty;
+
+/**
+ * Convert Markdown to HTML using Apex with source file URL for includes
+ * @param inputString The markdown text to convert
+ * @param mode Processor mode
+ * @param sourceURL File URL used for include resolution and base directory
+ * @return HTML string
+ */
++ (NSString *)convertWithApex:(NSString *)inputString
+                         mode:(NSString *)mode
+                    sourceURL:(NSURL *)sourceURL;
 
 /**
  * Convert this string (as Markdown) to HTML using Apex in unified mode

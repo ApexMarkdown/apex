@@ -331,6 +331,52 @@ NSString *const ApexModeUnified = @"unified";
 }
 
 /**
+ * Convert Markdown to HTML using Apex with source file URL for includes
+ */
++ (NSString *)convertWithApex:(NSString *)inputString
+                         mode:(NSString *)modeString
+                    sourceURL:(NSURL *)sourceURL {
+  if (!inputString || [inputString length] == 0) {
+    return @"";
+  }
+
+  const char *markdown = [inputString UTF8String];
+  if (!markdown) {
+    return @"";
+  }
+
+  apex_mode_t mode = [self apexModeFromString:modeString];
+  apex_options options = apex_options_for_mode(mode);
+
+  options.unsafe = true;
+  options.generate_header_ids = true;
+  options.enable_critic_markup = true;
+  options.critic_mode = 2; /* CRITIC_MARKUP: show markup with classes */
+
+  if (sourceURL && sourceURL.isFileURL) {
+    NSString *path = sourceURL.path;
+    if (path.length > 0) {
+      options.input_file_path = [path UTF8String];
+      NSString *baseDir = [path stringByDeletingLastPathComponent];
+      if (baseDir.length > 0) {
+        options.base_directory = [baseDir UTF8String];
+      }
+    }
+  }
+
+  char *html_c = apex_markdown_to_html(markdown, strlen(markdown), &options);
+
+  if (!html_c) {
+    return @"";
+  }
+
+  NSString *html = [NSString stringWithUTF8String:html_c];
+  apex_free_string(html_c);
+
+  return html ? html : @"";
+}
+
+/**
  * Convert this string (as Markdown) to HTML using Apex in unified mode
  */
 - (NSString *)apexHTML {
