@@ -338,13 +338,31 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         /* Track code blocks */
         if (is_code_fence_line(line_start, line_length)) {
             in_code_block = !in_code_block;
-            if (in_def_list && in_code_block) {
-                /* Close def list before code block */
-                ENSURE_SPACE(10);
-                memcpy(write, "</dl>\n", 6);
-                write += 6;
-                remaining -= 6;
-                in_def_list = false;
+            if (in_code_block) {
+                /* Entering fenced code block: flush buffered term before fence */
+                if (dd_open) {
+                    ENSURE_SPACE(10);
+                    memcpy(write, "</dd>\n", 6);
+                    write += 6;
+                    remaining -= 6;
+                    dd_open = false;
+                }
+                if (in_def_list) {
+                    ENSURE_SPACE(10);
+                    memcpy(write, "</dl>\n", 6);
+                    write += 6;
+                    remaining -= 6;
+                    in_def_list = false;
+                }
+                if (term_len > 0) {
+                    ENSURE_SPACE((size_t)term_len + 2);
+                    memcpy(write, term_buffer, (size_t)term_len);
+                    write += term_len;
+                    remaining -= (size_t)term_len;
+                    *write++ = '\n';
+                    remaining--;
+                    term_len = 0;
+                }
             }
             ENSURE_SPACE(line_length + 2);
             memcpy(write, line_start, line_length);

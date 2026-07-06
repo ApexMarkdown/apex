@@ -1422,6 +1422,22 @@ void test_definition_lists(void) {
     }
     apex_free_string(html);
 
+    /* Buffered term before fenced code block must not be discarded */
+    const char *term_before_code =
+        "You can now use these environment variables in your Run Command actions:\n\n"
+        "```bash\n"
+        "echo hello\n"
+        "```";
+    html = apex_markdown_to_html(term_before_code, strlen(term_before_code), &opts);
+    assert_contains(html, "Run Command actions", "Intro paragraph preserved before code block");
+    {
+        const char *intro_pos = strstr(html, "Run Command actions");
+        const char *code_pos = strstr(html, "<pre");
+        test_result(intro_pos && code_pos && intro_pos < code_pos,
+                    "Intro paragraph appears before fenced code block");
+    }
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }
