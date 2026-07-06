@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.5] - 2026-07-06
+
+### Fixed
+
+- Buffered definition-list term text before a fenced code block is no longer discarded when the preprocessor closes the list for the fence
+- Images and reference link definitions immediately after a blockquote line without a blank line are no longer swallowed into the blockquote by CommonMark lazy continuation
+- Reference-style images like ![][id] following a blockquote render outside the blockquote with the reference resolved correctly
+
 ## [1.1.4] - 2026-06-25
 
 ### Changed
@@ -3061,6 +3069,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.5]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.5
 [1.1.4]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.4
 [1.1.3]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.3
 [1.1.2]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.2
