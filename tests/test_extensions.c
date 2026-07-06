@@ -1636,6 +1636,28 @@ void test_blockquote_lists(void) {
     /* Definition lists may or may not be parsed depending on mode */
     apex_free_string(html);
 
+    /* Reference image after blockquote without blank line should not stay in blockquote */
+    const char *ref_img_after_quote =
+        "> Block quote\n"
+        "![][2]\n"
+        "\n"
+        "[2]: /path/to/image.jpg\n"
+        "\n"
+        "Additional paragraph.";
+    html = apex_markdown_to_html(ref_img_after_quote, strlen(ref_img_after_quote), &opts);
+    assert_contains(html, "<blockquote>", "Blockquote present for ref image test");
+    assert_contains(html, "Block quote", "Blockquote text preserved");
+    assert_not_contains(html, "<blockquote>\n<p>Block quote\n<img", "Reference image not lazy-continued into blockquote");
+    assert_contains(html, "<img src=\"/path/to/image.jpg\"", "Reference image resolved outside blockquote");
+    assert_contains(html, "Additional paragraph.", "Paragraph after reference image preserved");
+    apex_free_string(html);
+
+    /* Inline image after blockquote without blank line */
+    html = apex_markdown_to_html("> Block quote\n![alt](test.png)\n\nNext paragraph.", 52, &opts);
+    assert_not_contains(html, "<blockquote>\n<p>Block quote\n<", "Inline image not inside blockquote paragraph");
+    assert_contains(html, "test.png", "Inline image rendered outside blockquote");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Blockquote Lists Tests", had_failures, false);
 }
