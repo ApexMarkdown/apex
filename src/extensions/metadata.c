@@ -3042,6 +3042,13 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
                 }
                 free(lower);
             }
+        } else if (strcasecmp(key, "toc-min-max") == 0 || strcasecmp(key, "toc_min_max") == 0) {
+            int min = 0, max = 0;
+            if (sscanf(value, "%d,%d", &min, &max) == 2 &&
+                min >= 1 && max <= 6 && min <= max) {
+                options->toc_min = min;
+                options->toc_max = max;
+            }
         } else if (strcasecmp(key, "base-dir") == 0 || strcasecmp(key, "base_dir") == 0) {
             options->base_directory = value;
         } else if (strcasecmp(key, "wikilink-space") == 0 || strcasecmp(key, "wikilink_space") == 0) {

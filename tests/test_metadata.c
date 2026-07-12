@@ -626,11 +626,19 @@ void test_metadata_control_options(void) {
     item->next = metadata;
     metadata = item;
 
+    item = malloc(sizeof(apex_metadata_item));
+    item->key = strdup("toc-min-max");
+    item->value = strdup("2,4");
+    item->next = metadata;
+    metadata = item;
+
     apex_apply_metadata_to_options(metadata, &opts);
 
     assert_option_string(opts.document_title, "My Test Document", "title sets document_title");
     assert_option_string(opts.csl_file, "apa.csl", "csl sets csl_file");
     assert_option_bool(opts.id_format == 1, true, "id-format: mmd sets id_format to 1 (MMD)");
+    assert_option_bool(opts.toc_min == 2, true, "toc-min-max: 2,4 sets toc_min to 2");
+    assert_option_bool(opts.toc_max == 4, true, "toc-min-max: 2,4 sets toc_max to 4");
 
     apex_free_metadata(metadata);
     metadata = NULL;
