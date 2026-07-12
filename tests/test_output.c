@@ -53,6 +53,21 @@ void test_toc(void) {
     assert_contains(md, "- [Hello World](#helloworld)\n", "TOC md respects MMD id-format");
     apex_free_string(md);
 
+    /* manual ID */
+    toc_opts = apex_options_default();
+    toc_opts.output_format = APEX_OUTPUT_TOC;
+    md = apex_markdown_to_html("# Custom {#my-custom}\n", 22, &toc_opts);
+    assert_contains(md, "- [Custom](#my-custom)\n", "TOC md uses manual heading ID");
+    apex_free_string(md);
+
+    /* id-format kramdown */
+    toc_opts = apex_options_default();
+    toc_opts.output_format = APEX_OUTPUT_TOC;
+    toc_opts.id_format = 2; /* Kramdown */
+    md = apex_markdown_to_html("# Trailing Dash-\n", 17, &toc_opts);
+    assert_contains(md, "- [Trailing Dash-](#trailing-dash-)\n", "TOC md respects Kramdown id-format");
+    apex_free_string(md);
+
     /* empty */
     toc_opts = apex_options_default();
     toc_opts.output_format = APEX_OUTPUT_TOC;
