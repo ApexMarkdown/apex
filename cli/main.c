@@ -28,6 +28,7 @@ static char *read_file(const char *filename, size_t *len);
 typedef struct apex_cli_option_mask {
     bool mode;
     bool output_format;
+    bool toc_min_max;
     bool xhtml;
     bool strict_xhtml;
     bool theme_name;
@@ -120,6 +121,10 @@ static void apex_cli_restore_argv_options(apex_options *opts,
         }
     }
     if (m->output_format) opts->output_format = snap->output_format;
+    if (m->toc_min_max) {
+        opts->toc_min = snap->toc_min;
+        opts->toc_max = snap->toc_max;
+    }
     if (m->xhtml) opts->xhtml = snap->xhtml;
     if (m->strict_xhtml) opts->strict_xhtml = snap->strict_xhtml;
     if (m->theme_name) opts->theme_name = snap->theme_name;
@@ -1023,7 +1028,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified, quarto (default)\n");
-    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
+    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
@@ -1063,6 +1068,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
     fprintf(stderr, "  --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing\n");
     fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
+    fprintf(stderr, "  --toc-min-max MIN,MAX  Limit -t toc output to heading levels MIN through MAX (1..6)\n");
     fprintf(stderr, "  --[no-]transforms      Enable or disable metadata variable transforms [%%key:transform]\n");
     fprintf(stderr, "  --[no-]unsafe          Allow or disallow raw HTML in output\n");
     fprintf(stderr, "  --widont               Prevent short widows in headings by inserting non-breaking spaces between trailing words\n");
@@ -2132,11 +2138,38 @@ int main(int argc, char *argv[]) {
                 options.output_format = APEX_OUTPUT_MAN;
             } else if (strcmp(argv[i], "man-html") == 0) {
                 options.output_format = APEX_OUTPUT_MAN_HTML;
+            } else if (strcmp(argv[i], "toc") == 0) {
+                options.output_format = APEX_OUTPUT_TOC;
             } else {
                 fprintf(stderr, "Error: Unknown output format '%s'\n", argv[i]);
-                fprintf(stderr, "Supported formats: html, xhtml, strict-xhtml, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html\n");
+                fprintf(stderr, "Supported formats: html, xhtml, strict-xhtml, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc\n");
                 return 1;
             }
+        } else if (strncmp(argv[i], "--toc-min-max=", 14) == 0 ||
+                   strcmp(argv[i], "--toc-min-max") == 0) {
+            const char *arg_value = NULL;
+            if (strncmp(argv[i], "--toc-min-max=", 14) == 0) {
+                arg_value = argv[i] + 14;
+            } else {
+                if (++i >= argc) {
+                    fprintf(stderr, "Error: --toc-min-max requires MIN,MAX\n");
+                    return 1;
+                }
+                arg_value = argv[i];
+            }
+
+            int toc_min = 0;
+            int toc_max = 0;
+            int consumed = 0;
+            if (sscanf(arg_value, "%d,%d%n", &toc_min, &toc_max, &consumed) != 2 ||
+                arg_value[consumed] != '\0' ||
+                toc_min < 1 || toc_min > toc_max || toc_max > 6) {
+                fprintf(stderr, "Error: --toc-min-max must be MIN,MAX with 1 <= MIN <= MAX <= 6\n");
+                return 1;
+            }
+            cli_opt_mask.toc_min_max = true;
+            options.toc_min = toc_min;
+            options.toc_max = toc_max;
         } else if (strcmp(argv[i], "--theme") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --theme requires a name argument\n");
