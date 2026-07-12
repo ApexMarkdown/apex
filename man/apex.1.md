@@ -672,7 +672,7 @@ directly.
 
 **Supported string options:**
 `bibliography`, `csl`, `title`, `style` (or `css`),
-`id-format`, `base-dir`, `mode`, `wikilink-space`,
+`id-format`, `toc-min-max`, `base-dir`, `mode`, `wikilink-space`,
 `wikilink-extension`
 
 **Terminal output metadata** (for **--to terminal** / **terminal256**): `terminal.theme` (`terminal_theme`), `terminal.width` (`terminal_width`, wrap width), `terminal.inline_images` (`terminal_inline_images`, boolean), `terminal.image_width` (`terminal_image_width`, viewer width in character cells), `terminal.paginate` (`terminal_paginate`), `paginate` (`true`, `false`, or `symbols` for pager-friendly chafa ANSI images), `code-highlight`, `code-highlight-theme`.
