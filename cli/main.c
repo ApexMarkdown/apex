@@ -1068,7 +1068,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax\n");
     fprintf(stderr, "  --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing\n");
     fprintf(stderr, "  --title TITLE          Document title (requires --standalone, default: \"Document\")\n");
-    fprintf(stderr, "  --toc-min-max MIN,MAX  Limit -t toc output to heading levels MIN through MAX (1..6)\n");
+    fprintf(stderr, "  --toc-min-max MIN,MAX  TOC heading depth (default 1,3) for -t toc and bare HTML TOC markers; marker ranges still override\n");
     fprintf(stderr, "  --[no-]transforms      Enable or disable metadata variable transforms [%%key:transform]\n");
     fprintf(stderr, "  --[no-]unsafe          Allow or disallow raw HTML in output\n");
     fprintf(stderr, "  --widont               Prevent short widows in headings by inserting non-breaking spaces between trailing words\n");
