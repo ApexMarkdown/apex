@@ -1,5 +1,5 @@
 
-[![Version: 1.1.5](https://img.shields.io/badge/Version-1.1.5-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1772](https://img.shields.io/badge/Tests-0/1772-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.6](https://img.shields.io/badge/Version-1.1.6-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1810](https://img.shields.io/badge/Tests-0/1810-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -337,7 +337,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.5
+Apex Markdown Processor v1.1.6
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -395,7 +395,7 @@ Options:
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
   -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified, quarto (default)
-  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html
+  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support
   --no-ids                Disable automatic header ID generation
@@ -435,6 +435,7 @@ Options:
   --[no-]sup-sub         Enable or disable MultiMarkdown-style superscript (^text^) and subscript (~text~) syntax
   --[no-]strikethrough   Enable or disable GFM-style ~~strikethrough~~ processing
   --title TITLE          Document title (requires --standalone, default: "Document")
+  --toc-min-max MIN,MAX  TOC heading depth (default 1,3) for -t toc and bare HTML TOC markers; marker ranges still override
   --[no-]transforms      Enable or disable metadata variable transforms [%key:transform]
   --[no-]unsafe          Allow or disallow raw HTML in output
   --widont               Prevent short widows in headings by inserting non-breaking spaces between trailing words
