@@ -30,6 +30,17 @@ char *apex_process_toc(const char *html, cmark_node *document, int id_format,
                        int default_min, int default_max);
 
 /**
+ * Generate a Markdown table of contents from document headings.
+ * Returns a newly allocated string containing "- [text](#id)" entries.
+ * @param document The AST document
+ * @param id_format 0=GFM (with dashes), 1=MMD (no dashes)
+ * @param min_level Inclusive minimum heading level
+ * @param max_level Inclusive maximum heading level
+ */
+char *apex_generate_toc_markdown(cmark_node *document, int id_format,
+                                 int min_level, int max_level);
+
+/**
  * Replace backslash-escaped {{TOC...}} markers with placeholders before parsing.
  * Call before markdown parse when TOC processing will run later.
  */

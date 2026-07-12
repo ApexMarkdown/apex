@@ -6129,6 +6129,12 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         return json;
     }
 
+    if (options->output_format == APEX_OUTPUT_TOC) {
+        char *toc_md = apex_generate_toc_markdown(document, options->id_format,
+                                                  options->toc_min, options->toc_max);
+        return toc_md ? toc_md : strdup("");
+    }
+
     /* If output format is Markdown, serialize AST to Markdown and return */
     if (options->output_format == APEX_OUTPUT_MARKDOWN ||
         options->output_format == APEX_OUTPUT_MMD ||

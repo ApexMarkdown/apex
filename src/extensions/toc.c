@@ -284,6 +284,35 @@ static void free_headers(header_item *headers) {
     }
 }
 
+static void clamp_toc_levels(int *min_level, int *max_level) {
+    if (*min_level < 1) *min_level = 1;
+    if (*max_level < 1) *max_level = 1;
+    if (*min_level > 6) *min_level = 6;
+    if (*max_level > 6) *max_level = 6;
+    if (*min_level > *max_level) *min_level = *max_level;
+}
+
+static bool append_toc_markdown(char **buffer, size_t *capacity, size_t *length,
+                                const char *text, size_t text_len) {
+    if (!buffer || !*buffer || !capacity || !length) return false;
+
+    if (*length + text_len + 1 > *capacity) {
+        size_t new_capacity = *capacity;
+        while (*length + text_len + 1 > new_capacity) {
+            new_capacity *= 2;
+        }
+        char *new_buffer = realloc(*buffer, new_capacity);
+        if (!new_buffer) return false;
+        *buffer = new_buffer;
+        *capacity = new_capacity;
+    }
+
+    memcpy(*buffer + *length, text, text_len);
+    *length += text_len;
+    (*buffer)[*length] = '\0';
+    return true;
+}
+
 
 
 /**
@@ -418,6 +447,50 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
     return html;
 }
 
+char *apex_generate_toc_markdown(cmark_node *document, int id_format,
+                                 int min_level, int max_level) {
+    if (!document) return strdup("");
+    clamp_toc_levels(&min_level, &max_level);
+
+    header_item *tail = NULL;
+    header_item *headers = collect_headers(document, &tail, (apex_id_format_t)id_format);
+    if (!headers) return strdup("");
+
+    size_t capacity = 1024;
+    size_t length = 0;
+    char *markdown = malloc(capacity);
+    if (!markdown) {
+        free_headers(headers);
+        return strdup("");
+    }
+    markdown[0] = '\0';
+
+    for (header_item *h = headers; h; h = h->next) {
+        if (h->level < min_level || h->level > max_level) continue;
+
+        int indent = (h->level - min_level) * 2;
+        for (int i = 0; i < indent; i++) {
+            if (!append_toc_markdown(&markdown, &capacity, &length, " ", 1)) goto fail;
+        }
+
+        const char *text = h->text ? h->text : "";
+        const char *id = h->id ? h->id : "";
+        if (!append_toc_markdown(&markdown, &capacity, &length, "- [", 3)) goto fail;
+        if (!append_toc_markdown(&markdown, &capacity, &length, text, strlen(text))) goto fail;
+        if (!append_toc_markdown(&markdown, &capacity, &length, "](#", 3)) goto fail;
+        if (!append_toc_markdown(&markdown, &capacity, &length, id, strlen(id))) goto fail;
+        if (!append_toc_markdown(&markdown, &capacity, &length, ")\n", 2)) goto fail;
+    }
+
+    free_headers(headers);
+    return markdown;
+
+fail:
+    free(markdown);
+    free_headers(headers);
+    return strdup("");
+}
+
 /**
  * Return true if position 'pos' in 'html' is inside a <code> or <pre> element.
  * Used to skip TOC markers that appear in code blocks or inline code.
@@ -530,11 +603,7 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level,
     }
     free(marker_copy);
 
-    if (*min_level < 1) *min_level = 1;
-    if (*max_level < 1) *max_level = 1;
-    if (*min_level > 6) *min_level = 6;
-    if (*max_level > 6) *max_level = 6;
-    if (*min_level > *max_level) *min_level = *max_level;
+    clamp_toc_levels(min_level, max_level);
 }
 
 /**

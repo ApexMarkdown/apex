@@ -18,6 +18,52 @@ void test_toc(void) {
     opts.enable_marked_extensions = true;
     char *html;
 
+    /* -t toc: Markdown list, default depth 1-3 */
+    apex_options toc_opts = apex_options_default();
+    toc_opts.output_format = APEX_OUTPUT_TOC;
+    const char *doc =
+        "# Introduction\n\n"
+        "## Getting Started\n\n"
+        "### Installation\n\n"
+        "#### Too Deep\n\n"
+        "## Configuration\n\n"
+        "# API\n"
+        "{: .no_toc}\n";
+    char *md = apex_markdown_to_html(doc, strlen(doc), &toc_opts);
+    assert_contains(md, "- [Introduction](#introduction)\n", "TOC md has H1");
+    assert_contains(md, "  - [Getting Started](#getting-started)\n", "TOC md indents H2");
+    assert_contains(md, "    - [Installation](#installation)\n", "TOC md indents H3");
+    assert_not_contains(md, "Too Deep", "TOC md excludes H4 by default");
+    assert_not_contains(md, "API", "TOC md excludes no_toc heading");
+    assert_not_contains(md, "<nav", "TOC md is not HTML");
+    apex_free_string(md);
+
+    toc_opts.toc_min = 2;
+    toc_opts.toc_max = 4;
+    md = apex_markdown_to_html(doc, strlen(doc), &toc_opts);
+    assert_not_contains(md, "Introduction", "toc-min-max excludes H1");
+    assert_contains(md, "Too Deep", "toc-min-max includes H4");
+    apex_free_string(md);
+
+    /* id-format mmd */
+    toc_opts = apex_options_default();
+    toc_opts.output_format = APEX_OUTPUT_TOC;
+    toc_opts.id_format = 1; /* MMD */
+    md = apex_markdown_to_html("# Hello World\n", 14, &toc_opts);
+    assert_contains(md, "- [Hello World](#helloworld)\n", "TOC md respects MMD id-format");
+    apex_free_string(md);
+
+    /* empty */
+    toc_opts = apex_options_default();
+    toc_opts.output_format = APEX_OUTPUT_TOC;
+    md = apex_markdown_to_html("No headings here.\n", 18, &toc_opts);
+    if (md && (md[0] == '\0' || strcmp(md, "\n") == 0)) {
+        test_result(true, "TOC md empty when no headings");
+    } else {
+        test_result(false, "TOC md empty when no headings");
+    }
+    apex_free_string(md);
+
     /* Bare {{TOC}} should use option defaults (1-3): exclude H4 */
     const char *bare_default_depth =
         "# H1\n\n{{TOC}}\n\n## H2\n\n### H3\n\n#### H4";
