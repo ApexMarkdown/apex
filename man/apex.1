@@ -149,6 +149,9 @@ Output format. One of:
 \f[B]markdown\f[], \f[B]md\f[], \f[B]mmd\f[], \f[B]commonmark\f[], \f[B]cmark\f[], \f[B]kramdown\f[], \f[B]gfm\f[] \- Markdown variants
 
 .IP \(bu 2
+\f[B]toc\f[] \- Markdown unordered list of heading links only (default depth \f[B]#\f[]\-\-\f[B]###\f[])
+
+.IP \(bu 2
 \f[B]terminal\f[], \f[B]cli\f[], \f[B]terminal256\f[] \- ANSI\-colored output for TTYs and terminal emulators
 
 .IP \(bu 2
@@ -156,6 +159,11 @@ Output format. One of:
 
 .IP \(bu 2
 \f[B]man\-html\f[] \- Styled HTML man page (use \f[B]\-\-standalone\f[] for full page with nav sidebar) When using a terminal format, Apex emits ANSI\-colored output suitable for TTYs and terminal emulators.
+
+.TP
+\f[B]\-\-toc\-min\-max\f[] MIN,MAX
+Inclusive heading depth for \f[B]\-\-to toc\f[] and for HTML TOC markers without an
+explicit range. The default is \f[B]1,3\f[], which includes headings from \f[B]#\f[] through \f[B]###\f[]. Marker syntax with an explicit range, such as \fR{{TOC:2\-5}}\f[], overrides this setting. Values must satisfy \fR1 <= MIN <= MAX <= 6\f[].
 
 .SS Feature Flags
 
@@ -346,10 +354,10 @@ mmark: \fR[@RFC1234]\f[] Bibliography is inserted at the \fR<!\-\- REFERENCES \-
 Index syntax is supported in MultiMarkdown and unified modes:
 
 .IP \(bu 2
-\f[B]mmark syntax\f[]: \fR<!\-\-IDX:idxref\-0\-\->\f[], \fR<!\-\-IDX:idxref\-1\-\->\f[], \fR<!\-\-IDX:idxref\-2\-\->\f[] for primary entries
+\f[B]mmark syntax\f[]: \fR(!item)\f[], \fR(!item, subitem)\f[], \fR(!!item, subitem)\f[] for primary entries
 
 .IP \(bu 2
-\f[B]TextIndex syntax\f[]: \fRword<!\-\-IDX:idxref\-3\-\->\f[], \fR[term]<!\-\-IDX:idxref\-4\-\->\f[], \fR{^params}\f[] The index is automatically generated at the end of the document or at the \fR<!\-\-INDEX\-\->\f[] marker if present. Entries are sorted alphabetically and can be grouped by first letter.
+\f[B]TextIndex syntax\f[]: \fRword{^}\f[], \fR[term]{^}\f[], \fR{^params}\f[] The index is automatically generated at the end of the document or at the \fR<!\-\-INDEX\-\->\f[] marker if present. Entries are sorted alphabetically and can be grouped by first letter.
 
 .SS AST Filters
 
@@ -447,7 +455,7 @@ Process from stdin: echo "# Hello" | apex
 .SH METADATA CONTROL OF OPTIONS
 
 .PP
-Most command\-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per\-document configuration without needing separate command\-line invocations. \f[B]Boolean options\f[] accept \fRtrue\f[]/\fRfalse\f[], \fRyes\f[]/\fRno\f[], or \fR1\f[]/\fR0\f[] (case\-insensitive). \f[B]String options\f[] use the value directly. \f[B]Supported boolean options:\f[] \fRindices\f[], \fRwikilinks\f[], \fRwikilink\-sanitize\f[], \fRincludes\f[], \fRrelaxed\-tables\f[], \fRper\-cell\-alignment\f[], \fRalpha\-lists\f[], \fRmixed\-lists\f[], \fRsup\-sub\f[], \fRstrikethrough\f[], \fRautolink\f[], \fRtransforms\f[], \fRunsafe\f[], \fRtables\f[], \fRfootnotes\f[], \fRsmart\f[], \fRmath\f[], \fRcallouts\f[], \fRpy\-callouts\f[], \fRquarto\-callouts\f[], \fRdivs\f[], \fRspans\f[], \fRids\f[], \fRheader\-anchors\f[], \fRembed\-images\f[], \fRimage\-captions\f[], \fRlink\-citations\f[], \fRshow\-tooltips\f[], \fRsuppress\-bibliography\f[], \fRsuppress\-index\f[], \fRgroup\-index\-by\-letter\f[], \fRobfuscate\-emails\f[], \fRpretty\f[], \fRstandalone\f[], \fRhardbreaks\f[], \fRplugins\f[], \fRemoji\-autocorrect\f[], \fRcode\-line\-numbers\f[], \fRhighlight\-language\-only\f[], \fRmarkdown\-in\-html\f[] \f[B]Supported string options:\f[] \fRbibliography\f[], \fRcsl\f[], \fRtitle\f[], \fRstyle\f[] (or \fRcss\f[]), \fRid\-format\f[], \fRbase\-dir\f[], \fRmode\f[], \fRwikilink\-space\f[], \fRwikilink\-extension\f[] \f[B]Terminal output metadata\f[] (for \f[B]\-\-to terminal\f[] / \f[B]terminal256\f[]): \fRterminal.theme\f[] (\fRterminal_theme\f[]), \fRterminal.width\f[] (\fRterminal_width\f[], wrap width), \fRterminal.inline_images\f[] (\fRterminal_inline_images\f[], boolean), \fRterminal.image_width\f[] (\fRterminal_image_width\f[], viewer width in character cells), \fRterminal.paginate\f[] (\fRterminal_paginate\f[]), \fRpaginate\f[] (\fRtrue\f[], \fRfalse\f[], or \fRsymbols\f[] for pager\-friendly chafa ANSI images), \fRcode\-highlight\f[], \fRcode\-highlight\-theme\f[].
+Most command\-line options can be controlled via document metadata, allowing different files to be processed with different settings when processing batches. This enables per\-document configuration without needing separate command\-line invocations. \f[B]Boolean options\f[] accept \fRtrue\f[]/\fRfalse\f[], \fRyes\f[]/\fRno\f[], or \fR1\f[]/\fR0\f[] (case\-insensitive). \f[B]String options\f[] use the value directly. \f[B]Supported boolean options:\f[] \fRindices\f[], \fRwikilinks\f[], \fRwikilink\-sanitize\f[], \fRincludes\f[], \fRrelaxed\-tables\f[], \fRper\-cell\-alignment\f[], \fRalpha\-lists\f[], \fRmixed\-lists\f[], \fRsup\-sub\f[], \fRstrikethrough\f[], \fRautolink\f[], \fRtransforms\f[], \fRunsafe\f[], \fRtables\f[], \fRfootnotes\f[], \fRsmart\f[], \fRmath\f[], \fRcallouts\f[], \fRpy\-callouts\f[], \fRquarto\-callouts\f[], \fRdivs\f[], \fRspans\f[], \fRids\f[], \fRheader\-anchors\f[], \fRembed\-images\f[], \fRimage\-captions\f[], \fRlink\-citations\f[], \fRshow\-tooltips\f[], \fRsuppress\-bibliography\f[], \fRsuppress\-index\f[], \fRgroup\-index\-by\-letter\f[], \fRobfuscate\-emails\f[], \fRpretty\f[], \fRstandalone\f[], \fRhardbreaks\f[], \fRplugins\f[], \fRemoji\-autocorrect\f[], \fRcode\-line\-numbers\f[], \fRhighlight\-language\-only\f[], \fRmarkdown\-in\-html\f[] \f[B]Supported string options:\f[] \fRbibliography\f[], \fRcsl\f[], \fRtitle\f[], \fRstyle\f[] (or \fRcss\f[]), \fRid\-format\f[], \fRbase\-dir\f[], \fRmode\f[], \fRwikilink\-space\f[], \fRwikilink\-extension\f[] \f[B]Terminal output metadata\f[] (for \f[B]\-\-to terminal\f[] / \f[B]terminal256\f[]): \fRterminal.theme\f[] (\fRterminal_theme\f[]), \fRterminal.width\f[] (\fRterminal_width\f[], wrap width), \fRterminal.inline_images\f[] (\fRterminal_inline_images\f[], boolean), \fRterminal.image_width\f[] (\fRterminal_image_width\f[], viewer width in character cells), \fRterminal.paginate\f[] (\fRterminal_paginate\f[]), \fRpaginate\f[] (\fRtrue\f[], \fRfalse\f[], or \fRsymbols\f[] for pager\-friendly chafa ANSI images), \fRcode\-highlight\f[], \fRcode\-highlight\-theme\f[]. \f[B]Example YAML front matter:\f[]
 
 .PP
 .nf
@@ -465,7 +473,7 @@ standalone: true
 .fi
 
 .PP
-\f[B]Example YAML front matter:\f[]
+\f[B]Example MultiMarkdown metadata:\f[]
 
 .PP
 .nf
@@ -479,7 +487,7 @@ title: My Research Paper
 .fi
 
 .PP
-\f[B]Example MultiMarkdown metadata:\f[] When processing multiple files with \fRapex *.md\f[], each file can use its own configuration via metadata. You can also use \fR\-\-meta\-file\f[] to specify a shared configuration file that applies to all processed files. \f[B]Note:\f[] If \fRmode\f[] is specified in metadata, it resets all options to that mode's defaults before applying other metadata options.
+When processing multiple files with \fRapex *.md\f[], each file can use its own configuration via metadata. You can also use \fR\-\-meta\-file\f[] to specify a shared configuration file that applies to all processed files. \f[B]Note:\f[] If \fRmode\f[] is specified in metadata, it resets all options to that mode's defaults before applying other metadata options.
 
 .SH FEATURES
 

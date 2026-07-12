@@ -189,12 +189,19 @@ output more accessible. Default: disabled.
 - **strict-xhtml** - Same as **html** with **`--strict-xhtml`** (polyglot XHTML when used with **--standalone**). Alias; **`--strict-xhtml`** remains valid.
 - **json**, **json-filtered**, **ast-json**, **ast** - JSON output (before or after filters)
 - **markdown**, **md**, **mmd**, **commonmark**, **cmark**, **kramdown**, **gfm** - Markdown variants
+- **toc** - Markdown unordered list of heading links only (default depth **#**–**###**)
 - **terminal**, **cli**, **terminal256** - ANSI-colored output for TTYs and terminal emulators
 - **man** - Man page roff source (.TH, .SH, etc.)
 - **man-html** - Styled HTML man page (use **--standalone** for full page with nav sidebar)
 
 When using a terminal format, Apex emits ANSI-colored output suitable for TTYs and
 terminal emulators.
+
+**--toc-min-max** *MIN,MAX*
+:: Inclusive heading depth for **--to toc** and for HTML TOC markers without an
+explicit range. The default is **1,3**, which includes headings from **#**
+through **###**. Marker syntax with an explicit range, such as `{{TOC:2-5}}`,
+overrides this setting. Values must satisfy `1 <= MIN <= MAX <= 6`.
 
 ## Feature Flags
 
