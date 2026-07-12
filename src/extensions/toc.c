@@ -477,9 +477,10 @@ static int is_inside_code_or_pre(const char *html, size_t pos) {
 /**
  * Parse TOC marker for min/max levels
  */
-static void parse_toc_marker(const char *marker, int *min_level, int *max_level) {
-    *min_level = 1;
-    *max_level = 6;
+static void parse_toc_marker(const char *marker, int *min_level, int *max_level,
+                             int default_min, int default_max) {
+    *min_level = default_min;
+    *max_level = default_max;
 
     if (!marker) return;
 
@@ -528,6 +529,12 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level)
         }
     }
     free(marker_copy);
+
+    if (*min_level < 1) *min_level = 1;
+    if (*max_level < 1) *max_level = 1;
+    if (*min_level > 6) *min_level = 6;
+    if (*max_level > 6) *max_level = 6;
+    if (*min_level > *max_level) *min_level = *max_level;
 }
 
 /**
@@ -573,7 +580,8 @@ static const char *find_toc_marker_not_in_code(const char *html, int *is_html_co
 /**
  * Process TOC markers in HTML
  */
-char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
+char *apex_process_toc(const char *html, cmark_node *document, int id_format,
+                       int default_min, int default_max) {
     if (!html || !document) return html ? strdup(html) : NULL;
 
     int is_html_comment = 0;
@@ -590,7 +598,7 @@ char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
 
     /* Parse the marker for min/max levels */
     int min_level, max_level;
-    parse_toc_marker(marker, &min_level, &max_level);
+    parse_toc_marker(marker, &min_level, &max_level, default_min, default_max);
 
     /* Generate TOC HTML */
     char *toc_html = generate_toc_html(headers, min_level, max_level);

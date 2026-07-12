@@ -6483,7 +6483,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
      */
     if ((options->enable_marked_extensions || options->mode == APEX_MODE_MULTIMARKDOWN) && html) {
         PROFILE_START(toc);
-        char *with_toc = apex_process_toc(html, document, options->id_format);
+        char *with_toc = apex_process_toc(html, document, options->id_format,
+                                          options->toc_min, options->toc_max);
         PROFILE_END(toc);
         if (with_toc) {
             free(html);

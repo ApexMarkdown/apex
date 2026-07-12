@@ -18,6 +18,32 @@ void test_toc(void) {
     opts.enable_marked_extensions = true;
     char *html;
 
+    /* Bare {{TOC}} should use option defaults (1-3): exclude H4 */
+    const char *bare_default_depth =
+        "# H1\n\n{{TOC}}\n\n## H2\n\n### H3\n\n#### H4";
+    html = apex_markdown_to_html(bare_default_depth, strlen(bare_default_depth), &opts);
+    assert_contains(html, "href=\"#h1\"", "Bare TOC includes H1 by default");
+    assert_contains(html, "href=\"#h3\"", "Bare TOC includes H3 by default");
+    assert_not_contains(html, "href=\"#h4\"", "Bare TOC excludes H4 by default (max 3)");
+    apex_free_string(html);
+
+    /* --toc-min-max via options: 2,4 */
+    apex_options depth_opts = opts;
+    depth_opts.toc_min = 2;
+    depth_opts.toc_max = 4;
+    html = apex_markdown_to_html(bare_default_depth, strlen(bare_default_depth), &depth_opts);
+    assert_not_contains(html, "href=\"#h1\"", "toc_min=2 excludes H1");
+    assert_contains(html, "href=\"#h4\"", "toc_max=4 includes H4");
+    apex_free_string(html);
+
+    /* Marker override wins over options */
+    const char *override_toc =
+        "# H1\n\n{{TOC:1-6}}\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5";
+    html = apex_markdown_to_html(override_toc, strlen(override_toc), &depth_opts);
+    assert_contains(html, "href=\"#h1\"", "Marker range overrides toc_min");
+    assert_contains(html, "href=\"#h5\"", "Marker range overrides toc_max");
+    apex_free_string(html);
+
     /* Test basic TOC marker */
     const char *doc_with_toc = "# Header 1\n\n<!--TOC-->\n\n## Header 2\n\n### Header 3";
     html = apex_markdown_to_html(doc_with_toc, strlen(doc_with_toc), &opts);
