@@ -3086,6 +3086,8 @@ apex_options apex_options_default(void) {
     opts.generate_header_ids = true;
     opts.header_anchors = false;  /* Use header IDs by default, not anchor tags */
     opts.id_format = 0;  /* GFM format (with dashes) */
+    opts.toc_min = 1;
+    opts.toc_max = 3;
 
     /* Table options */
     opts.relaxed_tables = true;  /* Default: enabled in unified mode (can be disabled with --no-relaxed-tables) */

@@ -64,7 +64,8 @@ typedef enum {
     APEX_OUTPUT_TERMINAL = 8,       /* ANSI terminal output (8/16-color) */
     APEX_OUTPUT_TERMINAL256 = 9,    /* ANSI terminal output (256-color) */
     APEX_OUTPUT_MAN = 10,           /* roff (man page source) */
-    APEX_OUTPUT_MAN_HTML = 11       /* styled HTML man page */
+    APEX_OUTPUT_MAN_HTML = 11,      /* styled HTML man page */
+    APEX_OUTPUT_TOC = 12            /* Markdown TOC list only */
 } apex_output_format_t;
 
 /* Markdown dialects for AST->Markdown serialization. */
@@ -179,6 +180,10 @@ typedef struct apex_options {
     bool generate_header_ids;  /* Generate IDs for headers */
     bool header_anchors;  /* Generate <a> anchor tags instead of header IDs */
     int id_format;  /* 0=GFM (with dashes), 1=MMD (no dashes) */
+
+    /* TOC depth defaults (used by -t toc and by HTML TOC markers without an explicit range) */
+    int toc_min;  /* Inclusive min heading level (default 1) */
+    int toc_max;  /* Inclusive max heading level (default 3) */
 
     /* Table options */
     bool relaxed_tables;  /* Support tables without separator rows (kramdown/unified only) */
