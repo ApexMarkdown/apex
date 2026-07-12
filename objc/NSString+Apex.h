@@ -135,6 +135,22 @@ extern NSString * const ApexModeUnified;
  */
 - (NSString *)apexHTMLWithMode:(NSString *)mode;
 
+/**
+ * Extract a flat table of contents for outline / table-view UIs.
+ * Each dictionary has keys: @"level" (NSNumber 1-6), @"text", @"id".
+ * Nesting for collapsible sections is derived from level (same rules as -t toc).
+ */
++ (NSArray<NSDictionary<NSString *, id> *> *)tableOfContentsWithApex:(NSString *)inputString;
+
++ (NSArray<NSDictionary<NSString *, id> *> *)tableOfContentsWithApex:(NSString *)inputString
+                                                                mode:(NSString *)mode
+                                                             options:(NSDictionary<NSString *, id> * _Nullable)options;
+
+- (NSArray<NSDictionary<NSString *, id> *> *)apexTableOfContents;
+
+- (NSArray<NSDictionary<NSString *, id> *> *)apexTableOfContentsWithMode:(NSString *)mode
+                                                                 options:(NSDictionary<NSString *, id> * _Nullable)options;
+
 @end
 
 NS_ASSUME_NONNULL_END

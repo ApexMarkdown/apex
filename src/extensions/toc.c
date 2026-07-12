@@ -5,6 +5,7 @@
 
 #include "toc.h"
 #include "header_ids.h"
+#include "apex/apex.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -447,34 +448,92 @@ static char *generate_toc_html(header_item *headers, int min_level, int max_leve
     return html;
 }
 
-char *apex_generate_toc_markdown(cmark_node *document, int id_format,
-                                 int min_level, int max_level) {
-    if (!document) return strdup("");
+void apex_toc_entries_free(apex_toc_entry *entries, size_t count) {
+    if (!entries) return;
+    for (size_t i = 0; i < count; i++) {
+        free(entries[i].text);
+        free(entries[i].id);
+    }
+    free(entries);
+}
+
+apex_toc_entry *apex_generate_toc_entries(cmark_node *document, int id_format,
+                                          int min_level, int max_level,
+                                          size_t *out_count) {
+    if (out_count) *out_count = 0;
+    if (!document || !out_count) return NULL;
+
     clamp_toc_levels(&min_level, &max_level);
 
     header_item *tail = NULL;
     header_item *headers = collect_headers(document, &tail, (apex_id_format_t)id_format);
-    if (!headers) return strdup("");
+    if (!headers) return NULL;
+
+    size_t count = 0;
+    for (header_item *h = headers; h; h = h->next) {
+        if (h->level >= min_level && h->level <= max_level) count++;
+    }
+
+    if (count == 0) {
+        free_headers(headers);
+        return NULL;
+    }
+
+    apex_toc_entry *entries = calloc(count, sizeof(apex_toc_entry));
+    if (!entries) {
+        free_headers(headers);
+        return NULL;
+    }
+
+    size_t idx = 0;
+    for (header_item *h = headers; h; h = h->next) {
+        if (h->level < min_level || h->level > max_level) continue;
+        entries[idx].level = h->level;
+        entries[idx].text = h->text ? strdup(h->text) : strdup("");
+        entries[idx].id = h->id ? strdup(h->id) : strdup("");
+        if (!entries[idx].text || !entries[idx].id) {
+            apex_toc_entries_free(entries, idx + 1);
+            free_headers(headers);
+            return NULL;
+        }
+        idx++;
+    }
+
+    free_headers(headers);
+    *out_count = count;
+    return entries;
+}
+
+char *apex_generate_toc_markdown(cmark_node *document, int id_format,
+                                 int min_level, int max_level) {
+    size_t count = 0;
+    apex_toc_entry *entries = apex_generate_toc_entries(document, id_format,
+                                                        min_level, max_level,
+                                                        &count);
+    if (!entries || count == 0) {
+        apex_toc_entries_free(entries, count);
+        return strdup("");
+    }
 
     size_t capacity = 1024;
     size_t length = 0;
     char *markdown = malloc(capacity);
     if (!markdown) {
-        free_headers(headers);
+        apex_toc_entries_free(entries, count);
         return strdup("");
     }
     markdown[0] = '\0';
 
-    for (header_item *h = headers; h; h = h->next) {
-        if (h->level < min_level || h->level > max_level) continue;
+    clamp_toc_levels(&min_level, &max_level);
 
-        int indent = (h->level - min_level) * 2;
-        for (int i = 0; i < indent; i++) {
+    for (size_t i = 0; i < count; i++) {
+        int indent = (entries[i].level - min_level) * 2;
+        for (int j = 0; j < indent; j++) {
             if (!append_toc_markdown(&markdown, &capacity, &length, " ", 1)) goto fail;
         }
 
-        const char *text = h->text ? h->text : "";
-        const char *id = h->id ? h->id : "";
+        const char *text = entries[i].text ? entries[i].text : "";
+        const char *id = entries[i].id ? entries[i].id : "";
         if (!append_toc_markdown(&markdown, &capacity, &length, "- [", 3)) goto fail;
         if (!append_toc_markdown(&markdown, &capacity, &length, text, strlen(text))) goto fail;
         if (!append_toc_markdown(&markdown, &capacity, &length, "](#", 3)) goto fail;
@@ -482,12 +541,12 @@ char *apex_generate_toc_markdown(cmark_node *document, int id_format,
         if (!append_toc_markdown(&markdown, &capacity, &length, ")\n", 2)) goto fail;
     }
 
-    free_headers(headers);
+    apex_toc_entries_free(entries, count);
     return markdown;
 
 fail:
     free(markdown);
-    free_headers(headers);
+    apex_toc_entries_free(entries, count);
     return strdup("");
 }
 

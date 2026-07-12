@@ -68,6 +68,16 @@ typedef enum {
     APEX_OUTPUT_TOC = 12            /* Markdown TOC list only */
 } apex_output_format_t;
 
+/**
+ * Flat TOC entry for structured outlines (Swift/ObjC table views, etc.).
+ * level is 1-6; text and id are heap-owned when returned from Apex APIs.
+ */
+typedef struct apex_toc_entry {
+    int level;
+    char *text;
+    char *id;
+} apex_toc_entry;
+
 /* Markdown dialects for AST->Markdown serialization. */
 #ifndef APEX_MARKDOWN_DIALECT_DEFINED
 #define APEX_MARKDOWN_DIALECT_DEFINED
@@ -184,6 +194,13 @@ typedef struct apex_options {
     /* TOC depth defaults (used by -t toc and by HTML TOC markers without an explicit range) */
     int toc_min;  /* Inclusive min heading level (default 1) */
     int toc_max;  /* Inclusive max heading level (default 3) */
+
+    /* Optional structured TOC capture (normally NULL). Prefer apex_markdown_to_toc_entries().
+     * When both are non-NULL and output_format is APEX_OUTPUT_TOC, apex_markdown_to_html
+     * fills *toc_entries_out / *toc_entries_count_out (free with apex_toc_entries_free)
+     * and returns an empty string. */
+    apex_toc_entry **toc_entries_out;
+    size_t *toc_entries_count_out;
 
     /* Table options */
     bool relaxed_tables;  /* Support tables without separator rows (kramdown/unified only) */
@@ -337,6 +354,31 @@ apex_options apex_options_for_mode(apex_mode_t mode);
  * @return Newly allocated HTML string (must be freed with apex_free_string)
  */
 char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options *options);
+
+/**
+ * Collect document headings as a flat array of TOC entries.
+ * Honors id_format, min/max levels, and .no_toc the same as -t toc.
+ * @param out_count Receives entry count (may be 0); required
+ * @return Heap array of count entries, or NULL if out_count is NULL / allocation fails.
+ *         Free with apex_toc_entries_free().
+ */
+apex_toc_entry *apex_generate_toc_entries(cmark_node *document, int id_format,
+                                          int min_level, int max_level,
+                                          size_t *out_count);
+
+/**
+ * Parse markdown and return structured TOC entries (same pipeline as -t toc).
+ * Uses options->toc_min / toc_max / id_format (defaults apply when options is NULL).
+ * Free the result with apex_toc_entries_free().
+ */
+apex_toc_entry *apex_markdown_to_toc_entries(const char *markdown, size_t len,
+                                             const apex_options *options,
+                                             size_t *out_count);
+
+/**
+ * Free an array returned by apex_generate_toc_entries / apex_markdown_to_toc_entries.
+ */
+void apex_toc_entries_free(apex_toc_entry *entries, size_t count);
 
 /**
  * Resolve a local image path against base_directory (same rules as HTML embedding).

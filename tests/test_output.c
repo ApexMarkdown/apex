@@ -347,6 +347,51 @@ void test_toc(void) {
     assert_contains(html, "href=\"#my-custom\"", "TOC uses manual heading ID");
     apex_free_string(html);
 
+    /* Structured TOC entries API for library / Swift consumers */
+    {
+        const char *entries_doc =
+            "# Introduction\n\n"
+            "## Getting Started\n\n"
+            "### Installation\n\n"
+            "#### Too Deep\n\n"
+            "# Skip Me\n"
+            "{: .no_toc}\n";
+        size_t count = 0;
+        apex_toc_entry *entries = apex_markdown_to_toc_entries(
+            entries_doc, strlen(entries_doc), NULL, &count);
+        assert_option_bool(count == 3, true, "toc entries default depth count is 3");
+        if (entries && count >= 3) {
+            assert_option_bool(entries[0].level == 1, true, "toc entries[0] level is 1");
+            assert_option_string(entries[0].text, "Introduction", "toc entries[0] text");
+            assert_option_string(entries[0].id, "introduction", "toc entries[0] id");
+            assert_option_bool(entries[1].level == 2, true, "toc entries[1] level is 2");
+            assert_option_string(entries[1].id, "getting-started", "toc entries[1] id");
+            assert_option_bool(entries[2].level == 3, true, "toc entries[2] level is 3");
+            assert_option_string(entries[2].id, "installation", "toc entries[2] id");
+        } else {
+            test_result(false, "toc entries array populated");
+        }
+        apex_toc_entries_free(entries, count);
+
+        apex_options depth_opts = apex_options_default();
+        depth_opts.toc_min = 2;
+        depth_opts.toc_max = 4;
+        entries = apex_markdown_to_toc_entries(entries_doc, strlen(entries_doc),
+                                              &depth_opts, &count);
+        assert_option_bool(count == 3, true, "toc entries toc_min/max count");
+        if (entries && count >= 1) {
+            assert_option_bool(entries[0].level == 2, true, "toc entries respects toc_min");
+            assert_option_string(entries[count - 1].text, "Too Deep",
+                                 "toc entries includes H4 when toc_max=4");
+        }
+        apex_toc_entries_free(entries, count);
+
+        entries = apex_markdown_to_toc_entries("No headings.\n", 12, NULL, &count);
+        assert_option_bool(count == 0, true, "toc entries empty when no headings");
+        assert_option_bool(entries == NULL, true, "toc entries NULL when empty");
+        apex_toc_entries_free(entries, count);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("TOC Generation Tests", had_failures, false);
 }

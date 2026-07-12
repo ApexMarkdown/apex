@@ -3088,6 +3088,8 @@ apex_options apex_options_default(void) {
     opts.id_format = 0;  /* GFM format (with dashes) */
     opts.toc_min = 1;
     opts.toc_max = 3;
+    opts.toc_entries_out = NULL;
+    opts.toc_entries_count_out = NULL;
 
     /* Table options */
     opts.relaxed_tables = true;  /* Default: enabled in unified mode (can be disabled with --no-relaxed-tables) */
@@ -4746,6 +4748,30 @@ fail:
     return NULL;
 }
 
+apex_toc_entry *apex_markdown_to_toc_entries(const char *markdown, size_t len,
+                                             const apex_options *options,
+                                             size_t *out_count) {
+    if (out_count) *out_count = 0;
+    if (!out_count) return NULL;
+    if (!markdown || len == 0) return NULL;
+
+    apex_options opts = options ? *options : apex_options_default();
+    opts.output_format = APEX_OUTPUT_TOC;
+    opts.toc_entries_out = NULL; /* set below after locals exist */
+    opts.toc_entries_count_out = NULL;
+
+    apex_toc_entry *entries = NULL;
+    size_t count = 0;
+    opts.toc_entries_out = &entries;
+    opts.toc_entries_count_out = &count;
+
+    char *discard = apex_markdown_to_html(markdown, len, &opts);
+    apex_free_string(discard);
+
+    *out_count = count;
+    return entries;
+}
+
 char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options *options) {
     if (!markdown || len == 0) {
         char *empty = malloc(1);
@@ -6130,6 +6156,12 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     }
 
     if (options->output_format == APEX_OUTPUT_TOC) {
+        if (options->toc_entries_out && options->toc_entries_count_out) {
+            *options->toc_entries_out = apex_generate_toc_entries(
+                document, options->id_format, options->toc_min, options->toc_max,
+                options->toc_entries_count_out);
+            return strdup("");
+        }
         char *toc_md = apex_generate_toc_markdown(document, options->id_format,
                                                   options->toc_min, options->toc_max);
         return toc_md ? toc_md : strdup("");

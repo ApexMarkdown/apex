@@ -390,4 +390,96 @@ NSString *const ApexModeUnified = @"unified";
   return [NSString convertWithApex:self mode:mode];
 }
 
+/**
+ * Extract a flat table of contents as dictionaries suitable for Swift OutlineGroup.
+ * Each entry: @{ @"level": NSNumber, @"text": NSString, @"id": NSString }
+ * Optional options keys: @"idFormat" (@"gfm"/@"mmd"/@"kramdown"),
+ * @"tocMinMax" (@"2,4" or @[@2, @4]).
+ */
++ (NSArray<NSDictionary<NSString *, id> *> *)tableOfContentsWithApex:(NSString *)inputString
+                                                                mode:(NSString *)modeString
+                                                             options:(NSDictionary<NSString *, id> *_Nullable)optionsDict {
+  if (!inputString || [inputString length] == 0) {
+    return @[];
+  }
+
+  const char *markdown = [inputString UTF8String];
+  if (!markdown) {
+    return @[];
+  }
+
+  apex_mode_t mode = [self apexModeFromString:modeString ?: ApexModeUnified];
+  apex_options options = apex_options_for_mode(mode);
+
+  if (optionsDict) {
+    id idFormatVal = optionsDict[@"idFormat"];
+    if ([idFormatVal isKindOfClass:[NSString class]]) {
+      NSString *fmt = [(NSString *)idFormatVal lowercaseString];
+      if ([fmt isEqualToString:@"mmd"]) {
+        options.id_format = 1;
+      } else if ([fmt isEqualToString:@"kramdown"]) {
+        options.id_format = 2;
+      } else {
+        options.id_format = 0;
+      }
+    }
+    id tocMinMaxVal = optionsDict[@"tocMinMax"];
+    if ([tocMinMaxVal isKindOfClass:[NSString class]]) {
+      int min = 0, max = 0;
+      if (sscanf([(NSString *)tocMinMaxVal UTF8String], "%d,%d", &min, &max) == 2 &&
+          min >= 1 && max <= 6 && min <= max) {
+        options.toc_min = min;
+        options.toc_max = max;
+      }
+    } else if ([tocMinMaxVal isKindOfClass:[NSArray class]] &&
+               [(NSArray *)tocMinMaxVal count] >= 2) {
+      int min = [[(NSArray *)tocMinMaxVal objectAtIndex:0] intValue];
+      int max = [[(NSArray *)tocMinMaxVal objectAtIndex:1] intValue];
+      if (min >= 1 && max <= 6 && min <= max) {
+        options.toc_min = min;
+        options.toc_max = max;
+      }
+    }
+  }
+
+  size_t count = 0;
+  apex_toc_entry *entries =
+      apex_markdown_to_toc_entries(markdown, strlen(markdown), &options, &count);
+  if (!entries || count == 0) {
+    apex_toc_entries_free(entries, count);
+    return @[];
+  }
+
+  NSMutableArray<NSDictionary<NSString *, id> *> *result =
+      [NSMutableArray arrayWithCapacity:count];
+  for (size_t i = 0; i < count; i++) {
+    NSString *text = entries[i].text
+                         ? [NSString stringWithUTF8String:entries[i].text]
+                         : @"";
+    NSString *ident = entries[i].id
+                          ? [NSString stringWithUTF8String:entries[i].id]
+                          : @"";
+    [result addObject:@{
+      @"level" : @(entries[i].level),
+      @"text" : text ?: @"",
+      @"id" : ident ?: @""
+    }];
+  }
+  apex_toc_entries_free(entries, count);
+  return result;
+}
+
++ (NSArray<NSDictionary<NSString *, id> *> *)tableOfContentsWithApex:(NSString *)inputString {
+  return [self tableOfContentsWithApex:inputString mode:ApexModeUnified options:nil];
+}
+
+- (NSArray<NSDictionary<NSString *, id> *> *)apexTableOfContents {
+  return [NSString tableOfContentsWithApex:self];
+}
+
+- (NSArray<NSDictionary<NSString *, id> *> *)apexTableOfContentsWithMode:(NSString *)mode
+                                                                 options:(NSDictionary<NSString *, id> *_Nullable)options {
+  return [NSString tableOfContentsWithApex:self mode:mode options:options];
+}
+
 @end
