@@ -241,6 +241,13 @@ void test_toc(void) {
     }
     apex_free_string(html);
 
+    /* Manual {#id} must appear in TOC hrefs */
+    const char *manual_id_toc =
+        "# Custom {#my-custom}\n\n{{TOC}}\n\n## Other";
+    html = apex_markdown_to_html(manual_id_toc, strlen(manual_id_toc), &opts);
+    assert_contains(html, "href=\"#my-custom\"", "TOC uses manual heading ID");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("TOC Generation Tests", had_failures, false);
 }

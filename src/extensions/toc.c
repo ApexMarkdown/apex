@@ -253,6 +253,27 @@ static char *normalize_toc_text(const char *text) {
     return out;
 }
 
+static char *heading_id_from_attrs_or_text(const char *attrs, const char *text,
+                                           apex_id_format_t id_format) {
+    if (attrs) {
+        const char *id_attr = strstr(attrs, "id=\"");
+        if (id_attr) {
+            const char *id_start = id_attr + 4;
+            const char *id_end = strchr(id_start, '"');
+            if (id_end && id_end > id_start) {
+                size_t id_len = (size_t)(id_end - id_start);
+                char *id = malloc(id_len + 1);
+                if (id) {
+                    memcpy(id, id_start, id_len);
+                    id[id_len] = '\0';
+                    return id;
+                }
+            }
+        }
+    }
+    return apex_generate_header_id(text, id_format);
+}
+
 static void free_headers(header_item *headers) {
     while (headers) {
         header_item *next = headers->next;
@@ -268,7 +289,8 @@ static void free_headers(header_item *headers) {
 /**
  * Collect all headers from document
  */
-static header_item *collect_headers(cmark_node *node, header_item **tail) {
+static header_item *collect_headers(cmark_node *node, header_item **tail,
+                                    apex_id_format_t id_format) {
     if (!node) return NULL;
 
     header_item *headers = NULL;
@@ -290,7 +312,7 @@ static header_item *collect_headers(cmark_node *node, header_item **tail) {
                 char *raw_text = apex_extract_heading_text(node);
                 item->text = normalize_toc_text(raw_text);
                 free(raw_text);
-                item->id = NULL;  /* Will be set later with format */
+                item->id = heading_id_from_attrs_or_text(attrs, item->text, id_format);
                 item->next = NULL;
 
                 if (*tail) {
@@ -305,7 +327,7 @@ static header_item *collect_headers(cmark_node *node, header_item **tail) {
 
     /* Recursively process children */
     for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
-        header_item *child_headers = collect_headers(child, tail);
+        header_item *child_headers = collect_headers(child, tail, id_format);
         if (!headers) headers = child_headers;
     }
 
@@ -563,13 +585,8 @@ char *apex_process_toc(const char *html, cmark_node *document, int id_format) {
 
     /* Collect headers from document */
     header_item *tail = NULL;
-    header_item *headers = collect_headers(document, &tail);
+    header_item *headers = collect_headers(document, &tail, (apex_id_format_t)id_format);
     if (!headers) return strdup(html);
-
-    /* Generate IDs for all headers using the specified format */
-    for (header_item *h = headers; h; h = h->next) {
-        h->id = apex_generate_header_id(h->text, (apex_id_format_t)id_format);
-    }
 
     /* Parse the marker for min/max levels */
     int min_level, max_level;
