@@ -552,6 +552,9 @@ static int is_inside_code_or_pre(const char *html, size_t pos) {
  */
 static void parse_toc_marker(const char *marker, int *min_level, int *max_level,
                              int default_min, int default_max) {
+    int specified_min = 0;
+    int specified_max = 0;
+
     *min_level = default_min;
     *max_level = default_max;
 
@@ -576,13 +579,19 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level,
     if (max_str) {
         max_str += 3;
         while (*max_str && !isdigit((unsigned char)*max_str)) max_str++;
-        if (*max_str) *max_level = atoi(max_str);
+        if (*max_str) {
+            *max_level = atoi(max_str);
+            specified_max = 1;
+        }
     }
 
     if (min_str) {
         min_str += 3;
         while (*min_str && !isdigit((unsigned char)*min_str)) min_str++;
-        if (*min_str) *min_level = atoi(min_str);
+        if (*min_str) {
+            *min_level = atoi(min_str);
+            specified_min = 1;
+        }
     }
 
     /* Check for Pandoc style {{TOC:2-5}} */
@@ -592,16 +601,23 @@ static void parse_toc_marker(const char *marker, int *min_level, int *max_level,
         while (*colon && isspace((unsigned char)*colon)) colon++;
         if (isdigit((unsigned char)*colon)) {
             *min_level = atoi(colon);
+            specified_min = 1;
             const char *dash = strchr(colon, '-');
             if (dash) {
                 dash++;
                 if (isdigit((unsigned char)*dash)) {
                     *max_level = atoi(dash);
+                    specified_max = 1;
                 }
             }
         }
     }
     free(marker_copy);
+
+    if (specified_min || specified_max) {
+        if (!specified_min) *min_level = 1;
+        if (!specified_max) *max_level = 6;
+    }
 
     clamp_toc_levels(min_level, max_level);
 }

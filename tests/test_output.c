@@ -105,6 +105,18 @@ void test_toc(void) {
     assert_contains(html, "href=\"#h5\"", "Marker range overrides toc_max");
     apex_free_string(html);
 
+    /* Partial marker max under custom toc_min/toc_max: unspecified min is 1, not option min */
+    apex_options partial_opts = opts;
+    partial_opts.toc_min = 2;
+    partial_opts.toc_max = 4;
+    const char *partial_max =
+        "# H1\n\n<!--TOC max5-->\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5\n\n###### H6";
+    html = apex_markdown_to_html(partial_max, strlen(partial_max), &partial_opts);
+    assert_contains(html, "href=\"#h1\"", "Partial max marker uses min=1 not option toc_min");
+    assert_contains(html, "href=\"#h5\"", "Partial max marker includes H5");
+    assert_not_contains(html, "href=\"#h6\"", "Partial max marker excludes H6");
+    apex_free_string(html);
+
     /* Test basic TOC marker */
     const char *doc_with_toc = "# Header 1\n\n<!--TOC-->\n\n## Header 2\n\n### Header 3";
     html = apex_markdown_to_html(doc_with_toc, strlen(doc_with_toc), &opts);
