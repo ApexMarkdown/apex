@@ -94,6 +94,86 @@ void test_metadata(void) {
     assert_contains(html, "<li>Third item</li>", "List with colon: third item rendered");
     apex_free_string(html);
 
+    /* H1 then a paragraph with ": " must not strip the paragraph as MMD metadata */
+    const char *h1_colon_para =
+        "# My Title\n"
+        "\n"
+        "This is a note: it has a colon in the first sentence.\n"
+        "\n"
+        "More content.\n";
+    html = apex_markdown_to_html(h1_colon_para, strlen(h1_colon_para), &unified_opts);
+    assert_contains(html, "<h1", "H1+colon para: heading rendered");
+    assert_contains(html, "My Title", "H1+colon para: heading text preserved");
+    assert_contains(html, "This is a note: it has a colon", "H1+colon para: paragraph preserved");
+    assert_contains(html, "More content.", "H1+colon para: following paragraph preserved");
+    apex_free_string(html);
+
+    /* Leading blank line disables undelimited MMD metadata */
+    const char *leading_blank_meta =
+        "\n"
+        "Title: Should Not Strip\n"
+        "\n"
+        "# Body\n";
+    html = apex_markdown_to_html(leading_blank_meta, strlen(leading_blank_meta), &opts);
+    assert_contains(html, "Title: Should Not Strip", "Leading blank: metadata-like line kept as content");
+    assert_contains(html, "Body", "Leading blank: body heading rendered");
+    apex_free_string(html);
+
+    /* Valid single short MMD key/value still works */
+    const char *single_mmd = "Title: Only Title\n\n# [%Title]\n";
+    html = apex_markdown_to_html(single_mmd, strlen(single_mmd), &opts);
+    assert_contains(html, "Only Title</h1>", "Single short MMD metadata still works");
+    assert_not_contains(html, "Title: Only Title", "Single short MMD metadata is stripped");
+    apex_free_string(html);
+
+    /* Keys with punctuation other than space/-/_ are not metadata */
+    const char *punct_key =
+        "Hello, world: not metadata\n"
+        "\n"
+        "# Body\n";
+    html = apex_markdown_to_html(punct_key, strlen(punct_key), &opts);
+    assert_contains(html, "Hello, world: not metadata", "Punctuation in key keeps line as content");
+    apex_free_string(html);
+
+    /* Single metadata-like line longer than 100 chars is treated as content */
+    {
+        char long_doc[256];
+        char key[41];
+        char val[71];
+        memset(key, 'a', 40); key[40] = '\0';
+        memset(val, 'b', 70); val[70] = '\0';
+        /* "aaaa...: bbbb..." is > 100 chars on the first line */
+        snprintf(long_doc, sizeof(long_doc), "%s: %s\n\n# Body\n", key, val);
+        assert_option_bool(strlen(key) + 2 + strlen(val) > 100, true,
+                           "long-line fixture first line is >100 chars");
+        html = apex_markdown_to_html(long_doc, strlen(long_doc), &opts);
+        assert_contains(html, key, "Long single colon-line kept as content (key)");
+        assert_contains(html, "Body", "Long single colon-line: body heading rendered");
+        apex_free_string(html);
+    }
+
+    /* Multiple short metadata lines still work (including keys with spaces/-/_) */
+    const char *multi_mmd =
+        "Title: Multi Title\n"
+        "Base Header Level: 2\n"
+        "css-file: style.css\n"
+        "\n"
+        "# Section\n";
+    html = apex_markdown_to_html(multi_mmd, strlen(multi_mmd), &opts);
+    assert_not_contains(html, "Title: Multi Title", "Multi MMD: title stripped");
+    assert_not_contains(html, "Base Header Level:", "Multi MMD: spaced key stripped");
+    assert_contains(html, "Section", "Multi MMD: body remains");
+    apex_free_string(html);
+
+    /* No space after colon is not metadata (e.g. bare URLs / ratios) */
+    const char *no_space_after_colon =
+        "https://example.com/path\n"
+        "\n"
+        "# Body\n";
+    html = apex_markdown_to_html(no_space_after_colon, strlen(no_space_after_colon), &opts);
+    assert_contains(html, "https://example.com/path", "No space after colon: URL kept as content");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Metadata Tests", had_failures, false);
 }
