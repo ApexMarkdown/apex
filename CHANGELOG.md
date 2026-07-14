@@ -4,11 +4,15 @@ All notable changes to Apex will be documented in this file.
 
 ## [1.1.9] - 2026-07-14
 
-## [1.1.8] - 2026-07-14
+### Fixed
 
-## [1.1.7] - 2026-07-12
+- Undelimited MultiMarkdown metadata is only recognized at the very start of a file; a leading blank line or any content before the first key/value pair (including headings) disables it
+- Prose paragraphs with a colon after an H1 are no longer mistaken for MMD metadata and stripped from the output
 
-## [1.1.6] - 2026-07-06
+### Improved
+
+- Undelimited MMD metadata keys may only contain letters, digits, spaces, hyphens, and underscores; punctuation in the key rejects the line as ordinary text
+- A single candidate metadata line longer than 100 characters is treated as prose rather than a lone MMD key/value pair
 
 ## [1.1.5] - 2026-07-06
 
