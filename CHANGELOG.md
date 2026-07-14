@@ -2,6 +2,18 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.10] - 2026-07-14
+
+### Improved
+
+- Undelimited MMD metadata keys may only contain letters, digits, spaces, hyphens, and underscores; punctuation in the key rejects the line as ordinary text
+- A single candidate metadata line longer than 100 characters is treated as prose rather than a lone MMD key/value pair
+
+### Fixed
+
+- Undelimited MultiMarkdown metadata is only recognized at the very start of a file; a leading blank line or any content before the first key/value pair (including headings) disables it
+- Prose paragraphs with a colon after an H1 are no longer mistaken for MMD metadata and stripped from the output
+
 ## [1.1.9] - 2026-07-14
 
 ### Fixed
@@ -3081,6 +3093,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.10
 [1.1.9]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.9
 [1.1.8]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.8
 [1.1.7]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.7
