@@ -397,11 +397,51 @@ static apex_metadata_item *parse_yaml_metadata(const char *text, size_t *consume
  * Parse MultiMarkdown metadata
  * Format: key: value pairs at start of document, blank line to end
  */
+/* Undelimited MMD keys may contain letters, digits, spaces, hyphens, and
+ * underscores only. Other ASCII punctuation means the line is ordinary text. */
+static bool is_valid_mmd_metadata_key(const char *key) {
+    if (!key || !*key) return false;
+
+    for (const unsigned char *p = (const unsigned char *)key; *p; p++) {
+        if ((*p >= 'A' && *p <= 'Z') ||
+            (*p >= 'a' && *p <= 'z') ||
+            (*p >= '0' && *p <= '9') ||
+            *p == ' ' || *p == '-' || *p == '_') {
+            continue;
+        }
+        /* Allow UTF-8 bytes for non-ASCII keys; reject other ASCII punctuation. */
+        if (*p >= 0x80) continue;
+        return false;
+    }
+    return true;
+}
+
+/* Reject a sole long "Key: value" line that looks like a prose sentence. */
+#define APEX_MMD_SINGLE_LINE_MAX 100
+
 static apex_metadata_item *parse_mmd_metadata(const char *text, size_t *consumed) {
     apex_metadata_item *items = NULL;
     const char *line_start = text;
     const char *line_end;
     bool found_metadata = false;
+    size_t metadata_count = 0;
+    size_t sole_line_len = 0;
+
+    /* Any non-metadata content before/after key:value ends or rejects the block.
+     * Undelimited MMD metadata must start at the very top of the file. */
+    #define APEX_MMD_ABORT_OR_END() do { \
+        if (found_metadata) { \
+            if (metadata_count == 1 && sole_line_len > APEX_MMD_SINGLE_LINE_MAX) { \
+                apex_free_metadata(items); \
+                *consumed = 0; \
+                return NULL; \
+            } \
+            *consumed = line_start - text; \
+            return items; \
+        } \
+        *consumed = 0; \
+        return NULL; \
+    } while (0)
 
     while ((line_end = strchr(line_start, '\n')) != NULL) {
         size_t len = line_end - line_start;
@@ -411,244 +451,132 @@ static apex_metadata_item *parse_mmd_metadata(const char *text, size_t *consumed
         memcpy(line, line_start, len);
         line[len] = '\0';
 
-        /* Check for blank line (end of metadata) */
+        /* Check for blank line (end of metadata). A leading blank means the
+         * document does not start with undelimited MMD metadata. */
         char *trimmed = trim_whitespace(line);
         if (*trimmed == '\0') {
             if (found_metadata) {
+                if (metadata_count == 1 && sole_line_len > APEX_MMD_SINGLE_LINE_MAX) {
+                    apex_free_metadata(items);
+                    *consumed = 0;
+                    return NULL;
+                }
                 *consumed = (line_end + 1) - text;
-                return items;
-            }
-            /* Skip leading blank lines */
-            line_start = line_end + 1;
-            continue;
-        }
-
-        /* Skip abbreviation definitions (*[abbr]: expansion or [>abbr]: expansion) */
-        if ((trimmed[0] == '*' && trimmed[1] == '[') ||
-            (trimmed[0] == '[' && trimmed[1] == '>')) {
-            /* This is an abbreviation, not metadata */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* Haven't found metadata yet, skip this line */
-            line_start = line_end + 1;
-            continue;
-        }
-
-        /* Skip HTML comments (<!--...-->) */
-        if (strncmp(trimmed, "<!--", 4) == 0) {
-            /* This is an HTML comment, not metadata */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* Haven't found metadata yet, skip this line */
-            line_start = line_end + 1;
-            continue;
-        }
-
-        /* Skip Kramdown markers ({::...}) */
-        if (strncmp(trimmed, "{::", 3) == 0) {
-            /* This is a Kramdown marker, not metadata */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* Haven't found metadata yet, skip this line */
-            line_start = line_end + 1;
-            continue;
-        }
-
-        /* Skip Markdown headings (# or ##) */
-        if (trimmed[0] == '#') {
-            /* This is a Markdown heading, not metadata */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* Haven't found metadata yet, skip this line */
-            line_start = line_end + 1;
-            continue;
-        }
-
-        /* Skip IAL/ALD syntax ({: ...}) */
-        if (strncmp(trimmed, "{:", 2) == 0) {
-            /* This is IAL/ALD, not metadata */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* Haven't found metadata yet, skip this line */
-            line_start = line_end + 1;
-            continue;
-        }
-
-        /* Skip Leanpub index syntax ({i: term}) - colon would be parsed as metadata key:value */
-        if (strstr(trimmed, "{i:") != NULL) {
-            if (found_metadata) {
-                *consumed = line_start - text;
                 return items;
             }
             *consumed = 0;
             return NULL;
         }
 
-        /* Skip TOC markers ({{TOC...}}) */
-        if (strncmp(trimmed, "{{TOC", 5) == 0) {
-            /* This is a TOC marker, not metadata */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* Haven't found metadata yet, skip this line */
-            line_start = line_end + 1;
-            continue;
+        /* Abbreviation definitions (*[abbr]: expansion or [>abbr]: expansion) */
+        if ((trimmed[0] == '*' && trimmed[1] == '[') ||
+            (trimmed[0] == '[' && trimmed[1] == '>')) {
+            APEX_MMD_ABORT_OR_END();
         }
 
-        /* Skip list markers (-, +, *, or numbered lists) */
-        /* Check if line starts with a list marker */
+        /* HTML comments (<!--...-->) */
+        if (strncmp(trimmed, "<!--", 4) == 0) {
+            APEX_MMD_ABORT_OR_END();
+        }
+
+        /* Kramdown markers ({::...}) */
+        if (strncmp(trimmed, "{::", 3) == 0) {
+            APEX_MMD_ABORT_OR_END();
+        }
+
+        /* Markdown headings (# or ##) */
+        if (trimmed[0] == '#') {
+            APEX_MMD_ABORT_OR_END();
+        }
+
+        /* IAL/ALD syntax ({: ...}) */
+        if (strncmp(trimmed, "{:", 2) == 0) {
+            APEX_MMD_ABORT_OR_END();
+        }
+
+        /* Leanpub index syntax ({i: term}) */
+        if (strstr(trimmed, "{i:") != NULL) {
+            APEX_MMD_ABORT_OR_END();
+        }
+
+        /* TOC markers ({{TOC...}}) */
+        if (strncmp(trimmed, "{{TOC", 5) == 0) {
+            APEX_MMD_ABORT_OR_END();
+        }
+
+        /* List markers (-, +, *, or numbered lists) */
         const char *list_check = trimmed;
         if (*list_check == '-' || *list_check == '+' || *list_check == '*') {
-            /* Check if followed by space (markdown list syntax) */
             if (list_check[1] == ' ' || list_check[1] == '\t') {
-                /* This is a list item, not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                /* Haven't found metadata yet - this isn't metadata */
-                *consumed = 0;
-                return NULL;
+                APEX_MMD_ABORT_OR_END();
             }
         }
-        /* Check for numbered lists (digit followed by . or ) and space) */
         if (isdigit((unsigned char)*list_check)) {
             const char *p = list_check + 1;
-            /* Skip digits */
             while (isdigit((unsigned char)*p)) p++;
-            /* Check for . or ) followed by space */
             if ((*p == '.' || *p == ')') && (p[1] == ' ' || p[1] == '\t')) {
-                /* This is a numbered list item, not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                /* Haven't found metadata yet - this isn't metadata */
-                *consumed = 0;
-                return NULL;
+                APEX_MMD_ABORT_OR_END();
             }
         }
 
         /* Parse key: value */
         char *colon = strchr(line, ':');
         if (colon) {
-            /* Skip lines that look like Markdown links or images (e.g. [text](url) or ![alt](url) or ...[](#){: .class })
-             * so that "[![...](#){: .class }" is not parsed as metadata due to the ": " in "{: " */
+            /* Markdown links/images */
             if (strstr(line, "[!") != NULL ||
                 (strchr(line, '[') && strchr(line, ']') && strstr(line, "]("))) {
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                *consumed = 0;
-                return NULL;
+                APEX_MMD_ABORT_OR_END();
             }
-            /* Check if there's a protocol (http://, https://, mailto:) BEFORE the colon */
-            /* If so, this is likely a URL in the key, not metadata */
+            /* Protocol / URL before the colon */
             size_t key_len = (size_t)(colon - line);
             if (key_len >= 7 && (
                 (key_len >= 7 && strncmp(line, "http://", 7) == 0) ||
                 (key_len >= 8 && strncmp(line, "https://", 8) == 0) ||
                 (key_len >= 7 && strncmp(line, "mailto:", 7) == 0) ||
                 strstr(line, "://") != NULL)) {
-                /* Protocol found before colon - this is a URL, not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                *consumed = 0;
-                return NULL;
+                APEX_MMD_ABORT_OR_END();
             }
 
-            /* Check if there's a < character BEFORE the colon (HTML/autolink in key) */
+            /* HTML/autolink marker before the colon */
             if (memchr(line, '<', key_len) != NULL) {
-                /* < found before colon - this is HTML/autolink, not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                *consumed = 0;
-                return NULL;
+                APEX_MMD_ABORT_OR_END();
             }
 
-            /* Check for space after colon (MMD requires "KEY: VALUE" format) */
+            /* Require space/tab after colon (MMD "KEY: VALUE"; also avoids URLs) */
             char *after_colon = colon + 1;
             if (*after_colon != ' ' && *after_colon != '\t') {
-                /* No space after colon - likely not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                *consumed = 0;
-                return NULL;
+                APEX_MMD_ABORT_OR_END();
             }
 
             *colon = '\0';
             char *key = trim_whitespace(line);
             char *value = trim_whitespace(colon + 1);
 
-            if (*key && *value) {
+            if (*key && *value && is_valid_mmd_metadata_key(key)) {
                 add_metadata_item(&items, key, value);
                 found_metadata = true;
-            } else {
-                /* Line has colon but invalid key/value */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
+                metadata_count++;
+                if (metadata_count == 1) {
+                    sole_line_len = len;
                 }
-                /* No metadata found yet - this isn't metadata */
-                *consumed = 0;
-                return NULL;
+            } else {
+                APEX_MMD_ABORT_OR_END();
             }
         } else {
-            /* No colon - check if line contains URLs (bare URLs without angle brackets) */
-            if (strstr(trimmed, "http://") || strstr(trimmed, "https://") || strstr(trimmed, "mailto:")) {
-                /* This is a bare URL, not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                *consumed = 0;
-                return NULL;
-            }
-
-            /* Skip lines with Markdown links or images */
-            if (strchr(trimmed, '[') && strchr(trimmed, ']') && strchr(trimmed, '(')) {
-                /* Contains markdown link/image syntax - not metadata */
-                if (found_metadata) {
-                    *consumed = line_start - text;
-                    return items;
-                }
-                /* Haven't found metadata yet - this isn't metadata */
-                *consumed = 0;
-                return NULL;
-            }
-
-            /* Non-metadata line found (no colon) */
-            if (found_metadata) {
-                *consumed = line_start - text;
-                return items;
-            }
-            /* No metadata found yet and hit non-metadata line - stop */
-            *consumed = 0;
-            return NULL;
+            APEX_MMD_ABORT_OR_END();
         }
+
+        #undef APEX_MMD_ABORT_OR_END
 
         line_start = line_end + 1;
     }
 
     if (found_metadata) {
+        if (metadata_count == 1 && sole_line_len > APEX_MMD_SINGLE_LINE_MAX) {
+            apex_free_metadata(items);
+            *consumed = 0;
+            return NULL;
+        }
         *consumed = strlen(text);
     }
     return items;
