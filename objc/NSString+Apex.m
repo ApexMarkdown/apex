@@ -14,6 +14,7 @@ NSString *const ApexModeGFM = @"gfm";
 NSString *const ApexModeMultiMarkdown = @"multimarkdown";
 NSString *const ApexModeKramdown = @"kramdown";
 NSString *const ApexModeUnified = @"unified";
+NSString *const ApexModeQuarto = @"quarto";
 
 @implementation NSString (Apex)
 
@@ -41,6 +42,8 @@ NSString *const ApexModeUnified = @"unified";
     return APEX_MODE_MULTIMARKDOWN;
   } else if ([mode isEqualToString:@"kramdown"]) {
     return APEX_MODE_KRAMDOWN;
+  } else if ([mode isEqualToString:@"quarto"]) {
+    return APEX_MODE_QUARTO;
   } else {
     return APEX_MODE_UNIFIED; /* Default to unified */
   }

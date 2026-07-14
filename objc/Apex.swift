@@ -16,6 +16,7 @@ public enum ApexMode: String, CaseIterable {
     case multimarkdown = "multimarkdown"
     case kramdown = "kramdown"
     case unified = "unified"
+    case quarto = "quarto"
 
     /// Convert to NSString for Objective-C API
     internal var nsString: NSString {
