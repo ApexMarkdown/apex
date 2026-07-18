@@ -47,6 +47,7 @@ void test_quarto_mode(void);
 void test_multimarkdown_image_attributes(void);
 void test_file_includes(void);
 void test_ial(void);
+void test_bear_image_attributes(void);
 void test_bracketed_spans(void);
 void test_definition_lists(void);
 void test_advanced_tables(void);
@@ -119,6 +120,7 @@ static test_suite suites[] = {
     { "quarto_mode",                   test_quarto_mode },
     { "file_includes",                 test_file_includes },
     { "ial",                           test_ial },
+    { "bear_image_attributes",         test_bear_image_attributes },
     { "bracketed_spans",               test_bracketed_spans },
     { "definition_lists",              test_definition_lists },
     { "advanced_tables",               test_advanced_tables },
