@@ -162,6 +162,56 @@ static void test_bear_reference_definitions(void) {
     apex_free_string(html);
 }
 
+static void test_bear_reference_overrides(void) {
+    const char *md =
+        "![Default][shared]\n\n"
+        "![Wide][shared]<!-- {\"width\":320,\"title\":\"Wide\"} -->\n\n"
+        "![Default again][shared]\n\n"
+        "[shared]: shared.jpg <!-- {\"width\":200,\"height\":100} -->";
+    char *html = render_bear(md, APEX_MODE_UNIFIED, true);
+
+    const char *cursor = html;
+    int defaults = 0;
+    while ((cursor = strstr(cursor, "width=\"200\"")) != NULL) {
+        defaults++;
+        cursor += strlen("width=\"200\"");
+    }
+    test_result(defaults == 2, "Sibling references retain definition width");
+    test_result(
+        strstr(html, "width=\"320\"") != NULL,
+        "Per-use metadata overrides the definition width");
+    assert_contains(
+        html, "title=\"Wide\"", "Per-use title is applied");
+
+    cursor = html;
+    int inherited_heights = 0;
+    while ((cursor = strstr(cursor, "height=\"100\"")) != NULL) {
+        inherited_heights++;
+        cursor += strlen("height=\"100\"");
+    }
+    test_result(
+        inherited_heights == 3,
+        "Per-use metadata inherits the definition height");
+
+    assert_contains(
+        html,
+        "<!-- {\"width\":320,\"title\":\"Wide\"} -->",
+        "Per-use comment is preserved");
+    apex_free_string(html);
+
+    char *unresolved = render_bear(
+        "![Missing][none]<!-- {\"width\":999} -->",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_not_contains(
+        unresolved, "<img", "Unresolved reference remains unresolved");
+    assert_contains(
+        unresolved,
+        "<!-- {\"width\":999} -->",
+        "Unresolved metadata comment is preserved");
+    apex_free_string(unresolved);
+}
+
 void test_bear_image_attributes(void) {
     int failures = suite_start();
     print_suite_title("Bear Image Attribute Tests", false, true);
@@ -244,6 +294,7 @@ void test_bear_image_attributes(void) {
 
     test_bear_inline_modes();
     test_bear_reference_definitions();
+    test_bear_reference_overrides();
 
     bool had_failures = suite_end(failures);
     print_suite_title("Bear Image Attribute Tests", had_failures, false);

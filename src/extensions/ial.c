@@ -478,6 +478,23 @@ static apex_attributes *merge_attributes(apex_attributes *base, apex_attributes 
     return merged;
 }
 
+static apex_attributes *copy_attributes(const apex_attributes *source) {
+    apex_attributes *copy = create_attributes();
+    if (!copy) return NULL;
+
+    if (source) {
+        if (source->id) copy->id = strdup(source->id);
+        for (int i = 0; i < source->class_count; i++) {
+            add_class(copy, source->classes[i]);
+        }
+        for (int i = 0; i < source->attr_count; i++) {
+            add_attribute(copy, source->keys[i], source->values[i]);
+        }
+    }
+
+    return copy;
+}
+
 static char *escape_bear_attribute_value(const char *value) {
     size_t length = 0;
     for (const char *p = value; *p; p++) {
@@ -4099,6 +4116,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         const char *ref_start = read2;
                         const char *ref_end = alt_end;
                         const char *image_end = alt_end;
+                        bool is_explicit_reference = false;
                         if (alt_end[1] == '[') {
                             const char *explicit_ref_start = alt_end + 2;
                             const char *explicit_ref_end =
@@ -4109,6 +4127,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 ref_start = explicit_ref_start;
                                 ref_end = explicit_ref_end;
                                 image_end = explicit_ref_end;
+                                is_explicit_reference = true;
                             } else {
                                 image_end = explicit_ref_end;
                             }
@@ -4133,9 +4152,53 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     p--;
                                 }
 
+                                apex_attributes *local_attrs = NULL;
+                                if (is_explicit_reference) {
+                                    const char *after_use = image_end + 1;
+                                    const char *line_end = after_use;
+                                    while (*line_end && *line_end != '\n' &&
+                                           *line_end != '\r') {
+                                        line_end++;
+                                    }
+                                    const char *comment_start = NULL;
+                                    const char *comment_end = NULL;
+                                    local_attrs = parse_adjacent_bear_attrs(
+                                        after_use,
+                                        line_end,
+                                        &comment_start,
+                                        &comment_end);
+                                }
+
                                 /* Look up if this reference has attributes */
-                                image_attr_entry *def_entry = find_image_attr_by_ref(local_img_attrs, ref_name);
+                                image_attr_entry *def_entry =
+                                    find_image_attr_by_ref(
+                                        local_img_attrs, ref_name);
                                 if (def_entry && def_entry->url) {
+                                    apex_attributes *effective_attrs =
+                                        copy_attributes(def_entry->attrs);
+                                    if (effective_attrs && local_attrs) {
+                                        for (int i = 0;
+                                             i < local_attrs->attr_count;
+                                             i++) {
+                                            int existing_idx =
+                                                find_attribute_index(
+                                                    effective_attrs,
+                                                    local_attrs->keys[i]);
+                                            if (existing_idx >= 0) {
+                                                free(effective_attrs
+                                                         ->values[existing_idx]);
+                                                effective_attrs
+                                                    ->values[existing_idx] =
+                                                    strdup(
+                                                        local_attrs->values[i]);
+                                            } else {
+                                                add_attribute(
+                                                    effective_attrs,
+                                                    local_attrs->keys[i],
+                                                    local_attrs->values[i]);
+                                            }
+                                        }
+                                    }
                                     if (getenv("APEX_DEBUG_PIPELINE")) {
                                         fprintf(stderr, "[APEX_DEBUG] expand ref [%s] -> inline image\n", ref_name);
                                     }
@@ -4144,7 +4207,11 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     size_t alt_len = alt_end - read2;
 
                                     /* Convert attributes to markdown format */
-                                    char *attr_str = attributes_to_markdown(def_entry->attrs);
+                                    char *attr_str =
+                                        effective_attrs
+                                            ? attributes_to_markdown(
+                                                  effective_attrs)
+                                            : NULL;
 
                                     /* Build expanded image: ![alt](url attributes) */
                                     /* Need space for: ![ + alt + ]( + url + space + attr_str + ) */
@@ -4198,10 +4265,14 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                         read2 = image_end + 1;
                                         free(ref_name);
                                         free(attr_str);
+                                        apex_free_attributes(local_attrs);
+                                        apex_free_attributes(effective_attrs);
                                         continue;
                                     }
                                     free(attr_str);
+                                    apex_free_attributes(effective_attrs);
                                 }
+                                apex_free_attributes(local_attrs);
                                 free(ref_name);
                             }
                         }
