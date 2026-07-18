@@ -3,6 +3,7 @@
  */
 
 #include "ial.h"
+#include "bear_image_attrs.h"
 #include "table.h"  /* For CMARK_NODE_TABLE */
 #include "apex/apex.h"  /* For apex_mode_t */
 #include <string.h>
@@ -475,6 +476,111 @@ static apex_attributes *merge_attributes(apex_attributes *base, apex_attributes 
     }
 
     return merged;
+}
+
+static char *escape_bear_attribute_value(const char *value) {
+    size_t length = 0;
+    for (const char *p = value; *p; p++) {
+        switch (*p) {
+        case '&':
+            length += strlen("&amp;");
+            break;
+        case '"':
+            length += strlen("&quot;");
+            break;
+        case '<':
+            length += strlen("&lt;");
+            break;
+        case '>':
+            length += strlen("&gt;");
+            break;
+        default:
+            length++;
+            break;
+        }
+    }
+
+    char *escaped = malloc(length + 1);
+    if (!escaped) return NULL;
+
+    char *write = escaped;
+    for (const char *p = value; *p; p++) {
+        const char *replacement = NULL;
+        switch (*p) {
+        case '&':
+            replacement = "&amp;";
+            break;
+        case '"':
+            replacement = "&quot;";
+            break;
+        case '<':
+            replacement = "&lt;";
+            break;
+        case '>':
+            replacement = "&gt;";
+            break;
+        default:
+            *write++ = *p;
+            break;
+        }
+        if (replacement) {
+            size_t replacement_length = strlen(replacement);
+            memcpy(write, replacement, replacement_length);
+            write += replacement_length;
+        }
+    }
+    *write = '\0';
+    return escaped;
+}
+
+static apex_attributes *attributes_from_bear(
+    const apex_bear_image_attrs *bear) {
+    apex_attributes *attrs = create_attributes();
+    if (!attrs) return NULL;
+
+    for (size_t i = 0; i < bear->count; i++) {
+        /*
+         * Width/height classification is unchanged by escaping: all encoded
+         * characters are non-numeric in the decoded value as well.
+         */
+        char *escaped = escape_bear_attribute_value(bear->items[i].value);
+        if (escaped) {
+            add_attribute(attrs, bear->items[i].key, escaped);
+            free(escaped);
+        }
+    }
+    return attrs;
+}
+
+static apex_attributes *parse_adjacent_bear_attrs(
+    const char *after_construct,
+    const char *line_end,
+    const char **comment_start,
+    const char **comment_end) {
+    *comment_start = NULL;
+    *comment_end = NULL;
+
+    const char *candidate = after_construct;
+    while (candidate < line_end &&
+           (*candidate == ' ' || *candidate == '\t')) {
+        candidate++;
+    }
+
+    apex_bear_image_attrs bear = {0};
+    if (!apex_parse_bear_image_comment(
+            candidate, line_end, comment_end, &bear)) {
+        return NULL;
+    }
+
+    apex_attributes *attrs = attributes_from_bear(&bear);
+    apex_free_bear_image_attrs(&bear);
+    if (!attrs) {
+        *comment_end = NULL;
+        return NULL;
+    }
+
+    *comment_start = candidate;
+    return attrs;
 }
 
 /**
@@ -2664,13 +2770,11 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             mode == APEX_MODE_MULTIMARKDOWN ||
                             mode == APEX_MODE_KRAMDOWN;
 
-    /* Check if we should process image attributes.
-     * Enabled for Unified, MultiMarkdown, and GFM modes so that width/height/style
-     * and @2x markers on images and reference definitions are honored consistently.
-     */
+    /* Check if we should process image attributes. */
     bool do_image_attrs = apex_mode_is_unified_family(mode) ||
                            mode == APEX_MODE_MULTIMARKDOWN ||
-                           mode == APEX_MODE_GFM;
+                           mode == APEX_MODE_GFM ||
+                           mode == APEX_MODE_COMMONMARK;
 
     if (!do_url_encoding && !do_image_attrs) {
         /* Nothing to do */
@@ -2912,6 +3016,38 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     /* This handles edge cases where parsing might fail but we still want to skip the syntax */
                                     ial_end_pos = ial_end;
                                 }
+                            }
+                        }
+
+                        /*
+                         * Bear stores image metadata in an adjacent HTML
+                         * comment. Parse and merge it, but leave the source
+                         * bytes untouched so cmark preserves the comment.
+                         */
+                        const char *after_attributes =
+                            ial_end_pos ? ial_end_pos + 1 : after_paren;
+                        const char *line_end = after_attributes;
+                        while (*line_end &&
+                               *line_end != '\n' && *line_end != '\r') {
+                            line_end++;
+                        }
+                        const char *bear_comment_start = NULL;
+                        const char *bear_comment_end = NULL;
+                        apex_attributes *bear_attrs =
+                            parse_adjacent_bear_attrs(
+                                after_attributes,
+                                line_end,
+                                &bear_comment_start,
+                                &bear_comment_end);
+                        if (bear_attrs) {
+                            if (attrs) {
+                                apex_attributes *merged =
+                                    merge_attributes(attrs, bear_attrs);
+                                apex_free_attributes(attrs);
+                                apex_free_attributes(bear_attrs);
+                                attrs = merged;
+                            } else {
+                                attrs = bear_attrs;
                             }
                         }
 

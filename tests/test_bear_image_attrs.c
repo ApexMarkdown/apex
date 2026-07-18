@@ -1,4 +1,5 @@
 #include "test_helpers.h"
+#include "apex/apex.h"
 #include "extensions/bear_image_attrs.h"
 
 #include <string.h>
@@ -11,6 +12,62 @@ static const char *bear_value(const apex_bear_image_attrs *attrs,
         }
     }
     return NULL;
+}
+
+static char *render_bear(
+    const char *markdown, apex_mode_t mode, bool unsafe) {
+    apex_options opts = apex_options_for_mode(mode);
+    opts.unsafe = unsafe;
+    return apex_markdown_to_html(markdown, strlen(markdown), &opts);
+}
+
+static void test_bear_inline_modes(void) {
+    const char *md =
+        "![](emperor-1.jpg)<!-- {\"width\":259} -->";
+    const apex_mode_t modes[] = {
+        APEX_MODE_COMMONMARK,
+        APEX_MODE_GFM,
+        APEX_MODE_MULTIMARKDOWN,
+        APEX_MODE_UNIFIED
+    };
+
+    for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
+        char *html = render_bear(md, modes[i], true);
+        assert_contains(html, "width=\"259\"", "Bear width is applied");
+        assert_contains(
+            html,
+            "<!-- {\"width\":259} -->",
+            "Bear comment is preserved");
+        apex_free_string(html);
+    }
+
+    char *safe = render_bear(md, APEX_MODE_COMMONMARK, false);
+    assert_contains(safe, "width=\"259\"", "Safe mode applies Bear width");
+    assert_contains(
+        safe, "raw HTML omitted", "Safe mode keeps raw HTML policy");
+    apex_free_string(safe);
+
+    char *spaced = render_bear(
+        "![](x.jpg) \t<!-- {\"width\":\"50%\",\"height\":\"20px\"} -->",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_contains(
+        spaced, "height=\"20\"", "Pixel height uses an HTML attribute");
+    assert_contains(
+        spaced, "style=\"width: 50%\"", "Percent width uses style");
+    apex_free_string(spaced);
+
+    char *escaped = render_bear(
+        "![](x.jpg)<!-- {\"title\":\"x\\\" onerror=\\\"boom\"} -->",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_contains(
+        escaped,
+        "title=\"x&quot; onerror=&quot;boom\"",
+        "Bear values are HTML attribute escaped");
+    assert_not_contains(
+        escaped, " onerror=\"boom\"", "Bear values cannot inject attributes");
+    apex_free_string(escaped);
 }
 
 void test_bear_image_attributes(void) {
@@ -92,6 +149,8 @@ void test_bear_image_attributes(void) {
         attrs.count == 0,
         "Missing terminator leaves the reused struct empty");
     apex_free_bear_image_attrs(&attrs);
+
+    test_bear_inline_modes();
 
     bool had_failures = suite_end(failures);
     print_suite_title("Bear Image Attribute Tests", had_failures, false);
