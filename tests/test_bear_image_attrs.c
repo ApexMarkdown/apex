@@ -119,6 +119,47 @@ static void test_bear_reference_definitions(void) {
         "height=\"100\"",
         "Reference matching normalizes case and internal whitespace");
     apex_free_string(html);
+
+    html = render_bear(
+        "![Use][ref]\n\n"
+        "[ref]: pic.jpg junk <!-- {\"width\":259} -->",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_not_contains(
+        html,
+        "width=\"259\"",
+        "Non-adjacent definition comment does not apply metadata");
+    apex_free_string(html);
+
+    html = render_bear(
+        "![Use][ref]\n\n"
+        "[ref]: pic.jpg <!-- {\"width\":259} -->\n"
+        "After paragraph.",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_contains(
+        html, "width=\"259\"", "Definition before text applies metadata");
+    assert_contains(
+        html,
+        "<p>After paragraph.</p>",
+        "Removed definition keeps its line ending");
+    apex_free_string(html);
+
+    html = render_bear(
+        "![Use][ref]\n\n"
+        "[ref]: pic.jpg \"MD Title\" "
+        "<!-- {\"title\":\"Bear Title\",\"width\":120} -->",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_contains(
+        html,
+        "title=\"Bear Title\"",
+        "Bear title overrides the definition title");
+    assert_not_contains(
+        html,
+        "title=\"MD Title\"",
+        "Definition title does not shadow the Bear title");
+    apex_free_string(html);
 }
 
 void test_bear_image_attributes(void) {

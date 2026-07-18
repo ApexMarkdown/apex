@@ -3243,23 +3243,30 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                 const char *bear_output_start = NULL;
                 apex_attributes *bear_attrs = NULL;
 
+                /* Pre-scan for a candidate Bear comment so title/attribute
+                 * parsing below does not consume it. Adjacency to the true
+                 * end of the definition is verified after that parsing.
+                 */
                 if (do_image_attrs) {
                     const char *bear_candidate = strstr(url_start, "<!--");
-                    if (bear_candidate && bear_candidate < physical_line_end) {
+                    while (bear_candidate &&
+                           bear_candidate < physical_line_end) {
                         bear_attrs = parse_adjacent_bear_attrs(
                             bear_candidate,
                             physical_line_end,
                             &bear_comment_start,
                             &bear_comment_end);
-                        if (bear_attrs) {
-                            bear_output_start = bear_comment_start;
-                            while (bear_output_start > url_start &&
-                                   (bear_output_start[-1] == ' ' ||
-                                    bear_output_start[-1] == '\t')) {
-                                bear_output_start--;
-                            }
-                            line_end = bear_output_start;
+                        if (bear_attrs) break;
+                        bear_candidate = strstr(bear_candidate + 1, "<!--");
+                    }
+                    if (bear_attrs) {
+                        bear_output_start = bear_comment_start;
+                        while (bear_output_start > url_start &&
+                               (bear_output_start[-1] == ' ' ||
+                                bear_output_start[-1] == '\t')) {
+                            bear_output_start--;
                         }
+                        line_end = bear_output_start;
                     }
                 }
 
@@ -3534,6 +3541,50 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         }
 
                         if (bear_attrs) {
+                            /* Enforce adjacency: re-scan from the true end of
+                             * the URL, title, IAL, or MMD attributes so only
+                             * spaces or tabs may precede the Bear comment.
+                             * The URL itself ends at its first whitespace,
+                             * matching cmark link destinations.
+                             */
+                            const char *after_construct;
+                            if (title_end) {
+                                after_construct = title_end;
+                            } else {
+                                after_construct = url_start;
+                                while (after_construct < url_end &&
+                                       *after_construct != ' ' &&
+                                       *after_construct != '\t') {
+                                    after_construct++;
+                                }
+                            }
+                            const char *adjacent_start = NULL;
+                            const char *adjacent_end = NULL;
+                            apex_attributes *adjacent_attrs =
+                                parse_adjacent_bear_attrs(
+                                    after_construct,
+                                    physical_line_end,
+                                    &adjacent_start,
+                                    &adjacent_end);
+                            apex_free_attributes(bear_attrs);
+                            bear_attrs = adjacent_attrs;
+                            if (bear_attrs) {
+                                bear_comment_start = adjacent_start;
+                                bear_comment_end = adjacent_end;
+                                bear_output_start = adjacent_start;
+                                while (bear_output_start > after_construct &&
+                                       (bear_output_start[-1] == ' ' ||
+                                        bear_output_start[-1] == '\t')) {
+                                    bear_output_start--;
+                                }
+                            } else {
+                                bear_comment_start = NULL;
+                                bear_comment_end = NULL;
+                                bear_output_start = NULL;
+                            }
+                        }
+
+                        if (bear_attrs) {
                             if (attrs) {
                                 apex_attributes *merged =
                                     merge_attributes(attrs, bear_attrs);
@@ -3651,8 +3702,11 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                                 add_class(entry->attrs, attrs->classes[i]);
                                             }
                                         }
-                                        /* Add title if present */
-                                        if (title_text) {
+                                        /* Add the markdown title unless Bear
+                                         * metadata already supplied one. */
+                                        if (title_text &&
+                                            find_attribute_index(
+                                                entry->attrs, "title") < 0) {
                                             add_attribute(entry->attrs, "title", title_text);
                                         }
                                         /* Entry created - will be used for expansion */
@@ -3669,13 +3723,14 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             if (should_remove) {
                                 /* Reference definitions with attributes are removed from output (like ALDs) */
                                 /* Preserve Bear metadata as one standalone raw HTML comment. */
+                                bool wrote_bear_comment = false;
                                 if (bear_output_start && bear_comment_end) {
                                     size_t comment_len =
                                         (size_t)(bear_comment_end - bear_output_start);
-                                    if (comment_len > remaining) {
+                                    if (comment_len + 2 > remaining) {
                                         size_t written = write - output;
                                         size_t new_capacity =
-                                            (written + comment_len + 1) * 2;
+                                            (written + comment_len + 3) * 2;
                                         char *new_output =
                                             realloc(output, new_capacity);
                                         if (!new_output) {
@@ -3695,17 +3750,36 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     memcpy(write, bear_output_start, comment_len);
                                     write += comment_len;
                                     remaining -= comment_len;
+                                    wrote_bear_comment = true;
                                 }
                                 free(ref_name);
                                 if (title_text) free(title_text);
+                                /* A preserved comment keeps the original line
+                                 * ending so the next block stays separate.
+                                 * Otherwise the whole line is removed.
+                                 */
                                 const char *p = physical_line_end;
-                                /* Skip the newline */
                                 if (*p == '\n') {
+                                    if (wrote_bear_comment && remaining > 0) {
+                                        *write++ = '\n';
+                                        remaining--;
+                                    }
                                     p++;
                                 } else if (*p == '\r') {
                                     if (p[1] == '\n') {
+                                        if (wrote_bear_comment &&
+                                            remaining >= 2) {
+                                            *write++ = '\r';
+                                            *write++ = '\n';
+                                            remaining -= 2;
+                                        }
                                         p += 2;
                                     } else {
+                                        if (wrote_bear_comment &&
+                                            remaining > 0) {
+                                            *write++ = '\r';
+                                            remaining--;
+                                        }
                                         p++;
                                     }
                                 }
@@ -3774,8 +3848,11 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                     }
                                 }
 
-                                /* Advance read past the line (including IAL if it was processed) */
-                                const char *p = physical_line_end;
+                                /* Advance read past the processed portion so
+                                 * any remaining line text (for example a
+                                 * rejected comment) is copied by the main
+                                 * loop. */
+                                const char *p = title_end ? title_end : line_end;
 
                                 /* Write newline */
                                 if (*p == '\n' && remaining > 0) {
@@ -3805,6 +3882,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         free(url);
                         continue;
                     }
+                }
+
+                /* URL extraction failed or was empty; release any pre-scanned
+                 * Bear attributes that were never merged. */
+                if (bear_attrs) {
+                    apex_free_attributes(bear_attrs);
+                    bear_attrs = NULL;
                 }
             }
         }
