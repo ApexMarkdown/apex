@@ -62,6 +62,37 @@ void test_bear_image_attributes(void) {
             bad, end, &comment_end, &attrs),
         "Malformed JSON is rejected");
 
+    /* Reusing a populated result for a failing parse must clean it. */
+    const char *reused = "<!-- {\"width\":259,\"title\":\"A\"} -->";
+    end = reused + strlen(reused);
+    attrs = (apex_bear_image_attrs){0};
+    ok = apex_parse_bear_image_comment(
+        reused, end, &comment_end, &attrs);
+    test_result(ok && attrs.count == 2, "Reused struct starts populated");
+
+    const char *too_short = "<!-- x";
+    end = too_short + strlen(too_short);
+    ok = apex_parse_bear_image_comment(
+        too_short, end, &comment_end, &attrs);
+    test_result(!ok, "Too-short comment fails on a reused struct");
+    test_result(
+        attrs.count == 0, "Early failure leaves the reused struct empty");
+
+    attrs = (apex_bear_image_attrs){0};
+    ok = apex_parse_bear_image_comment(
+        reused, end = reused + strlen(reused), &comment_end, &attrs);
+    test_result(ok && attrs.count == 2, "Struct repopulated for reuse");
+
+    const char *unterminated = "<!-- {\"width\":259}";
+    end = unterminated + strlen(unterminated);
+    ok = apex_parse_bear_image_comment(
+        unterminated, end, &comment_end, &attrs);
+    test_result(!ok, "Unterminated comment fails on a reused struct");
+    test_result(
+        attrs.count == 0,
+        "Missing terminator leaves the reused struct empty");
+    apex_free_bear_image_attrs(&attrs);
+
     bool had_failures = suite_end(failures);
     print_suite_title("Bear Image Attribute Tests", had_failures, false);
 }

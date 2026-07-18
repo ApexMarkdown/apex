@@ -356,13 +356,18 @@ bool apex_parse_bear_image_comment(
     const char *line_end,
     const char **comment_end,
     apex_bear_image_attrs *attrs) {
-    if (!comment_start || !line_end || !comment_end || !attrs ||
+    if (!attrs) {
+        return false;
+    }
+    /* Release any previous result so reusing the struct cannot leak. */
+    apex_free_bear_image_attrs(attrs);
+
+    if (!comment_start || !line_end || !comment_end ||
         line_end < comment_start || (size_t)(line_end - comment_start) < 7 ||
         memcmp(comment_start, "<!--", 4) != 0) {
         return false;
     }
 
-    memset(attrs, 0, sizeof(*attrs));
     const char *body_end = NULL;
     for (const char *p = comment_start + 4; p + 2 < line_end; p++) {
         if (p[0] == '-' && p[1] == '-' && p[2] == '>') {
