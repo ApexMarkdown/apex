@@ -2654,12 +2654,17 @@ static char *attributes_to_markdown(apex_attributes *attrs) {
     return attributes_to_inline_format(attrs);
 }
 
+static bool reference_id_matches(
+    const char *ref_id, const char *text, size_t text_len);
+
 /**
  * Find image attribute entry by reference name
  */
 static image_attr_entry *find_image_attr_by_ref(image_attr_entry *list, const char *ref_name) {
     for (image_attr_entry *entry = list; entry; entry = entry->next) {
-        if (entry->ref_name && ref_name && strcmp(entry->ref_name, ref_name) == 0) {
+        if (entry->ref_name && ref_name &&
+            reference_id_matches(
+                entry->ref_name, ref_name, strlen(ref_name))) {
             return entry;
         }
     }
@@ -3232,6 +3237,31 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                 /* Find the end of the line first */
                 const char *line_end = p;
                 while (*line_end && *line_end != '\n' && *line_end != '\r') line_end++;
+                const char *physical_line_end = line_end;
+                const char *bear_comment_start = NULL;
+                const char *bear_comment_end = NULL;
+                const char *bear_output_start = NULL;
+                apex_attributes *bear_attrs = NULL;
+
+                if (do_image_attrs) {
+                    const char *bear_candidate = strstr(url_start, "<!--");
+                    if (bear_candidate && bear_candidate < physical_line_end) {
+                        bear_attrs = parse_adjacent_bear_attrs(
+                            bear_candidate,
+                            physical_line_end,
+                            &bear_comment_start,
+                            &bear_comment_end);
+                        if (bear_attrs) {
+                            bear_output_start = bear_comment_start;
+                            while (bear_output_start > url_start &&
+                                   (bear_output_start[-1] == ' ' ||
+                                    bear_output_start[-1] == '\t')) {
+                                bear_output_start--;
+                            }
+                            line_end = bear_output_start;
+                        }
+                    }
+                }
 
                 /* For reference definitions, we need to check for:
                  * 1. Image attributes (if do_image_attrs): key=value pattern
@@ -3503,6 +3533,19 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             }
                         }
 
+                        if (bear_attrs) {
+                            if (attrs) {
+                                apex_attributes *merged =
+                                    merge_attributes(attrs, bear_attrs);
+                                apex_free_attributes(attrs);
+                                apex_free_attributes(bear_attrs);
+                                attrs = merged;
+                            } else {
+                                attrs = bear_attrs;
+                            }
+                            bear_attrs = NULL;
+                        }
+
                         /* Extract reference name */
                         size_t ref_name_len = ref_end - ref_start - 1; /* Exclude [ and ] */
                         char *ref_name = malloc(ref_name_len + 1);
@@ -3537,8 +3580,8 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                          */
                         if (is_footnote_ref) {
                             /* Write the entire definition line unchanged */
-                            size_t line_len = line_end - ref_start;
-                            if (*line_end == '\n') {
+                            size_t line_len = physical_line_end - ref_start;
+                            if (*physical_line_end == '\n') {
                                 line_len++; /* Include newline */
                             }
 
@@ -3564,7 +3607,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                             remaining -= line_len;
 
                             /* Advance read past this line (including newline if present) */
-                            const char *next = line_end;
+                            const char *next = physical_line_end;
                             if (*next == '\n') {
                                 next++;
                             } else if (*next == '\r') {
@@ -3587,11 +3630,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         bool skip_encode_ref = has_protocol(url);
                         char *encoded_url = (do_url_encoding && !skip_encode_ref) ? url_encode(url) : strdup(url);
                         if (encoded_url) {
+                            bool has_bear_attrs = (bear_comment_start != NULL);
                             bool has_image_attrs = (attrs != NULL && attrs_are_image_specific(attrs));
                             /* If has image-specific attributes (width, height, etc.), store with reference name.
                              * Don't create entry for link refs with only a title (e.g. [ref]: url "title"). */
                             if (ref_name) {
-                                if (has_image_attrs || (do_image_attrs && found_ial)) {
+                                if (has_bear_attrs || has_image_attrs ||
+                                    (do_image_attrs && found_ial)) {
                                     image_attr_entry *entry = create_image_attr_entry_with_ref(&local_img_attrs, encoded_url, ref_name);
                                     if (entry) {
                                         if (attrs) {
@@ -3615,15 +3660,45 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 }
                             }
                             /* If this reference definition has image-specific attributes, remove it so we expand and apply attrs */
-                            bool created_entry = (ref_name && (has_image_attrs || (do_image_attrs && found_ial)));
+                            bool created_entry =
+                                (ref_name &&
+                                 (has_bear_attrs || has_image_attrs ||
+                                  (do_image_attrs && found_ial)));
                             bool should_remove = created_entry;
 
                             if (should_remove) {
                                 /* Reference definitions with attributes are removed from output (like ALDs) */
-                                /* Skip the entire line - don't write anything back */
+                                /* Preserve Bear metadata as one standalone raw HTML comment. */
+                                if (bear_output_start && bear_comment_end) {
+                                    size_t comment_len =
+                                        (size_t)(bear_comment_end - bear_output_start);
+                                    if (comment_len > remaining) {
+                                        size_t written = write - output;
+                                        size_t new_capacity =
+                                            (written + comment_len + 1) * 2;
+                                        char *new_output =
+                                            realloc(output, new_capacity);
+                                        if (!new_output) {
+                                            free(output);
+                                            free(url);
+                                            free(encoded_url);
+                                            free(ref_name);
+                                            if (title_text) free(title_text);
+                                            if (attrs) apex_free_attributes(attrs);
+                                            apex_free_image_attributes(local_img_attrs);
+                                            return NULL;
+                                        }
+                                        output = new_output;
+                                        write = output + written;
+                                        remaining = new_capacity - written;
+                                    }
+                                    memcpy(write, bear_output_start, comment_len);
+                                    write += comment_len;
+                                    remaining -= comment_len;
+                                }
                                 free(ref_name);
                                 if (title_text) free(title_text);
-                                const char *p = line_end;
+                                const char *p = physical_line_end;
                                 /* Skip the newline */
                                 if (*p == '\n') {
                                     p++;
@@ -3700,7 +3775,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 }
 
                                 /* Advance read past the line (including IAL if it was processed) */
-                                const char *p = title_end ? title_end : line_end;
+                                const char *p = physical_line_end;
 
                                 /* Write newline */
                                 if (*p == '\n' && remaining > 0) {
@@ -3929,27 +4004,38 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
             bool made_expansions = false;
 
             while (*read2) {
-                /* Look for reference-style images: ![alt][ref] */
+                /* Look for full, collapsed, and shortcut reference images. */
                 if (*read2 == '!' && read2[1] == '[') {
                     const char *img_start = read2;
                     read2 += 2; /* Skip ![ */
 
                     /* Find closing ] for alt text */
                     const char *alt_end = strchr(read2, ']');
-                    if (alt_end && alt_end[1] == '[') {
-                        /* Found ![alt][ */
-                        const char *ref_start = alt_end + 2; /* After ][ */
-                        const char *ref_end = strchr(ref_start, ']');
-                        if (ref_end) {
-                            /* Extract reference name (strip surrounding [ ]) */
-                            const char *name_start = (*ref_start == '[') ? ref_start + 1 : ref_start;
-                            if (name_start > ref_end) {
-                                name_start = ref_start;
+                    if (alt_end && alt_end[1] != '(') {
+                        const char *ref_start = read2;
+                        const char *ref_end = alt_end;
+                        const char *image_end = alt_end;
+                        if (alt_end[1] == '[') {
+                            const char *explicit_ref_start = alt_end + 2;
+                            const char *explicit_ref_end =
+                                strchr(explicit_ref_start, ']');
+                            if (!explicit_ref_end) {
+                                ref_end = NULL;
+                            } else if (explicit_ref_end > explicit_ref_start) {
+                                ref_start = explicit_ref_start;
+                                ref_end = explicit_ref_end;
+                                image_end = explicit_ref_end;
+                            } else {
+                                image_end = explicit_ref_end;
                             }
-                            size_t ref_name_len = (size_t)(ref_end - name_start);
+                        }
+
+                        if (ref_end) {
+                            size_t ref_name_len =
+                                (size_t)(ref_end - ref_start);
                             char *ref_name = malloc(ref_name_len + 1);
                             if (ref_name) {
-                                memcpy(ref_name, name_start, ref_name_len);
+                                memcpy(ref_name, ref_start, ref_name_len);
                                 ref_name[ref_name_len] = '\0';
                                 /* Trim whitespace from reference name */
                                 char *p = ref_name;
@@ -4025,7 +4111,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                         *write2++ = ')';
                                         remaining2--;
 
-                                        read2 = ref_end + 1;
+                                        read2 = image_end + 1;
                                         free(ref_name);
                                         free(attr_str);
                                         continue;
@@ -4379,19 +4465,20 @@ static bool reference_id_matches(const char *ref_id, const char *text, size_t te
         remaining--;
     }
 
-    /* Compare character by character (case-insensitive) */
+    /* Compare case-insensitively, collapsing each whitespace run. */
     while (*p && remaining > 0) {
-        if (tolower((unsigned char)*p) != tolower((unsigned char)*t)) {
-            /* Check if difference is just whitespace */
-            if (isspace((unsigned char)*p) && isspace((unsigned char)*t)) {
-                /* Both are whitespace - skip and continue */
-                while (*p && isspace((unsigned char)*p)) p++;
-                while (remaining > 0 && isspace((unsigned char)*t)) {
-                    t++;
-                    remaining--;
-                }
-                continue;
+        bool p_space = isspace((unsigned char)*p);
+        bool t_space = isspace((unsigned char)*t);
+        if (p_space || t_space) {
+            if (!p_space || !t_space) return false;
+            while (*p && isspace((unsigned char)*p)) p++;
+            while (remaining > 0 && isspace((unsigned char)*t)) {
+                t++;
+                remaining--;
             }
+            continue;
+        }
+        if (tolower((unsigned char)*p) != tolower((unsigned char)*t)) {
             return false;
         }
         p++;

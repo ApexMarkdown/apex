@@ -78,6 +78,49 @@ static void test_bear_inline_modes(void) {
     apex_free_string(kramdown);
 }
 
+static void test_bear_reference_definitions(void) {
+    const char *md =
+        "![One][Emperor]\n\n"
+        "![Emperor][]\n\n"
+        "![Emperor]\n\n"
+        "[ emperor ]: emperor.jpg "
+        "<!-- {\"width\":259,\"title\":\"Ruler\"} -->";
+    char *html = render_bear(md, APEX_MODE_UNIFIED, true);
+
+    const char *cursor = html;
+    int widths = 0;
+    while ((cursor = strstr(cursor, "width=\"259\"")) != NULL) {
+        widths++;
+        cursor += strlen("width=\"259\"");
+    }
+    test_result(widths == 3, "Definition metadata applies to every use");
+    assert_contains(
+        html,
+        "<!-- {\"width\":259,\"title\":\"Ruler\"} -->",
+        "Definition comment is preserved once");
+
+    cursor = html;
+    int comments = 0;
+    while ((cursor = strstr(cursor, "<!-- {\"width\":259")) != NULL) {
+        comments++;
+        cursor++;
+    }
+    test_result(comments == 1, "Definition comment renders exactly once");
+    apex_free_string(html);
+
+    html = render_bear(
+        "![Crown][EMPEROR   OF ROME]\n\n"
+        "[ emperor of  rome ]: emperor.jpg "
+        "<!-- {\"height\":100} -->",
+        APEX_MODE_UNIFIED,
+        true);
+    assert_contains(
+        html,
+        "height=\"100\"",
+        "Reference matching normalizes case and internal whitespace");
+    apex_free_string(html);
+}
+
 void test_bear_image_attributes(void) {
     int failures = suite_start();
     print_suite_title("Bear Image Attribute Tests", false, true);
@@ -159,6 +202,7 @@ void test_bear_image_attributes(void) {
     apex_free_bear_image_attrs(&attrs);
 
     test_bear_inline_modes();
+    test_bear_reference_definitions();
 
     bool had_failures = suite_end(failures);
     print_suite_title("Bear Image Attribute Tests", had_failures, false);
