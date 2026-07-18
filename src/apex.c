@@ -5067,7 +5067,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     char *image_attrs_processed = NULL;
     if (apex_mode_is_unified_family(options->mode) ||
         options->mode == APEX_MODE_MULTIMARKDOWN ||
-        options->mode == APEX_MODE_KRAMDOWN) {
+        options->mode == APEX_MODE_KRAMDOWN ||
+        options->mode == APEX_MODE_GFM ||
+        options->mode == APEX_MODE_COMMONMARK) {
         PROFILE_START(image_attrs_preprocess);
         image_attrs_processed = apex_preprocess_image_attributes(text_ptr, &img_attrs, options->mode);
         PROFILE_END(image_attrs_preprocess);
