@@ -68,6 +68,14 @@ static void test_bear_inline_modes(void) {
     assert_not_contains(
         escaped, " onerror=\"boom\"", "Bear values cannot inject attributes");
     apex_free_string(escaped);
+
+    char *kramdown = render_bear(
+        "![](x.jpg)<!-- {\"width\":259} -->", APEX_MODE_KRAMDOWN, true);
+    assert_not_contains(
+        kramdown,
+        "width=\"259\"",
+        "Kramdown does not apply Bear metadata");
+    apex_free_string(kramdown);
 }
 
 void test_bear_image_attributes(void) {

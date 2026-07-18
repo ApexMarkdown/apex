@@ -3023,31 +3023,36 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                          * Bear stores image metadata in an adjacent HTML
                          * comment. Parse and merge it, but leave the source
                          * bytes untouched so cmark preserves the comment.
+                         * Gated on do_image_attrs so modes that only enter
+                         * the preprocessor for URL encoding (Kramdown) do
+                         * not pick up Bear attributes.
                          */
-                        const char *after_attributes =
-                            ial_end_pos ? ial_end_pos + 1 : after_paren;
-                        const char *line_end = after_attributes;
-                        while (*line_end &&
-                               *line_end != '\n' && *line_end != '\r') {
-                            line_end++;
-                        }
-                        const char *bear_comment_start = NULL;
-                        const char *bear_comment_end = NULL;
-                        apex_attributes *bear_attrs =
-                            parse_adjacent_bear_attrs(
-                                after_attributes,
-                                line_end,
-                                &bear_comment_start,
-                                &bear_comment_end);
-                        if (bear_attrs) {
-                            if (attrs) {
-                                apex_attributes *merged =
-                                    merge_attributes(attrs, bear_attrs);
-                                apex_free_attributes(attrs);
-                                apex_free_attributes(bear_attrs);
-                                attrs = merged;
-                            } else {
-                                attrs = bear_attrs;
+                        if (do_image_attrs) {
+                            const char *after_attributes =
+                                ial_end_pos ? ial_end_pos + 1 : after_paren;
+                            const char *line_end = after_attributes;
+                            while (*line_end &&
+                                   *line_end != '\n' && *line_end != '\r') {
+                                line_end++;
+                            }
+                            const char *bear_comment_start = NULL;
+                            const char *bear_comment_end = NULL;
+                            apex_attributes *bear_attrs =
+                                parse_adjacent_bear_attrs(
+                                    after_attributes,
+                                    line_end,
+                                    &bear_comment_start,
+                                    &bear_comment_end);
+                            if (bear_attrs) {
+                                if (attrs) {
+                                    apex_attributes *merged =
+                                        merge_attributes(attrs, bear_attrs);
+                                    apex_free_attributes(attrs);
+                                    apex_free_attributes(bear_attrs);
+                                    attrs = merged;
+                                } else {
+                                    attrs = bear_attrs;
+                                }
                             }
                         }
 
