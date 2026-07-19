@@ -1,5 +1,5 @@
 
-[![Version: 1.1.10](https://img.shields.io/badge/Version-1.1.10-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1826](https://img.shields.io/badge/Tests-0/1826-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.11](https://img.shields.io/badge/Version-1.1.11-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1872](https://img.shields.io/badge/Tests-0/1872-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -337,7 +337,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.7
+Apex Markdown Processor v1.1.11
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex

@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.12] - 2026-07-19
+
+### New
+
+- **Bear image attributes** Apply safe JSON metadata while preserving its comment.
+- **Reference metadata** Apply attributes to every matching image.
+- **Per-image reference attributes** Override shared metadata on one image.
+
+### Fixed
+
+- **Bear image metadata parser** releases prior results when an output struct is reused, so early parse failures no longer leak or retain stale attributes
+- **Bear image attributes** no longer apply in Kramdown, which only enters the image preprocessor for URL encoding.
+- **Reference metadata** only applies when the Bear comment directly follows the definition URL, title, or attributes.
+- **Definition comments** keep their original line ending so following blocks are not glued to the comment.
+- **Bear titles** override quoted definition titles instead of being shadowed.
+
 ## [1.1.11] - 2026-07-14
 
 ### Improved
@@ -3093,6 +3109,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.12
 [1.1.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.11
 [1.1.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.10
 [1.1.9]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.9
