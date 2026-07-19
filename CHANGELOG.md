@@ -4,8 +4,6 @@ All notable changes to Apex will be documented in this file.
 
 ## [1.1.11] - 2026-07-14
 
-## [1.1.10] - 2026-07-14
-
 ### Improved
 
 - Undelimited MMD metadata keys may only contain letters, digits, spaces, hyphens, and underscores; punctuation in the key rejects the line as ordinary text
