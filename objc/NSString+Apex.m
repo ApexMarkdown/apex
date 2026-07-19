@@ -334,7 +334,9 @@ NSString *const ApexModeQuarto = @"quarto";
 }
 
 /**
- * Convert Markdown to HTML using Apex with source file URL for includes
+ * Convert Markdown to HTML using Apex with source file URL for includes.
+ * Leaves local images as paths; sandboxed callers (e.g. Marked Quick Look)
+ * embed after security-scoped folder grants.
  */
 + (NSString *)convertWithApex:(NSString *)inputString
                          mode:(NSString *)modeString
@@ -355,6 +357,10 @@ NSString *const ApexModeQuarto = @"quarto";
   options.generate_header_ids = true;
   options.enable_critic_markup = true;
   options.critic_mode = 2; /* CRITIC_MARKUP: show markup with classes */
+  /* Do not embed images here: fopen/stat under Dropbox/CloudStorage can stall
+   * sandboxed Quick Look. Callers (Marked Quick Look) embed after security-scoped
+   * folder grants with a non-blocking Swift pass. */
+  options.embed_images = false;
 
   if (sourceURL && sourceURL.isFileURL) {
     NSString *path = sourceURL.path;

@@ -111,7 +111,8 @@ extern NSString * const ApexModeQuarto;
                        pretty:(BOOL)pretty;
 
 /**
- * Convert Markdown to HTML using Apex with source file URL for includes
+ * Convert Markdown to HTML using Apex with source file URL for includes.
+ * Does not embed local images (callers may embed after security-scoped access).
  * @param inputString The markdown text to convert
  * @param mode Processor mode
  * @param sourceURL File URL used for include resolution and base directory
