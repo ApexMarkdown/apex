@@ -671,6 +671,49 @@ static char *apex_embed_images(const char *html, const apex_options *options, co
 }
 
 /**
+ * Track HTML tag / quoted-attribute state while scanning source text.
+ * State reflects characters already consumed, matching the previous
+ * "rescan from document start" semantics without the O(n^2) cost.
+ */
+static void apex_autolink_html_consume(char c, bool *in_html_tag,
+                                       bool *html_quote_active,
+                                       char *html_quote_char) {
+    if (!*in_html_tag) {
+        if (c == '<') {
+            *in_html_tag = true;
+            *html_quote_active = false;
+            *html_quote_char = '\0';
+        }
+        return;
+    }
+
+    if (*html_quote_active) {
+        if (c == *html_quote_char) {
+            *html_quote_active = false;
+            *html_quote_char = '\0';
+        }
+        return;
+    }
+
+    if (c == '"' || c == '\'') {
+        *html_quote_active = true;
+        *html_quote_char = c;
+    } else if (c == '>') {
+        *in_html_tag = false;
+    }
+}
+
+static void apex_autolink_html_consume_range(const char *s, size_t n,
+                                            bool *in_html_tag,
+                                            bool *html_quote_active,
+                                            char *html_quote_char) {
+    for (size_t i = 0; i < n; i++) {
+        apex_autolink_html_consume(s[i], in_html_tag, html_quote_active,
+                                   html_quote_char);
+    }
+}
+
+/**
  * Preprocess angle-bracket autolinks (<http://...>) into explicit links
  * and convert bare URLs/emails to explicit links so they survive
  * custom rendering paths.
@@ -694,6 +737,9 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
     bool in_markdown_link_url = false;  /* Track if we're inside [text](url) URL part */
     int bracket_count = 0;  /* Count unmatched [ for markdown links */
     int paren_count = 0;  /* Count unmatched ( inside markdown link URLs */
+    bool in_html_tag = false;
+    bool html_quote_active = false;
+    char html_quote_char = '\0';
 
     while (*r) {
         const char *loop_start = r;
@@ -701,16 +747,26 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
         /* Handle Liquid tags: copy {% ... %} without processing */
         if (!in_liquid && *r == '{' && r[1] == '%') {
             in_liquid = true;
+            apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                       &html_quote_char);
             *w++ = *r++;
+            apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                       &html_quote_char);
             *w++ = *r++;
             continue;
         }
         if (in_liquid) {
             if (*r == '%' && r[1] == '}') {
+                apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                           &html_quote_char);
                 *w++ = *r++;
+                apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                           &html_quote_char);
                 *w++ = *r++;
                 in_liquid = false;
             } else {
+                apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                           &html_quote_char);
                 *w++ = *r++;
             }
             continue;
@@ -740,6 +796,9 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                 }
                 memcpy(w, r, line_len);
                 w += line_len;
+                apex_autolink_html_consume_range(r, line_len, &in_html_tag,
+                                                &html_quote_active,
+                                                &html_quote_char);
                 r = line_end;
                 continue;
             }
@@ -769,6 +828,9 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                     }
                     memcpy(w, r, line_len);
                     w += line_len;
+                    apex_autolink_html_consume_range(r, line_len, &in_html_tag,
+                                                    &html_quote_active,
+                                                    &html_quote_char);
                     r = line_end;
                     continue;
                 }
@@ -795,17 +857,23 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                 }
                 /* Copy the backticks */
                 for (int i = 0; i < backtick_count; i++) {
+                    apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                               &html_quote_char);
                     *w++ = *r++;
                 }
                 continue;
             } else if (backtick_count == 1) {
                 /* Inline code span - toggle state and copy the backtick */
                 in_inline_code = !in_inline_code;
+                apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                           &html_quote_char);
                 *w++ = *r++;
                 continue;
             } else {
                 /* Multiple backticks but less than 3 - copy them as-is (shouldn't happen in valid markdown) */
                 for (int i = 0; i < backtick_count; i++) {
+                    apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                               &html_quote_char);
                     *w++ = *r++;
                 }
                 continue;
@@ -814,46 +882,17 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
 
         /* Skip processing inside code blocks or inline code */
         if (in_code_block || in_inline_code) {
+            apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                       &html_quote_char);
             *w++ = *r++;
             continue;
         }
 
         /* Skip any autolink processing while inside an HTML tag (<...>),
          * including quoted attributes. */
-        bool in_html_tag = false;
-        {
-            bool quote_active = false;
-            char quote_char = '\0';
-            const char *scan = text;
-
-            while (scan < r) {
-                if (!in_html_tag) {
-                    if (*scan == '<') {
-                        in_html_tag = true;
-                    }
-                    scan++;
-                    continue;
-                }
-
-                if (quote_active) {
-                    if (*scan == quote_char) {
-                        quote_active = false;
-                    }
-                    scan++;
-                    continue;
-                }
-
-                if (*scan == '"' || *scan == '\'') {
-                    quote_active = true;
-                    quote_char = *scan;
-                } else if (*scan == '>') {
-                    in_html_tag = false;
-                }
-                scan++;
-            }
-        }
-
         if (in_html_tag) {
+            apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                       &html_quote_char);
             *w++ = *r++;
             continue;
         }
@@ -867,7 +906,11 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                 in_markdown_link_url = true;
                 paren_count = 1;  /* Count the opening '(' */
                 /* Copy ']' and '(' */
+                apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                           &html_quote_char);
                 *w++ = *r++; /* ']' */
+                apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                           &html_quote_char);
                 *w++ = *r++; /* '(' */
                 continue;
             }
@@ -886,99 +929,16 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
 
         /* Skip autolinking while inside markdown link text [ ... ] */
         if (bracket_count > 0 && !in_markdown_link_url) {
+            apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                       &html_quote_char);
             *w++ = *r++;
             continue;
         }
 
         /* Skip autolinking if we're inside a markdown link URL */
         if (in_markdown_link_url) {
-            *w++ = *r++;
-            continue;
-        }
-
-        /* Check if we're inside an HTML tag attribute - if so, skip autolinking */
-        /* Look backwards for < to see if we're inside a tag */
-        bool in_html_attribute = false;
-        if (*r == 'h' || *r == 'm') {  /* Quick check: URLs start with http or mailto */
-            const char *p = r - 1;
-            const char *tag_start = NULL;
-            const char *tag_end = NULL;
-
-            /* Find nearest < or > before r */
-            while (p >= text) {
-                if (*p == '>') {
-                    tag_end = p;
-                    break;
-                } else if (*p == '<') {
-                    tag_start = p;
-                    break;
-                }
-                p--;
-            }
-
-            /* If we're inside a tag (between < and >), check if we're in an attribute */
-            if (tag_start && (!tag_end || tag_start > tag_end)) {
-                /* Look backwards from r to find the nearest = sign within this tag */
-                p = r - 1;
-                const char *equals_pos = NULL;
-                while (p > tag_start) {
-                    if (*p == '=') {
-                        equals_pos = p;
-                        break;
-                    } else if (*p == '>') {
-                        break;
-                    }
-                    p--;
-                }
-
-                if (equals_pos) {
-                    /* Check what comes after the = */
-                    const char *after_equals = equals_pos + 1;
-                    /* Skip whitespace */
-                    while (after_equals < r && isspace((unsigned char)*after_equals)) {
-                        after_equals++;
-                    }
-
-                    if (after_equals < r) {
-                        /* Check if it's a quoted attribute */
-                        if (*after_equals == '"' || *after_equals == '\'') {
-                            char quote = *after_equals;
-                            const char *value_start = after_equals + 1;
-
-                            /* If r is after the opening quote, check if we're inside */
-                            if (r >= value_start) {
-                                /* Look for the closing quote - scan forward from value_start */
-                                const char *quote_end = value_start;
-                                while (quote_end < r && *quote_end != quote && *quote_end != '\0') {
-                                    quote_end++;
-                                }
-
-                                /* If we haven't found the closing quote by the time we reach r, we're inside */
-                                if (quote_end >= r || *quote_end != quote) {
-                                    in_html_attribute = true;
-                                }
-                            }
-                        } else {
-                            /* Unquoted attribute - value is between = and next space or > */
-                            const char *value_start = after_equals;
-                            if (r > value_start) {
-                                const char *value_end = value_start;
-                                while (value_end < r && !isspace((unsigned char)*value_end) && *value_end != '>') {
-                                    value_end++;
-                                }
-                                /* If r is in this unquoted value, we're inside an attribute */
-                                if (r <= value_end) {
-                                    in_html_attribute = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (in_html_attribute) {
-            /* Inside HTML attribute, copy as-is */
+            apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                       &html_quote_char);
             *w++ = *r++;
             continue;
         }
@@ -1006,6 +966,7 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                     *w++ = ']'; *w++ = '(';
                     memcpy(w, start, url_len); w += url_len;
                     *w++ = ')';
+                    /* Rewritten away from HTML; net tag state is unchanged. */
                     r = end + 1;
                     continue;
                 }
@@ -1028,6 +989,9 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
                 }
                 memcpy(w, r, comment_len);
                 w += comment_len;
+                apex_autolink_html_consume_range(r, comment_len, &in_html_tag,
+                                                &html_quote_active,
+                                                &html_quote_char);
                 r = comment_end + 3;
                 continue;
             }
@@ -1037,87 +1001,7 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
         bool is_url_start = false;
         bool is_email_start = false;
 
-        /* Check again if we're inside an HTML attribute before processing URLs */
-        bool in_html_attribute_url = false;
-        if (!isspace((unsigned char)*r) && (*r == 'h' || *r == 'm' || *r == '@')) {
-            const char *p = r - 1;
-            const char *tag_start = NULL;
-            const char *tag_end = NULL;
-
-            /* Find nearest < or > before r */
-            while (p >= text) {
-                if (*p == '>') {
-                    tag_end = p;
-                    break;
-                } else if (*p == '<') {
-                    tag_start = p;
-                    break;
-                }
-                p--;
-            }
-
-            /* If we're inside a tag (between < and >), check if we're in an attribute */
-            if (tag_start && (!tag_end || tag_start > tag_end)) {
-                /* Look backwards from r to find the nearest = sign within this tag */
-                p = r - 1;
-                const char *equals_pos = NULL;
-                while (p > tag_start) {
-                    if (*p == '=') {
-                        equals_pos = p;
-                        break;
-                    } else if (*p == '>') {
-                        break;
-                    }
-                    p--;
-                }
-
-                if (equals_pos) {
-                    /* Check what comes after the = */
-                    const char *after_equals = equals_pos + 1;
-                    /* Skip whitespace */
-                    while (after_equals < r && isspace((unsigned char)*after_equals)) {
-                        after_equals++;
-                    }
-
-                    if (after_equals < r) {
-                        /* Check if it's a quoted attribute */
-                        if (*after_equals == '"' || *after_equals == '\'') {
-                            char quote = *after_equals;
-                            const char *value_start = after_equals + 1;
-
-                            /* If r is after the opening quote, check if we're inside */
-                            if (r >= value_start) {
-                                /* Look for the closing quote - scan forward from value_start */
-                                const char *quote_end = value_start;
-                                while (quote_end < r && *quote_end != quote && *quote_end != '\0') {
-                                    quote_end++;
-                                }
-
-                                /* If we haven't found the closing quote by the time we reach r, we're inside */
-                                if (quote_end >= r || *quote_end != quote) {
-                                    in_html_attribute_url = true;
-                                }
-                            }
-                        } else {
-                            /* Unquoted attribute - value is between = and next space or > */
-                            const char *value_start = after_equals;
-                            if (r > value_start) {
-                                const char *value_end = value_start;
-                                while (value_end < r && !isspace((unsigned char)*value_end) && *value_end != '>') {
-                                    value_end++;
-                                }
-                                /* If r is in this unquoted value, we're inside an attribute */
-                                if (r <= value_end) {
-                                    in_html_attribute_url = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!isspace((unsigned char)*r) && !in_html_attribute_url) {
+        if (!isspace((unsigned char)*r)) {
             /* Check for URL protocols */
             if (strncmp(r, "http://", 7) == 0 || strncmp(r, "https://", 8) == 0 || strncmp(r, "mailto:", 7) == 0) {
                 is_url_start = true;
@@ -1248,6 +1132,9 @@ skip_email_candidate:
                 *w++ = ']'; *w++ = '(';
                 memcpy(w, href_text, href_len); w += href_len;
                 *w++ = ')';
+                apex_autolink_html_consume_range(start, (size_t)(end - start),
+                                                &in_html_tag, &html_quote_active,
+                                                &html_quote_char);
                 r = end;
                 free(mailto_buf);
                 continue;
@@ -1255,6 +1142,8 @@ skip_email_candidate:
             free(mailto_buf);
         }
 
+        apex_autolink_html_consume(*r, &in_html_tag, &html_quote_active,
+                                   &html_quote_char);
         *w++ = *r++;
 
         /* Safety: ensure we always advance */
