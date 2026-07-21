@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.13] - 2026-07-21
+
+### New
+
+- **Node npm binding design** documenting @apexmarkdown/apex native distribution, camelCase options, and v1 platform scope.
+- **Node npm implementation plan** covering CMake binding, complete options mapping, and platform prebuilds.
+
+### Improved
+
+- **Autolinking** scales linearly on large documents instead of slowing quadratically.
+
 ## [1.1.12] - 2026-07-19
 
 ### New
@@ -3109,6 +3120,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.13]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.13
 [1.1.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.12
 [1.1.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.11
 [1.1.10]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.10
