@@ -127,6 +127,7 @@ let package = Package(
                 "src/extensions/emoji.c",
                 "src/extensions/special_markers.c",
                 "src/extensions/ial.c",
+                "src/extensions/bear_image_attrs.c",
                 "src/extensions/definition_list.c",
                 "src/extensions/advanced_footnotes.c",
                 "src/extensions/advanced_tables.c",

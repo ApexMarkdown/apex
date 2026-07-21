@@ -88,6 +88,7 @@ extern NSString * const ApexModeQuarto;
  *   - @"obfuscateEmails": NSNumber (BOOL) - Obfuscate email links
  *   - @"embedImages": NSNumber (BOOL) - Embed images as base64 data URLs
  *   - @"enablePlugins": NSNumber (BOOL) - Enable external plugin processing
+ *   - @"enableAutolink": NSNumber (BOOL) - Autolink bare URLs and emails
  * @return HTML string
  */
 + (NSString *)convertWithApex:(NSString *)inputString
@@ -121,6 +122,15 @@ extern NSString * const ApexModeQuarto;
 + (NSString *)convertWithApex:(NSString *)inputString
                          mode:(NSString *)mode
                     sourceURL:(NSURL *)sourceURL;
+
+/**
+ * Same as convertWithApex:mode:sourceURL: with explicit autolink control.
+ * Disabling autolink avoids a costly scan on large URL-heavy documents.
+ */
++ (NSString *)convertWithApex:(NSString *)inputString
+                         mode:(NSString *)mode
+                    sourceURL:(NSURL *)sourceURL
+               enableAutolink:(BOOL)enableAutolink;
 
 /**
  * Convert this string (as Markdown) to HTML using Apex in unified mode

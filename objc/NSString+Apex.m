@@ -276,6 +276,12 @@ NSString *const ApexModeQuarto = @"quarto";
     if (enablePluginsValue && [enablePluginsValue isKindOfClass:[NSNumber class]]) {
       options.enable_plugins = [enablePluginsValue boolValue];
     }
+
+    /* Autolink bare URLs / emails */
+    id enableAutolinkValue = optionsDict[@"enableAutolink"];
+    if (enableAutolinkValue && [enableAutolinkValue isKindOfClass:[NSNumber class]]) {
+      options.enable_autolink = [enableAutolinkValue boolValue];
+    }
   }
 
   /* Convert to HTML */
@@ -341,6 +347,16 @@ NSString *const ApexModeQuarto = @"quarto";
 + (NSString *)convertWithApex:(NSString *)inputString
                          mode:(NSString *)modeString
                     sourceURL:(NSURL *)sourceURL {
+  return [self convertWithApex:inputString
+                          mode:modeString
+                     sourceURL:sourceURL
+                enableAutolink:YES];
+}
+
++ (NSString *)convertWithApex:(NSString *)inputString
+                         mode:(NSString *)modeString
+                    sourceURL:(NSURL *)sourceURL
+               enableAutolink:(BOOL)enableAutolink {
   if (!inputString || [inputString length] == 0) {
     return @"";
   }
@@ -361,6 +377,7 @@ NSString *const ApexModeQuarto = @"quarto";
    * sandboxed Quick Look. Callers (Marked Quick Look) embed after security-scoped
    * folder grants with a non-blocking Swift pass. */
   options.embed_images = false;
+  options.enable_autolink = enableAutolink;
 
   if (sourceURL && sourceURL.isFileURL) {
     NSString *path = sourceURL.path;

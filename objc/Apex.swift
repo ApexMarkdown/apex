@@ -60,6 +60,9 @@ public struct ApexOptions {
     /// Enable external plugin processing during conversion.
     public var enablePlugins: Bool = false
 
+    /// Autolink bare URLs and emails. `nil` leaves the mode default unchanged.
+    public var enableAutolink: Bool? = nil
+
     /// Default initializer
     public init() {}
     
@@ -102,6 +105,9 @@ public struct ApexOptions {
         }
         if enablePlugins {
             dict["enablePlugins"] = true
+        }
+        if let enableAutolink {
+            dict["enableAutolink"] = enableAutolink
         }
 
         return dict
@@ -217,9 +223,14 @@ public struct Apex {
      * Convert Markdown to HTML using Apex with source file URL for includes
      */
     public static func convert(
-        _ markdown: String, mode: ApexMode = .unified, sourceURL: URL
+        _ markdown: String, mode: ApexMode = .unified, sourceURL: URL, enableAutolink: Bool = true
     ) -> String {
-        return NSString.convert(withApex: markdown, mode: mode.rawValue, sourceURL: sourceURL)
+        return NSString.convert(
+            withApex: markdown,
+            mode: mode.rawValue,
+            sourceURL: sourceURL,
+            enableAutolink: enableAutolink
+        )
     }
 
     /**
