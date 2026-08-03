@@ -2,6 +2,24 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.14] - 2026-08-03
+
+### Changed
+
+- **RTF remote images** show a hyperlinked alt label (or "image" when alt is empty) instead of dumping raw URLs.
+
+### New
+
+- **-t rtf** writes Rich Text Format from the CLI (also `-o file.rtf`).
+- **APEX_OUTPUT_RTF** / **apex_cmark_to_rtf()** return RTF from the C API.
+- **RTF writer** covers headings, emphasis, links, lists (including tasks), code, quotes, tables, images, footnotes, definition lists, strike/sup/sub, and best-effort callouts/HTML.
+- **ObjC/Swift apexRTF** and **apexAttributedString** (RTF preferred, HTML fallback) for AppKit/UIKit.
+
+### Improved
+
+- Additional docset pages
+- **RTF local images** embed as PNG/JPEG picts by default without needing --embed-images.
+
 ## [1.1.13] - 2026-08-03
 
 ### Changed
@@ -3127,6 +3145,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.14]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.14
 [1.1.13]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.13
 [1.1.12]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.12
 [1.1.11]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.11
