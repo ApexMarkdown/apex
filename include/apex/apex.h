@@ -65,7 +65,8 @@ typedef enum {
     APEX_OUTPUT_TERMINAL256 = 9,    /* ANSI terminal output (256-color) */
     APEX_OUTPUT_MAN = 10,           /* roff (man page source) */
     APEX_OUTPUT_MAN_HTML = 11,      /* styled HTML man page */
-    APEX_OUTPUT_TOC = 12            /* Markdown TOC list only */
+    APEX_OUTPUT_TOC = 12,           /* Markdown TOC list only */
+    APEX_OUTPUT_RTF = 13            /* Rich Text Format */
 } apex_output_format_t;
 
 /**
@@ -338,6 +339,7 @@ char *apex_cmark_to_markdown(cmark_node *document,
                              apex_markdown_dialect_t dialect);
 char *apex_cmark_to_man_roff(cmark_node *document, const struct apex_options *options);
 char *apex_cmark_to_man_html(cmark_node *document, const struct apex_options *options);
+char *apex_cmark_to_rtf(cmark_node *document, const struct apex_options *options);
 
 /**
  * Get default options for a specific mode

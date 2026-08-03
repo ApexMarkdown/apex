@@ -1028,7 +1028,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream\n");
     fprintf(stderr, "                         Index files list document parts line-by-line; indentation controls header level shifting.\n");
     fprintf(stderr, "  -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified, quarto (default)\n");
-    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc\n");
+    fprintf(stderr, "  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc, rtf\n");
     fprintf(stderr, "  --no-bibliography       Suppress bibliography output\n");
     fprintf(stderr, "  --no-footnotes         Disable footnote support\n");
     fprintf(stderr, "  --no-ids                Disable automatic header ID generation\n");
@@ -2140,9 +2140,11 @@ int main(int argc, char *argv[]) {
                 options.output_format = APEX_OUTPUT_MAN_HTML;
             } else if (strcmp(argv[i], "toc") == 0) {
                 options.output_format = APEX_OUTPUT_TOC;
+            } else if (strcmp(argv[i], "rtf") == 0) {
+                options.output_format = APEX_OUTPUT_RTF;
             } else {
                 fprintf(stderr, "Error: Unknown output format '%s'\n", argv[i]);
-                fprintf(stderr, "Supported formats: html, xhtml, strict-xhtml, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc\n");
+                fprintf(stderr, "Supported formats: html, xhtml, strict-xhtml, json, json-filtered/ast-json/ast, markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc, rtf\n");
                 return 1;
             }
         } else if (strncmp(argv[i], "--toc-min-max=", 14) == 0 ||

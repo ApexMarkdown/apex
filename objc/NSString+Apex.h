@@ -89,7 +89,8 @@ extern NSString * const ApexModeQuarto;
  *   - @"embedImages": NSNumber (BOOL) - Embed images as base64 data URLs
  *   - @"enablePlugins": NSNumber (BOOL) - Enable external plugin processing
  *   - @"enableAutolink": NSNumber (BOOL) - Autolink bare URLs and emails
- * @return HTML string
+ *   - @"outputFormat": NSString - @"html" (default) or @"rtf"
+ * @return HTML or RTF string depending on outputFormat
  */
 + (NSString *)convertWithApex:(NSString *)inputString
                          mode:(NSString *)mode
@@ -146,6 +147,43 @@ extern NSString * const ApexModeQuarto;
  * @return HTML string
  */
 - (NSString *)apexHTMLWithMode:(NSString *)mode;
+
+/**
+ * Convert this string (as Markdown) to RTF using Apex in unified mode.
+ */
+- (NSString *)apexRTF;
+
+/**
+ * Convert this string (as Markdown) to RTF using Apex with specific mode.
+ */
+- (NSString *)apexRTFWithMode:(NSString *)mode;
+
+/**
+ * Convert this string (as Markdown) to RTF with mode and options dictionary.
+ * Sets outputFormat to rtf automatically.
+ */
+- (NSString *)apexRTFWithMode:(NSString *)mode
+                      options:(NSDictionary<NSString *, id> * _Nullable)options;
+
+#if __has_include(<AppKit/AppKit.h>) || __has_include(<UIKit/UIKit.h>)
+/**
+ * Build an NSAttributedString from Markdown via Apex RTF output (preferred).
+ */
+- (NSAttributedString * _Nullable)apexAttributedString;
+
+/**
+ * Build an NSAttributedString from Markdown using RTF or HTML document type.
+ * @param useHTML If YES, use NSHTMLTextDocumentType; if NO, use NSRTFTextDocumentType.
+ */
+- (NSAttributedString * _Nullable)apexAttributedStringUsingHTML:(BOOL)useHTML;
+
+/**
+ * Build an NSAttributedString with mode/options, preferring RTF unless useHTML is YES.
+ */
+- (NSAttributedString * _Nullable)apexAttributedStringWithMode:(NSString *)mode
+                                                      options:(NSDictionary<NSString *, id> * _Nullable)options
+                                                     usingHTML:(BOOL)useHTML;
+#endif
 
 /**
  * Extract a flat table of contents for outline / table-view UIs.

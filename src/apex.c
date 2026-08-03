@@ -52,6 +52,7 @@
 #include "apex/ast_markdown.h"
 #include "apex/ast_terminal.h"
 #include "apex/ast_man.h"
+#include "apex/ast_rtf.h"
 #include "filters_ast.h"
 
 /* Custom renderer */
@@ -5950,6 +5951,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         } else if (options->output_format == APEX_OUTPUT_TERMINAL ||
                    options->output_format == APEX_OUTPUT_TERMINAL256) {
             target_format = "terminal";
+        } else if (options->output_format == APEX_OUTPUT_RTF) {
+            target_format = "rtf";
         }
         cmark_node *filtered = apex_run_ast_filters(document, options, target_format);
         if (!filtered && options->ast_filter_strict) {
@@ -6098,6 +6101,12 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (options->output_format == APEX_OUTPUT_MAN_HTML) {
         char *man_html = apex_cmark_to_man_html(document, options);
         return man_html ? man_html : strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>");
+    }
+
+    /* If output format is RTF, serialize AST and return */
+    if (options->output_format == APEX_OUTPUT_RTF) {
+        char *rtf = apex_cmark_to_rtf(document, options);
+        return rtf ? rtf : strdup("{\\rtf1\\ansi\\deff0\\pard\\par}\n");
     }
 
     /* Render to HTML

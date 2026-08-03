@@ -193,6 +193,7 @@ output more accessible. Default: disabled.
 - **terminal**, **cli**, **terminal256** - ANSI-colored output for TTYs and terminal emulators
 - **man** - Man page roff source (.TH, .SH, etc.)
 - **man-html** - Styled HTML man page (use **--standalone** for full page with nav sidebar)
+- **rtf** - Rich Text Format (native writer; write to a `.rtf` file for best results)
 
 When using a terminal format, Apex emits ANSI-colored output suitable for TTYs and
 terminal emulators.

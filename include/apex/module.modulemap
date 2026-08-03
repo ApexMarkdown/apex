@@ -21,5 +21,9 @@ module ApexHeaders {
         header "ast_man.h"
         export *
     }
+    explicit module ast_rtf {
+        header "ast_rtf.h"
+        export *
+    }
     export *
 }

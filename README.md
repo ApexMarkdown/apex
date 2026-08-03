@@ -150,6 +150,7 @@ See the [Indices](https://github.com/ApexMarkdown/apex/wiki/Indices) wiki page f
 - **Header anchors**: Option to generate `<a>` anchor tags instead of header IDs
 - **ARIA accessibility**: Add ARIA labels and accessibility attributes (`--aria`) for better screen reader support, including aria-label on TOC navigation, role attributes on figures and tables, and aria-describedby linking tables to their captions
 - **Terminal output**: Render Markdown in the terminal with `-t terminal` / `-t terminal256`, themes, pagination, and optional inline images ([more info](https://github.com/ApexMarkdown/apex/wiki/Rendering-Markdown-In-Terminal))
+- **RTF output**: Native Rich Text Format via `-t rtf` (files and `NSAttributedString`); see clipboard notes in [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Line-Options)
 - **Terminal inline images**: With `-t terminal` / `-t terminal256`, when stdout is a TTY and a viewer is available on `PATH`, Markdown images are rendered as inline terminal graphics (viewer order: `imgcat`, `chafa`, `viu`, `catimg`). Width is controlled with `--terminal-image-width` (default 50 character cells). HTTP(S) URLs are downloaded with `curl` (60s timeout, 10 MiB max) to a temp file under `TMPDIR` or `/tmp`. Use `--no-terminal-images` to always show images as styled link text plus URL instead. Metadata: `terminal.inline_images` / `terminal_inline_images`, `terminal.image_width` / `terminal_image_width`.
 
 ### Advanced Features
@@ -395,7 +396,7 @@ Options:
   --mmd-merge            Merge files from one or more mmd_merge-style index files into a single Markdown stream
                          Index files list document parts line-by-line; indentation controls header level shifting.
   -m, --mode MODE        Processor mode: commonmark, gfm, mmd, kramdown, unified, quarto (default)
-  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc
+  -t, --to FORMAT        Output format: html (default), xhtml (alias for html + --xhtml), strict-xhtml (alias for html + --strict-xhtml), json (before filters), json-filtered/ast-json/ast (after filters), markdown/md, mmd, commonmark/cmark, kramdown, gfm, terminal/cli, terminal256, man, man-html, toc, rtf
   --no-bibliography       Suppress bibliography output
   --no-footnotes         Disable footnote support
   --no-ids                Disable automatic header ID generation

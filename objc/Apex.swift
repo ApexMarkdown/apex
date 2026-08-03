@@ -8,6 +8,12 @@ import Foundation
 @_exported import ApexObjC
 @_exported import ApexC
 
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
+
 /// Apex processor mode
 /// Type-safe enum for processor modes
 public enum ApexMode: String, CaseIterable {
@@ -22,6 +28,14 @@ public enum ApexMode: String, CaseIterable {
     internal var nsString: NSString {
         return self.rawValue as NSString
     }
+}
+
+/// Preferred document type when building NSAttributedString from Markdown.
+public enum ApexAttributedSource: String {
+    /// Use Apex RTF output (NSRTFTextDocumentType). Preferred for AppKit fidelity.
+    case rtf
+    /// Use Apex HTML output (NSHTMLTextDocumentType).
+    case html
 }
 
 /// Apex conversion options
@@ -62,6 +76,9 @@ public struct ApexOptions {
 
     /// Autolink bare URLs and emails. `nil` leaves the mode default unchanged.
     public var enableAutolink: Bool? = nil
+
+    /// Output format: "html" (default) or "rtf"
+    public var outputFormat: String? = nil
 
     /// Default initializer
     public init() {}
@@ -108,6 +125,9 @@ public struct ApexOptions {
         }
         if let enableAutolink {
             dict["enableAutolink"] = enableAutolink
+        }
+        if let outputFormat = outputFormat {
+            dict["outputFormat"] = outputFormat
         }
 
         return dict
@@ -186,6 +206,32 @@ extension String {
             pretty: pretty
         )
     }
+
+    /**
+     * Convert Markdown to RTF using Apex.
+     */
+    public func apexRTF(mode: ApexMode = .unified, options: ApexOptions = .default) -> String {
+        var opts = options
+        opts.outputFormat = "rtf"
+        return NSString.convert(withApex: self, mode: mode.rawValue, options: opts.toDictionary())
+    }
+
+    #if canImport(AppKit) || canImport(UIKit)
+    /**
+     * Convert Markdown to NSAttributedString.
+     * Defaults to the RTF pipeline; pass source: .html for the HTML importer.
+     */
+    public func apexAttributedString(
+        mode: ApexMode = .unified,
+        options: ApexOptions = .default,
+        source: ApexAttributedSource = .rtf
+    ) -> NSAttributedString {
+        let dict = options.toDictionary()
+        let useHTML = (source == .html)
+        return (self as NSString).apexAttributedString(
+            withMode: mode.rawValue, options: dict.isEmpty ? nil : dict, usingHTML: useHTML)
+    }
+    #endif
 }
 
 /// Static Apex converter

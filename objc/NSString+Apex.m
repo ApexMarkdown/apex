@@ -282,9 +282,20 @@ NSString *const ApexModeQuarto = @"quarto";
     if (enableAutolinkValue && [enableAutolinkValue isKindOfClass:[NSNumber class]]) {
       options.enable_autolink = [enableAutolinkValue boolValue];
     }
+
+    /* Output format: html (default) or rtf */
+    id outputFormatValue = optionsDict[@"outputFormat"];
+    if (outputFormatValue && [outputFormatValue isKindOfClass:[NSString class]]) {
+      NSString *fmt = [(NSString *)outputFormatValue lowercaseString];
+      if ([fmt isEqualToString:@"rtf"]) {
+        options.output_format = APEX_OUTPUT_RTF;
+      } else {
+        options.output_format = APEX_OUTPUT_HTML;
+      }
+    }
   }
 
-  /* Convert to HTML */
+  /* Convert to HTML or RTF */
   char *html_c = apex_markdown_to_html(markdown, strlen(markdown), &options);
 
   if (!html_c) {
@@ -415,6 +426,68 @@ NSString *const ApexModeQuarto = @"quarto";
 - (NSString *)apexHTMLWithMode:(NSString *)mode {
   return [NSString convertWithApex:self mode:mode];
 }
+
+- (NSString *)apexRTF {
+  return [self apexRTFWithMode:ApexModeUnified options:nil];
+}
+
+- (NSString *)apexRTFWithMode:(NSString *)mode {
+  return [self apexRTFWithMode:mode options:nil];
+}
+
+- (NSString *)apexRTFWithMode:(NSString *)mode
+                      options:(NSDictionary<NSString *, id> *_Nullable)options {
+  NSMutableDictionary *dict =
+      options ? [options mutableCopy] : [NSMutableDictionary dictionary];
+  dict[@"outputFormat"] = @"rtf";
+  return [NSString convertWithApex:self mode:mode options:dict];
+}
+
+#if __has_include(<AppKit/AppKit.h>)
+#import <AppKit/AppKit.h>
+#elif __has_include(<UIKit/UIKit.h>)
+#import <UIKit/UIKit.h>
+#endif
+
+#if __has_include(<AppKit/AppKit.h>) || __has_include(<UIKit/UIKit.h>)
+- (NSAttributedString *)apexAttributedString {
+  return [self apexAttributedStringWithMode:ApexModeUnified options:nil usingHTML:NO];
+}
+
+- (NSAttributedString *)apexAttributedStringUsingHTML:(BOOL)useHTML {
+  return [self apexAttributedStringWithMode:ApexModeUnified options:nil usingHTML:useHTML];
+}
+
+- (NSAttributedString *)apexAttributedStringWithMode:(NSString *)mode
+                                             options:(NSDictionary<NSString *, id> *_Nullable)options
+                                            usingHTML:(BOOL)useHTML {
+  NSString *source = nil;
+  NSAttributedStringDocumentType docType;
+  if (useHTML) {
+    source = [NSString convertWithApex:self mode:mode options:options];
+    docType = NSHTMLTextDocumentType;
+  } else {
+    source = [self apexRTFWithMode:mode options:options];
+    docType = NSRTFTextDocumentType;
+  }
+  if (!source || [source length] == 0) {
+    return [[NSAttributedString alloc] initWithString:@""];
+  }
+  NSData *data = [source dataUsingEncoding:NSUTF8StringEncoding];
+  if (!data) {
+    return nil;
+  }
+  NSDictionary *attrs = @{
+    NSDocumentTypeDocumentAttribute : docType,
+    NSCharacterEncodingDocumentAttribute : @(NSUTF8StringEncoding)
+  };
+  NSError *error = nil;
+  NSAttributedString *attr =
+      [[NSAttributedString alloc] initWithData:data options:attrs documentAttributes:nil error:&error];
+  (void)error;
+  return attr;
+}
+#endif
 
 /**
  * Extract a flat table of contents as dictionaries suitable for Swift OutlineGroup.

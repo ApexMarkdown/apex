@@ -721,6 +721,70 @@ void test_terminal_output(void) {
 }
 
 /**
+ * Test RTF output
+ */
+void test_rtf_output(void) {
+    int suite_failures = suite_start();
+    print_suite_title("RTF Output Tests", false, true);
+
+    apex_options opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_RTF;
+    char *out;
+
+    const char *md =
+        "# Title\n\n"
+        "A paragraph with **bold**, *italic*, ~~strike~~, and `code`.\n\n"
+        "Visit [Example](https://example.com).\n\n"
+        "- Item one\n"
+        "- Item two\n\n"
+        "> A quote\n\n"
+        "```\ncode block\n```\n\n"
+        "| A | B |\n| --- | --- |\n| 1 | 2 |\n\n"
+        "H~2~O and E=mc^2^.\n\n"
+        "---\n";
+
+    out = apex_markdown_to_html(md, strlen(md), &opts);
+    assert_contains(out, "{\\rtf1", "RTF has document header");
+    assert_contains(out, "\\fonttbl", "RTF has font table");
+    assert_contains(out, "Title", "RTF includes heading text");
+    assert_contains(out, "\\b ", "RTF has bold");
+    assert_contains(out, "\\i ", "RTF has italic");
+    assert_contains(out, "\\strike", "RTF has strikethrough");
+    assert_contains(out, "\\f1", "RTF uses mono font for code");
+    assert_contains(out, "HYPERLINK", "RTF has hyperlink field");
+    assert_contains(out, "example.com", "RTF link URL present");
+    assert_contains(out, "\\bullet", "RTF has bullet list");
+    assert_contains(out, "\\trowd", "RTF has table row");
+    assert_contains(out, "code block", "RTF has code block text");
+    assert_contains(out, "\\super", "RTF has superscript");
+    assert_contains(out, "\\sub", "RTF has subscript");
+    test_result(out != NULL && strstr(out, "}") != NULL, "RTF document contains closing brace");
+    apex_free_string(out);
+
+    /* Ordered list alone so mixed-list merging cannot absorb it into a ul */
+    out = apex_markdown_to_html("1. First\n2. Second\n", 20, &opts);
+    assert_contains(out, "1. ", "RTF has ordered list marker");
+    assert_contains(out, "First", "RTF ordered list item text");
+    apex_free_string(out);
+
+    /* Footnotes endnotes */
+    const char *fn = "Note.[^1]\n\n[^1]: Footnote body.\n";
+    out = apex_markdown_to_html(fn, strlen(fn), &opts);
+    assert_contains(out, "{\\rtf1", "Footnote doc is RTF");
+    assert_contains(out, "Footnotes", "RTF endnotes section");
+    assert_contains(out, "Footnote body", "RTF footnote body");
+    apex_free_string(out);
+
+    /* Direct serializer */
+    out = apex_markdown_to_html("Hi", 2, &opts);
+    test_result(out != NULL && strncmp(out, "{\\rtf1", 6) == 0, "apex_markdown_to_html RTF path");
+    apex_free_string(out);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("RTF Output Tests", had_failures, false);
+}
+
+/**
  * Test header ID generation
  */
 
