@@ -273,16 +273,18 @@ static int hex_digit(unsigned char v) {
     return v < 10 ? ('0' + v) : ('a' + (v - 10));
 }
 
+/* Local PNG/JPEG only. Remote URLs are never fetched (same policy as HTML embed).
+ * Unlike HTML, RTF always attempts embed for local files — no embed_images flag. */
 static bool rtf_try_embed_image(rtf_ctx *ctx, const char *url) {
-    if (!ctx->options || !ctx->options->embed_images || !url || !*url) return false;
+    if (!url || !*url) return false;
     if (strncmp(url, "http://", 7) == 0 || strncmp(url, "https://", 8) == 0 ||
-        strncmp(url, "data:", 5) == 0) {
+        strncmp(url, "data:", 5) == 0 || strncmp(url, "//", 2) == 0) {
         return false;
     }
 
     const char *path = url;
     char resolved[4096];
-    if (ctx->options->base_directory && url[0] != '/') {
+    if (ctx->options && ctx->options->base_directory && url[0] != '/') {
         snprintf(resolved, sizeof(resolved), "%s/%s", ctx->options->base_directory, url);
         path = resolved;
     }
@@ -331,18 +333,65 @@ static bool rtf_try_embed_image(rtf_ctx *ctx, const char *url) {
 /* Inlines                                                                   */
 /* ------------------------------------------------------------------------- */
 
+static void rtf_append_hyperlink_url(rtf_buffer *b, const char *url) {
+    for (const char *p = url; *p; p++) {
+        if (*p == '"' || *p == '\\') rtf_buf_append_char(b, '\\');
+        if ((unsigned char)*p < 0x80)
+            rtf_buf_append_char(b, *p);
+        else
+            rtf_buf_append_char(b, *p);
+    }
+}
+
+static bool rtf_image_has_alt(cmark_node *node) {
+    for (cmark_node *c = cmark_node_first_child(node); c; c = cmark_node_next(c)) {
+        cmark_node_type ct = cmark_node_get_type(c);
+        if (ct == CMARK_NODE_TEXT) {
+            const char *lit = cmark_node_get_literal(c);
+            if (lit) {
+                while (*lit == ' ' || *lit == '\t') lit++;
+                if (*lit) return true;
+            }
+        } else if (ct != CMARK_NODE_SOFTBREAK && ct != CMARK_NODE_LINEBREAK) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void rtf_write_hyperlink_open(rtf_buffer *b, const char *url) {
+    rtf_buf_append_str(b, "{\\field{\\*\\fldinst{HYPERLINK \"");
+    rtf_append_hyperlink_url(b, url);
+    rtf_buf_append_str(b, "\"}}{\\fldrslt{\\ul\\cf2 ");
+}
+
+static void rtf_write_hyperlink_close(rtf_buffer *b) {
+    rtf_buf_append_str(b, "\\ulnone\\cf0 }}}");
+}
+
 static void render_link(rtf_ctx *ctx, cmark_node *node, bool is_image) {
     const char *url = cmark_node_get_url(node);
     if (is_image) {
         if (url && rtf_try_embed_image(ctx, url)) return;
-        /* Fallback: alt text + URL */
-        rtf_buf_append_str(ctx->buf, "[");
-        render_children_inline(ctx, node);
-        rtf_buf_append_str(ctx->buf, "]");
+
+        /* Fallback: linked alt text (or "image"); never dump the raw URL inline. */
+        const char *title = cmark_node_get_title(node);
+        bool has_alt = rtf_image_has_alt(node);
+        bool has_title = title && *title;
+
         if (url && *url) {
-            rtf_buf_append_str(ctx->buf, " (");
-            rtf_append_utf8_str(ctx->buf, url);
-            rtf_buf_append_str(ctx->buf, ")");
+            rtf_write_hyperlink_open(ctx->buf, url);
+            if (has_alt)
+                render_children_inline(ctx, node);
+            else if (has_title)
+                rtf_append_utf8_str(ctx->buf, title);
+            else
+                rtf_buf_append_str(ctx->buf, "image");
+            rtf_write_hyperlink_close(ctx->buf);
+        } else if (has_alt) {
+            render_children_inline(ctx, node);
+        } else if (has_title) {
+            rtf_append_utf8_str(ctx->buf, title);
         }
         return;
     }
@@ -352,21 +401,9 @@ static void render_link(rtf_ctx *ctx, cmark_node *node, bool is_image) {
         return;
     }
 
-    /* Escape quotes in URL for field */
-    rtf_buf_append_str(ctx->buf, "{\\field{\\*\\fldinst{HYPERLINK \"");
-    for (const char *p = url; *p; p++) {
-        if (*p == '"' || *p == '\\') rtf_buf_append_char(ctx->buf, '\\');
-        /* Keep URL mostly ASCII; encode non-ASCII as unicode for display in field */
-        if ((unsigned char)*p < 0x80)
-            rtf_buf_append_char(ctx->buf, *p);
-        else {
-            /* Skip multi-byte in URL field as % encoded would be better; emit as-is byte */
-            rtf_buf_append_char(ctx->buf, *p);
-        }
-    }
-    rtf_buf_append_str(ctx->buf, "\"}}{\\fldrslt{\\ul\\cf2 ");
+    rtf_write_hyperlink_open(ctx->buf, url);
     render_children_inline(ctx, node);
-    rtf_buf_append_str(ctx->buf, "\\ulnone\\cf0 }}}");
+    rtf_write_hyperlink_close(ctx->buf);
 }
 
 static void render_inline(rtf_ctx *ctx, cmark_node *node) {

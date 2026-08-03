@@ -780,6 +780,41 @@ void test_rtf_output(void) {
     test_result(out != NULL && strncmp(out, "{\\rtf1", 6) == 0, "apex_markdown_to_html RTF path");
     apex_free_string(out);
 
+    /* Remote images: alt becomes a hyperlink; no raw URL dump in body */
+    {
+        const char *remote =
+            "![Version: 1.1.12](https://img.shields.io/badge/Version-1.1.12-528c9e)\n";
+        out = apex_markdown_to_html(remote, strlen(remote), &opts);
+        assert_contains(out, "HYPERLINK", "Remote image uses HYPERLINK fallback");
+        assert_contains(out, "Version: 1.1.12", "Remote image shows alt text");
+        assert_contains(out, "img.shields.io", "Remote image URL in HYPERLINK field");
+        test_result(out != NULL && strstr(out, "] (") == NULL, "Remote image does not dump ] (url)");
+        test_result(out != NULL && strstr(out, "\\pict") == NULL, "Remote image is not embedded as pict");
+        apex_free_string(out);
+    }
+
+    {
+        const char *empty_alt = "![](https://example.com/x.png)\n";
+        out = apex_markdown_to_html(empty_alt, strlen(empty_alt), &opts);
+        assert_contains(out, "HYPERLINK", "Empty-alt remote image is still a link");
+        assert_contains(out, "image", "Empty-alt remote image uses image label");
+        apex_free_string(out);
+    }
+
+    /* Local JPEG embeds without embed_images */
+    opts.embed_images = false;
+    opts.base_directory = "tests/fixtures/images";
+    {
+        const char *local = "![Local](img/app-pass-1-profile-menu.jpg)\n";
+        out = apex_markdown_to_html(local, strlen(local), &opts);
+        assert_contains(out, "\\pict", "Local JPEG embeds as RTF pict");
+        assert_contains(out, "jpegblip", "Local JPEG uses jpegblip");
+        test_result(out != NULL && strstr(out, "HYPERLINK") == NULL,
+                    "Embedded local image is not a hyperlink fallback");
+        apex_free_string(out);
+    }
+    opts.base_directory = NULL;
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("RTF Output Tests", had_failures, false);
 }
