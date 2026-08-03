@@ -2,15 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
-## [1.1.13] - 2026-07-21
+## [1.1.13] - 2026-08-03
+
+### Changed
+
+- **RTF remote images** show a hyperlinked alt label (or "image" when alt is empty) instead of dumping raw URLs.
+- **-t rtf** writes Rich Text Format from the CLI (also `-o file.rtf`).
+- **APEX_OUTPUT_RTF** / **apex_cmark_to_rtf()** return RTF from the C API.
+- **RTF writer** covers headings, emphasis, links, lists (including tasks), code, quotes, tables, images, footnotes, definition lists, strike/sup/sub, and best-effort callouts/HTML.
+- **ObjC/Swift apexRTF** and **apexAttributedString** (RTF preferred, HTML fallback) for AppKit/UIKit.
+- Additional docset pages
+- **RTF local images** embed as PNG/JPEG picts by default without needing --embed-images.
 
 ### New
 
 - **Node npm binding design** documenting @apexmarkdown/apex native distribution, camelCase options, and v1 platform scope.
 - **Node npm implementation plan** covering CMake binding, complete options mapping, and platform prebuilds.
-
-### Improved
-
 - **Autolinking** scales linearly on large documents instead of slowing quadratically.
 
 ## [1.1.12] - 2026-07-19

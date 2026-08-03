@@ -225,7 +225,7 @@ extension String {
         mode: ApexMode = .unified,
         options: ApexOptions = .default,
         source: ApexAttributedSource = .rtf
-    ) -> NSAttributedString {
+    ) -> NSAttributedString? {
         let dict = options.toDictionary()
         let useHTML = (source == .html)
         return (self as NSString).apexAttributedString(

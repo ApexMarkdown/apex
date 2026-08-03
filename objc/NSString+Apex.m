@@ -6,6 +6,12 @@
 #import "NSString+Apex.h"
 #import <apex/apex.h>
 
+#if __has_include(<AppKit/AppKit.h>)
+#import <AppKit/AppKit.h>
+#elif __has_include(<UIKit/UIKit.h>)
+#import <UIKit/UIKit.h>
+#endif
+
 /**
  * Apex mode constants
  */
@@ -442,12 +448,6 @@ NSString *const ApexModeQuarto = @"quarto";
   dict[@"outputFormat"] = @"rtf";
   return [NSString convertWithApex:self mode:mode options:dict];
 }
-
-#if __has_include(<AppKit/AppKit.h>)
-#import <AppKit/AppKit.h>
-#elif __has_include(<UIKit/UIKit.h>)
-#import <UIKit/UIKit.h>
-#endif
 
 #if __has_include(<AppKit/AppKit.h>) || __has_include(<UIKit/UIKit.h>)
 - (NSAttributedString *)apexAttributedString {
