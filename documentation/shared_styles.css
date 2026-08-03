@@ -1,4 +1,10 @@
-/* Base styles */
+:root {
+  /* border-box width of the fixed sidebar; body offset includes a small gap */
+  --sidebar-width: 250px;
+  --sidebar-offset: 270px;
+}
+
+/* Base styles — override Apex standalone centering (max-width + margin: auto) */
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -8,6 +14,11 @@ body {
   line-height: 1.65;
   color: #1e293b;
   background-color: #fff;
+  max-width: none;
+  width: auto;
+  margin: 2rem 2rem 2rem var(--sidebar-offset);
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 /* Sidebar / Main TOC - wider on larger screens */
@@ -16,9 +27,10 @@ body {
   position: fixed;
   left: 0;
   top: 0;
-  width: auto;
-  min-width: 180px;
-  max-width: 250px;
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
   height: 100vh;
   overflow-y: auto;
   background: #1e293b;
@@ -27,7 +39,6 @@ body {
   padding: 24px 20px 130px;
   font-size: 14px;
   z-index: 100;
-  margin-right: 1rem;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
 }
@@ -76,11 +87,6 @@ body {
   font-weight: 500;
 }
 
-/* Body margin for sidebar */
-body {
-  margin-left: 270px;
-}
-
 /* Hamburger menu button */
 .hamburger-menu {
   display: none;
@@ -96,6 +102,7 @@ body {
   color: rgba(255, 255, 255, 0.9);
   font-size: 20px;
   line-height: 1;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -113,9 +120,7 @@ body {
 
 /* Move hamburger to the right of the sidebar when menu is open */
 .hamburger-menu.active {
-  left: calc(
-    250px + 12px
-  ); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
+  left: calc(var(--sidebar-width) + 12px);
 }
 
 .hamburger-menu.active {
@@ -211,7 +216,7 @@ body {
 .floating-toc {
   position: fixed;
   top: 0;
-  left: 270px;
+  left: var(--sidebar-offset);
   right: 0;
   z-index: 50;
   opacity: 0;
@@ -637,7 +642,7 @@ ol ul {
   }
 
   body {
-    margin-left: 0;
+    margin: 2rem 1rem;
   }
 
   .floating-toc {

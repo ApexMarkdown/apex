@@ -5,8 +5,97 @@
 
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="generator" content="Apex 0.1.49">
+      <meta name="generator" content="Apex 1.1.12">
       <title>Document</title>
+      <style>
+        /* GitHub-style syntax highlighting for Pygments and Skylighting */
+        /* Don't apply background to wrapper when code highlighting is enabled - let default styles handle it */
+        .code-highlighted .highlight, .code-highlighted .sourceCode { background: inherit; border-radius: 6px; padding: 16px; overflow-x: auto; }
+        .highlight pre, .sourceCode pre { margin: 0; padding: 0; background: transparent; }
+        .highlight code, .sourceCode code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.45; }
+        /* Pygments classes */
+        .highlight .k { color: #d73a49; font-weight: 600; } /* Keyword */
+        .highlight .kt { color: #d73a49; } /* Keyword.Type */
+        .highlight .kd { color: #d73a49; font-weight: 600; } /* Keyword.Declaration */
+        .highlight .kn { color: #d73a49; } /* Keyword.Namespace */
+        .highlight .kp { color: #d73a49; } /* Keyword.Pseudo */
+        .highlight .kr { color: #d73a49; font-weight: 600; } /* Keyword.Reserved */
+        .highlight .n { color: #6f42c1; } /* Name */
+        .highlight .na { color: #6f42c1; } /* Name.Attribute */
+        .highlight .nc { color: #6f42c1; font-weight: 600; } /* Name.Class */
+        .highlight .no { color: #005cc5; } /* Name.Constant */
+        .highlight .nd { color: #6f42c1; font-weight: 600; } /* Name.Decorator */
+        .highlight .ni { color: #800080; } /* Name.Entity */
+        .highlight .ne { color: #990000; font-weight: 600; } /* Name.Exception */
+        .highlight .nf { color: #6f42c1; font-weight: 600; } /* Name.Function */
+        .highlight .nl { color: #6f42c1; } /* Name.Label */
+        .highlight .nn { color: #555; } /* Name.Namespace */
+        .highlight .nt { color: #22863a; } /* Name.Tag */
+        .highlight .nv { color: #e36209; } /* Name.Variable */
+        .highlight .s { color: #032f62; } /* String */
+        .highlight .sb { color: #032f62; } /* String.Backtick */
+        .highlight .sc { color: #032f62; } /* String.Char */
+        .highlight .sd { color: #032f62; } /* String.Doc */
+        .highlight .s2 { color: #032f62; } /* String.Double */
+        .highlight .se { color: #032f62; } /* String.Escape */
+        .highlight .sh { color: #032f62; } /* String.Heredoc */
+        .highlight .si { color: #032f62; } /* String.Interpol */
+        .highlight .sx { color: #032f62; } /* String.Other */
+        .highlight .sr { color: #032f62; } /* String.Regex */
+        .highlight .s1 { color: #032f62; } /* String.Single */
+        .highlight .ss { color: #032f62; } /* String.Symbol */
+        .highlight .c { color: #6a737d; font-style: italic; } /* Comment */
+        .highlight .c1 { color: #6a737d; font-style: italic; } /* Comment.Single */
+        .highlight .cm { color: #6a737d; font-style: italic; } /* Comment.Multiline */
+        .highlight .cp { color: #6a737d; font-weight: 600; } /* Comment.Preproc */
+        .highlight .cs { color: #6a737d; font-weight: 600; font-style: italic; } /* Comment.Special */
+        .highlight .m { color: #005cc5; } /* Literal.Number */
+        .highlight .mb { color: #005cc5; } /* Literal.Number.Bin */
+        .highlight .mf { color: #005cc5; } /* Literal.Number.Float */
+        .highlight .mh { color: #005cc5; } /* Literal.Number.Hex */
+        .highlight .mi { color: #005cc5; } /* Literal.Number.Integer */
+        .highlight .il { color: #005cc5; } /* Literal.Number.Integer.Long */
+        .highlight .mo { color: #005cc5; } /* Literal.Number.Oct */
+        .highlight .o { color: #d73a49; } /* Operator */
+        .highlight .ow { color: #d73a49; } /* Operator.Word */
+        .highlight .p { color: #24292e; } /* Punctuation */
+        .highlight .w { color: #e1e4e8; } /* Text.Whitespace */
+        /* Skylighting classes */
+        .sourceCode .kw { color: #d73a49; font-weight: 600; } /* Keyword */
+        .sourceCode .dt { color: #6f42c1; } /* DataType */
+        .sourceCode .dv { color: #005cc5; } /* DecVal */
+        .sourceCode .bn { color: #005cc5; } /* BaseN */
+        .sourceCode .fl { color: #005cc5; } /* Float */
+        .sourceCode .ch { color: #032f62; } /* Char */
+        .sourceCode .st { color: #032f62; } /* String */
+        .sourceCode .co { color: #6a737d; font-style: italic; } /* Comment */
+        .sourceCode .ot { color: #22863a; } /* Other */
+        .sourceCode .al { color: #e36209; font-weight: 600; } /* Alert */
+        .sourceCode .fu { color: #6f42c1; font-weight: 600; } /* Function */
+        .sourceCode .re { color: #032f62; } /* RegionMarker */
+        .sourceCode .er { color: #d73a49; font-weight: 600; } /* Error */
+        .sourceCode .cf { color: #d73a49; font-weight: 600; } /* ControlFlow */
+        .sourceCode .op { color: #d73a49; } /* Operator */
+        .sourceCode .pp { color: #6a737d; } /* Preprocessor */
+        .sourceCode .at { color: #005cc5; } /* Attribute */
+        .sourceCode .do { color: #6a737d; font-style: italic; } /* Documentation */
+        .sourceCode .an { color: #6a737d; font-weight: 600; } /* Annotation */
+        .sourceCode .cv { color: #6a737d; font-weight: 600; font-style: italic; } /* CommentVar */
+        .sourceCode .in { color: #6a737d; } /* Information */
+        .sourceCode .wa { color: #e36209; font-weight: 600; } /* Warning */
+        .sourceCode .im { color: #d73a49; } /* Import */
+        .sourceCode .bu { color: #005cc5; } /* BuiltIn */
+        .sourceCode .ex { color: #6f42c1; } /* Extension */
+        .sourceCode .va { color: #e36209; } /* Variable */
+        .sourceCode .ss { color: #032f62; } /* SpecialString */
+        .sourceCode .sc { color: #032f62; } /* SpecialChar */
+        .sourceCode .vs { color: #032f62; } /* VerbatimString */
+        .sourceCode .il { color: #005cc5; } /* Special */
+        /* Line numbers (Skylighting) */
+        .sourceCode.numberSource .sourceCode { counter-reset: line; }
+        .sourceCode.numberSource .sourceCode > span { position: relative; left: -4em; counter-increment: line; }
+        .sourceCode.numberSource .sourceCode > span > a:first-child::before { content: counter(line); position: relative; left: -1em; text-align: right; vertical-align: baseline; border: none; display: inline-block; min-width: 1em; padding-right: 0.5em; color: #aaa; }
+      </style>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -35,10 +124,52 @@
         ins { background: #d4fcbc; text-decoration: none; }
         del { background: #fbb6c2; text-decoration: line-through; }
         mark { background: #fff3cd; }
+        .smallcaps { font-variant: small-caps; }
+        .underline { text-decoration: underline; }
+        span.mark { background: #fff3cd; }
+        .hidden { display: none; }
+        .quarto-xref { font-variant: normal; }
         .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }
+        .mkhashtag { color: #666; }
+        .mkstyledtag {
+          display: inline-block;
+          background: #e0e0e0;
+          padding: 3px 9px;
+          border-radius: 20px;
+          font-size: 0.9em;
+          line-height: 1.4;
+          color: #333;
+          margin: 0 2px;
+        }
       </style>
+        <meta name="paginate" content="symbols"/>
+      <meta name="highlight-language-only" content="true"/>
+      <meta name="code-line-numbers" content="false"/>
+      <meta name="code-highlight" content="pygments"/>
+      <meta name="sup-sub" content="true"/>
+      <meta name="relaxed-tables" content="true"/>
+      <meta name="includes" content="true"/>
+      <meta name="autolink" content="true"/>
+      <meta name="pretty" content="false"/>
+      <meta name="standalone" content="false"/>
+      <meta name="mode" content="unified"/>
+      <meta name="markdown-in-html" content="true"/>
+      <meta name="image-captions" content="true"/>
+      <meta name="wikilink-extension" content="html"/>
+      <meta name="wikilink-space" content="hyphen"/>
+      <meta name="wikilinks" content="true"/>
+      <meta name="widont" content="true"/>
+      <meta name="plugins" content="true"/>
+      <meta name="id-format" content="gfm"/>
+
   <style>
-/* Base styles */
+:root {
+  /* border-box width of the fixed sidebar; body offset includes a small gap */
+  --sidebar-width: 250px;
+  --sidebar-offset: 270px;
+}
+
+/* Base styles — override Apex standalone centering (max-width + margin: auto) */
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,6 +179,11 @@ body {
   line-height: 1.65;
   color: #1e293b;
   background-color: #fff;
+  max-width: none;
+  width: auto;
+  margin: 2rem 2rem 2rem var(--sidebar-offset);
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 /* Sidebar / Main TOC - wider on larger screens */
@@ -56,9 +192,10 @@ body {
   position: fixed;
   left: 0;
   top: 0;
-  width: auto;
-  min-width: 180px;
-  max-width: 250px;
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
   height: 100vh;
   overflow-y: auto;
   background: #1e293b;
@@ -67,7 +204,6 @@ body {
   padding: 24px 20px 130px;
   font-size: 14px;
   z-index: 100;
-  margin-right: 1rem;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
 }
@@ -116,11 +252,6 @@ body {
   font-weight: 500;
 }
 
-/* Body margin for sidebar */
-body {
-  margin-left: 270px;
-}
-
 /* Hamburger menu button */
 .hamburger-menu {
   display: none;
@@ -136,6 +267,7 @@ body {
   color: rgba(255, 255, 255, 0.9);
   font-size: 20px;
   line-height: 1;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -153,9 +285,7 @@ body {
 
 /* Move hamburger to the right of the sidebar when menu is open */
 .hamburger-menu.active {
-  left: calc(
-    250px + 12px
-  ); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
+  left: calc(var(--sidebar-width) + 12px);
 }
 
 .hamburger-menu.active {
@@ -251,7 +381,7 @@ body {
 .floating-toc {
   position: fixed;
   top: 0;
-  left: 270px;
+  left: var(--sidebar-offset);
   right: 0;
   z-index: 50;
   opacity: 0;
@@ -677,7 +807,7 @@ ol ul {
   }
 
   body {
-    margin-left: 0;
+    margin: 2rem 1rem;
   }
 
   .floating-toc {
@@ -687,7 +817,7 @@ ol ul {
 
 </style></head>
 
-  <body>
+  <body class="code-highlighted">
 <div class="floating-toc" id="floating-toc">
   <div class="floating-toc-container">
     <div class="floating-toc-header">
@@ -702,23 +832,23 @@ ol ul {
 <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
 <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
 
-<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
+<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
     <h1 id="xcode-integration">
       Xcode Integration
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#xcode-integration">Xcode Integration</a><ul><li><a href="#production-readiness">Production Readiness</a></li><li><a href="#swift-package-manager-spm-recommended">Swift Package Manager (SPM) - Recommended</a><ul><li><a href="#adding-apex-via-spm">Adding Apex via SPM</a></li><li><a href="#using-apex-in-your-code">Using Apex in Your Code</a></li><li><a href="#platform-support">Platform Support</a></li><li><a href="#spm-benefits">SPM Benefits</a></li></ul></li><li><a href="#framework-build-alternative">Framework Build (Alternative)</a></li><li><a href="#adding-to-xcode-project">Adding to Xcode Project</a><ul><li><a href="#method-1-swift-package-manager-recommended">Method 1: Swift Package Manager (Recommended)</a></li><li><a href="#method-2-framework-reference">Method 2: Framework Reference</a></li><li><a href="#method-3-cmake-integration">Method 3: CMake Integration</a></li></ul></li><li><a href="#objective-c-wrapper">Objective-C Wrapper</a><ul><li><a href="#basic-usage">Basic Usage</a></li><li><a href="#api">API</a></li><li><a href="#convenience-methods">Convenience Methods</a><ul><li><a href="#standalone-html-documents">Standalone HTML Documents</a></li><li><a href="#pretty-printed-html">Pretty-Printed HTML</a></li><li><a href="#dictionary-based-options">Dictionary-Based Options</a></li><li><a href="#swift-friendly-convenience-method">Swift-Friendly Convenience Method</a></li><li><a href="#instance-methods">Instance Methods</a></li></ul></li></ul></li><li><a href="#mode-constants">Mode Constants</a></li><li><a href="#direct-c-api-usage">Direct C API Usage</a></li><li><a href="#integration-example">Integration Example</a><ul><li><a href="#adding-to-marked">Adding to Marked</a></li></ul></li><li><a href="#build-settings">Build Settings</a><ul><li><a href="#header-search-paths">Header Search Paths</a></li><li><a href="#framework-search-paths">Framework Search Paths</a></li><li><a href="#other-linker-flags">Other Linker Flags</a></li><li><a href="#swift-api-support">Swift API Support</a></li></ul></li><li><a href="#swift-integration">Swift Integration</a><ul><li><a href="#idiomatic-swift-api-recommended">Idiomatic Swift API (Recommended)</a></li><li><a href="#apexmode-enum">ApexMode Enum</a></li><li><a href="#apexoptions-struct">ApexOptions Struct</a></li><li><a href="#objective-c-bridge-alternative">Objective-C Bridge (Alternative)</a></li></ul></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#swift-package-manager-issues">Swift Package Manager Issues</a></li><li><a href="#framework-not-found">Framework Not Found</a></li><li><a href="#linker-errors">Linker Errors</a></li><li><a href="#runtime-errors">Runtime Errors</a></li></ul></li><li><a href="#performance">Performance</a></li><li><a href="#module-map">Module Map</a></li><li><a href="#comparison-of-integration-methods">Comparison of Integration Methods</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#xcode-integration">Xcode Integration</a><ul><li><a href="#production-readiness">Production&nbsp;Readiness</a></li><li><a href="#swift-package-manager-spm-recommended">Swift Package Manager (SPM) -&nbsp;Recommended</a><ul><li><a href="#adding-apex-via-spm">Adding Apex&nbsp;via&nbsp;SPM</a></li><li><a href="#using-apex-in-your-code">Using Apex in&nbsp;Your&nbsp;Code</a></li><li><a href="#platform-support">Platform&nbsp;Support</a></li><li><a href="#spm-benefits">SPM&nbsp;Benefits</a></li></ul></li><li><a href="#framework-build-alternative">Framework Build&nbsp;(Alternative)</a></li><li><a href="#adding-to-xcode-project">Adding to Xcode&nbsp;Project</a><ul><li><a href="#method-1-swift-package-manager-recommended">Method 1: Swift Package Manager&nbsp;(Recommended)</a></li><li><a href="#method-2-framework-reference">Method 2: Framework&nbsp;Reference</a></li><li><a href="#method-3-cmake-integration">Method 3: CMake&nbsp;Integration</a></li></ul></li><li><a href="#objective-c-wrapper">Objective-C&nbsp;Wrapper</a><ul><li><a href="#basic-usage">Basic&nbsp;Usage</a></li><li><a href="#api">API</a></li><li><a href="#table-of-contents-outline-data">Table of Contents (outline&nbsp;data)</a></li><li><a href="#convenience-methods">Convenience&nbsp;Methods</a><ul><li><a href="#standalone-html-documents">Standalone HTML&nbsp;Documents</a></li><li><a href="#pretty-printed-html">Pretty-Printed&nbsp;HTML</a></li><li><a href="#dictionary-based-options">Dictionary-Based&nbsp;Options</a></li><li><a href="#swift-friendly-convenience-method">Swift-Friendly Convenience&nbsp;Method</a></li><li><a href="#instance-methods">Instance&nbsp;Methods</a></li></ul></li></ul></li><li><a href="#mode-constants">Mode&nbsp;Constants</a></li><li><a href="#direct-c-api-usage">Direct C&nbsp;API&nbsp;Usage</a></li><li><a href="#integration-example">Integration&nbsp;Example</a><ul><li><a href="#adding-to-marked">Adding&nbsp;to&nbsp;Marked</a></li></ul></li><li><a href="#build-settings">Build&nbsp;Settings</a><ul><li><a href="#header-search-paths">Header Search&nbsp;Paths</a></li><li><a href="#framework-search-paths">Framework Search&nbsp;Paths</a></li><li><a href="#other-linker-flags">Other Linker&nbsp;Flags</a></li><li><a href="#swift-api-support">Swift API&nbsp;Support</a></li></ul></li><li><a href="#swift-integration">Swift Integration</a><ul><li><a href="#idiomatic-swift-api-recommended">Idiomatic Swift API&nbsp;(Recommended)</a></li><li><a href="#apexmode-enum">ApexMode&nbsp;Enum</a></li><li><a href="#apexoptions-struct">ApexOptions&nbsp;Struct</a></li><li><a href="#apexoptions-vs-apexoptions">ApexOptions vs&nbsp;apex_options</a></li><li><a href="#objective-c-bridge-alternative">Objective-C Bridge&nbsp;(Alternative)</a></li></ul></li><li><a href="#plugin-catalog-and-installation">Plugin Catalog and&nbsp;Installation</a><ul><li><a href="#swift-api-recommended">Swift API&nbsp;(recommended)</a></li><li><a href="#objective-c-api">Objective-C&nbsp;API</a></li><li><a href="#c-api">C&nbsp;API</a></li></ul></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#swift-package-manager-issues">Swift Package Manager&nbsp;Issues</a></li><li><a href="#framework-not-found">Framework&nbsp;Not&nbsp;Found</a></li><li><a href="#linker-errors">Linker&nbsp;Errors</a></li><li><a href="#runtime-errors">Runtime&nbsp;Errors</a></li></ul></li><li><a href="#performance">Performance</a></li><li><a href="#module-map">Module&nbsp;Map</a></li><li><a href="#comparison-of-integration-methods">Comparison of Integration&nbsp;Methods</a></li><li><a href="#related">Related</a></li></ul></li><li><a href="#index-section">Index</a></li></ul></nav>
 
     <p>
       This guide covers integrating Apex into Xcode projects for macOS and iOS applications.
     </p>
 
     <h2 id="production-readiness">
-      Production Readiness
+      Production&nbsp;Readiness
     </h2>
 
     <p>
-<strong>      Important:</strong> Apex is currently in a pre-1.0 development stage. The API and implementation are still evolving, and breaking changes may occur between versions. Apex should only be used for testing and development purposes at this time.
+      <strong>Important:</strong> Apex is currently in a pre-1.0 development stage. The API and implementation are still evolving, and breaking changes may occur between versions. Apex should only be used for testing and development purposes at this time.
     </p>
 
     <p>
@@ -728,15 +858,15 @@ ol ul {
     <ul>
 
       <li>
-<strong>        Major versions</strong> (1.0, 2.0, etc.) may include breaking API changes
+        <strong>Major versions</strong> (1.0, 2.0, etc.) may include breaking API changes
       </li>
 
       <li>
-<strong>        Minor versions</strong> (1.1, 1.2, etc.) will add new features while maintaining backward compatibility
+        <strong>Minor versions</strong> (1.1, 1.2, etc.) will add new features while maintaining backward compatibility
       </li>
 
       <li>
-<strong>        Patch versions</strong> (1.0.1, 1.0.2, etc.) will only include bug fixes and will maintain full backward compatibility
+        <strong>Patch versions</strong> (1.0.1, 1.0.2, etc.) will only include bug fixes and will maintain full backward compatibility
       </li>
 
     </ul>
@@ -746,7 +876,7 @@ ol ul {
     </p>
 
     <h2 id="swift-package-manager-spm-recommended">
-      Swift Package Manager (SPM) - Recommended
+      Swift Package Manager (SPM) -&nbsp;Recommended
     </h2>
 
     <p>
@@ -754,7 +884,7 @@ ol ul {
     </p>
 
     <h3 id="adding-apex-via-spm">
-      Adding Apex via SPM
+      Adding Apex&nbsp;via&nbsp;SPM
     </h3>
 
     <ol>
@@ -798,47 +928,49 @@ ol ul {
     </ol>
 
     <h3 id="using-apex-in-your-code">
-      Using Apex in Your Code
+      Using Apex in&nbsp;Your&nbsp;Code
     </h3>
 
     <p>
       Once added via SPM, simply import and use:
     </p>
 
-<pre><code class="highlight language-swift"><span class="kd">import</span> <span class="kt">Apex</span>
+    <div class="highlight">
+<pre><span></span><span class="kd">import</span><span class="w"> </span><span class="nc">Apex</span>
 
- <span class="kt">Basic</span> <span class="n">usage</span>
-<span class="k">let</span> <span class="nv">markdown</span> <span class="o">=</span> <span class="s">"# Hello World"</span>
-<span class="k">let</span> <span class="nv">html</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">()</span>
+<span class="c1">// Basic usage</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">markdown</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;# Hello World&quot;</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">()</span>
 
- <span class="kt">With</span> <span class="n">mode</span>
-<span class="k">let</span> <span class="nv">html2</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">gfm</span><span class="p">)</span>
+<span class="c1">// With mode</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html2</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">gfm</span><span class="p">)</span>
 
- <span class="kt">With</span> <span class="n">options</span>
-<span class="k">var</span> <span class="nv">options</span> <span class="o">=</span> <span class="kt">ApexOptions</span><span class="p">()</span>
-<span class="n">options</span><span class="o">.</span><span class="n">pretty</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="n">options</span><span class="o">.</span><span class="n">generateHeaderIDs</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="k">let</span> <span class="nv">html3</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">,</span> <span class="nv">options</span><span class="p">:</span> <span class="n">options</span><span class="p">)</span>
-</code></pre>
+<span class="c1">// With options</span>
+<span class="kd">var</span><span class="w"> </span><span class="nv">options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">ApexOptions</span><span class="p">()</span>
+<span class="n">options</span><span class="p">.</span><span class="n">pretty</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">options</span><span class="p">.</span><span class="n">generateHeaderIDs</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html3</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="n">options</span><span class="p">)</span>
+    </pre>
+  </div>
 
   <h3 id="platform-support">
-    Platform Support
+    Platform&nbsp;Support
   </h3>
 
   <ul>
 
     <li>
-<strong>      macOS</strong>: 10.13+ (High Sierra)
+      <strong>macOS</strong>: 10.13+ (High Sierra)
     </li>
 
     <li>
-<strong>      iOS</strong>: 11.0+
+      <strong>iOS</strong>: 11.0+
     </li>
 
   </ul>
 
   <h3 id="spm-benefits">
-    SPM Benefits
+    SPM&nbsp;Benefits
   </h3>
 
   <ul>
@@ -866,29 +998,31 @@ ol ul {
   </ul>
 
   <h2 id="framework-build-alternative">
-    Framework Build (Alternative)
+    Framework Build&nbsp;(Alternative)
   </h2>
 
   <p>
     Apex can also be built as a framework for manual integration:
   </p>
 
-<pre><code class="highlight language-bash"><span class="nb">cd </span>apex
-<span class="nb">mkdir </span>build <span class="o">&amp;&amp;</span> <span class="nb">cd </span>build
-cmake <span class="nt">-DBUILD_FRAMEWORK</span><span class="o">=</span>ON ..
+  <div class="highlight">
+<pre><span></span><span class="nb">cd</span><span class="w"> </span>apex
+mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>-DBUILD_FRAMEWORK<span class="o">=</span>ON<span class="w"> </span>..
 make
-</code></pre>
+  </pre>
+</div>
 
 <p>
   The framework will be at <code>build/Apex.framework</code>.
 </p>
 
 <h2 id="adding-to-xcode-project">
-  Adding to Xcode Project
+  Adding to Xcode&nbsp;Project
 </h2>
 
 <h3 id="method-1-swift-package-manager-recommended">
-  Method 1: Swift Package Manager (Recommended)
+  Method 1: Swift Package Manager&nbsp;(Recommended)
 </h3>
 
 <p>
@@ -896,7 +1030,7 @@ make
 </p>
 
 <h3 id="method-2-framework-reference">
-  Method 2: Framework Reference
+  Method 2: Framework&nbsp;Reference
 </h3>
 
 <ol>
@@ -916,19 +1050,21 @@ make
 </ol>
 
 <h3 id="method-3-cmake-integration">
-  Method 3: CMake Integration
+  Method 3: CMake&nbsp;Integration
 </h3>
 
 <p>
   If your project uses CMake:
 </p>
 
-<pre><code class="highlight language-cmake"><span class="nb">add_subdirectory</span><span class="p">(</span>apex<span class="p">)</span>
-<span class="nb">target_link_libraries</span><span class="p">(</span>your_app Apex<span class="p">)</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="nb">add_subdirectory</span><span class="p">(</span><span class="s">apex</span><span class="p">)</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">your_app</span><span class="w"> </span><span class="s">Apex</span><span class="p">)</span>
+</pre>
+</div>
 
 <h2 id="objective-c-wrapper">
-  Objective-C Wrapper
+  Objective-C&nbsp;Wrapper
 </h2>
 
 <p>
@@ -936,7 +1072,7 @@ make
 </p>
 
 <p>
-<strong>  Files:</strong>
+  <strong>Files:</strong>
 </p>
 
 <ul>
@@ -952,76 +1088,89 @@ make
 </ul>
 
 <h3 id="basic-usage">
-  Basic Usage
+  Basic&nbsp;Usage
 </h3>
 
-<pre><code class="highlight language-objective-c"><span class="cp">#import "NSString+Apex.h"
-</span>
- <span class="n">Convert</span> <span class="n">with</span> <span class="k">default</span> <span class="n">unified</span> <span class="n">mode</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span><span class="p">];</span>
+<div class="highlight">
+<pre><span></span><span class="cp">#import &quot;NSString+Apex.h&quot;</span>
 
- <span class="n">Convert</span> <span class="n">with</span> <span class="n">specific</span> <span class="n">mode</span> <span class="n">using</span> <span class="n">constants</span> <span class="p">(</span><span class="n">recommended</span><span class="p">)</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">gfmHtml</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="n">ApexModeGFM</span><span class="p">];</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">mmdHtml</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="n">ApexModeMultiMarkdown</span><span class="p">];</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">kramdownHtml</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="n">ApexModeKramdown</span><span class="p">];</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">commonmarkHtml</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="n">ApexModeCommonmark</span><span class="p">];</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">unifiedHtml</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="n">ApexModeUnified</span><span class="p">];</span>
+<span class="c1">// Convert with default unified mode</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="p">];</span>
 
- <span class="n">String</span> <span class="n">literals</span> <span class="n">also</span> <span class="n">work</span> <span class="p">(</span><span class="k">for</span> <span class="n">backward</span> <span class="n">compatibility</span><span class="p">)</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">gfmHtml2</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="s">@"gfm"</span><span class="p">];</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">mmdHtml2</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdownText</span> <span class="nf">mode</span><span class="p">:</span><span class="s">@"multimarkdown"</span><span class="p">];</span>
-</code></pre>
+<span class="c1">// Convert with specific mode using constants (recommended)</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">gfmHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="n">ApexModeGFM</span><span class="p">];</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">mmdHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="n">ApexModeMultiMarkdown</span><span class="p">];</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">kramdownHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="n">ApexModeKramdown</span><span class="p">];</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">commonmarkHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="n">ApexModeCommonmark</span><span class="p">];</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">unifiedHtml</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="n">ApexModeUnified</span><span class="p">];</span>
+
+<span class="c1">// String literals also work (for backward compatibility)</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">gfmHtml2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="s">@&quot;gfm&quot;</span><span class="p">];</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">mmdHtml2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdownText</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="s">@&quot;multimarkdown&quot;</span><span class="p">];</span>
+</pre>
+</div>
 
 <h3 id="api">
   API
 </h3>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Mode</span> <span class="n">constants</span>
-<span class="k">extern</span> <span class="n">NSString</span> <span class="o">*</span> <span class="k">const</span> <span class="n">ApexModeCommonmark</span><span class="p">;</span>
-<span class="k">extern</span> <span class="n">NSString</span> <span class="o">*</span> <span class="k">const</span> <span class="n">ApexModeGFM</span><span class="p">;</span>
-<span class="k">extern</span> <span class="n">NSString</span> <span class="o">*</span> <span class="k">const</span> <span class="n">ApexModeMultiMarkdown</span><span class="p">;</span>
-<span class="k">extern</span> <span class="n">NSString</span> <span class="o">*</span> <span class="k">const</span> <span class="n">ApexModeKramdown</span><span class="p">;</span>
-<span class="k">extern</span> <span class="n">NSString</span> <span class="o">*</span> <span class="k">const</span> <span class="n">ApexModeUnified</span><span class="p">;</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// Mode constants</span>
+<span class="k">extern</span><span class="w"> </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ApexModeCommonmark</span><span class="p">;</span>
+<span class="k">extern</span><span class="w"> </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ApexModeGFM</span><span class="p">;</span>
+<span class="k">extern</span><span class="w"> </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ApexModeMultiMarkdown</span><span class="p">;</span>
+<span class="k">extern</span><span class="w"> </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ApexModeKramdown</span><span class="p">;</span>
+<span class="k">extern</span><span class="w"> </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="n">ApexModeUnified</span><span class="p">;</span>
 
-<span class="k">@interface</span> <span class="nc">NSString</span> <span class="p">(</span><span class="nl">Apex</span><span class="p">)</span>
+<span class="k">@interface</span> <span class="bp">NSString</span> <span class="nl">(Apex)</span>
 
- <span class="n">Basic</span> <span class="n">conversion</span> <span class="n">methods</span>
-<span class="k">+</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span><span class="p">;</span>
-<span class="k">+</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span> <span class="nf">mode</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">mode</span><span class="p">;</span>
+<span class="c1">// Basic conversion methods</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span><span class="p">;</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span><span class="w"> </span><span class="nf">mode:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span><span class="p">;</span>
 
- <span class="n">Standalone</span> <span class="n">HTML</span> <span class="n">document</span> <span class="n">generation</span>
-<span class="k">+</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
-                         <span class="nf">mode</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
-                   <span class="nf">standalone</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">standalone</span>
-                    <span class="nf">stylesheet</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span> <span class="n">_Nullable</span><span class="p">)</span><span class="nv">stylesheetPath</span>
-                         <span class="nf">title</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span> <span class="n">_Nullable</span><span class="p">)</span><span class="nv">title</span><span class="p">;</span>
+<span class="c1">// Standalone HTML document generation</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
+<span class="w">                         </span><span class="nl">mode</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
+<span class="w">                   </span><span class="nl">standalone</span><span class="p">:(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">standalone</span>
+<span class="w">                    </span><span class="nl">stylesheet</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">_Nullable</span><span class="p">)</span><span class="nv">stylesheetPath</span>
+<span class="w">                         </span><span class="nl">title</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">_Nullable</span><span class="p">)</span><span class="nv">title</span><span class="p">;</span>
 
- <span class="n">Pretty</span><span class="k">-</span><span class="n">printed</span> <span class="n">HTML</span> <span class="n">output</span>
-<span class="k">+</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
-                         <span class="nf">mode</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
-                        <span class="nf">pretty</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">pretty</span><span class="p">;</span>
+<span class="c1">// Pretty-printed HTML output</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
+<span class="w">                         </span><span class="nl">mode</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
+<span class="w">                        </span><span class="nl">pretty</span><span class="p">:(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">pretty</span><span class="p">;</span>
 
- <span class="n">Dictionary</span><span class="k">-</span><span class="n">based</span> <span class="n">options</span> <span class="n">configuration</span>
-<span class="k">+</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
-                         <span class="nf">mode</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
-                    <span class="nf">options</span><span class="p">:(</span><span class="n">NSDictionary</span><span class="o">&lt;</span><span class="n">NSString</span> <span class="o">*</span><span class="p">,</span> <span class="n">id</span><span class="o">&gt;</span> <span class="o">*</span> <span class="n">_Nullable</span><span class="p">)</span><span class="nv">options</span><span class="p">;</span>
+<span class="c1">// Dictionary-based options configuration</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
+<span class="w">                         </span><span class="nl">mode</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
+<span class="w">                    </span><span class="nl">options</span><span class="p">:(</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">_Nullable</span><span class="p">)</span><span class="nv">options</span><span class="p">;</span>
 
- <span class="n">Swift</span><span class="k">-</span><span class="n">friendly</span> <span class="n">convenience</span> <span class="n">method</span> <span class="n">with</span> <span class="n">common</span> <span class="n">options</span>
-<span class="k">+</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
-                         <span class="nf">mode</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
-              <span class="nf">generateHeaderIDs</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">generateHeaderIDs</span>
-                    <span class="nf">hardBreaks</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">hardBreaks</span>
-                        <span class="nf">pretty</span><span class="p">:(</span><span class="n">BOOL</span><span class="p">)</span><span class="nv">pretty</span><span class="p">;</span>
+<span class="c1">// Swift-friendly convenience method with common options</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
+<span class="w">                         </span><span class="nl">mode</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
+<span class="w">              </span><span class="nl">generateHeaderIDs</span><span class="p">:(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">generateHeaderIDs</span>
+<span class="w">                    </span><span class="nl">hardBreaks</span><span class="p">:(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">hardBreaks</span>
+<span class="w">                        </span><span class="nl">pretty</span><span class="p">:(</span><span class="kt">BOOL</span><span class="p">)</span><span class="nv">pretty</span><span class="p">;</span>
 
- <span class="n">Instance</span> <span class="n">methods</span> <span class="k">for</span> <span class="n">convenient</span> <span class="n">usage</span>
-<span class="k">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="n">apexHTML</span><span class="p">;</span>
-<span class="k">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">apexHTMLWithMode</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">mode</span><span class="p">;</span>
+<span class="c1">// Instance methods for convenient usage</span>
+<span class="p">-</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">apexHTML</span><span class="p">;</span>
+<span class="p">-</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">apexHTMLWithMode:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span><span class="p">;</span>
+
+<span class="c1">// Structured table of contents (flat outline entries)</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSArray</span><span class="o">&lt;</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">tableOfContentsWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span><span class="p">;</span>
+<span class="p">+</span> <span class="p">(</span><span class="bp">NSArray</span><span class="o">&lt;</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">tableOfContentsWithApex:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span>
+<span class="w">                                                                </span><span class="nl">mode</span><span class="p">:(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
+<span class="w">                                                             </span><span class="nl">options</span><span class="p">:(</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">_Nullable</span><span class="p">)</span><span class="nv">options</span><span class="p">;</span>
+<span class="p">-</span> <span class="p">(</span><span class="bp">NSArray</span><span class="o">&lt;</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">apexTableOfContents</span><span class="p">;</span>
+<span class="p">-</span> <span class="p">(</span><span class="bp">NSArray</span><span class="o">&lt;</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">apexTableOfContentsWithMode:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">mode</span>
+<span class="w">                                                                 </span><span class="nl">options</span><span class="p">:(</span><span class="bp">NSDictionary</span><span class="o">&lt;</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">,</span><span class="w"> </span><span class="kt">id</span><span class="o">&gt;</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">_Nullable</span><span class="p">)</span><span class="nv">options</span><span class="p">;</span>
 
 <span class="k">@end</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  Parameters:</strong>
+  <strong>Parameters:</strong>
 </p>
 
 <ul>
@@ -1061,15 +1210,142 @@ make
 </ul>
 
 <p>
-<strong>  Returns:</strong> HTML string (autoreleased)
+  <strong>Returns:</strong> HTML string (autoreleased)
 </p>
 
 <p>
-<strong>  Note:</strong> Using the <code>ApexMode*</code> constants is recommended to avoid typos and provides autocomplete support in Xcode. String literals are still supported for backward compatibility.
+  <strong>Note:</strong> Using the <code>ApexMode*</code> constants is recommended to avoid typos and provides autocomplete support in Xcode. String literals are still supported for backward compatibility.
+</p>
+
+<h3 id="table-of-contents-outline-data">
+  Table of Contents (outline&nbsp;data)
+</h3>
+
+<p>
+  For collapsible section UIs, use the structured TOC helpers instead of parsing HTML. Each entry is a dictionary:
+</p>
+
+<table>
+
+  <thead>
+
+    <tr>
+
+      <th>
+        Key
+      </th>
+
+      <th>
+        Type
+      </th>
+
+      <th>
+        Meaning
+      </th>
+
+    </tr>
+
+  </thead>
+
+  <tbody>
+
+    <tr>
+
+      <td>
+<code>level</code>
+      </td>
+
+      <td>
+<code>NSNumber</code>
+      </td>
+
+      <td>
+        Heading level 1–6
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+<code>text</code>
+      </td>
+
+      <td>
+<code>NSString</code>
+      </td>
+
+      <td>
+        Display title
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+<code>id</code>
+      </td>
+
+      <td>
+<code>NSString</code>
+      </td>
+
+      <td>
+        Fragment id (same rules as <code>--id-format</code> / manual IDs)
+      </td>
+
+    </tr>
+  </tbody>
+
+</table>
+
+<p>
+  Optional <code>options</code> keys for TOC extraction:
+</p>
+
+<ul>
+
+  <li>
+<code>idFormat</code> — <code>@&quot;gfm&quot;</code>, <code>@&quot;mmd&quot;</code>, or <code>@&quot;kramdown&quot;</code>
+  </li>
+
+  <li>
+<code>tocMinMax</code> — <code>@&quot;2,4&quot;</code> or <code>@[@2, @4]</code> (default depth is 1–3)
+  </li>
+
+</ul>
+
+<div class="highlight">
+<pre><span></span><span class="bp">NSArray</span><span class="w"> </span><span class="o">*</span><span class="n">entries</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">tableOfContentsWithApex</span><span class="o">:</span><span class="n">markdown</span>
+<span class="w">                                                </span><span class="nl">mode</span><span class="p">:</span><span class="n">ApexModeUnified</span>
+<span class="w">                                             </span><span class="nl">options</span><span class="p">:</span><span class="l">@{</span><span class="w"> </span><span class="s">@&quot;tocMinMax&quot;</span><span class="o">:</span><span class="w"> </span><span class="s">@&quot;1,4&quot;</span><span class="w"> </span><span class="l">}</span><span class="p">];</span>
+
+<span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="bp">NSDictionary</span><span class="w"> </span><span class="o">*</span><span class="n">entry</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">entries</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;h%@ %@ (#%@)&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">entry</span><span class="p">[</span><span class="s">@&quot;level&quot;</span><span class="p">],</span><span class="w"> </span><span class="n">entry</span><span class="p">[</span><span class="s">@&quot;text&quot;</span><span class="p">],</span><span class="w"> </span><span class="n">entry</span><span class="p">[</span><span class="s">@&quot;id&quot;</span><span class="p">]);</span>
+<span class="p">}</span>
+</pre>
+</div>
+
+<div class="highlight">
+<pre><span></span><span class="kd">let</span><span class="w"> </span><span class="nv">entries</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexTableOfContents</span><span class="p">()</span>
+<span class="c1">// or:</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">entries</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="bp">NSString</span><span class="p">.</span><span class="n">tableOfContents</span><span class="p">(</span>
+<span class="w">    </span><span class="n">withApex</span><span class="p">:</span><span class="w"> </span><span class="n">markdown</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="n">ApexModeUnified</span><span class="p">,</span>
+<span class="w">    </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s">&quot;tocMinMax&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;1,4&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;idFormat&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;gfm&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1">// Build nested outline rows from flat levels:</span>
+<span class="c1">// - deeper level =&gt; child of previous open section</span>
+<span class="c1">// - shallower/equal level =&gt; close sections until the parent fits</span>
+</pre>
+</div>
+
+<p>
+  Headings marked <code>{:.no_toc}</code> are omitted. See <a href="C-API#structured-toc-entries">C API</a> for the underlying <code>apex_markdown_to_toc_entries</code> function and <a href="Command-Line-Options.html">Command Line Options</a> for <code>-t toc</code>.
 </p>
 
 <h3 id="convenience-methods">
-  Convenience Methods
+  Convenience&nbsp;Methods
 </h3>
 
 <p>
@@ -1077,70 +1353,76 @@ make
 </p>
 
 <h4 id="standalone-html-documents">
-  Standalone HTML Documents
+  Standalone HTML&nbsp;Documents
 </h4>
 
 <p>
   Generate complete HTML5 documents with stylesheet and title:
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Generate</span> <span class="n">standalone</span> <span class="n">HTML</span> <span class="n">document</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span>
-                                     <span class="nl">mode:</span><span class="n">ApexModeUnified</span>
-                               <span class="nl">standalone:</span><span class="nb">YES</span>
-                                <span class="nl">stylesheet:</span><span class="s">@"style.css"</span>
-                                     <span class="nl">title:</span><span class="s">@"My Document"</span><span class="p">];</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// Generate standalone HTML document</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span>
+<span class="w">                                     </span><span class="nl">mode</span><span class="p">:</span><span class="n">ApexModeUnified</span>
+<span class="w">                               </span><span class="nl">standalone</span><span class="p">:</span><span class="nb">YES</span>
+<span class="w">                                </span><span class="nl">stylesheet</span><span class="p">:</span><span class="s">@&quot;style.css&quot;</span>
+<span class="w">                                     </span><span class="nl">title</span><span class="p">:</span><span class="s">@&quot;My Document&quot;</span><span class="p">];</span>
 
- <span class="n">Without</span> <span class="n">stylesheet</span> <span class="n">or</span> <span class="n">title</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html2</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span>
-                                       <span class="nl">mode:</span><span class="n">ApexModeGFM</span>
-                                 <span class="nl">standalone:</span><span class="nb">YES</span>
-                                  <span class="nl">stylesheet:</span><span class="nb">nil</span>
-                                       <span class="nl">title:</span><span class="nb">nil</span><span class="p">];</span>
-</code></pre>
+<span class="c1">// Without stylesheet or title</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span>
+<span class="w">                                       </span><span class="nl">mode</span><span class="p">:</span><span class="n">ApexModeGFM</span>
+<span class="w">                                 </span><span class="nl">standalone</span><span class="p">:</span><span class="nb">YES</span>
+<span class="w">                                  </span><span class="nl">stylesheet</span><span class="p">:</span><span class="nb">nil</span>
+<span class="w">                                       </span><span class="nl">title</span><span class="p">:</span><span class="nb">nil</span><span class="p">];</span>
+</pre>
+</div>
 
-<h4 id="pretty-printed-html">
-  Pretty-Printed HTML
+<h4 Key id="pretty-printed-html">
+  Pretty-Printed&nbsp;HTML
 </h4>
 
 <p>
   Generate formatted HTML with indentation:
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Pretty</span><span class="k">-</span><span class="n">print</span> <span class="n">HTML</span> <span class="n">output</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span>
-                                     <span class="nl">mode:</span><span class="n">ApexModeUnified</span>
-                                    <span class="nl">pretty:</span><span class="nb">YES</span><span class="p">];</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="c1">// Pretty-print HTML output</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span>
+<span class="w">                                     </span><span class="nl">mode</span><span class="p">:</span><span class="n">ApexModeUnified</span>
+<span class="w">                                    </span><span class="nl">pretty</span><span class="p">:</span><span class="nb">YES</span><span class="p">];</span>
+</pre>
+</div>
 
-<h4 id="dictionary-based-options">
-  Dictionary-Based Options
+<h4 Type id="dictionary-based-options">
+  Dictionary-Based&nbsp;Options
 </h4>
 
 <p>
   Configure multiple options at once using a dictionary:
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Configure</span> <span class="n">multiple</span> <span class="n">options</span>
-<span class="n">NSDictionary</span> <span class="o">*</span><span class="n">options</span> <span class="o">=</span> <span class="p">@{</span>
-    <span class="s">@"pretty"</span><span class="o">:</span> <span class="nb">@YES</span><span class="p">,</span>
-    <span class="s">@"standalone"</span><span class="o">:</span> <span class="nb">@YES</span><span class="p">,</span>
-    <span class="s">@"stylesheet"</span><span class="o">:</span> <span class="s">@"style.css"</span><span class="p">,</span>
-    <span class="s">@"title"</span><span class="o">:</span> <span class="s">@"My Document"</span><span class="p">,</span>
-    <span class="s">@"hardBreaks"</span><span class="o">:</span> <span class="nb">@YES</span><span class="p">,</span>
-    <span class="s">@"generateHeaderIDs"</span><span class="o">:</span> <span class="nb">@YES</span><span class="p">,</span>
-    <span class="s">@"headerAnchors"</span><span class="o">:</span> <span class="nb">@NO</span><span class="p">,</span>
-    <span class="s">@"obfuscateEmails"</span><span class="o">:</span> <span class="nb">@YES</span><span class="p">,</span>
-    <span class="s">@"embedImages"</span><span class="o">:</span> <span class="nb">@NO</span>
-<span class="p">};</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// Configure multiple options</span>
+<span class="bp">NSDictionary</span><span class="w"> </span><span class="o">*</span><span class="n">options</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="l">@{</span>
+<span class="w">    </span><span class="s">@&quot;pretty&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@YES</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;standalone&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@YES</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;stylesheet&quot;</span><span class="o">:</span><span class="w"> </span><span class="s">@&quot;style.css&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;title&quot;</span><span class="o">:</span><span class="w"> </span><span class="s">@&quot;My Document&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;hardBreaks&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@YES</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;generateHeaderIDs&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@YES</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;headerAnchors&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@NO</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;obfuscateEmails&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@YES</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;embedImages&quot;</span><span class="o">:</span><span class="w"> </span><span class="m">@NO</span>
+<span class="l">}</span><span class="p">;</span>
 
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span>
-                                     <span class="nl">mode:</span><span class="n">ApexModeUnified</span>
-                                   <span class="nl">options:</span><span class="n">options</span><span class="p">];</span>
-</code></pre>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span>
+<span class="w">                                     </span><span class="nl">mode</span><span class="p">:</span><span class="n">ApexModeUnified</span>
+<span class="w">                                   </span><span class="nl">options</span><span class="p">:</span><span class="n">options</span><span class="p">];</span>
+</pre>
+</div>
 
 <p>
-<strong>  Supported dictionary keys:</strong>
+  <strong>Supported dictionary keys:</strong>
 </p>
 
 <ul>
@@ -1185,124 +1467,138 @@ make
 <code>@&quot;embedImages&quot;</code> - NSNumber (BOOL): Embed local images as base64 data URLs
   </li>
 
+  <li>
+<code>@&quot;enablePlugins&quot;</code> - NSNumber (BOOL): Enable external plugin processing during conversion
+  </li>
+
 </ul>
 
-<h4 id="swift-friendly-convenience-method">
-  Swift-Friendly Convenience Method
+<h4 Meaning id="swift-friendly-convenience-method">
+  Swift-Friendly Convenience&nbsp;Method
 </h4>
 
 <p>
   Combine common options in a single method call (ideal for Swift):
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Combine</span> <span class="n">common</span> <span class="n">options</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span>
-                                     <span class="nl">mode:</span><span class="n">ApexModeUnified</span>
-                          <span class="nl">generateHeaderIDs:</span><span class="nb">YES</span>
-                                <span class="nl">hardBreaks:</span><span class="nb">YES</span>
-                                    <span class="nl">pretty:</span><span class="nb">YES</span><span class="p">];</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="c1">// Combine common options</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span>
+<span class="w">                                     </span><span class="nl">mode</span><span class="p">:</span><span class="n">ApexModeUnified</span>
+<span class="w">                          </span><span class="nl">generateHeaderIDs</span><span class="p">:</span><span class="nb">YES</span>
+<span class="w">                                </span><span class="nl">hardBreaks</span><span class="p">:</span><span class="nb">YES</span>
+<span class="w">                                    </span><span class="nl">pretty</span><span class="p">:</span><span class="nb">YES</span><span class="p">];</span>
+</pre>
+</div>
 
 <h4 id="instance-methods">
-  Instance Methods
+  Instance&nbsp;Methods
 </h4>
 
 <p>
   Use instance methods for more natural, fluent syntax:
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Instance</span> <span class="n">method</span> <span class="n">with</span> <span class="k">default</span> <span class="n">unified</span> <span class="n">mode</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">markdown</span> <span class="o">=</span> <span class="s">@"# Hello World"</span><span class="p">;</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">markdown</span> <span class="nf">apexHTML</span><span class="p">];</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// Instance method with default unified mode</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">markdown</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">@&quot;# Hello World&quot;</span><span class="p">;</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">markdown</span><span class="w"> </span><span class="n">apexHTML</span><span class="p">];</span>
 
- <span class="n">Instance</span> <span class="n">method</span> <span class="n">with</span> <span class="n">specific</span> <span class="n">mode</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html2</span> <span class="o">=</span> <span class="p">[</span><span class="n">markdown</span> <span class="nf">apexHTMLWithMode</span><span class="p">:</span><span class="n">ApexModeGFM</span><span class="p">];</span>
-</code></pre>
+<span class="c1">// Instance method with specific mode</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">markdown</span><span class="w"> </span><span class="n">apexHTMLWithMode</span><span class="o">:</span><span class="n">ApexModeGFM</span><span class="p">];</span>
+</pre>
+</div>
 
-<h2 id="mode-constants">
-  Mode Constants
+<h2 `level` id="mode-constants">
+  Mode&nbsp;Constants
 </h2>
 
 <p>
   Apex provides NSString constants for processor modes to avoid ambiguity and typos:
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">Available</span> <span class="n">constants</span>
-<span class="n">ApexModeCommonmark</span>      <span class="c1">// @"commonmark"</span>
-<span class="n">ApexModeGFM</span>             <span class="c1">// @"gfm"</span>
-<span class="n">ApexModeMultiMarkdown</span>   <span class="c1">// @"multimarkdown"</span>
-<span class="n">ApexModeKramdown</span>        <span class="c1">// @"kramdown"</span>
-<span class="n">ApexModeUnified</span>         <span class="c1">// @"unified"</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="c1">// Available constants</span>
+<span class="n">ApexModeCommonmark</span><span class="w">      </span><span class="c1">// @&quot;commonmark&quot;</span>
+<span class="n">ApexModeGFM</span><span class="w">             </span><span class="c1">// @&quot;gfm&quot;</span>
+<span class="n">ApexModeMultiMarkdown</span><span class="w">   </span><span class="c1">// @&quot;multimarkdown&quot;</span>
+<span class="n">ApexModeKramdown</span><span class="w">        </span><span class="c1">// @&quot;kramdown&quot;</span>
+<span class="n">ApexModeUnified</span><span class="w">         </span><span class="c1">// @&quot;unified&quot;</span>
+</pre>
+</div>
 
 <p>
-<strong>  Benefits:</strong>
+  <strong>Benefits:</strong>
 </p>
 
 <ul>
 
   <li>
-<strong>    Type safety</strong>: Xcode autocomplete suggests available modes
+    <strong>Type safety</strong>: Xcode autocomplete suggests available modes
   </li>
 
   <li>
-<strong>    No typos</strong>: Compile-time checking prevents invalid mode strings
+    <strong>No typos</strong>: Compile-time checking prevents invalid mode strings
   </li>
 
   <li>
-<strong>    Self-documenting</strong>: Constants make code more readable
+    <strong>Self-documenting</strong>: Constants make code more readable
   </li>
 
   <li>
-<strong>    Refactoring</strong>: Easy to find all usages if mode names change
+    <strong>Refactoring</strong>: Easy to find all usages if mode names change
   </li>
 
 </ul>
 
 <p>
-<strong>  Example:</strong>
+  <strong>Example:</strong>
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="nl">Good:</span> <span class="n">Using</span> <span class="n">constants</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span> <span class="nf">mode</span><span class="p">:</span><span class="n">ApexModeMultiMarkdown</span><span class="p">];</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// Good: Using constants</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="n">ApexModeMultiMarkdown</span><span class="p">];</span>
 
- <span class="n">Also</span> <span class="n">works</span><span class="o">:</span> <span class="n">String</span> <span class="n">literals</span> <span class="p">(</span><span class="k">for</span> <span class="n">backward</span> <span class="n">compatibility</span><span class="p">)</span>
-<span class="n">NSString</span> <span class="o">*</span><span class="n">html2</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">markdown</span> <span class="nf">mode</span><span class="p">:</span><span class="s">@"multimarkdown"</span><span class="p">];</span>
-</code></pre>
+<span class="c1">// Also works: String literals (for backward compatibility)</span>
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">html2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">markdown</span><span class="w"> </span><span class="n">mode</span><span class="o">:</span><span class="s">@&quot;multimarkdown&quot;</span><span class="p">];</span>
+</pre>
+</div>
 
-<h2 id="direct-c-api-usage">
-  Direct C API Usage
+<h2 `NSNumber` id="direct-c-api-usage">
+  Direct C&nbsp;API&nbsp;Usage
 </h2>
 
 <p>
   For more control, use the C API directly:
 </p>
 
-<pre><code class="highlight language-objective-c"><span class="cp">#include</span> <span class="cpf">&lt;Apex/apex.h&gt;</span><span class="cp">
-</span>
-<span class="k">-</span> <span class="p">(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nf">convertMarkdown</span><span class="p">:(</span><span class="n">NSString</span> <span class="o">*</span><span class="p">)</span><span class="nv">markdown</span> <span class="p">{</span>
-    <span class="n">apex_options</span> <span class="n">opts</span> <span class="o">=</span> <span class="n">apex_options_default</span><span class="p">();</span>
-    <span class="n">opts</span><span class="p">.</span><span class="n">pretty</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+<div class="highlight">
+<pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;Apex/apex.h&gt;</span>
 
-    <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">md</span> <span class="o">=</span> <span class="p">[</span><span class="n">markdown</span> <span class="nf">UTF8String</span><span class="p">];</span>
-    <span class="kt">char</span> <span class="o">*</span><span class="n">html</span> <span class="o">=</span> <span class="n">apex_markdown_to_html</span><span class="p">(</span><span class="n">md</span><span class="p">,</span> <span class="n">strlen</span><span class="p">(</span><span class="n">md</span><span class="p">),</span> <span class="o">&amp;</span><span class="n">opts</span><span class="p">);</span>
+<span class="p">-</span> <span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nf">convertMarkdown:</span><span class="p">(</span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="p">)</span><span class="nv">markdown</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">apex_options</span><span class="w"> </span><span class="n">opts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">apex_options_default</span><span class="p">();</span>
+<span class="w">    </span><span class="n">opts</span><span class="p">.</span><span class="n">pretty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
 
-    <span class="k">if</span> <span class="p">(</span><span class="n">html</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">NSString</span> <span class="o">*</span><span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">stringWithUTF8String</span><span class="p">:</span><span class="n">html</span><span class="p">];</span>
-        <span class="n">apex_free_string</span><span class="p">(</span><span class="n">html</span><span class="p">);</span>
-        <span class="k">return</span> <span class="n">result</span><span class="p">;</span>
-    <span class="p">}</span>
+<span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">md</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">markdown</span><span class="w"> </span><span class="n">UTF8String</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="o">*</span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">apex_markdown_to_html</span><span class="p">(</span><span class="n">md</span><span class="p">,</span><span class="w"> </span><span class="n">strlen</span><span class="p">(</span><span class="n">md</span><span class="p">),</span><span class="w"> </span><span class="o">&amp;</span><span class="n">opts</span><span class="p">);</span>
 
-    <span class="k">return</span> <span class="nb">nil</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">html</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">stringWithUTF8String</span><span class="o">:</span><span class="n">html</span><span class="p">];</span>
+<span class="w">        </span><span class="n">apex_free_string</span><span class="p">(</span><span class="n">html</span><span class="p">);</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">nil</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
 
-<h2 id="integration-example">
-  Integration Example
+<h2 Heading level 1–6 id="integration-example">
+  Integration&nbsp;Example
 </h2>
 
 <h3 id="adding-to-marked">
-  Adding to Marked
+  Adding&nbsp;to&nbsp;Marked
 </h3>
 
 <p>
@@ -1310,47 +1606,53 @@ make
 </p>
 
 <p>
-<strong>  1. Add to processor selection:</strong>
+  <strong>1. Add to processor selection:</strong>
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">In</span> <span class="n">MKConductorTransformer</span><span class="p">.</span><span class="n">m</span> <span class="n">or</span> <span class="n">similar</span>
-<span class="err">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">([</span><span class="n">processor</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="s">@"Apex"</span><span class="p">])</span> <span class="p">{</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithApex</span><span class="p">:</span><span class="n">text</span><span class="p">];</span>
-<span class="p">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">([</span><span class="n">processor</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="s">@"MultiMarkdown"</span><span class="p">])</span> <span class="p">{</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="p">[</span><span class="n">NSString</span> <span class="nf">convertWithMultiMarkdown</span><span class="p">:</span><span class="n">text</span><span class="p">];</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// In MKConductorTransformer.m or similar</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="n">processor</span><span class="w"> </span><span class="n">isEqualToString</span><span class="o">:</span><span class="s">@&quot;Apex&quot;</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithApex</span><span class="o">:</span><span class="n">text</span><span class="p">];</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="n">processor</span><span class="w"> </span><span class="n">isEqualToString</span><span class="o">:</span><span class="s">@&quot;MultiMarkdown&quot;</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="bp">NSString</span><span class="w"> </span><span class="n">convertWithMultiMarkdown</span><span class="o">:</span><span class="n">text</span><span class="p">];</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  2. Add to preferences:</strong>
+  <strong>2. Add to preferences:</strong>
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">In</span> <span class="n">processor</span> <span class="n">dropdown</span>
-<span class="n">NSArray</span> <span class="o">*</span><span class="n">processors</span> <span class="o">=</span> <span class="p">@[</span>
-    <span class="s">@"MultiMarkdown"</span><span class="p">,</span>
-    <span class="s">@"Discount (GFM)"</span><span class="p">,</span>
-    <span class="s">@"CommonMark"</span><span class="p">,</span>
-    <span class="s">@"Kramdown"</span><span class="p">,</span>
-    <span class="s">@"Apex"</span>  <span class="c1">// Add this</span>
-<span class="p">];</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="c1">// In processor dropdown</span>
+<span class="bp">NSArray</span><span class="w"> </span><span class="o">*</span><span class="n">processors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="l">@[</span>
+<span class="w">    </span><span class="s">@&quot;MultiMarkdown&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;Discount (GFM)&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;CommonMark&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;Kramdown&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s">@&quot;Apex&quot;</span><span class="w">  </span><span class="c1">// Add this</span>
+<span class="l">]</span><span class="p">;</span>
+</pre>
+</div>
 
 <p>
-<strong>  3. Handle custom processor rules:</strong>
+  <strong>3. Handle custom processor rules:</strong>
 </p>
 
-<pre><code class="highlight language-objective-c"> <span class="n">In</span> <span class="n">custom</span> <span class="n">processor</span> <span class="n">handling</span>
-<span class="err">}</span> <span class="k">else</span> <span class="nf">if</span> <span class="p">([</span><span class="n">outputString</span><span class="p">.</span><span class="n">uppercaseString</span> <span class="nf">isEqualToString</span><span class="p">:</span><span class="s">@"APEX"</span><span class="p">])</span> <span class="p">{</span>
-    <span class="p">[</span><span class="n">defaults</span> <span class="nf">setValue</span><span class="p">:</span><span class="s">@"Apex"</span> <span class="nf">forKey</span><span class="p">:</span><span class="s">@"defaultProcessor"</span><span class="p">];</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// In custom processor handling</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">([</span><span class="n">outputString</span><span class="p">.</span><span class="n">uppercaseString</span><span class="w"> </span><span class="n">isEqualToString</span><span class="o">:</span><span class="s">@&quot;APEX&quot;</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">[</span><span class="n">defaults</span><span class="w"> </span><span class="n">setValue</span><span class="o">:</span><span class="s">@&quot;Apex&quot;</span><span class="w"> </span><span class="n">forKey</span><span class="o">:</span><span class="s">@&quot;defaultProcessor&quot;</span><span class="p">];</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
 
 <h2 id="build-settings">
-  Build Settings
+  Build&nbsp;Settings
 </h2>
 
 <h3 id="header-search-paths">
-  Header Search Paths
+  Header Search&nbsp;Paths
 </h3>
 
 <p>
@@ -1361,7 +1663,7 @@ make
 </code></pre>
 
 <h3 id="framework-search-paths">
-  Framework Search Paths
+  Framework Search&nbsp;Paths
 </h3>
 
 <p>
@@ -1372,7 +1674,7 @@ make
 </code></pre>
 
 <h3 id="other-linker-flags">
-  Other Linker Flags
+  Other Linker&nbsp;Flags
 </h3>
 
 <p>
@@ -1382,8 +1684,8 @@ make
 <pre><code class="highlight ">-L$(SRCROOT)/apex/build -lapex
 </code></pre>
 
-<h3 id="swift-api-support">
-  Swift API Support
+<h3 `text` id="swift-api-support">
+  Swift API&nbsp;Support
 </h3>
 
 <p>
@@ -1393,15 +1695,15 @@ make
 <ol>
 
   <li>
-<strong>    If using the framework:</strong> The Swift file is automatically included when you link <code>Apex.framework</code>
+    <strong>If using the framework:</strong> The Swift file is automatically included when you link <code>Apex.framework</code>
   </li>
 
   <li>
-<strong>    If using source files directly:</strong> Add <code>apex/objc/Apex.swift</code> to your Xcode project
+    <strong>If using source files directly:</strong> Add <code>apex/objc/Apex.swift</code> to your Xcode project
   </li>
 
   <li>
-<strong>    Swift/Objective-C Bridging:</strong> Xcode will automatically create a bridging header if needed
+    <strong>Swift/Objective-C Bridging:</strong> Xcode will automatically create a bridging header if needed
   </li>
 
 </ol>
@@ -1430,7 +1732,7 @@ make
 
 </ul>
 
-<h2 id="swift-integration">
+<h2 `NSString` id="swift-integration">
   Swift Integration
 </h2>
 
@@ -1438,170 +1740,313 @@ make
   Apex provides an idiomatic Swift API wrapper (<code>Apex.swift</code>) that offers type-safe enums and structs over the Objective-C API.
 </p>
 
-<h3 id="idiomatic-swift-api-recommended">
-  Idiomatic Swift API (Recommended)
+<h3 Display title id="idiomatic-swift-api-recommended">
+  Idiomatic Swift API&nbsp;(Recommended)
 </h3>
 
-<pre><code class="highlight language-swift"><span class="kd">import</span> <span class="kt">Foundation</span>
- <span class="kt">Import</span> <span class="kt">Apex</span><span class="o">.</span><span class="nf">swift</span> <span class="p">(</span><span class="n">automatically</span> <span class="n">available</span> <span class="n">when</span> <span class="n">framework</span> <span class="k">is</span> <span class="n">linked</span><span class="p">)</span>
+<div class="highlight">
+<pre><span></span><span class="kd">import</span><span class="w"> </span><span class="nc">Foundation</span>
+<span class="c1">// Import Apex.swift (automatically available when framework is linked)</span>
 
- <span class="kt">Basic</span> <span class="n">conversion</span> <span class="n">with</span> <span class="k">default</span> <span class="n">unified</span> <span class="n">mode</span>
-<span class="k">let</span> <span class="nv">markdown</span> <span class="o">=</span> <span class="s">"# Hello World"</span>
-<span class="k">let</span> <span class="nv">html</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">()</span>
+<span class="c1">// Basic conversion with default unified mode</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">markdown</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;# Hello World&quot;</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">()</span>
 
- <span class="kt">With</span> <span class="n">type</span><span class="o">-</span><span class="n">safe</span> <span class="n">mode</span> <span class="kd">enum</span>
-<span class="k">let</span> <span class="nv">gfmHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">gfm</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">mmdHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">multimarkdown</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">kramdownHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">kramdown</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">commonmarkHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">commonmark</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">unifiedHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">)</span>
+<span class="c1">// With type-safe mode enum</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">gfmHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">gfm</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">mmdHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">multimarkdown</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">kramdownHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">kramdown</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">commonmarkHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">commonmark</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">unifiedHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">)</span>
 
- <span class="kt">Using</span> <span class="kt">ApexOptions</span> <span class="nf">struct</span> <span class="p">(</span><span class="n">type</span><span class="o">-</span><span class="n">safe</span><span class="p">)</span>
-<span class="k">var</span> <span class="nv">options</span> <span class="o">=</span> <span class="kt">ApexOptions</span><span class="p">()</span>
-<span class="n">options</span><span class="o">.</span><span class="n">pretty</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="n">options</span><span class="o">.</span><span class="n">standalone</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="n">options</span><span class="o">.</span><span class="n">stylesheet</span> <span class="o">=</span> <span class="s">"style.css"</span>
-<span class="n">options</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="s">"My Document"</span>
-<span class="n">options</span><span class="o">.</span><span class="n">generateHeaderIDs</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="n">options</span><span class="o">.</span><span class="n">hardBreaks</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="n">options</span><span class="o">.</span><span class="n">obfuscateEmails</span> <span class="o">=</span> <span class="kc">true</span>
+<span class="c1">// Using ApexOptions struct (type-safe)</span>
+<span class="kd">var</span><span class="w"> </span><span class="nv">options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">ApexOptions</span><span class="p">()</span>
+<span class="n">options</span><span class="p">.</span><span class="n">pretty</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">options</span><span class="p">.</span><span class="n">standalone</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">options</span><span class="p">.</span><span class="n">stylesheet</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;style.css&quot;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">&quot;My Document&quot;</span>
+<span class="n">options</span><span class="p">.</span><span class="n">generateHeaderIDs</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">options</span><span class="p">.</span><span class="n">hardBreaks</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">options</span><span class="p">.</span><span class="n">obfuscateEmails</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
 
-<span class="k">let</span> <span class="nv">configuredHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">,</span> <span class="nv">options</span><span class="p">:</span> <span class="n">options</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">configuredHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="n">options</span><span class="p">)</span>
 
- <span class="kt">Or</span> <span class="n">use</span> <span class="kd">static</span> <span class="kt">Apex</span> <span class="n">converter</span>
-<span class="k">let</span> <span class="nv">html2</span> <span class="o">=</span> <span class="kt">Apex</span><span class="o">.</span><span class="nf">convert</span><span class="p">(</span><span class="n">markdown</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">html3</span> <span class="o">=</span> <span class="kt">Apex</span><span class="o">.</span><span class="nf">convert</span><span class="p">(</span><span class="n">markdown</span><span class="p">,</span> <span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">gfm</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">html4</span> <span class="o">=</span> <span class="kt">Apex</span><span class="o">.</span><span class="nf">convert</span><span class="p">(</span><span class="n">markdown</span><span class="p">,</span> <span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">,</span> <span class="nv">options</span><span class="p">:</span> <span class="n">options</span><span class="p">)</span>
+<span class="c1">// Or use static Apex converter</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html2</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">Apex</span><span class="p">.</span><span class="n">convert</span><span class="p">(</span><span class="n">markdown</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html3</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">Apex</span><span class="p">.</span><span class="n">convert</span><span class="p">(</span><span class="n">markdown</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">gfm</span><span class="p">)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html4</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">Apex</span><span class="p">.</span><span class="n">convert</span><span class="p">(</span><span class="n">markdown</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="n">options</span><span class="p">)</span>
 
- <span class="kt">Standalone</span> <span class="kt">HTML</span> <span class="n">document</span>
-<span class="k">let</span> <span class="nv">standaloneHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span>
-    <span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">,</span>
-    <span class="nv">standalone</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-    <span class="nv">stylesheet</span><span class="p">:</span> <span class="s">"style.css"</span><span class="p">,</span>
-    <span class="nv">title</span><span class="p">:</span> <span class="s">"My Document"</span>
+<span class="c1">// Standalone HTML document</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">standaloneHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span>
+<span class="w">    </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">,</span>
+<span class="w">    </span><span class="n">standalone</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="n">stylesheet</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;style.css&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">title</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;My Document&quot;</span>
 <span class="p">)</span>
 
- <span class="kt">Pretty</span><span class="o">-</span><span class="n">printed</span> <span class="kt">HTML</span>
-<span class="k">let</span> <span class="nv">prettyHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">pretty</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span> <span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">)</span>
+<span class="c1">// Pretty-printed HTML</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">prettyHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">pretty</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">)</span>
 
- <span class="kt">Common</span> <span class="n">options</span> <span class="n">combined</span>
-<span class="k">let</span> <span class="nv">commonOptionsHtml</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span>
-    <span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">unified</span><span class="p">,</span>
-    <span class="nv">generateHeaderIDs</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-    <span class="nv">hardBreaks</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-    <span class="nv">pretty</span><span class="p">:</span> <span class="kc">true</span>
+<span class="c1">// Common options combined</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">commonOptionsHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span>
+<span class="w">    </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">,</span>
+<span class="w">    </span><span class="n">generateHeaderIDs</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="n">hardBreaks</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="n">pretty</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
 <span class="p">)</span>
-</code></pre>
+</pre>
+</div>
 
 <h3 id="apexmode-enum">
-  ApexMode Enum
+  ApexMode&nbsp;Enum
 </h3>
 
 <p>
   Type-safe processor mode enum:
 </p>
 
-<pre><code class="highlight language-swift"><span class="kd">public</span> <span class="kd">enum</span> <span class="kt">ApexMode</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="kt">CaseIterable</span> <span class="p">{</span>
-    <span class="k">case</span> <span class="n">commonmark</span>
-    <span class="k">case</span> <span class="n">gfm</span>
-    <span class="k">case</span> <span class="n">multimarkdown</span>
-    <span class="k">case</span> <span class="n">kramdown</span>
-    <span class="k">case</span> <span class="n">unified</span>
+<div class="highlight">
+<pre><span></span><span class="kd">public</span><span class="w"> </span><span class="kd">enum</span><span class="w"> </span><span class="nc">ApexMode</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">CaseIterable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">commonmark</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">gfm</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">multimarkdown</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">kramdown</span>
+<span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">unified</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
 
-<h3 id="apexoptions-struct">
-  ApexOptions Struct
+<h3 `id` id="apexoptions-struct">
+  ApexOptions&nbsp;Struct
 </h3>
 
 <p>
   Type-safe options configuration:
 </p>
 
-<pre><code class="highlight language-swift"><span class="kd">public</span> <span class="kd">struct</span> <span class="kt">ApexOptions</span> <span class="p">{</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">pretty</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">standalone</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">stylesheet</span><span class="p">:</span> <span class="kt">String</span><span class="p">?</span> <span class="o">=</span> <span class="kc">nil</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">title</span><span class="p">:</span> <span class="kt">String</span><span class="p">?</span> <span class="o">=</span> <span class="kc">nil</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">hardBreaks</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">generateHeaderIDs</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">unsafe</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">headerAnchors</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">obfuscateEmails</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
-    <span class="kd">public</span> <span class="k">var</span> <span class="nv">embedImages</span><span class="p">:</span> <span class="kt">Bool</span> <span class="o">=</span> <span class="kc">false</span>
+<div class="highlight">
+<pre><span></span><span class="kd">public</span><span class="w"> </span><span class="kd">struct</span><span class="w"> </span><span class="nc">ApexOptions</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">pretty</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">standalone</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">stylesheet</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">?</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">nil</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">title</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">?</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">nil</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">hardBreaks</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">generateHeaderIDs</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">unsafe</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">headerAnchors</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">obfuscateEmails</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">embedImages</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="nv">enablePlugins</span><span class="p">:</span><span class="w"> </span><span class="nb">Bool</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span>
 
-    <span class="kd">public</span> <span class="kd">static</span> <span class="kd">let</span> <span class="p">`</span><span class="nv">default</span><span class="p">`</span> <span class="o">=</span> <span class="kt">ApexOptions</span><span class="p">()</span>
+<span class="w">    </span><span class="kd">public</span><span class="w"> </span><span class="kd">static</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="p">`</span><span class="k">default</span><span class="p">`</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">ApexOptions</span><span class="p">()</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  Example usage:</strong>
+  <strong>Example usage:</strong>
 </p>
 
-<pre><code class="highlight language-swift"><span class="k">var</span> <span class="nv">options</span> <span class="o">=</span> <span class="kt">ApexOptions</span><span class="o">.</span><span class="k">default</span>
-<span class="n">options</span><span class="o">.</span><span class="n">pretty</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="n">options</span><span class="o">.</span><span class="n">generateHeaderIDs</span> <span class="o">=</span> <span class="kc">true</span>
-<span class="k">let</span> <span class="nv">html</span> <span class="o">=</span> <span class="n">markdown</span><span class="o">.</span><span class="nf">apexHTML</span><span class="p">(</span><span class="nv">mode</span><span class="p">:</span> <span class="o">.</span><span class="n">gfm</span><span class="p">,</span> <span class="nv">options</span><span class="p">:</span> <span class="n">options</span><span class="p">)</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="kd">var</span><span class="w"> </span><span class="nv">options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">ApexOptions</span><span class="p">.</span><span class="k">default</span>
+<span class="n">options</span><span class="p">.</span><span class="n">pretty</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">options</span><span class="p">.</span><span class="n">generateHeaderIDs</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">gfm</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="n">options</span><span class="p">)</span>
+</pre>
+</div>
 
-<h3 id="objective-c-bridge-alternative">
-  Objective-C Bridge (Alternative)
+<h3 `NSString` id="apexoptions-vs-apexoptions">
+  ApexOptions vs&nbsp;apex_options
+</h3>
+
+<p>
+  Use <code>ApexOptions</code> for most Swift code, and use <code>apex_options</code> only for low-level or plugin-focused use cases.
+</p>
+
+<ul>
+
+  <li>
+<code>ApexOptions</code> is the high-level Swift API and is the recommended default for app code.
+  </li>
+
+  <li>
+<code>apex_options</code> is the C struct and exposes advanced flags that may not be surfaced in <code>ApexOptions</code>.
+  </li>
+
+  <li>
+    For direct C struct field access in Swift, import both modules:
+  </li>
+
+</ul>
+
+<div class="highlight">
+<pre><span></span><span class="kd">import</span><span class="w"> </span><span class="nc">Apex</span>
+<span class="kd">import</span><span class="w"> </span><span class="nc">ApexC</span>
+</pre>
+</div>
+
+<p>
+  You can get a default C options struct from the Objective-C bridge:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="kd">var</span><span class="w"> </span><span class="nv">cOptions</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="bp">NSString</span><span class="p">.</span><span class="n">defaultApexOptions</span><span class="p">()</span>
+<span class="n">cOptions</span><span class="p">.</span><span class="n">enable_callouts</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">cOptions</span><span class="p">.</span><span class="n">enable_plugins</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+</pre>
+</div>
+
+<p>
+  Use this pattern when integrating plugins or other advanced features that require direct control over C-level options.
+</p>
+
+<h3 Fragment id (same rules as `--id-format` / manual IDs) id="objective-c-bridge-alternative">
+  Objective-C Bridge&nbsp;(Alternative)
 </h3>
 
 <p>
   You can also use the Objective-C API directly from Swift:
 </p>
 
-<pre><code class="highlight language-swift"><span class="kd">import</span> <span class="kt">Foundation</span>
+<div class="highlight">
+<pre><span></span><span class="kd">import</span><span class="w"> </span><span class="nc">Foundation</span>
 
- <span class="kt">Use</span> <span class="kt">Objective</span><span class="o">-</span><span class="kt">C</span> <span class="n">wrapper</span>
-<span class="k">let</span> <span class="nv">html</span> <span class="o">=</span> <span class="kt">NSString</span><span class="o">.</span><span class="nf">convert</span><span class="p">(</span><span class="nv">withApex</span><span class="p">:</span> <span class="n">markdownText</span><span class="p">)</span>
+<span class="c1">// Use Objective-C wrapper</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="bp">NSString</span><span class="p">.</span><span class="n">convert</span><span class="p">(</span><span class="n">withApex</span><span class="p">:</span><span class="w"> </span><span class="n">markdownText</span><span class="p">)</span>
 
- <span class="kt">With</span> <span class="n">mode</span> <span class="n">constants</span>
-<span class="k">let</span> <span class="nv">gfmHtml</span> <span class="o">=</span> <span class="kt">NSString</span><span class="o">.</span><span class="nf">convert</span><span class="p">(</span><span class="nv">withApex</span><span class="p">:</span> <span class="n">markdownText</span><span class="p">,</span> <span class="nv">mode</span><span class="p">:</span> <span class="kt">ApexModeGFM</span><span class="p">)</span>
+<span class="c1">// With mode constants</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">gfmHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="bp">NSString</span><span class="p">.</span><span class="n">convert</span><span class="p">(</span><span class="n">withApex</span><span class="p">:</span><span class="w"> </span><span class="n">markdownText</span><span class="p">,</span><span class="w"> </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="n">ApexModeGFM</span><span class="p">)</span>
 
- <span class="kt">Dictionary</span><span class="o">-</span><span class="n">based</span> <span class="n">options</span>
-<span class="k">let</span> <span class="nv">options</span><span class="p">:</span> <span class="p">[</span><span class="kt">String</span><span class="p">:</span> <span class="kt">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="s">"pretty"</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-    <span class="s">"standalone"</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
-    <span class="s">"stylesheet"</span><span class="p">:</span> <span class="s">"style.css"</span>
+<span class="c1">// Dictionary-based options</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">options</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="nb">String</span><span class="p">:</span><span class="w"> </span><span class="nb">Any</span><span class="p">]</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="s">&quot;pretty&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="s">&quot;standalone&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="s">&quot;stylesheet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;style.css&quot;</span>
 <span class="p">]</span>
-<span class="k">let</span> <span class="nv">configuredHtml</span> <span class="o">=</span> <span class="kt">NSString</span><span class="o">.</span><span class="nf">convert</span><span class="p">(</span>
-    <span class="nv">withApex</span><span class="p">:</span> <span class="n">markdownText</span><span class="p">,</span>
-    <span class="nv">mode</span><span class="p">:</span> <span class="kt">ApexModeUnified</span><span class="p">,</span>
-    <span class="nv">options</span><span class="p">:</span> <span class="n">options</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">configuredHtml</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="bp">NSString</span><span class="p">.</span><span class="n">convert</span><span class="p">(</span>
+<span class="w">    </span><span class="n">withApex</span><span class="p">:</span><span class="w"> </span><span class="n">markdownText</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="n">ApexModeUnified</span><span class="p">,</span>
+<span class="w">    </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="n">options</span>
 <span class="p">)</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
   For direct C API access, create a Swift bridging header:
 </p>
 
-<pre><code class="highlight language-swift"> <span class="kt">Bridging</span> <span class="n">header</span>
-<span class="cp">#import &lt;Apex/apex.h&gt;</span>
+<div class="highlight">
+<pre><span></span><span class="c1">// Bridging header</span>
+<span class="p">#</span><span class="kd">import</span><span class="w"> </span><span class="p">&lt;</span><span class="nc">Apex</span><span class="o">/</span><span class="nc">apex</span><span class="p">.</span><span class="nc">h</span><span class="p">&gt;</span>
 
- <span class="kt">Swift</span> <span class="n">code</span>
-<span class="kd">func</span> <span class="nf">convertMarkdown</span><span class="p">(</span><span class="n">_</span> <span class="nv">text</span><span class="p">:</span> <span class="kt">String</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">String</span><span class="p">?</span> <span class="p">{</span>
-    <span class="k">let</span> <span class="nv">opts</span> <span class="o">=</span> <span class="nf">apex_options_default</span><span class="p">()</span>
-    <span class="k">let</span> <span class="nv">cString</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">utf8CString</span>
-    <span class="k">guard</span> <span class="k">let</span> <span class="nv">html</span> <span class="o">=</span> <span class="nf">apex_markdown_to_html</span><span class="p">(</span><span class="n">cString</span><span class="p">,</span> <span class="n">text</span><span class="o">.</span><span class="n">utf8</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">opts</span><span class="p">)</span> <span class="k">else</span> <span class="p">{</span>
-        <span class="k">return</span> <span class="kc">nil</span>
-    <span class="p">}</span>
-    <span class="k">defer</span> <span class="p">{</span> <span class="nf">apex_free_string</span><span class="p">(</span><span class="n">html</span><span class="p">)</span> <span class="p">}</span>
-    <span class="k">return</span> <span class="kt">String</span><span class="p">(</span><span class="nv">cString</span><span class="p">:</span> <span class="n">html</span><span class="p">)</span>
+<span class="c1">// Swift code</span>
+<span class="kd">func</span><span class="w"> </span><span class="nf">convertMarkdown</span><span class="p">(</span><span class="kc">_</span><span class="w"> </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="p">?</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="nv">opts</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">apex_options_default</span><span class="p">()</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="nv">cString</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">text</span><span class="p">.</span><span class="n">utf8CString</span>
+<span class="w">    </span><span class="k">guard</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">apex_markdown_to_html</span><span class="p">(</span><span class="n">cString</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">.</span><span class="n">utf8</span><span class="p">.</span><span class="bp">count</span><span class="p">,</span><span class="w"> </span><span class="p">&amp;</span><span class="n">opts</span><span class="p">)</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="kc">nil</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">defer</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">apex_free_string</span><span class="p">(</span><span class="n">html</span><span class="p">)</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nb">String</span><span class="p">(</span><span class="n">cString</span><span class="p">:</span><span class="w"> </span><span class="n">html</span><span class="p">)</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
+
+<h2 id="plugin-catalog-and-installation">
+  Plugin Catalog and&nbsp;Installation
+</h2>
+
+<p>
+  Apex exposes a first-class API for building plugin picker UIs in macOS and iOS apps. Fetch the central plugin directory, list installed plugins, and install or uninstall without shelling out to the CLI.
+</p>
+
+<h3 id="swift-api-recommended">
+  Swift API&nbsp;(recommended)
+</h3>
+
+<div class="highlight">
+<pre><span></span><span class="kd">import</span><span class="w"> </span><span class="nc">Apex</span>
+
+<span class="c1">// Fetch available plugins from apex-plugins.json</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">available</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="k">try</span><span class="w"> </span><span class="n">ApexPluginManager</span><span class="p">.</span><span class="n">fetchAvailable</span><span class="p">()</span>
+
+<span class="k">for</span><span class="w"> </span><span class="n">plugin</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">available</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="bp">print</span><span class="p">(</span><span class="n">plugin</span><span class="p">.</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">plugin</span><span class="p">.</span><span class="n">title</span><span class="w"> </span><span class="p">??</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">plugin</span><span class="p">.</span><span class="n">repo</span><span class="w"> </span><span class="p">??</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c1">// List installed plugins (project + user-global)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">installed</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">ApexPluginManager</span><span class="p">.</span><span class="n">installed</span><span class="p">(</span><span class="n">baseDirectory</span><span class="p">:</span><span class="w"> </span><span class="n">documentFolder</span><span class="p">.</span><span class="n">path</span><span class="p">)</span>
+
+<span class="c1">// Install from the curated directory</span>
+<span class="k">try</span><span class="w"> </span><span class="n">ApexPluginManager</span><span class="p">.</span><span class="n">install</span><span class="p">(</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;kbd&quot;</span><span class="p">)</span>
+
+<span class="c1">// Install from a Git URL (requires explicit opt-in)</span>
+<span class="k">try</span><span class="w"> </span><span class="n">ApexPluginManager</span><span class="p">.</span><span class="n">install</span><span class="p">(</span>
+<span class="w">    </span><span class="n">idOrRepository</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;https://github.com/ApexMarkdown/apex-plugin-kbd.git&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">allowUntrustedSource</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="p">)</span>
+
+<span class="c1">// Uninstall from ~/.config/apex/plugins</span>
+<span class="k">try</span><span class="w"> </span><span class="n">ApexPluginManager</span><span class="p">.</span><span class="n">uninstall</span><span class="p">(</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;kbd&quot;</span><span class="p">)</span>
+
+<span class="c1">// Enable plugins when converting</span>
+<span class="kd">var</span><span class="w"> </span><span class="nv">options</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">ApexOptions</span><span class="p">()</span>
+<span class="n">options</span><span class="p">.</span><span class="n">enablePlugins</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="n">apexHTML</span><span class="p">(</span><span class="n">mode</span><span class="p">:</span><span class="w"> </span><span class="p">.</span><span class="n">unified</span><span class="p">,</span><span class="w"> </span><span class="n">options</span><span class="p">:</span><span class="w"> </span><span class="n">options</span><span class="p">)</span>
+</pre>
+</div>
+
+<p>
+<code>ApexPluginInfo</code> is <code>Identifiable</code> and includes <code>id</code>, <code>title</code>, <code>description</code>, <code>author</code>, <code>homepage</code>, and <code>repo</code>.
+</p>
+
+<h3 id="objective-c-api">
+  Objective-C&nbsp;API
+</h3>
+
+<div class="highlight">
+<pre><span></span><span class="cp">#import &quot;NSString+ApexPlugins.h&quot;</span>
+
+<span class="bp">NSError</span><span class="w"> </span><span class="o">*</span><span class="n">error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">nil</span><span class="p">;</span>
+<span class="bp">NSArray</span><span class="o">&lt;</span><span class="n">ApexPluginInfo</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="o">*</span><span class="n">available</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="p">[</span><span class="n">ApexPluginCatalog</span><span class="w"> </span><span class="n">fetchAvailablePlugins</span><span class="o">:&amp;</span><span class="n">error</span><span class="p">];</span>
+<span class="k">if</span><span class="w"> </span><span class="o">&lt;!--</span><span class="n">IDX</span><span class="o">:</span><span class="n">idxref</span><span class="mi">-0</span><span class="o">--&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;Fetch failed: %@&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="bp">NSArray</span><span class="o">&lt;</span><span class="n">ApexPluginInfo</span><span class="w"> </span><span class="o">*&gt;</span><span class="w"> </span><span class="o">*</span><span class="n">installed</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="p">[</span><span class="n">ApexPluginCatalog</span><span class="w"> </span><span class="n">installedPluginsWithBaseDirectory</span><span class="o">:</span><span class="n">documentPath</span><span class="p">];</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="p">[</span><span class="n">ApexPluginCatalog</span><span class="w"> </span><span class="n">installPluginWithId</span><span class="o">:</span><span class="s">@&quot;kbd&quot;</span><span class="w"> </span><span class="n">error</span><span class="o">:&amp;</span><span class="n">error</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">NSLog</span><span class="p">(</span><span class="s">@&quot;Install failed: %@&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">error</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="bp">NSString</span><span class="w"> </span><span class="o">*</span><span class="n">pluginsDir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="n">ApexPluginCatalog</span><span class="w"> </span><span class="n">globalPluginsDirectory</span><span class="p">];</span>
+</pre>
+</div>
+
+<h3 id="c-api">
+  C&nbsp;API
+</h3>
+
+<p>
+  For direct C integration, see <a href="C-API#plugin-catalog-api">C API - Plugin Catalog API</a>. Include <code>apex/plugins.h</code> or <code>apexc.h</code>.
+</p>
+
+<p>
+  <strong>Requirements:</strong> Catalog fetch uses <code>curl</code>. Install/uninstall uses <code>git clone</code> and writes to <code>~/.config/apex/plugins</code> (or <code>$XDG_CONFIG_HOME/apex/plugins</code>). Confirm untrusted sources in your UI before calling install with <code>allowUntrustedSource: true</code>.
+</p>
 
 <h2 id="troubleshooting">
   Troubleshooting
 </h2>
 
 <h3 id="swift-package-manager-issues">
-  Swift Package Manager Issues
+  Swift Package Manager&nbsp;Issues
 </h3>
 
 <p>
-<strong>  Package Resolution Fails:</strong>
+  <strong>Package Resolution Fails:</strong>
 </p>
 
 <ul>
@@ -1625,7 +2070,7 @@ make
 </ul>
 
 <p>
-<strong>  Build Errors:</strong>
+  <strong>Build Errors:</strong>
 </p>
 
 <ul>
@@ -1645,7 +2090,7 @@ make
 </ul>
 
 <p>
-<strong>  Module Not Found:</strong>
+  <strong>Module Not Found:</strong>
 </p>
 
 <ul>
@@ -1664,8 +2109,24 @@ make
 
 </ul>
 
+<p>
+  <strong>C options visible but fields unavailable:</strong>
+</p>
+
+<ul>
+
+  <li>
+    If <code>apex_options</code> appears in quick help but field access fails, add <code>import ApexC</code> next to <code>import Apex</code>
+  </li>
+
+  <li>
+    Clean and rebuild (<code>Product &gt; Clean Build Folder</code>) to refresh Xcode indexing and module cache
+  </li>
+
+</ul>
+
 <h3 id="framework-not-found">
-  Framework Not Found
+  Framework&nbsp;Not&nbsp;Found
 </h3>
 
 <p>
@@ -1689,7 +2150,7 @@ make
 </ol>
 
 <h3 id="linker-errors">
-  Linker Errors
+  Linker&nbsp;Errors
 </h3>
 
 <ul>
@@ -1709,7 +2170,7 @@ make
 </ul>
 
 <h3 id="runtime-errors">
-  Runtime Errors
+  Runtime&nbsp;Errors
 </h3>
 
 <ul>
@@ -1761,27 +2222,29 @@ make
 </p>
 
 <h2 id="module-map">
-  Module Map
+  Module&nbsp;Map
 </h2>
 
 <p>
   Apex includes a module map (<code>include/apex/module.modulemap</code>) that allows Swift to import the C API directly:
 </p>
 
-<pre><code class="highlight language-swift"><span class="kd">import</span> <span class="kt">Apex</span>
+<div class="highlight">
+<pre><span></span><span class="kd">import</span><span class="w"> </span><span class="nc">Apex</span>
 
- <span class="kt">Direct</span> <span class="kt">C</span> <span class="kt">API</span> <span class="nf">access</span> <span class="p">(</span><span class="n">advanced</span> <span class="n">usage</span><span class="p">)</span>
-<span class="k">let</span> <span class="nv">opts</span> <span class="o">=</span> <span class="nf">apex_options_default</span><span class="p">()</span>
- <span class="o">...</span> <span class="n">configure</span> <span class="n">options</span> <span class="o">...</span>
-<span class="k">let</span> <span class="nv">html</span> <span class="o">=</span> <span class="nf">apex_markdown_to_html</span><span class="p">(</span><span class="n">markdown</span><span class="p">,</span> <span class="n">markdown</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">opts</span><span class="p">)</span>
-</code></pre>
+<span class="c1">// Direct C API access (advanced usage)</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">opts</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">apex_options_default</span><span class="p">()</span>
+<span class="c1">// ... configure options ...</span>
+<span class="kd">let</span><span class="w"> </span><span class="nv">html</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="n">apex_markdown_to_html</span><span class="p">(</span><span class="n">markdown</span><span class="p">,</span><span class="w"> </span><span class="n">markdown</span><span class="p">.</span><span class="bp">count</span><span class="p">,</span><span class="w"> </span><span class="p">&amp;</span><span class="n">opts</span><span class="p">)</span>
+</pre>
+</div>
 
 <p>
   The module map is automatically included when using SPM or the framework.
 </p>
 
 <h2 id="comparison-of-integration-methods">
-  Comparison of Integration Methods
+  Comparison of Integration&nbsp;Methods
 </h2>
 
 <table>
@@ -1815,7 +2278,7 @@ make
     <tr>
 
       <td>
-<strong>        Swift Package Manager</strong>
+        <strong>Swift Package Manager</strong>
       </td>
 
       <td>
@@ -1874,7 +2337,7 @@ make
 </table>
 
 <p>
-<strong>  Recommendation:</strong> Use Swift Package Manager for the easiest integration and best cross-platform support.
+  <strong>Recommendation:</strong> Use Swift Package Manager for the easiest integration and best cross-platform support.
 </p>
 
 <h2 id="related">
@@ -1884,18 +2347,51 @@ make
 <ul>
 
   <li>
-<a href="C-API.html">    C API</a> - Direct C API documentation
+    <a href="C-API.html">C API</a> - Direct C API documentation (includes plugin catalog API)
   </li>
 
   <li>
-<a href="Usage.html">    Usage</a> - Basic usage examples
+    <a href="Plugins.html">Plugins</a> - Plugin syntax and CLI install flags
   </li>
 
   <li>
-<a href="Modes.html">    Modes</a> - Processor mode details
+    <a href="Usage.html">Usage</a> - Basic usage examples
+  </li>
+
+  <li>
+    <a href="Modes.html">Modes</a> - Processor mode details
   </li>
 
 </ul>
+
+<h1 id="index-section">
+  Index
+</h1>
+
+<div class="index">
+
+  <dl>
+
+    <dt>
+      A
+    </dt>
+
+    <dd>
+
+      <ul>
+
+        <li>
+
+          available <a class="index-return" href="#idxref-0"><sup>[go]</sup></a>
+        </li>
+
+      </ul>
+
+    </dd>
+
+  </dl>
+
+</div>
 
 <script>
 // Hamburger menu functionality

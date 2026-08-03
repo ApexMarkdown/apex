@@ -834,313 +834,901 @@ ol ul {
 
 <nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
-    <h1 id="installation">
-      Installation
+    <h1 id="rendering-markdown-in-the-terminal">
+      Rendering Markdown in the&nbsp;Terminal
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#installation">Installation</a><ul><li><a href="#quick-install-with-homebrew">Quick Install with&nbsp;Homebrew</a></li><li><a href="#pre-built-binaries">Pre-built&nbsp;Binaries</a></li><li><a href="#building-from-source">Building from&nbsp;Source</a><ul><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#1-clone-the-repository">1. Clone the&nbsp;Repository</a></li><li><a href="#2-configure-with-cmake">2. Configure&nbsp;with&nbsp;CMake</a></li><li><a href="#3-build">3.&nbsp;Build</a></li><li><a href="#4-install-optional">4. Install&nbsp;(Optional)</a></li></ul></li><li><a href="#build-outputs">Build&nbsp;Outputs</a></li><li><a href="#building-for-xcode">Building&nbsp;for&nbsp;Xcode</a></li><li><a href="#troubleshooting">Troubleshooting</a><ul><li><a href="#cmake-not-found">CMake&nbsp;not&nbsp;found</a></li><li><a href="#compilation-errors">Compilation&nbsp;errors</a></li><li><a href="#linking-errors">Linking&nbsp;errors</a></li></ul></li><li><a href="#verification">Verification</a></li><li><a href="#next-steps">Next&nbsp;Steps</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#rendering-markdown-in-the-terminal">Rendering Markdown in the&nbsp;Terminal</a><ul><li><a href="#output-formats-t-to">Output formats:&nbsp;-t&nbsp;/&nbsp;--to</a></li><li><a href="#options">Options</a><ul><li><a href="#theme-name">--theme&nbsp;NAME</a></li><li><a href="#width-n">--width&nbsp;N</a></li><li><a href="#code-highlight-theme-theme">--code-highlight-theme&nbsp;THEME</a></li><li><a href="#list-themes">--list-themes</a></li><li><a href="#p-paginate">-p,&nbsp;--paginate</a></li><li><a href="#paginate-symbols">--paginate-symbols</a></li><li><a href="#no-paginate">--no-paginate</a></li></ul></li><li><a href="#inline-images-terminal-graphics">Inline images (terminal&nbsp;graphics)</a><ul><li><a href="#no-terminal-images">--no-terminal-images</a></li><li><a href="#terminal-image-width-n">--terminal-image-width&nbsp;N</a></li></ul></li><li><a href="#configuration-and-metadata">Configuration and&nbsp;metadata</a><ul><li><a href="#metadata-keys">Metadata&nbsp;keys</a></li></ul></li><li><a href="#theme-file-format">Theme file&nbsp;format</a><ul><li><a href="#location-and-naming">Location&nbsp;and&nbsp;naming</a></li><li><a href="#element-keys">Element&nbsp;keys</a></li><li><a href="#example-theme-excerpt">Example theme&nbsp;(excerpt)</a></li></ul></li><li><a href="#debugging-terminal-output">Debugging terminal&nbsp;output</a></li><li><a href="#typical-use-cases">Typical&nbsp;use&nbsp;cases</a></li><li><a href="#replacing-mdless-and-similar-tools">Replacing mdless and similar&nbsp;tools</a></li><li><a href="#see-also">See&nbsp;also</a></li></ul></li></ul></nav>
 
-    <h2 id="quick-install-with-homebrew">
-      Quick Install with&nbsp;Homebrew
+    <p>
+      Apex can render Markdown to ANSI-colored output suitable for TTYs, terminal emulators, and terminal-based file manager previews (e.g. <strong>lf</strong>, <strong>yazi</strong>). This page describes the output formats, CLI flags, and configuration options.
+    </p>
+
+    <h2 id="output-formats-t-to">
+      Output formats:&nbsp;<code>-t</code>&nbsp;/&nbsp;<code>--to</code>
     </h2>
 
     <p>
-      The easiest way to install Apex on macOS is using <a href="https://brew.sh">Homebrew</a>:
+      Use <strong><code>-t</code></strong> or <strong><code>--to</code></strong> to choose the output format. For terminal rendering, use one of:
+    </p>
+
+    <table>
+
+      <thead>
+
+        <tr>
+
+          <th>
+            Format
+          </th>
+
+          <th>
+            Aliases
+          </th>
+
+          <th>
+            Description
+          </th>
+
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+        <tr>
+
+          <td>
+            <strong>terminal</strong>
+          </td>
+
+          <td>
+            <strong>cli</strong>
+          </td>
+
+          <td>
+            8/16-color ANSI output (standard and bright colors). Best compatibility with basic terminals.
+          </td>
+
+        </tr>
+        <tr>
+
+          <td>
+            <strong>terminal256</strong>
+          </td>
+
+          <td>
+            —
+          </td>
+
+          <td>
+            256-color ANSI output (xterm-256 palette). Richer colors when your terminal supports it.
+          </td>
+
+        </tr>
+      </tbody>
+
+    </table>
+
+    <p>
+      <strong>Examples:</strong>
     </p>
 
     <div class="highlight">
-<pre><span></span>brew<span class="w"> </span>tap<span class="w"> </span>ttscoff/thelab
-brew<span class="w"> </span>install<span class="w"> </span>ttscoff/thelab/apex
+<pre><span></span><span class="c1"># 16-color terminal output (default theme)</span>
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal
+
+<span class="c1"># Same as above (cli is an alias for terminal)</span>
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>cli
+
+<span class="c1"># 256-color terminal output</span>
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256
+
+<span class="c1"># Pipe from stdin</span>
+cat<span class="w"> </span>doc.md<span class="w"> </span><span class="p">|</span><span class="w"> </span>apex<span class="w"> </span>-t<span class="w"> </span>terminal
     </pre>
   </div>
 
-  <h2 id="pre-built-binaries">
-    Pre-built&nbsp;Binaries
-  </h2>
-
   <p>
-    Download pre-built binaries from the <a href="https://github.com/ApexMarkdown/apex/releases/latest">latest release</a>. Binaries are available for:
+    Output is written to stdout. Redirect or pipe as needed:
   </p>
-
-  <ul>
-
-    <li>
-      macOS (Universal binary for arm64 and x86_64)
-    </li>
-
-    <li>
-      Linux (x86_64 and arm64)
-    </li>
-
-  </ul>
-
-  <p>
-    Simply download the appropriate archive for your platform, extract it, and add the <code>apex</code> binary to your PATH.
-  </p>
-
-  <h2 id="building-from-source">
-    Building from&nbsp;Source
-  </h2>
-
-  <p>
-    Apex can also be built from source. This guide covers building on macOS, Linux, and other Unix-like systems.
-  </p>
-
-  <h3 id="prerequisites">
-    Prerequisites
-  </h3>
-
-  <ul>
-
-    <li>
-      CMake 3.10 or later
-    </li>
-
-    <li>
-      C compiler (GCC or Clang)
-    </li>
-
-    <li>
-      Make
-    </li>
-
-    <li>
-      Git (for cloning the repository)
-    </li>
-
-  </ul>
-
-  <h3 id="1-clone-the-repository">
-    1. Clone the&nbsp;Repository
-  </h3>
 
   <div class="highlight">
-<pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/ApexMarkdown/apex.git
-<span class="nb">cd</span><span class="w"> </span>apex
-git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init<span class="w"> </span>--recursive
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal<span class="w"> </span><span class="p">|</span><span class="w"> </span>less<span class="w"> </span>-R
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>-o<span class="w"> </span>-
   </pre>
 </div>
 
-<h3 id="2-configure-with-cmake">
-  2. Configure&nbsp;with&nbsp;CMake
+<h2 id="options">
+  Options
+</h2>
+
+<h3 id="theme-name">
+<code>--theme&nbsp;NAME</code>
 </h3>
 
-<div class="highlight">
-<pre><span></span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build
-</pre>
-</div>
-
 <p>
-  This will:
+  Load a terminal theme from:
 </p>
 
 <ul>
 
   <li>
-    Detect your compiler
+    <strong><code>~/.config/apex/terminal/themes/NAME.theme</code></strong> (when <code>NAME</code> is given)
   </li>
 
   <li>
-    Configure the build system
-  </li>
-
-  <li>
-    Generate the build cache
+    <strong><code>~/.config/apex/terminal/themes/default.theme</code></strong> (when no theme is specified and a default file exists)
   </li>
 
 </ul>
 
 <p>
-  <strong>Important:</strong> You must run the configuration step first. If you get a “could not load cache” error, it means this step hasn’t been run yet.
+  Themes are YAML files that map element types to colors and optional bold. See <a href="#theme-file-format">Theme file format</a> below.
 </p>
 
-<h3 id="3-build">
-  3.&nbsp;Build
-</h3>
+<p>
+  <strong>Examples:</strong>
+</p>
 
 <div class="highlight">
-<pre><span></span>cmake<span class="w"> </span>--build<span class="w"> </span>build
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal<span class="w"> </span>--theme<span class="w"> </span>brett
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--theme<span class="w"> </span>dark
 </pre>
 </div>
 
-<p>
-  This compiles the project using the configured build system.
-</p>
-
-<h3 id="4-install-optional">
-  4. Install&nbsp;(Optional)
+<h3 Format id="width-n">
+<code>--width&nbsp;N</code>
 </h3>
 
-<div class="highlight">
-<pre><span></span>cmake<span class="w"> </span>--install<span class="w"> </span>build
-</pre>
-</div>
-
 <p>
-  This installs:
+  Hard-wrap terminal (and terminal256) output at <strong>N visible columns</strong>. ANSI escape sequences are not counted toward the width, so colors and formatting are preserved while lines are wrapped. Useful when:
 </p>
 
 <ul>
 
   <li>
-<code>apex</code> binary to <code>/usr/local/bin</code>
+    Viewing in a narrow terminal or file manager preview pane
   </li>
 
   <li>
-    Libraries to <code>/usr/local/lib</code>
-  </li>
-
-  <li>
-    Headers to <code>/usr/local/include/apex</code>
+    Apex cannot detect the pane width (e.g. in <strong>lf</strong> or <strong>yazi</strong> preview)
   </li>
 
 </ul>
 
-<h2 id="build-outputs">
-  Build&nbsp;Outputs
-</h2>
+<p>
+  <strong>N</strong> must be a positive integer. If omitted or set to 0, Apex does not add wrapping; the terminal controls line breaks.
+</p>
 
 <p>
-  After building, you’ll find in the <code>build/</code> directory:
+  <strong>Examples:</strong>
+</p>
+
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal<span class="w"> </span>--width<span class="w"> </span><span class="m">80</span>
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--width<span class="w"> </span><span class="m">72</span>
+</pre>
+</div>
+
+<h3 Aliases id="code-highlight-theme-theme">
+<code>--code-highlight-theme&nbsp;THEME</code>
+</h3>
+
+<p>
+  When using an external syntax highlighter (via <code>--code-highlight</code>), you can control the highlighting theme with <code>--code-highlight-theme</code>. The same theme name is applied consistently to HTML and terminal output:
 </p>
 
 <ul>
 
   <li>
-<code>apex</code> - Command-line binary
+    <strong>Pygments</strong>: maps to <code>style=THEME</code> for both HTML and terminal/terminal256 ANSI output
   </li>
 
   <li>
-<code>libapex.dylib</code> (macOS) or <code>libapex.so</code> (Linux) - Shared library
+    <strong>Skylighting</strong>: maps to <code>--style THEME</code> for both HTML and ANSI output
   </li>
 
   <li>
-<code>libapex.a</code> - Static library
-  </li>
-
-  <li>
-<code>Apex.framework</code> (macOS only) - Framework for Xcode integration
+    <strong>Shiki</strong>: maps to <code>--theme THEME</code> for both HTML and ANSI output
   </li>
 
 </ul>
 
-<h2 id="building-for-xcode">
-  Building&nbsp;for&nbsp;Xcode
-</h2>
-
 <p>
-  To build the macOS framework for Xcode integration:
+  For <code>-t terminal</code> / <code>-t terminal256</code>, Apex uses the highlighter’s ANSI output when available, so your code blocks in the terminal use the selected theme’s colors.
 </p>
 
 <div class="highlight">
-<pre><span></span>cmake<span class="w"> </span>-G<span class="w"> </span>Xcode<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build
-cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--target<span class="w"> </span>Apex
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal<span class="w"> </span>--code-highlight<span class="w"> </span>pygments<span class="w"> </span>--code-highlight-theme<span class="w"> </span>monokai
+apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--code-highlight<span class="w"> </span>shiki<span class="w"> </span>--code-highlight-theme<span class="w"> </span>github-dark
 </pre>
 </div>
 
-<p>
-  Or open and build in Xcode directly:
-</p>
-
-<div class="highlight">
-<pre><span></span>cmake<span class="w"> </span>-G<span class="w"> </span>Xcode<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build
-open<span class="w"> </span>build/Apex.xcodeproj
-</pre>
-</div>
-
-<p>
-  Then build the “Apex” target in Xcode.
-</p>
-
-<h2 id="troubleshooting">
-  Troubleshooting
-</h2>
-
-<h3 id="cmake-not-found">
-  CMake&nbsp;not&nbsp;found
+<h3 Description id="list-themes">
+<code>--list-themes</code>
 </h3>
 
 <p>
-  Install CMake:
+  List available syntax highlighting themes for Pygments, Skylighting, and Shiki. The output is arranged in multiple columns that adapt to the current terminal width (up to four columns on wide screens).
+</p>
+
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--list-themes
+</pre>
+</div>
+
+<p>
+  Use this together with <code>--code-highlight-theme</code> to discover theme names that look good in your terminal.
+</p>
+
+<h3 id="p-paginate">
+<code>-p,&nbsp;--paginate</code>
+</h3>
+
+<p>
+  When using <code>-t terminal</code>, <code>-t cli</code>, or <code>-t terminal256</code>, <code>-p</code> / <code>--paginate</code> sends the rendered terminal output through a pager instead of writing directly to stdout.
+</p>
+
+<p>
+  <strong>Pager selection order:</strong>
 </p>
 
 <ul>
 
   <li>
-    macOS: <code>brew install cmake</code>
+    If <code>$APEX_PAGER</code> is set and non-empty, Apex uses its value as the pager
   </li>
 
   <li>
-    Ubuntu/Debian: <code>sudo apt-get install cmake</code>
+    Otherwise, if <code>$PAGER</code> is set and non-empty, Apex uses that
   </li>
 
   <li>
-    Fedora: <code>sudo dnf install cmake</code>
+    Otherwise, Apex falls back to <code>less -R</code>
   </li>
 
 </ul>
 
-<h3 id="compilation-errors">
-  Compilation&nbsp;errors
+<p>
+  Pagination is ignored when the output format is not a terminal format or when <code>-o/--output</code> is used to write to a file.
+</p>
+
+<p>
+  <strong>Pager vs. inline graphics:</strong> <code>less -R</code> and most pagers understand ANSI <strong>color</strong> sequences only—not iTerm inline-image protocols (<code>]1337;…</code>), Kitty graphics, or similar. When <code>paginate: true</code> (or <code>-p</code>) is active and the document contains inline graphics output, Apex <strong>automatically skips the pager</strong> and writes directly to stdout (with a one-line notice on stderr).
+</p>
+
+<p>
+  To paginate documents <strong>with images</strong>, use <strong><code>--paginate-symbols</code></strong> or <strong><code>paginate: symbols</code></strong> instead (see below).
+</p>
+
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal<span class="w"> </span>--paginate
+<span class="nv">APEX_PAGER</span><span class="o">=</span><span class="s2">&quot;less -RFX&quot;</span><span class="w"> </span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>-p
+</pre>
+</div>
+
+<h3 **terminal** id="paginate-symbols">
+<code>--paginate-symbols</code>
 </h3>
 
 <p>
-  Ensure you have a C99-compatible compiler:
+  Page terminal output <strong>and</strong> render images as <strong>chafa</strong> ANSI block art (<code>chafa -f symbols</code>). This output is compatible with <strong><code>less -R</code></strong> and typical pagers.
 </p>
 
 <ul>
 
   <li>
-    macOS: Xcode Command Line Tools (<code>xcode-select --install</code>)
+    Requires <strong>chafa</strong> on <code>PATH</code>
   </li>
 
   <li>
-    Linux: <code>sudo apt-get install build-essential</code>
+    With <code>-t terminal256</code>, uses <code>chafa -c 256</code>; with <code>-t terminal</code>, uses <code>chafa -c 16</code>
+  </li>
+
+  <li>
+    Equivalent to metadata <code>paginate: symbols</code>
   </li>
 
 </ul>
 
-<h3 id="linking-errors">
-  Linking&nbsp;errors
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--paginate-symbols
+</pre>
+</div>
+
+<h3 **cli** id="no-paginate">
+<code>--no-paginate</code>
 </h3>
 
 <p>
-  Make sure all dependencies are installed. Apex uses cmark-gfm which is included as a submodule and built automatically.
-</p>
-
-<h2 id="verification">
-  Verification
-</h2>
-
-<p>
-  Test your installation:
+  Disable pagination for this run. Overrides <code>-p</code>, <code>--paginate-symbols</code>, and <code>paginate: true</code> / <code>paginate: symbols</code> from config or metadata.
 </p>
 
 <div class="highlight">
-<pre><span></span>./apex<span class="w"> </span>--version
-<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;# Test&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>./apex
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--no-paginate
+</pre>
+</div>
+
+<h2 8/16-color ANSI output (standard and bright colors). Best compatibility with basic terminals. id="inline-images-terminal-graphics">
+  Inline images (terminal&nbsp;graphics)
+</h2>
+
+<p>
+  When <strong><code>stdout</code> is a TTY</strong> and inline images are enabled, Apex can render <code>![alt](url)</code> images as graphics in the terminal instead of link-style text.
+</p>
+
+<p>
+  <strong>Viewer selection</strong> (when <strong>not</strong> using <code>--paginate-symbols</code> / <code>paginate: symbols</code>):
+</p>
+
+<table>
+
+  <thead>
+
+    <tr>
+
+      <th>
+        Priority
+      </th>
+
+      <th>
+        Tool
+      </th>
+
+      <th>
+        When used
+      </th>
+
+    </tr>
+
+  </thead>
+
+  <tbody>
+
+    <tr>
+
+      <td>
+        1
+      </td>
+
+      <td>
+        <strong>imgcat</strong>
+      </td>
+
+      <td>
+        Only when <strong>TERM_PROGRAM</strong> indicates iTerm2 (iTerm inline-image protocol)
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        2
+      </td>
+
+      <td>
+        <strong>chafa</strong>
+      </td>
+
+      <td>
+        Otherwise, if on <code>PATH</code> (<code>-f iterm</code> on iTerm/WezTerm, <code>-f kitty</code> on Kitty, <code>-f symbols</code> on other terminals)
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        3
+      </td>
+
+      <td>
+        <strong>catimg</strong>
+      </td>
+
+      <td>
+        If chafa is not found
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        4
+      </td>
+
+      <td>
+        <strong>viu</strong>
+      </td>
+
+      <td>
+        If neither chafa nor catimg is found
+      </td>
+
+    </tr>
+  </tbody>
+
+</table>
+
+<p>
+  With <strong><code>--paginate-symbols</code></strong> or <strong><code>paginate: symbols</code></strong>, Apex always uses <strong>chafa</strong> with <strong><code>-f symbols</code></strong> so images work inside <strong><code>less -R</code></strong>.
+</p>
+
+<p>
+  <strong>Width:</strong> Use <strong><code>--terminal-image-width N</code></strong> to set the maximum width in character cells (default <strong>50</strong>). This is separate from <strong><code>--width</code></strong>, which wraps prose.
+</p>
+
+<p>
+  <strong>Remote HTTP(S) images:</strong> If <strong><code>curl</code></strong> is on <strong><code>PATH</code></strong>, Apex downloads the image to a temporary file under <strong><code>TMPDIR</code></strong> or <strong><code>/tmp</code></strong>, displays it, then deletes the temp file. Downloads use a <strong>60 second</strong> timeout and reject files larger than <strong>10 MiB</strong>. If <strong><code>curl</code></strong> is missing or the download fails, Apex falls back to link-style output (see below).
+</p>
+
+<p>
+  <strong>When images are not drawn inline:</strong> Apex emits <strong>link-style</strong> output (styled alt text and the URL in parentheses), matching how normal links look in terminal output—not <code>![...](...)</code> markdown. That happens when:
+</p>
+
+<ul>
+
+  <li>
+    Output is <strong>not</strong> a TTY (e.g. piped to a file or another command)
+  </li>
+
+  <li>
+    <strong><code>--no-terminal-images</code></strong> is set
+  </li>
+
+  <li>
+    No supported viewer is installed, or the viewer exits with an error
+  </li>
+
+  <li>
+    A <strong>local</strong> path does not resolve to a readable file
+  </li>
+
+  <li>
+    A <strong>remote</strong> URL cannot be fetched within the limits above
+  </li>
+
+</ul>
+
+<p>
+  <strong>Captions:</strong> After an inline image, a caption line may show the file basename, optional image <code>title</code>, and alt text (subject to <strong><code>title_captions_only</code></strong> / <code>--title-captions-only</code> behavior for links).
+</p>
+
+<h3 id="no-terminal-images">
+<code>--no-terminal-images</code>
+</h3>
+
+<p>
+  Disables inline terminal rendering of images. Images always use the link-style fallback.
+</p>
+
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal<span class="w"> </span>--no-terminal-images
+</pre>
+</div>
+
+<h3 id="terminal-image-width-n">
+<code>--terminal-image-width&nbsp;N</code>
+</h3>
+
+<p>
+  Sets the maximum width in <strong>character cells</strong> for the terminal image tools (default <strong>50</strong>).
+</p>
+
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--terminal-image-width<span class="w"> </span><span class="m">72</span>
+</pre>
+</div>
+
+<h2 id="configuration-and-metadata">
+  Configuration and&nbsp;metadata
+</h2>
+
+<p>
+  Terminal behavior can be set via document metadata or a config file (e.g. <code>--meta-file</code>), so you don’t have to pass flags every time.
+</p>
+
+<p>
+  <strong>Precedence:</strong> CLI flags override metadata/config. For width: <strong>CLI <code>--width</code></strong> &gt; <strong>metadata/config <code>terminal.width</code></strong>. For terminal inline images: <strong><code>--no-terminal-images</code></strong> forces images to link-style output; <strong><code>--terminal-image-width</code></strong> overrides <strong><code>terminal.image_width</code></strong> when given.
+</p>
+
+<h3 id="metadata-keys">
+  Metadata&nbsp;keys
+</h3>
+
+<p>
+  Use a <code>terminal:</code> mapping in YAML front matter (or flattened keys in your metadata):
+</p>
+
+<table>
+
+  <thead>
+
+    <tr>
+
+      <th>
+        Key
+      </th>
+
+      <th>
+        Example
+      </th>
+
+      <th>
+        Description
+      </th>
+
+    </tr>
+
+  </thead>
+
+  <tbody>
+
+    <tr>
+
+      <td>
+        <strong>terminal.theme</strong> or <strong>terminal_theme</strong>
+      </td>
+
+      <td>
+<code>brett</code>
+      </td>
+
+      <td>
+        Default terminal theme name for <code>-t terminal</code> / <code>-t terminal256</code>.
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        <strong>terminal.width</strong> or <strong>terminal_width</strong>
+      </td>
+
+      <td>
+<code>80</code>
+      </td>
+
+      <td>
+        Default wrap width (positive integer).
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        <strong>terminal.inline_images</strong> or <strong>terminal_inline_images</strong>
+      </td>
+
+      <td>
+<code>true</code>
+      </td>
+
+      <td>
+        Enable (<code>true</code>) or disable (<code>false</code>) inline terminal image rendering when a viewer is available (default: enabled in the API; use metadata to turn off per document).
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        <strong>terminal.image_width</strong> or <strong>terminal_image_width</strong>
+      </td>
+
+      <td>
+<code>50</code>
+      </td>
+
+      <td>
+        Default max width in character cells for image tools (see <strong>Inline images</strong> above).
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        <strong>paginate</strong> / <strong>terminal.paginate</strong> / <strong>terminal_paginate</strong>
+      </td>
+
+      <td>
+<code>true</code>, <code>false</code>, or <code>symbols</code>
+      </td>
+
+      <td>
+<code>true</code> page via pager (skip pager if inline graphics detected). <code>symbols</code>: page and use chafa ANSI art for images. <code>false</code>: no pagination.
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        <strong>code-highlight</strong> or <strong>code_highlight</strong>
+      </td>
+
+      <td>
+<code>pygments</code>
+      </td>
+
+      <td>
+        Default external syntax highlighter for code blocks (Pygments, Skylighting, Shiki, or abbreviations).
+      </td>
+
+    </tr>
+    <tr>
+
+      <td>
+        <strong>code-highlight-theme</strong> or <strong>code_highlight_theme</strong>
+      </td>
+
+      <td>
+<code>monokai</code>
+      </td>
+
+      <td>
+        Default syntax highlighting theme for both HTML and terminal output.
+      </td>
+
+    </tr>
+  </tbody>
+
+</table>
+
+<p>
+  <strong>Example with pagination and pager-friendly images:</strong>
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">paginate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">symbols</span>
+<span class="nt">terminal</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">theme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">brett</span>
+<span class="w">  </span><span class="nt">width</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="nn">---</span>
 </pre>
 </div>
 
 <p>
-  You should see version information and HTML output.
+  <strong>Example in document front matter:</strong>
 </p>
 
-<h2 id="next-steps">
-  Next&nbsp;Steps
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">My Doc</span>
+<span class="nt">terminal</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">theme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">brett</span>
+<span class="w">  </span><span class="nt">width</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">80</span>
+<span class="nt">paginate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">code-highlight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pygments</span>
+<span class="nt">code-highlight-theme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monokai</span>
+<span class="nn">---</span>
+</pre>
+</div>
+
+<p>
+  <strong>Example in a shared config file</strong> (e.g. <code>config.yml</code> passed with <code>--meta-file</code>):
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nt">terminal</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">theme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dark</span>
+<span class="w">  </span><span class="nt">width</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">72</span>
+</pre>
+</div>
+
+<p>
+  If you set <strong><code>--theme</code></strong> or <strong><code>--width</code></strong> on the command line, those values override the metadata/config.
+</p>
+
+<h2 id="theme-file-format">
+  Theme file&nbsp;format
+</h2>
+
+<p>
+  Theme files live under <code>~/.config/apex/terminal/themes/</code> and use the <strong><code>.theme</code></strong> extension. They are plain YAML.
+</p>
+
+<h3 **terminal256** id="location-and-naming">
+  Location&nbsp;and&nbsp;naming
+</h3>
+
+<ul>
+
+  <li>
+    Path: <strong><code>~/.config/apex/terminal/themes/&lt;NAME&gt;.theme</code></strong>
+  </li>
+
+  <li>
+    <strong><code>default.theme</code></strong> is used when no theme name is provided (and no <code>--theme</code> is given).
+  </li>
+
+</ul>
+
+<h3 — id="element-keys">
+  Element&nbsp;keys
+</h3>
+
+<p>
+  Common top-level keys:
+</p>
+
+<ul>
+
+  <li>
+    <strong>h1</strong> … <strong>h6</strong> – Heading levels (each can have <code>color</code> and optional <code>bold: true</code>).
+  </li>
+
+  <li>
+    <strong>link</strong> – Link text and optional <code>link.url</code> for the URL style.
+  </li>
+
+  <li>
+    <strong>code_span</strong> – Inline code.
+  </li>
+
+  <li>
+    <strong>code_block</strong> – Fenced code blocks.
+  </li>
+
+  <li>
+    <strong>blockquote</strong> – Blockquote marker and text color (<code>blockquote.character</code>, <code>blockquote.color</code>).
+  </li>
+
+  <li>
+    <strong>table</strong> – Table border/style (<code>table.border</code>, optional <code>table.bold</code>).
+  </li>
+
+  <li>
+    <strong>list_marker</strong> – Style for bullet and numbered list markers (e.g. <code>*</code>, <code>1.</code>, <code>2.</code>). When unset, markers use <strong>bold bright red</strong>.
+  </li>
+
+</ul>
+
+<p>
+  For any element that has a <strong>color</strong> field, you can add <strong><code>bold: true</code></strong> to make that element bold in addition to its color.
+</p>
+
+<h3 256-color ANSI output (xterm-256 palette). Richer colors when your terminal supports it. id="example-theme-excerpt">
+  Example theme&nbsp;(excerpt)
+</h3>
+
+<div class="highlight">
+<pre><span></span><span class="nt">h1</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;bright_white&quot;</span>
+<span class="w">  </span><span class="nt">bold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="nt">h2</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;bright_blue&quot;</span>
+<span class="w">  </span><span class="nt">bold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="nt">list_marker</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;b</span><span class="nv"> </span><span class="s">intense_red&quot;</span>
+
+<span class="nt">code_span</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;b</span><span class="nv"> </span><span class="s">white</span><span class="nv"> </span><span class="s">on_intense_black&quot;</span>
+
+<span class="nt">code_block</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">color</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;white</span><span class="nv"> </span><span class="s">on_black&quot;</span>
+<span class="w">  </span><span class="nt">bold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre>
+</div>
+
+<p>
+  Color values can use names like <strong>red</strong>, <strong>bright_blue</strong>, <strong>intense_red</strong>, and 256-color forms like <strong>38;5;nnn</strong>. The <strong>b</strong> prefix (or <strong>bold: true</strong> in structured keys) enables bold. See existing themes in the repo or in <code>~/.config/apex/terminal/themes/</code> for more examples.
+</p>
+
+<h2 id="debugging-terminal-output">
+  Debugging terminal&nbsp;output
+</h2>
+
+<p>
+  Set <strong><code>APEX_DEBUG_TERMINAL=1</code></strong> to print diagnostics to stderr: selected image viewer, full viewer command lines, <code>TERM_PROGRAM</code>, pagination mode (<code>paginate</code> / <code>paginate_symbols</code>), and syntax highlighter commands.
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nv">APEX_DEBUG_TERMINAL</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>apex<span class="w"> </span>doc.md<span class="w"> </span>-t<span class="w"> </span>terminal256<span class="w"> </span>--paginate-symbols
+</pre>
+</div>
+
+<h2 id="typical-use-cases">
+  Typical&nbsp;use&nbsp;cases
 </h2>
 
 <ul>
 
   <li>
-    See <a href="Usage.html">Usage</a> for basic usage examples
+    <strong>Interactive reading (no images):</strong> <code>apex doc.md -t terminal | less -R</code> or <code>apex doc.md -t terminal -p</code>
   </li>
 
   <li>
-    Check <a href="Xcode-Integration.html">Xcode Integration</a> for macOS development
+    <strong>Interactive reading (with images in pager):</strong> <code>apex doc.md -t terminal256 --paginate-symbols</code>
   </li>
 
   <li>
-    Review <a href="C-API.html">C API</a> for programmatic use
+    <strong>Full-quality inline graphics (no pager):</strong> <code>apex doc.md -t terminal256 --no-paginate</code>
+  </li>
+
+  <li>
+    <strong>File manager preview (lf, yazi, etc.):</strong> Use <code>-t terminal</code> or <code>-t terminal256</code> and <code>--width</code> set to your preview pane width (e.g. <code>--width 80</code>), or set <code>terminal.width</code> in metadata/config.
+  </li>
+
+  <li>
+    <strong>Consistent look:</strong> Create a <code>.theme</code> file and reference it with <code>--theme</code> or <code>terminal.theme</code> in metadata so all your terminal renders use the same colors and emphasis.
+  </li>
+
+</ul>
+
+<h2 id="replacing-mdless-and-similar-tools">
+  Replacing mdless and similar&nbsp;tools
+</h2>
+
+<p>
+  If you are used to tools like <code>mdless</code>, you can use Apex as a drop-in replacement and keep all of your preferred colors, width, and pagination settings in one place.
+</p>
+
+<p>
+  One simple approach is a shell alias with pager-friendly images:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nb">alias</span><span class="w"> </span><span class="nv">mdless</span><span class="o">=</span><span class="s1">&#39;apex -t terminal256 --paginate-symbols --code-highlight pygments --code-highlight-theme monokai --width 60 --theme mdless&#39;</span>
+</pre>
+</div>
+
+<p>
+  For full-resolution inline graphics (iTerm, Kitty, etc.), omit pagination:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nb">alias</span><span class="w"> </span><span class="nv">mdless</span><span class="o">=</span><span class="s1">&#39;apex -t terminal256 --no-paginate --code-highlight pygments --code-highlight-theme monokai --width 60 --theme mdless&#39;</span>
+</pre>
+</div>
+
+<p>
+  You can then run:
+</p>
+
+<div class="highlight">
+<pre><span></span>mdless<span class="w"> </span>README.md
+</pre>
+</div>
+
+<p>
+  Most of these options can also be moved into config or metadata so the alias stays short:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nt">terminal</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">theme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">brett</span>
+<span class="w">  </span><span class="nt">width</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60</span>
+<span class="nt">paginate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">symbols</span>
+<span class="nt">code-highlight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pygments</span>
+<span class="nt">code-highlight-theme</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">monokai</span>
+</pre>
+</div>
+
+<p>
+  With this configuration, the alias can be as simple as:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="nb">alias</span><span class="w"> </span><span class="nv">mdless</span><span class="o">=</span><span class="s1">&#39;apex -t terminal256&#39;</span>
+</pre>
+</div>
+
+<p>
+  For pagination without images (or prose-only docs), use <code>paginate: true</code> instead of <code>paginate: symbols</code>. With <code>paginate: true</code>, Apex auto-skips the pager when inline graphics are detected.
+</p>
+
+<h2 id="see-also">
+  See&nbsp;also
+</h2>
+
+<ul>
+
+  <li>
+    <a href="Command-Line-Options.html">Command Line Options</a> – Full list of CLI flags, including <code>-t</code>/<code>--to</code>, <code>--theme</code>, and <code>--width</code>.
+  </li>
+
+  <li>
+    <a href="Configuration.html">Configuration</a> – Config file and metadata behavior.
   </li>
 
 </ul>

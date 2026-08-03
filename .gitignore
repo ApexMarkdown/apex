@@ -74,3 +74,6 @@ documentation/transform_for_app.md
 # Git worktrees
 .worktrees/
 docs
+.cursor
+.github/prompts
+buildnotes.md

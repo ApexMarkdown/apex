@@ -834,872 +834,409 @@ ol ul {
 
 <nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
-    <h1 id="limitations-and-roadmap">
-      Limitations and&nbsp;Roadmap
+    <h1 id="quarto-mode">
+      Quarto&nbsp;Mode
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#limitations-and-roadmap">Limitations and&nbsp;Roadmap</a><ul><li><a href="#known-limitations">Known Limitations</a><ul><li><a href="#current-limitations">Current Limitations</a><ul><li><a href="#strict-xhtml-in-fragment-non-standalone-mode">Strict XHTML in fragment (non-standalone)&nbsp;mode</a></li><li><a href="#1-definition-lists-parsing">1. Definition Lists&nbsp;Parsing</a></li><li><a href="#2-span-level-inline-attribute-lists-ial">2. Span-Level Inline Attribute Lists&nbsp;(IAL)</a></li><li><a href="#3-html-markdown-attributes">3. HTML Markdown&nbsp;Attributes</a></li><li><a href="#4-multimarkdown-transclusion-syntax">4. MultiMarkdown Transclusion&nbsp;Syntax</a></li><li><a href="#5-critic-markup-edge-cases">5. Critic Markup&nbsp;Edge&nbsp;Cases</a></li><li><a href="#6-complete-github-emoji-set">6. Complete GitHub&nbsp;Emoji&nbsp;Set</a></li></ul></li><li><a href="#resolved-limitations">Resolved Limitations</a></li></ul></li><li><a href="#roadmap">Roadmap</a><ul><li><a href="#completed-features-white_check_mark">Completed Features&nbsp;✅</a></li><li><a href="#high-priority-next-release">High Priority (Next&nbsp;Release)</a></li><li><a href="#medium-priority-future-releases">Medium Priority (Future&nbsp;Releases)</a></li><li><a href="#low-priority-nice-to-have">Low Priority (Nice&nbsp;to&nbsp;Have)</a></li><li><a href="#future-considerations">Future Considerations</a></li></ul></li><li><a href="#version-history">Version&nbsp;History</a><ul><li><a href="#v010-current">v0.1.0&nbsp;(Current)</a></li><li><a href="#future-versions">Future&nbsp;Versions</a></li></ul></li><li><a href="#contributing">Contributing</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#quarto-mode">Quarto&nbsp;Mode</a><ul><li><a href="#quick-start">Quick&nbsp;start</a></li><li><a href="#enabled-by-default">Enabled&nbsp;by&nbsp;default</a></li><li><a href="#feature-overview">Feature&nbsp;overview</a></li><li><a href="#out-of-scope">Out&nbsp;of&nbsp;scope</a></li><li><a href="#per-feature-metadata-toggles">Per-feature metadata&nbsp;toggles</a></li><li><a href="#shortcodes-and-plugins">Shortcodes and&nbsp;plugins</a></li><li><a href="#test-fixtures">Test&nbsp;fixtures</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
-      This page documents known limitations of Apex and the planned roadmap for future development.
+      <strong>Command:</strong> <code>apex --mode quarto document.qmd</code>
     </p>
 
-    <h2 id="known-limitations">
-      Known Limitations
+    <p>
+      Quarto mode targets <a href="https://quarto.org/docs/authoring/markdown-basics.html">Pandoc/Quarto markdown</a> for HTML output. It is a unified-family mode with Quarto-specific preprocessors enabled by default.
+    </p>
+
+    <h2 id="quick-start">
+      Quick&nbsp;start
     </h2>
 
-    <h3 id="current-limitations">
-      Current Limitations
-    </h3>
+    <div class="highlight">
+<pre><span></span>apex<span class="w"> </span>document.qmd<span class="w"> </span>--mode<span class="w"> </span>quarto<span class="w"> </span>--standalone
+apex<span class="w"> </span>document.qmd<span class="w"> </span>--mode<span class="w"> </span>quarto<span class="w"> </span>--standalone<span class="w"> </span>--script<span class="w"> </span>mermaid
+    </pre>
+  </div>
 
-    <h4 id="strict-xhtml-in-fragment-non-standalone-mode">
-      Strict XHTML in fragment (non-standalone)&nbsp;mode
-    </h4>
+  <p>
+    Metadata:
+  </p>
 
-    <p>
-      <strong>Status:</strong> By design (documented)
-    </p>
+  <div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">My Doc</span>
+<span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">quarto</span>
+<span class="nn">---</span>
+  </pre>
+</div>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+<h2 id="enabled-by-default">
+  Enabled&nbsp;by&nbsp;default
+</h2>
 
-    <ul>
+<p>
+  Compared to unified mode, Quarto mode:
+</p>
 
-      <li>
-        With <code>--strict-xhtml</code> but <strong>without</strong> <code>--standalone</code>, Apex applies XML-style serialization for void/empty HTML elements (same family of changes as <code>--xhtml</code>).
-      </li>
+<ul>
 
-      <li>
-        It does <strong>not</strong> validate the full output as well-formed XML, and it does <strong>not</strong> repair arbitrary raw HTML. Content that is already ill-formed (unbalanced tags, unescaped <code>&amp;</code> / <code>&lt;</code> / <code>&gt;</code> in text when raw HTML is allowed, etc.) may still produce output that is not valid XML.
-      </li>
+  <li>
+    Enables Quarto callouts, fenced divs, and bracketed spans
+  </li>
 
-      <li>
-        Full polyglot document headers (XML declaration, XHTML namespace, <code>Content-Type</code> meta) require <code>--standalone</code>.
-      </li>
+  <li>
+    Enables Pandoc/Quarto preprocessors (raw content, lists, code fence attrs, diagrams, shortcodes)
+  </li>
 
-    </ul>
+  <li>
+    Disables Marked-specific extensions, wiki links, and index syntax
+  </li>
 
-    <p>
-      <strong>Workaround:</strong> Use <code>--standalone</code> when you need a complete polyglot document wrapper, and avoid embedding problematic raw HTML if you require strict XML from a fragment.
-    </p>
+  <li>
+    Keeps <code>unsafe</code> HTML enabled (required for raw content and diagram blocks)
+  </li>
 
-    <h4 id="1-definition-lists-parsing">
-      1. Definition Lists&nbsp;Parsing
-    </h4>
+</ul>
 
-    <p>
-      <strong>Status:</strong> Foundation complete, parsing needs enhancement
-    </p>
+<h2 id="feature-overview">
+  Feature&nbsp;overview
+</h2>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+<table>
 
-    <ul>
+  <thead>
 
-      <li>
-        Extension structure and HTML rendering are implemented
-      </li>
+    <tr>
 
-      <li>
-        Parsing logic to detect <code>:</code> lines and convert to definition lists needs completion
-      </li>
+      <th>
+        Feature
+      </th>
 
-      <li>
-        Block-level content in definitions needs proper parsing
-      </li>
+      <th>
+        Syntax
+      </th>
 
-    </ul>
+      <th>
+        Notes
+      </th>
 
-    <p>
-      <strong>Workaround:</strong> Use standard lists or HTML for now.
-    </p>
+    </tr>
 
-    <p>
-      <strong>Priority:</strong> Medium
-    </p>
+  </thead>
 
-    <h4 id="2-span-level-inline-attribute-lists-ial">
-      2. Span-Level Inline Attribute Lists&nbsp;(IAL)
-    </h4>
+  <tbody>
 
-    <p>
-      <strong>Status:</strong> Not implemented
-    </p>
+    <tr>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+      <td>
+        Callouts
+      </td>
 
-    <ul>
+      <td>
+<code>::: {.callout-note}</code>
+      </td>
 
-      <li>
-        Block-level IAL (<code>{: #id .class}</code>) is fully supported
-      </li>
+      <td>
+        See <a href="Callouts.html">Callouts</a>
+      </td>
 
-      <li>
-        Span-level IAL (<code>*text*{:.class}</code>) is not yet implemented
-      </li>
+    </tr>
+    <tr>
 
-    </ul>
+      <td>
+        Bracketed spans
+      </td>
 
-    <p>
-      <strong>Workaround:</strong> Use block-level IAL or HTML attributes.
-    </p>
+      <td>
+<code>[text]{.smallcaps}</code>
+      </td>
 
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
+      <td>
+        Semantic CSS in standalone output
+      </td>
 
-    <h4 id="3-html-markdown-attributes">
-      3. HTML Markdown&nbsp;Attributes
-    </h4>
+    </tr>
+    <tr>
 
-    <p>
-      <strong>Status:</strong> Not implemented
-    </p>
+      <td>
+        fig-alt
+      </td>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+      <td>
+<code>![Caption](img.png)</code>
+      </td>
 
-    <ul>
+      <td>
+        Maps alt text to <code>&lt;img alt&gt;</code>
+      </td>
 
-      <li>
-        Parsing markdown inside HTML tags based on <code>markdown=&quot;1&quot;</code> attribute is not supported
-      </li>
+    </tr>
+    <tr>
 
-      <li>
-        This is a complex feature requiring HTML parsing integration
-      </li>
+      <td>
+        Raw content
+      </td>
 
-    </ul>
+      <td>
+<code>```{=html}</code> / <code>`{=html}`</code>
+      </td>
 
-    <p>
-      <strong>Workaround:</strong> Use raw HTML or process HTML separately.
-    </p>
+      <td>
+        Requires unsafe
+      </td>
 
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
+    </tr>
+    <tr>
 
-    <h4 id="4-multimarkdown-transclusion-syntax">
-      4. MultiMarkdown Transclusion&nbsp;Syntax
-    </h4>
+      <td>
+        Example lists
+      </td>
 
-    <p>
-      <strong>Status:</strong> Partial
-    </p>
+      <td>
+<code>(@) Item</code>
+      </td>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+      <td>
+        Pandoc example list markers
+      </td>
 
-    <ul>
+    </tr>
+    <tr>
 
-      <li>
-        Marked’s include syntax (<code>&lt;&lt;[file]</code>, <code>&lt;&lt;(code)</code>, <code>&lt;&lt;{html}</code>) is fully supported
-      </li>
+      <td>
+        Roman lists
+      </td>
 
-      <li>
-        MultiMarkdown’s <code>{{file}}</code> syntax is not yet implemented
-      </li>
+      <td>
+<code>i) Item</code>
+      </td>
 
-      <li>
-        Wildcard extensions (<code>{{file.*}}</code>) are not supported
-      </li>
+      <td>
+        lower-roman styling
+      </td>
 
-      <li>
-<code>transclude base</code> metadata is not supported
-      </li>
+    </tr>
+    <tr>
 
-    </ul>
+      <td>
+        Line blocks
+      </td>
 
-    <p>
-      <strong>Workaround:</strong> Use Marked’s include syntax in unified mode.
-    </p>
+      <td>
+<code>| Line</code>
+      </td>
 
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
+      <td>
+        Preserves spacing
+      </td>
 
-    <h4 id="5-critic-markup-edge-cases">
-      5. Critic Markup&nbsp;Edge&nbsp;Cases
-    </h4>
+    </tr>
+    <tr>
 
-    <p>
-      <strong>Status:</strong> Minor edge cases exist
-    </p>
+      <td>
+        Code fence attrs
+      </td>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+      <td>
+<code>```{.python filename=&quot;x.py&quot;}</code>
+      </td>
 
-    <ul>
+      <td>
+        data-* on <code>&lt;pre&gt;</code>
+      </td>
 
-      <li>
-        Most critic markup works correctly
-      </li>
+    </tr>
+    <tr>
 
-      <li>
-        Some edge cases with nested markup or complex substitutions may have issues
-      </li>
+      <td>
+        Diagrams
+      </td>
 
-      <li>
-        Generally works well for typical use cases
-      </li>
+      <td>
+<code>```{mermaid}</code> / <code>{dot}</code>
+      </td>
 
-    </ul>
+      <td>
+<code>&lt;pre class=&quot;mermaid&quot;&gt;</code>; auto mermaid.js in standalone
+      </td>
 
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
+    </tr>
+    <tr>
 
-    <h4 id="6-complete-github-emoji-set">
-      6. Complete GitHub&nbsp;Emoji&nbsp;Set
-    </h4>
+      <td>
+        Shortcodes
+      </td>
 
-    <p>
-      <strong>Status:</strong> Partial (350+ emoji supported)
-    </p>
+      <td>
+<code>{{&lt; pagebreak &gt;}}</code>, <code>{{&lt; kbd &gt;}}</code>, <code>{{&lt; include &gt;}}</code>
+      </td>
 
-    <p>
-      <strong>Details:</strong>
-    </p>
+      <td>
+        Thin core shim; kbd uses <a href="Plugins.html">Plugins</a>
+      </td>
 
-    <ul>
+    </tr>
+    <tr>
 
-      <li>
-        350+ common emoji are supported
-      </li>
+      <td>
+        Cross-refs
+      </td>
 
-      <li>
-        Full GitHub emoji set (1,800+ emoji) is not yet implemented
-      </li>
+      <td>
+<code>@fig-id</code>, <code>@sec-id</code>
+      </td>
 
-    </ul>
+      <td>
+        Wrapped in <code>&lt;span class=&quot;quarto-xref&quot;&gt;</code> (display only; no resolution)
+      </td>
 
-    <p>
-      <strong>Workaround:</strong> Most common emoji work. Unsupported emoji will appear as text.
-    </p>
+    </tr>
+    <tr>
 
-    <p>
-      <strong>Priority:</strong> Very Low
-    </p>
+      <td>
+        Hidden divs
+      </td>
 
-    <h3 id="resolved-limitations">
-      Resolved Limitations
-    </h3>
+      <td>
+<code>::: {.hidden}</code>
+      </td>
 
-    <p>
-      The following limitations have been resolved:
-    </p>
+      <td>
+        Hidden via standalone CSS
+      </td>
 
-    <ul>
+    </tr>
+  </tbody>
 
-      <li>
-        ✅ <strong>Kramdown IAL</strong> - Full block-level implementation with ALD support
-      </li>
+</table>
 
-      <li>
-        ✅ <strong>Advanced Footnotes</strong> - Block-level content in footnotes now supported
-      </li>
+<h2 id="out-of-scope">
+  Out&nbsp;of&nbsp;scope
+</h2>
 
-      <li>
-        ✅ <strong>Advanced Tables</strong> - Colspan, rowspan, and captions fully implemented
-      </li>
+<p>
+  Apex does not implement Quarto’s full engine. These remain out of scope:
+</p>
 
-      <li>
-        ✅ <strong>Callouts</strong> - All Bear/Obsidian/Xcode styles supported
-      </li>
+<ul>
 
-      <li>
-        ✅ <strong>File Includes</strong> - Marked syntax fully implemented
-      </li>
+  <li>
+    Cell execution, project/site rendering, conditional content
+  </li>
 
-      <li>
-        ✅ <strong>TOC Generation</strong> - All marker formats working
-      </li>
+  <li>
+    Cross-ref resolution (<code>@fig-…</code> is marked up, not linked)
+  </li>
 
-      <li>
-        ✅ <strong>Abbreviations</strong> - Full support implemented
-      </li>
+  <li>
+    CSL/bibliography pipeline (use Apex citations separately if needed)
+  </li>
 
-      <li>
-        ✅ <strong>Page Breaks</strong> - Both HTML comment and Kramdown styles supported
-      </li>
+  <li>
+    PDF/Typst/Word multi-format output (use <a href="Pandoc-Integration.html">Pandoc Integration</a>)
+  </li>
 
-    </ul>
+</ul>
 
-    <h2 id="roadmap">
-      Roadmap
-    </h2>
+<h2 id="per-feature-metadata-toggles">
+  Per-feature metadata&nbsp;toggles
+</h2>
 
-    <h3 id="completed-features-white_check_mark">
-      Completed Features&nbsp;✅
-    </h3>
+<p>
+  Individual preprocessors can be toggled in YAML:
+</p>
 
-    <ul>
+<div class="highlight">
+<pre><span></span><span class="nt">quarto-extensions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-raw</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-list-continuation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-line-blocks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-roman-lists</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-code-attrs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-diagrams</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-shortcodes</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-callouts</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-xrefs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">quarto-strict-lists</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre>
+</div>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Core Markdown parsing (CommonMark + GFM)
-      </li>
+<p>
+  Set a key to <code>false</code> to disable that preprocessor while keeping <code>--mode quarto</code>.
+</p>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Metadata blocks (YAML, MMD, Pandoc)
-      </li>
+<h2 Feature id="shortcodes-and-plugins">
+  Shortcodes and&nbsp;plugins
+</h2>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Metadata variables (<code>[%key]</code>)
-      </li>
+<p>
+  Core converts a small set of Quarto shortcodes before parsing:
+</p>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Wiki links (<code>[[Page]]</code>)
-      </li>
+<ul>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Math support (<code>$inline$</code> and <code>$$display$$</code>)
-      </li>
+  <li>
+<code>{{&lt; pagebreak &gt;}}</code> → page break HTML
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Critic Markup (all 5 types)
-      </li>
+  <li>
+<code>{{&lt; kbd ... &gt;}}</code> → <code>&lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt;</code> (render with the <a href="https://github.com/ApexMarkdown/apex-kbd-plugin">kbd plugin</a>)
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         GFM tables with alignment
-      </li>
+  <li>
+<code>{{&lt; include file.md &gt;}}</code> → <code>&lt;&lt;[file.md]&gt;</code> include syntax
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Strikethrough (<code>~~text~~</code>)
-      </li>
+</ul>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Task lists (<code>- [ ]</code> and <code>- [x]</code>)
-      </li>
+<p>
+  Other shortcodes (e.g. <code>{{&lt; video &gt;}}</code>) should be handled by <a href="Plugins.html">plugins</a>. Unknown shortcodes pass through unchanged; set <code>APEX_VERBOSE=1</code> for warnings.
+</p>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Autolinks
-      </li>
+<h2 Syntax id="test-fixtures">
+  Test&nbsp;fixtures
+</h2>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Smart typography
-      </li>
+<p>
+  Examples live under <code>tests/fixtures/quarto/</code> in the Apex repository:
+</p>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Footnotes (reference and inline styles)
-      </li>
+<ul>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Abbreviations
-      </li>
+  <li>
+<code>smoke.md</code> — integration smoke test
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Callouts (Bear/Obsidian/Xcode)
-      </li>
+  <li>
+<code>callouts.md</code>, <code>spans.md</code>, <code>raw-content.md</code>, <code>lists.md</code>, <code>code-attrs.md</code>, <code>diagrams.md</code>, <code>shortcodes.md</code>
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         File includes (<code>&lt;&lt;[file]</code>, <code>&lt;&lt;(code)</code>, <code>&lt;&lt;{html}</code>)
-      </li>
+</ul>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         TOC generation (all marker formats)
-      </li>
+<h2 Notes id="related">
+  Related
+</h2>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         GitHub Emoji (350+ common emoji)
-      </li>
+<ul>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Page breaks (<code>&lt;!--BREAK--&gt;</code>, <code>{::pagebreak /}</code>)
-      </li>
+  <li>
+    <a href="Modes.html">Modes</a> — all processor modes
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Autoscroll pauses (<code>&lt;!--PAUSE:X--&gt;</code>)
-      </li>
+  <li>
+    <a href="Command-Line-Options.html">Command Line Options</a> — <code>--mode quarto</code>
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         End of block markers (<code>^</code>)
-      </li>
+  <li>
+    <a href="Callouts.html">Callouts</a> — Quarto callout syntax
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Kramdown IAL (block-level with ALD)
-      </li>
+  <li>
+    <a href="Plugins.html">Plugins</a> — extending shortcodes and syntax
+  </li>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Advanced footnotes (block-level content)
-      </li>
+</ul>
 
-      <li>
-<input type="checkbox" checked="" disabled="" />         Advanced tables (colspan, rowspan, captions)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Header ID generation (GFM, MMD, Kramdown formats)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Relaxed tables (no separator rows)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Grid tables (Pandoc <code>+---+</code> syntax, opt-in via <code>--grid-tables</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Definition lists foundation (HTML rendering)
-      </li>
-
-    </ul>
-
-    <h3 id="high-priority-next-release">
-      High Priority (Next&nbsp;Release)
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         Complete definition lists parsing
-        <ul>
-
-          <li>
-            Detect <code>:</code> lines and convert to definition lists
-          </li>
-
-          <li>
-            Parse block-level content in definitions
-          </li>
-
-          <li>
-            Estimated: 1-2 hours
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h3 id="medium-priority-future-releases">
-      Medium Priority (Future&nbsp;Releases)
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          MultiMarkdown transclusion syntax (<code>{{file}}</code>)
-        </p>
-
-        <ul>
-
-          <li>
-            Add <code>{{file}}</code> syntax for MMD mode compatibility
-          </li>
-
-          <li>
-            Support wildcard extensions (<code>{{file.*}}</code>)
-          </li>
-
-          <li>
-            Support <code>transclude base</code> metadata
-          </li>
-
-          <li>
-            Estimated: 1-2 hours
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Span-level Inline Attribute Lists
-        </p>
-
-        <ul>
-
-          <li>
-            Support <code>*text*{:.class}</code> syntax
-          </li>
-
-          <li>
-            Attach attributes to inline elements
-          </li>
-
-          <li>
-            Estimated: 2-3 hours
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Expand GitHub Emoji to full set
-        </p>
-
-        <ul>
-
-          <li>
-            Add remaining 1,400+ emoji to reach 1,800+ total
-          </li>
-
-          <li>
-            Estimated: 2-3 hours (mostly data entry)
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h3 id="low-priority-nice-to-have">
-      Low Priority (Nice&nbsp;to&nbsp;Have)
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          HTML Markdown Attributes
-        </p>
-
-        <ul>
-
-          <li>
-            Parse markdown inside HTML based on <code>markdown=&quot;1&quot;</code> attribute
-          </li>
-
-          <li>
-            Handle block vs. span contexts
-          </li>
-
-          <li>
-            Estimated: 3-4 hours
-          </li>
-
-          <li>
-            Complexity: High
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Pygments syntax highlighting integration
-        </p>
-
-        <ul>
-
-          <li>
-            Server-side syntax highlighting using Pygments
-          </li>
-
-          <li>
-            Cache results for performance
-          </li>
-
-          <li>
-            Estimated: 4-6 hours
-          </li>
-
-          <li>
-            Note: Client-side (Prism.js, highlight.js) is recommended instead
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h3 id="future-considerations">
-      Future Considerations
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Performance optimizations
-        </p>
-
-        <ul>
-
-          <li>
-            Profile and optimize hot paths
-          </li>
-
-          <li>
-            Memory usage improvements
-          </li>
-
-          <li>
-            Large document handling
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Additional Markdown extensions
-        </p>
-
-        <ul>
-
-          <li>
-            Leanpub syntax support
-          </li>
-
-          <li>
-            Other processor-specific features based on user demand
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Enhanced error reporting
-        </p>
-
-        <ul>
-
-          <li>
-            Better error messages
-          </li>
-
-          <li>
-            Syntax error highlighting
-          </li>
-
-          <li>
-            Validation warnings
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Plugin/extension system
-        </p>
-
-        <ul>
-
-          <li>
-            Allow custom extensions
-          </li>
-
-          <li>
-            Third-party extension support
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h2 id="version-history">
-      Version&nbsp;History
-    </h2>
-
-    <h3 id="v010-current">
-      v0.1.0&nbsp;(Current)
-    </h3>
-
-    <p>
-      <strong>Status:</strong> Production-ready
-    </p>
-
-    <p>
-      <strong>Features:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        All core Markdown features
-      </li>
-
-      <li>
-        GFM compatibility
-      </li>
-
-      <li>
-        MultiMarkdown compatibility (partial)
-      </li>
-
-      <li>
-        Kramdown compatibility (partial)
-      </li>
-
-      <li>
-        Unified mode with all features
-      </li>
-
-      <li>
-        Header ID generation
-      </li>
-
-      <li>
-        Relaxed tables
-      </li>
-
-      <li>
-        Comprehensive CLI tool
-      </li>
-
-      <li>
-        C API and Objective-C wrapper
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Known Limitations:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Definition lists parsing incomplete
-      </li>
-
-      <li>
-        Span-level IAL not implemented
-      </li>
-
-      <li>
-        MMD transclusion syntax not implemented
-      </li>
-
-      <li>
-        Grid tables: opt-in only (<code>--grid-tables</code>); some complex Pandoc grid layouts differ (column widths, general rowspan outside partial-separator tables)
-      </li>
-
-    </ul>
-
-    <h3 id="future-versions">
-      Future&nbsp;Versions
-    </h3>
-
-    <p>
-      <strong>v0.2.0 (Planned)</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Complete definition lists
-      </li>
-
-      <li>
-        MMD transclusion syntax
-      </li>
-
-      <li>
-        Additional emoji support
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>v0.3.0 (Future)</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Span-level IAL
-      </li>
-
-      <li>
-        HTML markdown attributes
-      </li>
-
-      <li>
-        Performance improvements
-      </li>
-
-    </ul>
-
-    <h2 id="contributing">
-      Contributing
-    </h2>
-
-    <p>
-      If you’d like to help implement any of these features, please:
-    </p>
-
-    <ol>
-
-      <li>
-        Check the <a href="https://github.com/ApexMarkdown/apex">GitHub repository</a> for open issues
-      </li>
-
-      <li>
-        Review the codebase structure in <code>src/extensions/</code>
-      </li>
-
-      <li>
-        Follow existing code patterns
-      </li>
-
-      <li>
-        Add tests for new features
-      </li>
-
-      <li>
-        Update documentation
-      </li>
-
-    </ol>
-
-    <h2 id="related">
-      Related
-    </h2>
-
-    <ul>
-
-      <li>
-        <a href="Syntax.html">Syntax</a> - Current syntax support
-      </li>
-
-      <li>
-        <a href="Modes.html">Modes</a> - Feature availability by mode
-      </li>
-
-      <li>
-        <a href="C-API.html">C API</a> - Programmatic API
-      </li>
-
-      <li>
-        <a href="Examples.html">Examples</a> - Usage examples
-      </li>
-
-    </ul>
-
-  <script>
+<script>
 // Hamburger menu functionality
 (function() {
   function initHamburgerMenu() {

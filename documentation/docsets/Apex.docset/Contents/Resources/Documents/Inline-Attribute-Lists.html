@@ -5,8 +5,97 @@
 
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="generator" content="Apex 0.1.49">
+      <meta name="generator" content="Apex 1.1.12">
       <title>Document</title>
+      <style>
+        /* GitHub-style syntax highlighting for Pygments and Skylighting */
+        /* Don't apply background to wrapper when code highlighting is enabled - let default styles handle it */
+        .code-highlighted .highlight, .code-highlighted .sourceCode { background: inherit; border-radius: 6px; padding: 16px; overflow-x: auto; }
+        .highlight pre, .sourceCode pre { margin: 0; padding: 0; background: transparent; }
+        .highlight code, .sourceCode code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.45; }
+        /* Pygments classes */
+        .highlight .k { color: #d73a49; font-weight: 600; } /* Keyword */
+        .highlight .kt { color: #d73a49; } /* Keyword.Type */
+        .highlight .kd { color: #d73a49; font-weight: 600; } /* Keyword.Declaration */
+        .highlight .kn { color: #d73a49; } /* Keyword.Namespace */
+        .highlight .kp { color: #d73a49; } /* Keyword.Pseudo */
+        .highlight .kr { color: #d73a49; font-weight: 600; } /* Keyword.Reserved */
+        .highlight .n { color: #6f42c1; } /* Name */
+        .highlight .na { color: #6f42c1; } /* Name.Attribute */
+        .highlight .nc { color: #6f42c1; font-weight: 600; } /* Name.Class */
+        .highlight .no { color: #005cc5; } /* Name.Constant */
+        .highlight .nd { color: #6f42c1; font-weight: 600; } /* Name.Decorator */
+        .highlight .ni { color: #800080; } /* Name.Entity */
+        .highlight .ne { color: #990000; font-weight: 600; } /* Name.Exception */
+        .highlight .nf { color: #6f42c1; font-weight: 600; } /* Name.Function */
+        .highlight .nl { color: #6f42c1; } /* Name.Label */
+        .highlight .nn { color: #555; } /* Name.Namespace */
+        .highlight .nt { color: #22863a; } /* Name.Tag */
+        .highlight .nv { color: #e36209; } /* Name.Variable */
+        .highlight .s { color: #032f62; } /* String */
+        .highlight .sb { color: #032f62; } /* String.Backtick */
+        .highlight .sc { color: #032f62; } /* String.Char */
+        .highlight .sd { color: #032f62; } /* String.Doc */
+        .highlight .s2 { color: #032f62; } /* String.Double */
+        .highlight .se { color: #032f62; } /* String.Escape */
+        .highlight .sh { color: #032f62; } /* String.Heredoc */
+        .highlight .si { color: #032f62; } /* String.Interpol */
+        .highlight .sx { color: #032f62; } /* String.Other */
+        .highlight .sr { color: #032f62; } /* String.Regex */
+        .highlight .s1 { color: #032f62; } /* String.Single */
+        .highlight .ss { color: #032f62; } /* String.Symbol */
+        .highlight .c { color: #6a737d; font-style: italic; } /* Comment */
+        .highlight .c1 { color: #6a737d; font-style: italic; } /* Comment.Single */
+        .highlight .cm { color: #6a737d; font-style: italic; } /* Comment.Multiline */
+        .highlight .cp { color: #6a737d; font-weight: 600; } /* Comment.Preproc */
+        .highlight .cs { color: #6a737d; font-weight: 600; font-style: italic; } /* Comment.Special */
+        .highlight .m { color: #005cc5; } /* Literal.Number */
+        .highlight .mb { color: #005cc5; } /* Literal.Number.Bin */
+        .highlight .mf { color: #005cc5; } /* Literal.Number.Float */
+        .highlight .mh { color: #005cc5; } /* Literal.Number.Hex */
+        .highlight .mi { color: #005cc5; } /* Literal.Number.Integer */
+        .highlight .il { color: #005cc5; } /* Literal.Number.Integer.Long */
+        .highlight .mo { color: #005cc5; } /* Literal.Number.Oct */
+        .highlight .o { color: #d73a49; } /* Operator */
+        .highlight .ow { color: #d73a49; } /* Operator.Word */
+        .highlight .p { color: #24292e; } /* Punctuation */
+        .highlight .w { color: #e1e4e8; } /* Text.Whitespace */
+        /* Skylighting classes */
+        .sourceCode .kw { color: #d73a49; font-weight: 600; } /* Keyword */
+        .sourceCode .dt { color: #6f42c1; } /* DataType */
+        .sourceCode .dv { color: #005cc5; } /* DecVal */
+        .sourceCode .bn { color: #005cc5; } /* BaseN */
+        .sourceCode .fl { color: #005cc5; } /* Float */
+        .sourceCode .ch { color: #032f62; } /* Char */
+        .sourceCode .st { color: #032f62; } /* String */
+        .sourceCode .co { color: #6a737d; font-style: italic; } /* Comment */
+        .sourceCode .ot { color: #22863a; } /* Other */
+        .sourceCode .al { color: #e36209; font-weight: 600; } /* Alert */
+        .sourceCode .fu { color: #6f42c1; font-weight: 600; } /* Function */
+        .sourceCode .re { color: #032f62; } /* RegionMarker */
+        .sourceCode .er { color: #d73a49; font-weight: 600; } /* Error */
+        .sourceCode .cf { color: #d73a49; font-weight: 600; } /* ControlFlow */
+        .sourceCode .op { color: #d73a49; } /* Operator */
+        .sourceCode .pp { color: #6a737d; } /* Preprocessor */
+        .sourceCode .at { color: #005cc5; } /* Attribute */
+        .sourceCode .do { color: #6a737d; font-style: italic; } /* Documentation */
+        .sourceCode .an { color: #6a737d; font-weight: 600; } /* Annotation */
+        .sourceCode .cv { color: #6a737d; font-weight: 600; font-style: italic; } /* CommentVar */
+        .sourceCode .in { color: #6a737d; } /* Information */
+        .sourceCode .wa { color: #e36209; font-weight: 600; } /* Warning */
+        .sourceCode .im { color: #d73a49; } /* Import */
+        .sourceCode .bu { color: #005cc5; } /* BuiltIn */
+        .sourceCode .ex { color: #6f42c1; } /* Extension */
+        .sourceCode .va { color: #e36209; } /* Variable */
+        .sourceCode .ss { color: #032f62; } /* SpecialString */
+        .sourceCode .sc { color: #032f62; } /* SpecialChar */
+        .sourceCode .vs { color: #032f62; } /* VerbatimString */
+        .sourceCode .il { color: #005cc5; } /* Special */
+        /* Line numbers (Skylighting) */
+        .sourceCode.numberSource .sourceCode { counter-reset: line; }
+        .sourceCode.numberSource .sourceCode > span { position: relative; left: -4em; counter-increment: line; }
+        .sourceCode.numberSource .sourceCode > span > a:first-child::before { content: counter(line); position: relative; left: -1em; text-align: right; vertical-align: baseline; border: none; display: inline-block; min-width: 1em; padding-right: 0.5em; color: #aaa; }
+      </style>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -35,10 +124,52 @@
         ins { background: #d4fcbc; text-decoration: none; }
         del { background: #fbb6c2; text-decoration: line-through; }
         mark { background: #fff3cd; }
+        .smallcaps { font-variant: small-caps; }
+        .underline { text-decoration: underline; }
+        span.mark { background: #fff3cd; }
+        .hidden { display: none; }
+        .quarto-xref { font-variant: normal; }
         .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }
+        .mkhashtag { color: #666; }
+        .mkstyledtag {
+          display: inline-block;
+          background: #e0e0e0;
+          padding: 3px 9px;
+          border-radius: 20px;
+          font-size: 0.9em;
+          line-height: 1.4;
+          color: #333;
+          margin: 0 2px;
+        }
       </style>
+        <meta name="paginate" content="symbols"/>
+      <meta name="highlight-language-only" content="true"/>
+      <meta name="code-line-numbers" content="false"/>
+      <meta name="code-highlight" content="pygments"/>
+      <meta name="sup-sub" content="true"/>
+      <meta name="relaxed-tables" content="true"/>
+      <meta name="includes" content="true"/>
+      <meta name="autolink" content="true"/>
+      <meta name="pretty" content="false"/>
+      <meta name="standalone" content="false"/>
+      <meta name="mode" content="unified"/>
+      <meta name="markdown-in-html" content="true"/>
+      <meta name="image-captions" content="true"/>
+      <meta name="wikilink-extension" content="html"/>
+      <meta name="wikilink-space" content="hyphen"/>
+      <meta name="wikilinks" content="true"/>
+      <meta name="widont" content="true"/>
+      <meta name="plugins" content="true"/>
+      <meta name="id-format" content="gfm"/>
+
   <style>
-/* Base styles */
+:root {
+  /* border-box width of the fixed sidebar; body offset includes a small gap */
+  --sidebar-width: 250px;
+  --sidebar-offset: 270px;
+}
+
+/* Base styles — override Apex standalone centering (max-width + margin: auto) */
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,6 +179,11 @@ body {
   line-height: 1.65;
   color: #1e293b;
   background-color: #fff;
+  max-width: none;
+  width: auto;
+  margin: 2rem 2rem 2rem var(--sidebar-offset);
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 /* Sidebar / Main TOC - wider on larger screens */
@@ -56,9 +192,10 @@ body {
   position: fixed;
   left: 0;
   top: 0;
-  width: auto;
-  min-width: 180px;
-  max-width: 250px;
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
   height: 100vh;
   overflow-y: auto;
   background: #1e293b;
@@ -67,7 +204,6 @@ body {
   padding: 24px 20px 130px;
   font-size: 14px;
   z-index: 100;
-  margin-right: 1rem;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
 }
@@ -116,11 +252,6 @@ body {
   font-weight: 500;
 }
 
-/* Body margin for sidebar */
-body {
-  margin-left: 270px;
-}
-
 /* Hamburger menu button */
 .hamburger-menu {
   display: none;
@@ -136,6 +267,7 @@ body {
   color: rgba(255, 255, 255, 0.9);
   font-size: 20px;
   line-height: 1;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -153,9 +285,7 @@ body {
 
 /* Move hamburger to the right of the sidebar when menu is open */
 .hamburger-menu.active {
-  left: calc(
-    250px + 12px
-  ); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
+  left: calc(var(--sidebar-width) + 12px);
 }
 
 .hamburger-menu.active {
@@ -251,7 +381,7 @@ body {
 .floating-toc {
   position: fixed;
   top: 0;
-  left: 270px;
+  left: var(--sidebar-offset);
   right: 0;
   z-index: 50;
   opacity: 0;
@@ -677,7 +807,7 @@ ol ul {
   }
 
   body {
-    margin-left: 0;
+    margin: 2rem 1rem;
   }
 
   .floating-toc {
@@ -687,7 +817,7 @@ ol ul {
 
 </style></head>
 
-  <body>
+  <body class="code-highlighted">
 <div class="floating-toc" id="floating-toc">
   <div class="floating-toc-container">
     <div class="floating-toc-header">
@@ -702,18 +832,15 @@ ol ul {
 <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
 <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
 
-<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
+<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
     <h1 id="inline-attribute-lists-ials-and-attribute-list-definitions-alds">
-      Inline Attribute Lists (IALs) and Attribute List Definitions (ALDs)
+      Inline Attribute Lists (IALs) and Attribute List Definitions&nbsp;(ALDs)
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#inline-attribute-lists-ials-and-attribute-list-definitions-alds">Inline Attribute Lists (IALs) and Attribute List Definitions (ALDs)</a><ul><li><a href="#overview">Overview</a></li><li><a href="#block-level-ials">Block-Level IALs</a><ul><li><a href="#paragraphs">Paragraphs</a></li><li><a href="#headings">Headings</a></li><li><a href="#lists">Lists</a></li><li><a href="#blockquotes">Blockquotes</a></li><li><a href="#tables">Tables</a></li></ul></li><li><a href="#inline-ials">Inline IALs</a><ul><li><a href="#links">Links</a></li><li><a href="#images">Images</a></li><li><a href="#emphasis-and-strong">Emphasis and Strong</a></li><li><a href="#code-spans">Code Spans</a></li></ul></li><li><a href="#attribute-syntax">Attribute Syntax</a><ul><li><a href="#1-ids">1. IDs</a></li><li><a href="#2-classes">2. Classes</a></li><li><a href="#3-key-value-pairs">3. Key-Value Pairs</a></li><li><a href="#combining-attributes">Combining Attributes</a></li></ul></li><li><a href="#attribute-list-definitions-alds">Attribute List Definitions (ALDs)</a><ul><li><a href="#defining-alds">Defining ALDs</a></li><li><a href="#ald-syntax">ALD Syntax</a></li><li><a href="#referencing-alds">Referencing ALDs</a></li><li><a href="#mixed-usage">Mixed Usage</a></li></ul></li><li><a href="#important-notes">Important Notes</a><ul><li><a href="#block-level-ial-positioning">Block-Level IAL Positioning</a></li><li><a href="#inline-ial-positioning">Inline IAL Positioning</a></li><li><a href="#multiple-elements-with-same-attributes">Multiple Elements with Same Attributes</a></li><li><a href="#nested-elements">Nested Elements</a></li></ul></li><li><a href="#examples">Examples</a><ul><li><a href="#complete-example">Complete Example</a></li><li><a href="#using-alds-for-consistent-styling">Using ALDs for Consistent Styling</a></li></ul></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#inline-attribute-lists-ials-and-attribute-list-definitions-alds">Inline Attribute Lists (IALs) and Attribute List Definitions&nbsp;(ALDs)</a><ul><li><a href="#overview">Overview</a></li><li><a href="#block-level-ials">Block-Level&nbsp;IALs</a><ul><li><a href="#paragraphs">Paragraphs</a></li><li><a href="#headings">Headings</a></li><li><a href="#lists">Lists</a></li><li><a href="#blockquotes">Blockquotes</a></li><li><a href="#tables">Tables</a></li></ul></li><li><a href="#inline-ials">Inline&nbsp;IALs</a><ul><li><a href="#links">Links</a></li><li><a href="#images">Images</a></li><li><a href="#multimarkdown-style-image-attributes">MultiMarkdown-style image&nbsp;attributes</a><ul><li><a href="#inline-images">Inline&nbsp;images</a></li><li><a href="#reference-style-images">Reference-style&nbsp;images</a></li></ul></li><li><a href="#bear-image-attribute-comments">Bear image attribute&nbsp;comments</a><ul><li><a href="#reference-images">Reference&nbsp;images</a></li><li><a href="#supported-values-and-safety">Supported values&nbsp;and&nbsp;safety</a></li><li><a href="#url-handling-and-attributes">URL handling and&nbsp;attributes</a></li><li><a href="#width-and-height-handling">Width and height&nbsp;handling</a></li></ul></li><li><a href="#emphasis-and-strong">Emphasis&nbsp;and&nbsp;Strong</a></li><li><a href="#code-spans">Code&nbsp;Spans</a></li></ul></li><li><a href="#attribute-syntax">Attribute&nbsp;Syntax</a><ul><li><a href="#1-ids">1.&nbsp;IDs</a></li><li><a href="#2-classes">2.&nbsp;Classes</a></li><li><a href="#3-key-value-pairs">3. Key-Value&nbsp;Pairs</a></li><li><a href="#combining-attributes">Combining&nbsp;Attributes</a></li></ul></li><li><a href="#attribute-list-definitions-alds">Attribute List Definitions&nbsp;(ALDs)</a><ul><li><a href="#defining-alds">Defining&nbsp;ALDs</a></li><li><a href="#ald-syntax">ALD&nbsp;Syntax</a></li><li><a href="#referencing-alds">Referencing&nbsp;ALDs</a></li><li><a href="#mixed-usage">Mixed&nbsp;Usage</a></li></ul></li><li><a href="#important-notes">Important&nbsp;Notes</a><ul><li><a href="#block-level-ial-positioning">Block-Level IAL&nbsp;Positioning</a></li><li><a href="#inline-ial-positioning">Inline IAL&nbsp;Positioning</a></li><li><a href="#multiple-elements-with-same-attributes">Multiple Elements with Same&nbsp;Attributes</a></li><li><a href="#nested-elements">Nested&nbsp;Elements</a></li></ul></li><li><a href="#examples">Examples</a><ul><li><a href="#complete-example">Complete&nbsp;Example</a></li><li><a href="#using-alds-for-consistent-styling">Using ALDs for Consistent&nbsp;Styling</a></li></ul></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Inline Attribute Lists (IALs) allow you to add HTML attributes (IDs, classes, and custom key-value pairs) to Markdown elements. Attribute List Definitions (ALDs) let you define reusable attribute sets that can be referenced multiple times.
-    </p>
-
-    <p>
       This feature is available in <strong>Kramdown</strong> and <strong>unified</strong> modes.
     </p>
 
@@ -728,41 +855,28 @@ ol ul {
     <ul>
 
       <li>
-<strong>        Block-level elements</strong>: Headings, paragraphs, lists, blockquotes, code blocks, tables
+        <strong>Block-level elements</strong>: Headings, paragraphs, lists, blockquotes, code blocks, tables
       </li>
 
       <li>
-<strong>        Span-level elements</strong>: Links, images, emphasis (italic), strong (bold), code spans
+        <strong>Span-level elements</strong>: Links, images, emphasis (italic), strong (bold), code spans
+        Apex supports both formats:
+      </li>
+
+      <li>
+        <strong>Kramdown-style</strong>: <code>{: #id .class key=&quot;value&quot;}</code> - requires a colon after the opening brace
+      </li>
+
+      <li>
+        <strong>Pandoc-style</strong>: <code>{#id .class key=&quot;value&quot;}</code> - no colon required
+        Both formats work identically. For example, <code>{#my-id .my-class}</code> is equivalent to <code>{:#my-id .my-class}</code>.
+        ALDs define reusable attribute sets with the syntax <code>{<span class=\"emoji\">:ref-name:</span> attributes}</code> and can be referenced in IALs using <code>{:ref-name}</code>.
       </li>
 
     </ul>
-
-    <p>
-      Apex supports both formats:
-    </p>
-
-    <ul>
-
-      <li>
-<strong>        Kramdown-style</strong>: <code>{: #id .class key=&quot;value&quot;}</code> - requires a colon after the opening brace
-      </li>
-
-      <li>
-<strong>        Pandoc-style</strong>: <code>{#id .class key=&quot;value&quot;}</code> - no colon required
-      </li>
-
-    </ul>
-
-    <p>
-      Both formats work identically. For example, <code>{#my-id .my-class}</code> is equivalent to <code>{:#my-id .my-class}</code>.
-    </p>
-
-    <p>
-      ALDs define reusable attribute sets with the syntax <code>{🚗 attributes}</code> and can be referenced in IALs using <code>{:ref-name}</code>.
-    </p>
 
     <h2 id="block-level-ials">
-      Block-Level IALs
+      Block-Level&nbsp;IALs
     </h2>
 
     <p>
@@ -773,9 +887,10 @@ ol ul {
       Paragraphs
     </h3>
 
-<pre><code class="highlight language-markdown">This is a paragraph with an ID and classes.
+    <div class="highlight">
+<pre><span></span>This is a paragraph with an ID and classes.
 
-{: #para-id .important .note}
+{: <span class="ni">#para</span>-id .important .note}
 
 This is a paragraph using Pandoc-style IAL.
 
@@ -783,17 +898,20 @@ This is a paragraph using Pandoc-style IAL.
 
 Another paragraph with custom attributes.
 
-{: title="Important Note" lang="en"}
-</code></pre>
+{: title=&quot;Important Note&quot; lang=&quot;en&quot;}
+    </pre>
+  </div>
 
   <p>
     Output:
   </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p</span> <span class="na">id=</span><span class="s">"para-id"</span> <span class="na">class=</span><span class="s">"important note"</span><span class="nt">&gt;</span>This is a paragraph with an ID and classes.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p</span> <span class="na">id=</span><span class="s">"para-id-2"</span> <span class="na">class=</span><span class="s">"important note"</span><span class="nt">&gt;</span>This is a paragraph using Pandoc-style IAL.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p</span> <span class="na">title=</span><span class="s">"Important Note"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Another paragraph with custom attributes.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+  <div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;para-id&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;important note&quot;</span><span class="p">&gt;</span>This is a paragraph with an ID and classes.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;para-id-2&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;important note&quot;</span><span class="p">&gt;</span>This is a paragraph using Pandoc-style IAL.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;Important Note&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Another paragraph with custom attributes.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+  </pre>
+</div>
 
 <h3 id="headings">
   Headings
@@ -801,24 +919,24 @@ Another paragraph with custom attributes.
 
 <p>
   Headings can have IALs on the same line or the next line:
+  <strong>Same line:</strong>
 </p>
 
-<p>
-<strong>  Same line:</strong>
-</p>
-
-<pre><code class="highlight language-markdown"><span class="gh"># Heading {: #custom-id}</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Heading {: #custom-id}</span>
 <span class="gu">## Another Heading {: .highlight .large}</span>
 <span class="gu">## Pandoc-style Heading {#pandoc-id .highlight}</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  Next line:</strong>
+  <strong>Next line:</strong>
 </p>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Heading</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Heading</span>
 
-{: #custom-id .highlight}
+{: <span class="ni">#custom</span>-id .highlight}
 
 <span class="gh"># Pandoc-style Heading</span>
 
@@ -826,76 +944,87 @@ Another paragraph with custom attributes.
 
 <span class="gu">## Another Heading</span>
 
-{: .section-title lang="en"}
-</code></pre>
+{: .section-title lang=&quot;en&quot;}
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"custom-id"</span><span class="nt">&gt;</span>Heading<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h2</span> <span class="na">class=</span><span class="s">"highlight large"</span><span class="nt">&gt;</span>Another Heading<span class="nt">&lt;/h2&gt;</span>
-<span class="nt">&lt;h2</span> <span class="na">id=</span><span class="s">"pandoc-id"</span> <span class="na">class=</span><span class="s">"highlight"</span><span class="nt">&gt;</span>Pandoc-style Heading<span class="nt">&lt;/h2&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"custom-id"</span> <span class="na">class=</span><span class="s">"highlight"</span><span class="nt">&gt;</span>Heading<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"pandoc-id-2"</span> <span class="na">class=</span><span class="s">"highlight"</span><span class="nt">&gt;</span>Pandoc-style Heading<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h2</span> <span class="na">class=</span><span class="s">"section-title"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Another Heading<span class="nt">&lt;/h2&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;custom-id&quot;</span><span class="p">&gt;</span>Heading<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h2</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;highlight large&quot;</span><span class="p">&gt;</span>Another Heading<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h2</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;pandoc-id&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;highlight&quot;</span><span class="p">&gt;</span>Pandoc-style Heading<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;custom-id&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;highlight&quot;</span><span class="p">&gt;</span>Heading<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;pandoc-id-2&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;highlight&quot;</span><span class="p">&gt;</span>Pandoc-style Heading<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h2</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;section-title&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Another Heading<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="lists">
   Lists
 </h3>
 
-<pre><code class="highlight language-markdown"><span class="p">-</span> Item 1
-<span class="p">-</span> Item 2
-<span class="p">-</span> Item 3
+<div class="highlight">
+<pre><span></span><span class="k">-</span><span class="w"> </span>Item 1
+<span class="k">-</span><span class="w"> </span>Item 2
+<span class="k">-</span><span class="w"> </span>Item 3
 
 {: .unordered-list .compact}
-<span class="p">
-1.</span> First
-<span class="p">2.</span> Second
-<span class="p">3.</span> Third
 
-{: #ordered-list .numbered}
-</code></pre>
+<span class="k">1.</span> First
+<span class="k">2.</span> Second
+<span class="k">3.</span> Third
+
+{: <span class="ni">#ordered</span>-list .numbered}
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;ul</span> <span class="na">class=</span><span class="s">"unordered-list compact"</span><span class="nt">&gt;</span>
-  <span class="nt">&lt;li&gt;</span>Item 1<span class="nt">&lt;/li&gt;</span>
-  <span class="nt">&lt;li&gt;</span>Item 2<span class="nt">&lt;/li&gt;</span>
-  <span class="nt">&lt;li&gt;</span>Item 3<span class="nt">&lt;/li&gt;</span>
-<span class="nt">&lt;/ul&gt;</span>
-<span class="nt">&lt;ol</span> <span class="na">id=</span><span class="s">"ordered-list"</span> <span class="na">class=</span><span class="s">"numbered"</span><span class="nt">&gt;</span>
-  <span class="nt">&lt;li&gt;</span>First<span class="nt">&lt;/li&gt;</span>
-  <span class="nt">&lt;li&gt;</span>Second<span class="nt">&lt;/li&gt;</span>
-  <span class="nt">&lt;li&gt;</span>Third<span class="nt">&lt;/li&gt;</span>
-<span class="nt">&lt;/ol&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">ul</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;unordered-list compact&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>Item 1<span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>Item 2<span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>Item 3<span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ul</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">ol</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ordered-list&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;numbered&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>First<span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>Second<span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">li</span><span class="p">&gt;</span>Third<span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ol</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="blockquotes">
   Blockquotes
 </h3>
 
-<pre><code class="highlight language-markdown"><span class="gt">&gt; This is a quote.</span>
+<div class="highlight">
+<pre><span></span><span class="k">&gt; </span><span class="ge">This is a quote.</span>
 
 {: .quote .inspirational}
-<span class="gt">
-&gt; Another quote with attribution.</span>
-</code></pre>
+
+<span class="k">&gt; </span><span class="ge">Another quote with attribution.</span>
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;blockquote</span> <span class="na">class=</span><span class="s">"quote inspirational"</span><span class="nt">&gt;</span>
-  <span class="nt">&lt;p&gt;</span>This is a quote.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;/blockquote&gt;</span>
-<span class="nt">&lt;blockquote</span> <span class="na">cite=</span><span class="s">"https://example.com"</span><span class="nt">&gt;</span>
-  <span class="nt">&lt;p&gt;</span>Another quote with attribution.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;/blockquote&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">blockquote</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;quote inspirational&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This is a quote.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">blockquote</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">blockquote</span> <span class="na">cite</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Another quote with attribution.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">blockquote</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="tables">
   Tables
@@ -905,64 +1034,63 @@ Another paragraph with custom attributes.
   Tables can have IALs applied on a separate line after the table:
 </p>
 
-<pre><code class="highlight language-markdown">| Key | Value |
-| --- | :---: |
+<div class="highlight">
+<pre><span></span>| Key | Value |
+| --- | <span class=\"emoji\">:---:</span> |
 | one |   1   |
-| --- | --- |
 | two |   2   |
 
-{: #data-table .striped .bordered}
-</code></pre>
+{: <span class="ni">#data</span>-table .striped .bordered}
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;table</span> <span class="na">id=</span><span class="s">"data-table"</span> <span class="na">class=</span><span class="s">"striped bordered"</span><span class="nt">&gt;</span>
-  <span class="c">&lt;!-- table content --&gt;</span>
-<span class="nt">&lt;/table&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">table</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;data-table&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;striped bordered&quot;</span><span class="p">&gt;</span>
+  <span class="cm">&lt;!-- table content --&gt;</span>
+<span class="p">&lt;/</span><span class="nt">table</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <p>
-<strong>  Pandoc table_attributes extension:</strong>
-</p>
-
-<p>
+  <strong>Pandoc table_attributes extension:</strong>
   Apex also supports Pandoc’s <code>table_attributes</code> extension, which allows IAL attributes to be specified in table captions. When using Pandoc-style captions with the <code>: Caption</code> syntax, IAL attributes in the caption are extracted and applied to the table:
 </p>
 
-<pre><code class="highlight language-markdown">| Key | Value |
-| --- | :---: |
+<div class="highlight">
+<pre><span></span>| Key | Value |
+| --- | <span class=\"emoji\">:---:</span> |
 | one |   1   |
-| --- | --- |
 | two |   2   |
 
-: Key value table {#table-id .testing key="value"}
-</code></pre>
+: Key value table {#table-id .testing key=&quot;value&quot;}
+</pre>
+</div>
 
 <p>
   This is equivalent to:
 </p>
 
-<pre><code class="highlight language-markdown">| Key | Value |
-| --- | :---: |
+<div class="highlight">
+<pre><span></span>| Key | Value |
+| --- | <span class=\"emoji\">:---:</span> |
 | one |   1   |
-| --- | --- |
 | two |   2   |
 
-{: #table-id .testing key="value"}
-</code></pre>
+{: <span class="ni">#table</span>-id .testing key=&quot;value&quot;}
+</pre>
+</div>
 
 <p>
   Both Kramdown-style IALs (<code>{: #id .class}</code>) and Pandoc-style IALs without the colon (<code>{#id .class}</code>) are supported in table captions.
-</p>
-
-<p>
-<strong>  Note:</strong> The <code>: Caption</code> syntax only works when adjacent to a table to avoid conflicts with definition list syntax. See <a href="Syntax.html">Syntax</a> for more details on table captions.
+  <strong>Note:</strong> The <code>: Caption</code> syntax only works when adjacent to a table to avoid conflicts with definition list syntax. See <a href="Syntax.html">Syntax</a> for more details on table captions.
 </p>
 
 <h2 id="inline-ials">
-  Inline IALs
+  Inline&nbsp;IALs
 </h2>
 
 <p>
@@ -973,90 +1101,349 @@ Another paragraph with custom attributes.
   Links
 </h3>
 
-<pre><code class="highlight language-markdown">This is a <span class="p">[</span><span class="nv">regular link</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span> without attributes.
+<div class="highlight">
+<pre><span></span>This is a [<span class="nt">regular link</span>](<span class="na">https://example.com</span>) without attributes.
 
-Here's a <span class="p">[</span><span class="nv">styled link</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{:.button} with a button class.
+Here&#39;s a [<span class="nt">styled link</span>](<span class="na">https://example.com</span>){:.button} with a button class.
 
-Here's a <span class="p">[</span><span class="nv">Pandoc-style link</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{#link-id .button} with attributes.
+Here&#39;s a [<span class="nt">Pandoc-style link</span>](<span class="na">https://example.com</span>){#link-id .button} with attributes.
 
-You can have <span class="p">[</span><span class="nv">multiple links</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{:.link-primary} with <span class="p">[</span><span class="nv">different classes</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{:.link-secondary} in the same paragraph.
+You can have [<span class="nt">multiple links</span>](<span class="na">https://example.com</span>){:.link-primary} with [<span class="nt">different classes</span>](<span class="na">https://example.com</span>){:.link-secondary} in the same paragraph.
 
-A link with <span class="p">[</span><span class="nv">custom attributes</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{:rel="nofollow" title="External Link"}.
-</code></pre>
+A link with [<span class="nt">custom attributes</span>](<span class="na">https://example.com</span>){:rel=&quot;nofollow&quot; title=&quot;External Link&quot;}.
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>This is a <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span><span class="nt">&gt;</span>regular link<span class="nt">&lt;/a&gt;</span> without attributes.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Here's a <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span> <span class="na">class=</span><span class="s">"button"</span><span class="nt">&gt;</span>styled link<span class="nt">&lt;/a&gt;</span> with a button class.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Here's a <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span> <span class="na">id=</span><span class="s">"link-id"</span> <span class="na">class=</span><span class="s">"button"</span><span class="nt">&gt;</span>Pandoc-style link<span class="nt">&lt;/a&gt;</span> with attributes.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>You can have <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span> <span class="na">class=</span><span class="s">"link-primary"</span><span class="nt">&gt;</span>multiple links<span class="nt">&lt;/a&gt;</span> with <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span> <span class="na">class=</span><span class="s">"link-secondary"</span><span class="nt">&gt;</span>different classes<span class="nt">&lt;/a&gt;</span> in the same paragraph.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>A link with <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span> <span class="na">rel=</span><span class="s">"nofollow"</span> <span class="na">title=</span><span class="s">"External Link"</span><span class="nt">&gt;</span>custom attributes<span class="nt">&lt;/a&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This is a <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span><span class="p">&gt;</span>regular link<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> without attributes.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Here&#39;s a <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;button&quot;</span><span class="p">&gt;</span>styled link<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> with a button class.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Here&#39;s a <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;link-id&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;button&quot;</span><span class="p">&gt;</span>Pandoc-style link<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> with attributes.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>You can have <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;link-primary&quot;</span><span class="p">&gt;</span>multiple links<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> with <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;link-secondary&quot;</span><span class="p">&gt;</span>different classes<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> in the same paragraph.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>A link with <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;nofollow&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;External Link&quot;</span><span class="p">&gt;</span>custom attributes<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="images">
   Images
 </h3>
 
-<pre><code class="highlight language-markdown"><span class="p">![</span><span class="nv">Regular image</span><span class="p">](</span><span class="sx">image.png</span><span class="p">)</span>
+<div class="highlight">
+<pre><span></span>![<span class="nt">Regular image</span>](<span class="na">image.png</span>)
 
-<span class="p">![</span><span class="nv">Styled image</span><span class="p">](</span><span class="sx">logo.png</span><span class="p">)</span>
+![<span class="nt">Styled image</span>](<span class="na">logo.png</span>)
 
-<span class="p">![</span><span class="nv">Image with ID</span><span class="p">](</span><span class="sx">icon.png</span><span class="p">)</span>
+![<span class="nt">Image with ID</span>](<span class="na">icon.png</span>)
 
-<span class="p">![</span><span class="nv">Image with title</span><span class="p">](</span><span class="sx">photo.jpg</span><span class="p">)</span>
-</code></pre>
+![<span class="nt">Image with title</span>](<span class="na">photo.jpg</span>)
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;&lt;img</span> <span class="na">src=</span><span class="s">"image.png"</span> <span class="na">alt=</span><span class="s">"Regular image"</span> <span class="nt">/&gt;&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;&lt;img</span> <span class="na">src=</span><span class="s">"logo.png"</span> <span class="na">alt=</span><span class="s">"Styled image"</span> <span class="na">class=</span><span class="s">"logo centered"</span> <span class="nt">/&gt;&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;&lt;img</span> <span class="na">src=</span><span class="s">"icon.png"</span> <span class="na">alt=</span><span class="s">"Image with ID"</span> <span class="na">id=</span><span class="s">"site-icon"</span> <span class="na">class=</span><span class="s">"icon"</span> <span class="nt">/&gt;&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;&lt;img</span> <span class="na">src=</span><span class="s">"photo.jpg"</span> <span class="na">alt=</span><span class="s">"Image with title"</span> <span class="na">title=</span><span class="s">"Photo Title"</span> <span class="na">alt=</span><span class="s">"Photo description"</span> <span class="nt">/&gt;&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;image.png&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Regular image&quot;</span> <span class="p">/&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;logo.png&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Styled image&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;logo centered&quot;</span> <span class="p">/&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;icon.png&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Image with ID&quot;</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;site-icon&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;icon&quot;</span> <span class="p">/&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;photo.jpg&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Image with title&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;Photo Title&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Photo description&quot;</span> <span class="p">/&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
-<h3 id="emphasis-and-strong">
-  Emphasis and Strong
+<h3 id="multimarkdown-style-image-attributes">
+  MultiMarkdown-style image&nbsp;attributes
 </h3>
 
-<pre><code class="highlight language-markdown">This paragraph has <span class="gs">**bold text**</span>{:.bold-style} with a custom class and <span class="ge">*italic text*</span>{:.italic-style} with another class.
+<p>
+  In <strong>MultiMarkdown</strong> and <strong>unified</strong> modes, Apex also understands
+  MultiMarkdown-style attributes on images, both inline and reference-style.
+  These attributes are parsed before the Markdown is sent to the core parser and
+  are applied to the resulting <code>&lt;img&gt;</code> element in the same way as IALs.
+</p>
+
+<h4 id="inline-images">
+  Inline&nbsp;images
+</h4>
+
+<p>
+  You can place attributes directly inside the image parentheses:
+</p>
+
+<div class="highlight">
+<pre><span></span>![<span class="nt">Inline no title</span>](<span class="na">/images/test-inline-1.jpg </span>)
+
+![<span class="nt">Inline with title</span>](<span class="na">/images/test-inline-2.jpg </span>)
+
+![<span class="nt">Inline percent</span>](<span class="na">/images/test-inline-3.jpg </span>)
+
+![<span class="nt">Inline classes</span>](<span class="na">/images/test-inline-4.jpg </span>)
+</pre>
+</div>
+
+<p>
+  Produces HTML equivalent to:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/images/test-inline-1.jpg&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Inline no title&quot;</span> <span class="na">width</span><span class="o">=</span><span class="s">&quot;200&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/images/test-inline-2.jpg&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Inline with title&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;Falafel&quot;</span> <span class="na">width</span><span class="o">=</span><span class="s">&quot;300&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/images/test-inline-3.jpg&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Inline percent&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;width: 50%&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/images/test-inline-4.jpg&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;Inline classes&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;center shadow&quot;</span> <span class="na">width</span><span class="o">=</span><span class="s">&quot;250&quot;</span> <span class="na">style</span><span class="o">=</span><span class="s">&quot;height: 60%&quot;</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;Caption&quot;</span><span class="p">&gt;</span>
+</pre>
+</div>
+
+<h4 id="reference-style-images">
+  Reference-style&nbsp;images
+</h4>
+
+<p>
+  The same attribute syntax works on reference definitions:
+</p>
+
+<div class="highlight">
+<pre><span></span>![<span class="nt">Ref with attrs</span>](<span class="na">/images/test-ref-1.jpg</span>)
+
+![<span class="nt">Ref with title</span>](<span class="na">/images/test-ref-2.jpg</span>)
+
+![<span class="nt">Ref percent</span>](<span class="na">/images/test-ref-3.jpg</span>)
+
+![<span class="nt">Ref classes</span>](<span class="na">/images/test-ref-4.jpg</span>)
+</pre>
+</div>
+
+<p>
+  Here Apex stores the attributes on the reference definition and applies them to
+  every image that uses that reference, including images inside fenced divs
+  (::: … :::) and other HTML elements with markdown=“1”.
+</p>
+
+<h3 id="bear-image-attribute-comments">
+  Bear image attribute&nbsp;comments
+</h3>
+
+<p>
+  Bear stores image metadata in a JSON comment immediately after the image.
+  Apex reads supported values from the comment while preserving the comment in
+  the rendered output:
+</p>
+
+<div class="highlight">
+<pre><span></span>![](emperor-1.jpg)&lt;!-- {&quot;width&quot;:259} --&gt;
+</pre>
+</div>
+
+<p>
+  With raw HTML enabled:
+</p>
+
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;emperor-1.jpg&quot;</span> <span class="na">alt</span><span class="o">=</span><span class="s">&quot;&quot;</span> <span class="na">width</span><span class="o">=</span><span class="s">&quot;259&quot;</span><span class="p">&gt;</span><span class="cm">&lt;!-- {&quot;width&quot;:259} --&gt;</span>
+</pre>
+</div>
+
+<p>
+  The comment must appear on the same line and immediately follow the image,
+  apart from optional spaces or tabs:
+</p>
+
+<div class="highlight">
+<pre><span></span>![](emperor-1.jpg)	&lt;!-- {&quot;width&quot;:259,&quot;class&quot;:&quot;portrait&quot;} --&gt;
+</pre>
+</div>
+
+<p>
+  The syntax is recognized in CommonMark, GFM, MultiMarkdown, and unified
+  modes. Kramdown mode does not interpret Bear comments as image attributes.
+</p>
+
+<h4 id="reference-images">
+  Reference&nbsp;images
+</h4>
+
+<p>
+  A Bear comment on an explicit reference image applies only to that use:
+</p>
+
+<div class="highlight">
+<pre><span></span>![<span class="nt">Small portrait</span>](<span class="na">emperor-1.jpg</span>)
+![<span class="nt">Large portrait</span>](<span class="na">emperor-1.jpg</span>)&lt;!-- {&quot;width&quot;:520} --&gt;
+
+[<span class="nl">emperor</span>]: <span class="na">emperor-1.jpg</span>
+</pre>
+</div>
+
+<p>
+  A comment on the reference definition supplies attributes to every image
+  that uses the reference:
+</p>
+
+<div class="highlight">
+<pre><span></span>![<span class="nt">Portrait</span>](<span class="na">emperor-1.jpg</span>)
+![<span class="nt">Portrait again</span>](<span class="na">emperor-1.jpg</span>)
+
+ &lt;!-- {&quot;width&quot;:259,&quot;height&quot;:194} --&gt;
+</pre>
+</div>
+
+<p>
+  Definition attributes are the baseline. When an explicit
+<code>![alt][reference]</code> use has its own Bear comment, its values override
+  conflicting definition attributes for that image only. Existing image
+  attribute syntaxes are merged first, so an adjacent Bear comment wins when
+  the same key is specified more than once.
+</p>
+
+<h4 id="supported-values-and-safety">
+  Supported values&nbsp;and&nbsp;safety
+</h4>
+
+<p>
+  Apex allows the same image attributes accepted by its existing IAL and
+  MultiMarkdown handling:
+</p>
+
+<ul>
+
+  <li>
+<code>width</code>
+  </li>
+
+  <li>
+<code>height</code>
+  </li>
+
+  <li>
+<code>style</code>
+  </li>
+
+  <li>
+<code>class</code>
+  </li>
+
+  <li>
+<code>id</code>
+  </li>
+
+  <li>
+<code>rel</code>
+  </li>
+
+  <li>
+<code>title</code>
+    Unknown keys and object or array values are ignored. <code>width</code> and <code>height</code>
+    accept strings or numbers; the other allowed keys accept strings only.
+    Boolean and <code>null</code> values do not add attributes. Invalid JSON does not add
+    any Bear attributes.
+    With raw HTML enabled, the source comment remains in the output. A comment on
+    a reference definition is rendered once, not once per image use. In safe
+    CommonMark output, Apex still applies the supported attributes, but cmark’s
+    normal safe-HTML behavior replaces the comment with
+<code>&lt;!-- raw HTML omitted --&gt;</code>.
+  </li>
+
+</ul>
+
+<h4 id="url-handling-and-attributes">
+  URL handling and&nbsp;attributes
+</h4>
+
+<p>
+  In both inline and reference-style image syntax, a <strong>space after the URL</strong>
+  separates the URL from attributes. The URL is everything before that space (or
+  before the first <code>key=value</code> or <code>@2x</code>). URLs that contain a protocol
+  (http://, https://) are not URL-encoded by Apex, so query parameters
+  (e.g. <code>?size=250x83</code>) and ampersands in the URL are preserved in the output.
+  You can safely use long or parameterized image URLs and add attributes
+  after a space:
+</p>
+
+<div class="highlight">
+<pre><span></span>
+</pre>
+</div>
+
+<h4 id="width-and-height-handling">
+  Width and height&nbsp;handling
+</h4>
+
+<p>
+  When MultiMarkdown-style attributes or IALs specify <code>width</code> or <code>height</code>, Apex
+  normalizes them as follows (in all modes that support image attributes):
+</p>
+
+<ul>
+
+  <li>
+    Percentages such as <code>width=50%</code> become <code>style=&quot;width: 50%&quot;</code>.
+  </li>
+
+  <li>
+    Integer pixel values such as <code>width=300px</code> become <code>width=&quot;300&quot;</code>.
+  </li>
+
+  <li>
+    Bare integers such as <code>width=300</code> become <code>width=&quot;300&quot;</code>.
+  </li>
+
+  <li>
+    Other units (em, rem, vw, vh, etc.) are added to the <code>style</code> attribute
+    (for example <code>width=5em height=10rem</code> becomes
+<code>style=&quot;width: 5em; height: 10rem&quot;</code>).
+  </li>
+
+</ul>
+
+<h3 id="emphasis-and-strong">
+  Emphasis&nbsp;and&nbsp;Strong
+</h3>
+
+<div class="highlight">
+<pre><span></span>This paragraph has <span class="gs">**bold text**</span>{:.bold-style} with a custom class and <span class="ge">*italic text*</span>{:.italic-style} with another class.
 
 You can combine <span class="gs">**bold**</span>{:.bold} and <span class="ge">*italic*</span>{:.italic} in the same paragraph with different styles.
 
-Nested <span class="ge">**</span>bold with <span class="ge">*italic*</span>{:.nested-italic} inside<span class="ge">**</span>{:.bold-wrapper} works too.
-</code></pre>
+Nested **bold with <span class="ge">*italic*</span>{:.nested-italic} inside**{:.bold-wrapper} works too.
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>This paragraph has <span class="nt">&lt;strong</span> <span class="na">class=</span><span class="s">"bold-style"</span><span class="nt">&gt;</span>bold text<span class="nt">&lt;/strong&gt;</span> with a custom class and <span class="nt">&lt;em</span> <span class="na">class=</span><span class="s">"italic-style"</span><span class="nt">&gt;</span>italic text<span class="nt">&lt;/em&gt;</span> with another class.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>You can combine <span class="nt">&lt;strong</span> <span class="na">class=</span><span class="s">"bold"</span><span class="nt">&gt;</span>bold<span class="nt">&lt;/strong&gt;</span> and <span class="nt">&lt;em</span> <span class="na">class=</span><span class="s">"italic"</span><span class="nt">&gt;</span>italic<span class="nt">&lt;/em&gt;</span> in the same paragraph with different styles.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Nested <span class="nt">&lt;strong</span> <span class="na">class=</span><span class="s">"bold-wrapper"</span><span class="nt">&gt;</span>bold with <span class="nt">&lt;em</span> <span class="na">class=</span><span class="s">"nested-italic"</span><span class="nt">&gt;</span>italic<span class="nt">&lt;/em&gt;</span> inside<span class="nt">&lt;/strong&gt;</span> works too.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This paragraph has <span class="p">&lt;</span><span class="nt">strong</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;bold-style&quot;</span><span class="p">&gt;</span>bold text<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span> with a custom class and <span class="p">&lt;</span><span class="nt">em</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;italic-style&quot;</span><span class="p">&gt;</span>italic text<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span> with another class.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>You can combine <span class="p">&lt;</span><span class="nt">strong</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;bold&quot;</span><span class="p">&gt;</span>bold<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span> and <span class="p">&lt;</span><span class="nt">em</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;italic&quot;</span><span class="p">&gt;</span>italic<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span> in the same paragraph with different styles.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Nested <span class="p">&lt;</span><span class="nt">strong</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;bold-wrapper&quot;</span><span class="p">&gt;</span>bold with <span class="p">&lt;</span><span class="nt">em</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;nested-italic&quot;</span><span class="p">&gt;</span>italic<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span> inside<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span> works too.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="code-spans">
-  Code Spans
+  Code&nbsp;Spans
 </h3>
 
-<pre><code class="highlight language-markdown">Use <span class="sb">`inline code`</span>{:.code-inline} for code snippets with styling.
+<div class="highlight">
+<pre><span></span>Use <span class="sb">`inline code`</span>{:.code-inline} for code snippets with styling.
 
 You can have multiple <span class="sb">`code spans`</span>{:.code-1} and <span class="sb">`more code`</span>{:.code-2} with different classes.
-</code></pre>
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>Use <span class="nt">&lt;code</span> <span class="na">class=</span><span class="s">"code-inline"</span><span class="nt">&gt;</span>inline code<span class="nt">&lt;/code&gt;</span> for code snippets with styling.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>You can have multiple <span class="nt">&lt;code</span> <span class="na">class=</span><span class="s">"code-1"</span><span class="nt">&gt;</span>code spans<span class="nt">&lt;/code&gt;</span> and <span class="nt">&lt;code</span> <span class="na">class=</span><span class="s">"code-2"</span><span class="nt">&gt;</span>more code<span class="nt">&lt;/code&gt;</span> with different classes.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Use <span class="p">&lt;</span><span class="nt">code</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;code-inline&quot;</span><span class="p">&gt;</span>inline code<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> for code snippets with styling.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>You can have multiple <span class="p">&lt;</span><span class="nt">code</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;code-1&quot;</span><span class="p">&gt;</span>code spans<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> and <span class="p">&lt;</span><span class="nt">code</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;code-2&quot;</span><span class="p">&gt;</span>more code<span class="p">&lt;/</span><span class="nt">code</span><span class="p">&gt;</span> with different classes.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h2 id="attribute-syntax">
-  Attribute Syntax
+  Attribute&nbsp;Syntax
 </h2>
 
 <p>
@@ -1064,109 +1451,119 @@ You can have multiple <span class="sb">`code spans`</span>{:.code-1} and <span c
 </p>
 
 <h3 id="1-ids">
-  1. IDs
+  1.&nbsp;IDs
 </h3>
 
 <p>
   Use <code>#</code> followed by the ID name:
 </p>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Heading {: #section-1}</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="gh"># Heading {: #section-1}</span>
+</pre>
+</div>
 
 <p>
   Output: <code>&lt;h1 id=&quot;section-1&quot;&gt;Heading&lt;/h1&gt;</code>
 </p>
 
 <h3 id="2-classes">
-  2. Classes
+  2.&nbsp;Classes
 </h3>
 
 <p>
   Use <code>.</code> followed by the class name. Multiple classes can be specified:
 </p>
 
-<pre><code class="highlight language-markdown">Paragraph.
+<div class="highlight">
+<pre><span></span>Paragraph.
 
 {: .important .note .highlight}
-</code></pre>
+</pre>
+</div>
 
 <p>
   Output: <code>&lt;p class=&quot;important note highlight&quot;&gt;Paragraph.&lt;/p&gt;</code>
-</p>
-
-<p>
-<strong>  Note:</strong> Multiple <code>.class</code> specifiers are equivalent to a single <code>class</code> attribute with space-separated values.
+  <strong>Note:</strong> Multiple <code>.class</code> specifiers are equivalent to a single <code>class</code> attribute with space-separated values.
 </p>
 
 <h3 id="3-key-value-pairs">
-  3. Key-Value Pairs
+  3. Key-Value&nbsp;Pairs
 </h3>
 
 <p>
   Use <code>key=&quot;value&quot;</code> or <code>key='value'</code> for custom attributes. Values can be quoted (single or double quotes) or unquoted:
 </p>
 
-<pre><code class="highlight language-markdown">Paragraph.
+<div class="highlight">
+<pre><span></span>Paragraph.
 
-{: title="Important Note" lang="en" data-id="123"}
+{: title=&quot;Important Note&quot; lang=&quot;en&quot; data-id=&quot;123&quot;}
 
 Link with attributes.
-<span class="p">[</span><span class="nv">Click here</span><span class="p">](</span><span class="sx">url</span><span class="p">)</span>{:rel="nofollow" target="_blank"}
-</code></pre>
+[<span class="nt">Click here</span>](<span class="na">url</span>){:rel=&quot;nofollow&quot; target=&quot;_blank&quot;}
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p</span> <span class="na">title=</span><span class="s">"Important Note"</span> <span class="na">lang=</span><span class="s">"en"</span> <span class="na">data-id=</span><span class="s">"123"</span><span class="nt">&gt;</span>Paragraph.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Link with attributes.
-<span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"url"</span> <span class="na">rel=</span><span class="s">"nofollow"</span> <span class="na">target=</span><span class="s">"_blank"</span><span class="nt">&gt;</span>Click here<span class="nt">&lt;/a&gt;&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span> <span class="na">title</span><span class="o">=</span><span class="s">&quot;Important Note&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span> <span class="na">data-id</span><span class="o">=</span><span class="s">&quot;123&quot;</span><span class="p">&gt;</span>Paragraph.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Link with attributes.
+<span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;url&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;nofollow&quot;</span> <span class="na">target</span><span class="o">=</span><span class="s">&quot;_blank&quot;</span><span class="p">&gt;</span>Click here<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <p>
-<strong>  Quoted values:</strong> Use quotes when values contain spaces or special characters:
+  <strong>Quoted values:</strong> Use quotes when values contain spaces or special characters:
 </p>
 
-<pre><code class="highlight language-markdown">
-{: title="This is a title with spaces" lang="en-US"}
-</code></pre>
+<div class="highlight">
+<pre><span></span>{: title=&quot;This is a title with spaces&quot; lang=&quot;en-US&quot;}
+</pre>
+</div>
 
 <p>
-<strong>  Unquoted values:</strong> Simple values without spaces can be unquoted:
+  <strong>Unquoted values:</strong> Simple values without spaces can be unquoted:
 </p>
 
-<pre><code class="highlight language-markdown">
-{: lang=en data-visible=true}
-</code></pre>
+<div class="highlight">
+<pre><span></span>{: lang=en data-visible=true}
+</pre>
+</div>
 
 <p>
-<strong>  Escaping quotes:</strong> Inside quoted values, escape quotes with backslash:
+  <strong>Escaping quotes:</strong> Inside quoted values, escape quotes with backslash:
 </p>
 
-<pre><code class="highlight language-markdown">
-{: title="He said <span class="se">\"</span>Hello<span class="se">\"</span>"}
-</code></pre>
+<div class="highlight">
+<pre><span></span>{: title=&quot;He said \&quot;Hello\&quot;&quot;}
+</pre>
+</div>
 
 <h3 id="combining-attributes">
-  Combining Attributes
+  Combining&nbsp;Attributes
 </h3>
 
 <p>
   All three types can be combined in a single IAL:
 </p>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Heading</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Heading</span>
 
-{: #section-1 .important .highlight title="Section Title" lang="en"}
-</code></pre>
+{: <span class="ni">#section</span>-1 .important .highlight title=&quot;Section Title&quot; lang=&quot;en&quot;}
+</pre>
+</div>
 
 <p>
   Output: <code>&lt;h1 id=&quot;section-1&quot; class=&quot;important highlight&quot; title=&quot;Section Title&quot; lang=&quot;en&quot;&gt;Heading&lt;/h1&gt;</code>
 </p>
 
 <h2 id="attribute-list-definitions-alds">
-  Attribute List Definitions (ALDs)
+  Attribute List Definitions&nbsp;(ALDs)
 </h2>
 
 <p>
@@ -1174,14 +1571,15 @@ Link with attributes.
 </p>
 
 <h3 id="defining-alds">
-  Defining ALDs
+  Defining&nbsp;ALDs
 </h3>
 
 <p>
-  ALDs use the syntax <code>{🚗 attributes}</code> and can appear anywhere in your document (though typically at the end for organization):
+  ALDs use the syntax <code>{<span class=\"emoji\">:ref-name:</span> attributes}</code> and can appear anywhere in your document (though typically at the end for organization):
 </p>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Header 1</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Header 1</span>
 
 {:header-style}
 
@@ -1192,59 +1590,66 @@ Link with attributes.
 <span class="gh"># Header 3</span>
 
 {:header-style}
-
-</code></pre>
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"section-title"</span> <span class="na">class=</span><span class="s">"large bold"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Header 1<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"section-title"</span> <span class="na">class=</span><span class="s">"large bold"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Header 2<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"section-title"</span> <span class="na">class=</span><span class="s">"large bold"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Header 3<span class="nt">&lt;/h1&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;section-title&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;large bold&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Header 1<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;section-title&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;large bold&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Header 2<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;section-title&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;large bold&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Header 3<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="ald-syntax">
-  ALD Syntax
+  ALD&nbsp;Syntax
 </h3>
 
 <p>
   ALD definitions follow the same attribute syntax as IALs:
 </p>
 
-<pre lang="markdown"><code></code></pre>
+<div class="highlight">
+<pre><span></span>
+</pre>
+</div>
 
 <h3 id="referencing-alds">
-  Referencing ALDs
+  Referencing&nbsp;ALDs
 </h3>
 
 <p>
   Reference an ALD in an IAL using just the reference name:
 </p>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Heading</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Heading</span>
 
 {:my-style}
 
 Paragraph.
 
 {:my-style}
-</code></pre>
+</pre>
+</div>
 
 <p>
-  If the ALD <code>{💪 ...}</code> is defined, both elements will receive those attributes.
+  If the ALD <code>{<span class=\"emoji\">:my-style:</span> ...}</code> is defined, both elements will receive those attributes.
 </p>
 
 <h3 id="mixed-usage">
-  Mixed Usage
+  Mixed&nbsp;Usage
 </h3>
 
 <p>
   You can mix ALD references with additional attributes in the same IAL. The additional attributes override or extend the ALD:
 </p>
 
-<pre><code class="highlight language-markdown">
-<span class="gh"># Heading 1</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Heading 1</span>
 
 {:base-style}
 
@@ -1254,114 +1659,124 @@ Paragraph.
 
 <span class="gh"># Heading 3</span>
 
-{:base-style #override-id}
+{:base-style <span class="ni">#override</span>-id}
 
 <span class="gh"># Heading 4</span>
 
-{:base-style .class3 rel="nofollow"}
-</code></pre>
+{:base-style .class3 rel=&quot;nofollow&quot;}
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"main"</span> <span class="na">class=</span><span class="s">"class1 class2"</span><span class="nt">&gt;</span>Heading 1<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"main"</span> <span class="na">class=</span><span class="s">"class1 class2 class3"</span><span class="nt">&gt;</span>Heading 2<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"override-id"</span> <span class="na">class=</span><span class="s">"class1 class2"</span><span class="nt">&gt;</span>Heading 3<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"main"</span> <span class="na">class=</span><span class="s">"class1 class2 class3"</span> <span class="na">rel=</span><span class="s">"nofollow"</span><span class="nt">&gt;</span>Heading 4<span class="nt">&lt;/h1&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;main&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;class1 class2&quot;</span><span class="p">&gt;</span>Heading 1<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;main&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;class1 class2 class3&quot;</span><span class="p">&gt;</span>Heading 2<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;override-id&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;class1 class2&quot;</span><span class="p">&gt;</span>Heading 3<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;main&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;class1 class2 class3&quot;</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;nofollow&quot;</span><span class="p">&gt;</span>Heading 4<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <p>
-<strong>  Behavior:</strong>
+  <strong>Behavior:</strong>
 </p>
 
 <ul>
 
   <li>
-<strong>    Classes</strong>: Additional classes are appended to the ALD classes
+    <strong>Classes</strong>: Additional classes are appended to the ALD classes
   </li>
 
   <li>
-<strong>    IDs</strong>: If an ID is specified in the IAL, it overrides the ALD’s ID
+    <strong>IDs</strong>: If an ID is specified in the IAL, it overrides the ALD’s ID
   </li>
 
   <li>
-<strong>    Key-value attributes</strong>: If a key exists in both ALD and IAL, the IAL value overrides the ALD value
+    <strong>Key-value attributes</strong>: If a key exists in both ALD and IAL, the IAL value overrides the ALD value
   </li>
 
 </ul>
 
 <h2 id="important-notes">
-  Important Notes
+  Important&nbsp;Notes
 </h2>
 
 <h3 id="block-level-ial-positioning">
-  Block-Level IAL Positioning
+  Block-Level IAL&nbsp;Positioning
 </h3>
 
 <p>
   For block-level elements, the IAL <strong>must</strong> appear immediately after the element with <strong>no blank line</strong> between them:
+  <strong>Correct:</strong>
 </p>
 
-<p>
-<strong>  Correct:</strong>
-</p>
-
-<pre><code class="highlight language-markdown">Paragraph text.
+<div class="highlight">
+<pre><span></span>Paragraph text.
 
 {: .class}
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  Incorrect:</strong>
+  <strong>Incorrect:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">Paragraph text.
+<div class="highlight">
+<pre><span></span>Paragraph text.
 
 {: .class}
-</code></pre>
+</pre>
+</div>
 
 <p>
   The blank line will cause the IAL to be treated as a separate paragraph.
 </p>
 
 <h3 id="inline-ial-positioning">
-  Inline IAL Positioning
+  Inline IAL&nbsp;Positioning
 </h3>
 
 <p>
   For inline elements, the IAL must appear immediately after the element, with optional whitespace:
 </p>
 
-<pre><code class="highlight language-markdown"><span class="p">[</span><span class="nv">link</span><span class="p">](</span><span class="sx">url</span><span class="p">)</span>{:.class} text after
+<div class="highlight">
+<pre><span></span>[<span class="nt">link</span>](<span class="na">url</span>){:.class} text after
 <span class="gs">**bold**</span>{:.bold-style} more text
-</code></pre>
+</pre>
+</div>
 
 <h3 id="multiple-elements-with-same-attributes">
-  Multiple Elements with Same Attributes
+  Multiple Elements with Same&nbsp;Attributes
 </h3>
 
 <p>
   When multiple links share the same URL, IALs are correctly matched using element indexing:
 </p>
 
-<pre><code class="highlight language-markdown">Here's a <span class="p">[</span><span class="nv">regular link</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span> and <span class="p">[</span><span class="nv">another link</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{:.button}.
-</code></pre>
+<div class="highlight">
+<pre><span></span>Here&#39;s a [<span class="nt">regular link</span>](<span class="na">https://example.com</span>) and [<span class="nt">another link</span>](<span class="na">https://example.com</span>){:.button}.
+</pre>
+</div>
 
 <p>
   Both links point to the same URL, but only the second one receives the <code>button</code> class.
 </p>
 
 <h3 id="nested-elements">
-  Nested Elements
+  Nested&nbsp;Elements
 </h3>
 
 <p>
   IALs work with nested inline elements:
 </p>
 
-<pre><code class="highlight language-markdown"><span class="ge">**</span>Bold text with <span class="ge">*italic*</span>{:.nested} inside<span class="ge">**</span>{:.wrapper}
-</code></pre>
+<div class="highlight">
+<pre><span></span>**Bold text with <span class="ge">*italic*</span>{:.nested} inside**{:.wrapper}
+</pre>
+</div>
 
 <p>
   The italic element gets the <code>nested</code> class, and the bold element gets the <code>wrapper</code> class.
@@ -1372,18 +1787,19 @@ Paragraph.
 </h2>
 
 <h3 id="complete-example">
-  Complete Example
+  Complete&nbsp;Example
 </h3>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Main Title</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Main Title</span>
 
-{: #main-title .page-title}
+{: <span class="ni">#main</span>-title .page-title}
 
 <span class="gu">## Section 1</span>
 
 {:section-heading}
 
-This paragraph has <span class="p">[</span><span class="nv">a link</span><span class="p">](</span><span class="sx">https://example.com</span><span class="p">)</span>{:.external-link} with styling.
+This paragraph has [<span class="nt">a link</span>](<span class="na">https://example.com</span>){:.external-link} with styling.
 
 Another paragraph with <span class="gs">**bold text**</span>{:.highlight}.
 
@@ -1392,26 +1808,29 @@ Another paragraph with <span class="gs">**bold text**</span>{:.highlight}.
 {:section-heading}
 
 More content here.
-
-</code></pre>
+</pre>
+</div>
 
 <p>
   Output:
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;h1</span> <span class="na">id=</span><span class="s">"main-title"</span> <span class="na">class=</span><span class="s">"page-title"</span><span class="nt">&gt;</span>Main Title<span class="nt">&lt;/h1&gt;</span>
-<span class="nt">&lt;h2</span> <span class="na">class=</span><span class="s">"section important"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Section 1<span class="nt">&lt;/h2&gt;</span>
-<span class="nt">&lt;p&gt;</span>This paragraph has <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"https://example.com"</span> <span class="na">class=</span><span class="s">"external-link"</span><span class="nt">&gt;</span>a link<span class="nt">&lt;/a&gt;</span> with styling.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Another paragraph with <span class="nt">&lt;strong</span> <span class="na">class=</span><span class="s">"highlight"</span><span class="nt">&gt;</span>bold text<span class="nt">&lt;/strong&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;h2</span> <span class="na">class=</span><span class="s">"section important"</span> <span class="na">lang=</span><span class="s">"en"</span><span class="nt">&gt;</span>Section 2<span class="nt">&lt;/h2&gt;</span>
-<span class="nt">&lt;p&gt;</span>More content here.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">h1</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;main-title&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;page-title&quot;</span><span class="p">&gt;</span>Main Title<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h2</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;section important&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Section 1<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This paragraph has <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;https://example.com&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;external-link&quot;</span><span class="p">&gt;</span>a link<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> with styling.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Another paragraph with <span class="p">&lt;</span><span class="nt">strong</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;highlight&quot;</span><span class="p">&gt;</span>bold text<span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">h2</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;section important&quot;</span> <span class="na">lang</span><span class="o">=</span><span class="s">&quot;en&quot;</span><span class="p">&gt;</span>Section 2<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>More content here.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="using-alds-for-consistent-styling">
-  Using ALDs for Consistent Styling
+  Using ALDs for Consistent&nbsp;Styling
 </h3>
 
-<pre><code class="highlight language-markdown"><span class="gh"># Introduction</span>
+<div class="highlight">
+<pre><span></span><span class="gh"># Introduction</span>
 
 {:intro}
 
@@ -1430,8 +1849,8 @@ More content here.
 <span class="gu">## Summary</span>
 
 {:conclusion}
-
-</code></pre>
+</pre>
+</div>
 
 <p>
   This allows you to maintain consistent styling across multiple elements by defining the attributes once and referencing them multiple times.
@@ -1444,11 +1863,11 @@ More content here.
 <ul>
 
   <li>
-<a href="Syntax.html">    Syntax</a> - Complete syntax reference
+    <a href="Syntax.html">Syntax</a> - Complete syntax reference
   </li>
 
   <li>
-<a href="Modes.html">    Modes</a> - Understanding processor modes (IALs available in Kramdown and unified modes)
+    <a href="Modes.html">Modes</a> - Understanding processor modes (IALs available in Kramdown and unified modes)
   </li>
 
 </ul>

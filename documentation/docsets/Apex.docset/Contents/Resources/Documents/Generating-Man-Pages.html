@@ -834,872 +834,230 @@ ol ul {
 
 <nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
-    <h1 id="limitations-and-roadmap">
-      Limitations and&nbsp;Roadmap
+    <h1 id="generating-man-pages">
+      Generating&nbsp;Man&nbsp;Pages
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#limitations-and-roadmap">Limitations and&nbsp;Roadmap</a><ul><li><a href="#known-limitations">Known Limitations</a><ul><li><a href="#current-limitations">Current Limitations</a><ul><li><a href="#strict-xhtml-in-fragment-non-standalone-mode">Strict XHTML in fragment (non-standalone)&nbsp;mode</a></li><li><a href="#1-definition-lists-parsing">1. Definition Lists&nbsp;Parsing</a></li><li><a href="#2-span-level-inline-attribute-lists-ial">2. Span-Level Inline Attribute Lists&nbsp;(IAL)</a></li><li><a href="#3-html-markdown-attributes">3. HTML Markdown&nbsp;Attributes</a></li><li><a href="#4-multimarkdown-transclusion-syntax">4. MultiMarkdown Transclusion&nbsp;Syntax</a></li><li><a href="#5-critic-markup-edge-cases">5. Critic Markup&nbsp;Edge&nbsp;Cases</a></li><li><a href="#6-complete-github-emoji-set">6. Complete GitHub&nbsp;Emoji&nbsp;Set</a></li></ul></li><li><a href="#resolved-limitations">Resolved Limitations</a></li></ul></li><li><a href="#roadmap">Roadmap</a><ul><li><a href="#completed-features-white_check_mark">Completed Features&nbsp;✅</a></li><li><a href="#high-priority-next-release">High Priority (Next&nbsp;Release)</a></li><li><a href="#medium-priority-future-releases">Medium Priority (Future&nbsp;Releases)</a></li><li><a href="#low-priority-nice-to-have">Low Priority (Nice&nbsp;to&nbsp;Have)</a></li><li><a href="#future-considerations">Future Considerations</a></li></ul></li><li><a href="#version-history">Version&nbsp;History</a><ul><li><a href="#v010-current">v0.1.0&nbsp;(Current)</a></li><li><a href="#future-versions">Future&nbsp;Versions</a></li></ul></li><li><a href="#contributing">Contributing</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#generating-man-pages">Generating&nbsp;Man&nbsp;Pages</a><ul><li><a href="#output-formats">Output&nbsp;formats</a></li><li><a href="#source-markdown-format">Source Markdown&nbsp;format</a></li><li><a href="#generating-from-the-apex-repo">Generating from the&nbsp;Apex&nbsp;repo</a></li><li><a href="#viewing-generated-roff">Viewing generated&nbsp;roff</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
-      This page documents known limitations of Apex and the planned roadmap for future development.
+      Apex can convert Markdown to <strong>roff</strong> (man page source) or to <strong>styled HTML</strong> that looks like a man page. You do not need Pandoc or go-md2man; the built <code>apex</code> binary generates man pages directly from your Markdown source.
     </p>
 
-    <h2 id="known-limitations">
-      Known Limitations
-    </h2>
-
-    <h3 id="current-limitations">
-      Current Limitations
-    </h3>
-
-    <h4 id="strict-xhtml-in-fragment-non-standalone-mode">
-      Strict XHTML in fragment (non-standalone)&nbsp;mode
-    </h4>
-
-    <p>
-      <strong>Status:</strong> By design (documented)
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        With <code>--strict-xhtml</code> but <strong>without</strong> <code>--standalone</code>, Apex applies XML-style serialization for void/empty HTML elements (same family of changes as <code>--xhtml</code>).
-      </li>
-
-      <li>
-        It does <strong>not</strong> validate the full output as well-formed XML, and it does <strong>not</strong> repair arbitrary raw HTML. Content that is already ill-formed (unbalanced tags, unescaped <code>&amp;</code> / <code>&lt;</code> / <code>&gt;</code> in text when raw HTML is allowed, etc.) may still produce output that is not valid XML.
-      </li>
-
-      <li>
-        Full polyglot document headers (XML declaration, XHTML namespace, <code>Content-Type</code> meta) require <code>--standalone</code>.
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Workaround:</strong> Use <code>--standalone</code> when you need a complete polyglot document wrapper, and avoid embedding problematic raw HTML if you require strict XML from a fragment.
-    </p>
-
-    <h4 id="1-definition-lists-parsing">
-      1. Definition Lists&nbsp;Parsing
-    </h4>
-
-    <p>
-      <strong>Status:</strong> Foundation complete, parsing needs enhancement
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Extension structure and HTML rendering are implemented
-      </li>
-
-      <li>
-        Parsing logic to detect <code>:</code> lines and convert to definition lists needs completion
-      </li>
-
-      <li>
-        Block-level content in definitions needs proper parsing
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Workaround:</strong> Use standard lists or HTML for now.
-    </p>
-
-    <p>
-      <strong>Priority:</strong> Medium
-    </p>
-
-    <h4 id="2-span-level-inline-attribute-lists-ial">
-      2. Span-Level Inline Attribute Lists&nbsp;(IAL)
-    </h4>
-
-    <p>
-      <strong>Status:</strong> Not implemented
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Block-level IAL (<code>{: #id .class}</code>) is fully supported
-      </li>
-
-      <li>
-        Span-level IAL (<code>*text*{:.class}</code>) is not yet implemented
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Workaround:</strong> Use block-level IAL or HTML attributes.
-    </p>
-
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
-
-    <h4 id="3-html-markdown-attributes">
-      3. HTML Markdown&nbsp;Attributes
-    </h4>
-
-    <p>
-      <strong>Status:</strong> Not implemented
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Parsing markdown inside HTML tags based on <code>markdown=&quot;1&quot;</code> attribute is not supported
-      </li>
-
-      <li>
-        This is a complex feature requiring HTML parsing integration
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Workaround:</strong> Use raw HTML or process HTML separately.
-    </p>
-
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
-
-    <h4 id="4-multimarkdown-transclusion-syntax">
-      4. MultiMarkdown Transclusion&nbsp;Syntax
-    </h4>
-
-    <p>
-      <strong>Status:</strong> Partial
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Marked’s include syntax (<code>&lt;&lt;[file]</code>, <code>&lt;&lt;(code)</code>, <code>&lt;&lt;{html}</code>) is fully supported
-      </li>
-
-      <li>
-        MultiMarkdown’s <code>{{file}}</code> syntax is not yet implemented
-      </li>
-
-      <li>
-        Wildcard extensions (<code>{{file.*}}</code>) are not supported
-      </li>
-
-      <li>
-<code>transclude base</code> metadata is not supported
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Workaround:</strong> Use Marked’s include syntax in unified mode.
-    </p>
-
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
-
-    <h4 id="5-critic-markup-edge-cases">
-      5. Critic Markup&nbsp;Edge&nbsp;Cases
-    </h4>
-
-    <p>
-      <strong>Status:</strong> Minor edge cases exist
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Most critic markup works correctly
-      </li>
-
-      <li>
-        Some edge cases with nested markup or complex substitutions may have issues
-      </li>
-
-      <li>
-        Generally works well for typical use cases
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Priority:</strong> Low
-    </p>
-
-    <h4 id="6-complete-github-emoji-set">
-      6. Complete GitHub&nbsp;Emoji&nbsp;Set
-    </h4>
-
-    <p>
-      <strong>Status:</strong> Partial (350+ emoji supported)
-    </p>
-
-    <p>
-      <strong>Details:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        350+ common emoji are supported
-      </li>
-
-      <li>
-        Full GitHub emoji set (1,800+ emoji) is not yet implemented
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Workaround:</strong> Most common emoji work. Unsupported emoji will appear as text.
-    </p>
-
-    <p>
-      <strong>Priority:</strong> Very Low
-    </p>
-
-    <h3 id="resolved-limitations">
-      Resolved Limitations
-    </h3>
-
-    <p>
-      The following limitations have been resolved:
-    </p>
-
-    <ul>
-
-      <li>
-        ✅ <strong>Kramdown IAL</strong> - Full block-level implementation with ALD support
-      </li>
-
-      <li>
-        ✅ <strong>Advanced Footnotes</strong> - Block-level content in footnotes now supported
-      </li>
-
-      <li>
-        ✅ <strong>Advanced Tables</strong> - Colspan, rowspan, and captions fully implemented
-      </li>
-
-      <li>
-        ✅ <strong>Callouts</strong> - All Bear/Obsidian/Xcode styles supported
-      </li>
-
-      <li>
-        ✅ <strong>File Includes</strong> - Marked syntax fully implemented
-      </li>
-
-      <li>
-        ✅ <strong>TOC Generation</strong> - All marker formats working
-      </li>
-
-      <li>
-        ✅ <strong>Abbreviations</strong> - Full support implemented
-      </li>
-
-      <li>
-        ✅ <strong>Page Breaks</strong> - Both HTML comment and Kramdown styles supported
-      </li>
-
-    </ul>
-
-    <h2 id="roadmap">
-      Roadmap
-    </h2>
-
-    <h3 id="completed-features-white_check_mark">
-      Completed Features&nbsp;✅
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Core Markdown parsing (CommonMark + GFM)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Metadata blocks (YAML, MMD, Pandoc)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Metadata variables (<code>[%key]</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Wiki links (<code>[[Page]]</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Math support (<code>$inline$</code> and <code>$$display$$</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Critic Markup (all 5 types)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         GFM tables with alignment
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Strikethrough (<code>~~text~~</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Task lists (<code>- [ ]</code> and <code>- [x]</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Autolinks
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Smart typography
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Footnotes (reference and inline styles)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Abbreviations
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Callouts (Bear/Obsidian/Xcode)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         File includes (<code>&lt;&lt;[file]</code>, <code>&lt;&lt;(code)</code>, <code>&lt;&lt;{html}</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         TOC generation (all marker formats)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         GitHub Emoji (350+ common emoji)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Page breaks (<code>&lt;!--BREAK--&gt;</code>, <code>{::pagebreak /}</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Autoscroll pauses (<code>&lt;!--PAUSE:X--&gt;</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         End of block markers (<code>^</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Kramdown IAL (block-level with ALD)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Advanced footnotes (block-level content)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Advanced tables (colspan, rowspan, captions)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Header ID generation (GFM, MMD, Kramdown formats)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Relaxed tables (no separator rows)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Grid tables (Pandoc <code>+---+</code> syntax, opt-in via <code>--grid-tables</code>)
-      </li>
-
-      <li>
-<input type="checkbox" checked="" disabled="" />         Definition lists foundation (HTML rendering)
-      </li>
-
-    </ul>
-
-    <h3 id="high-priority-next-release">
-      High Priority (Next&nbsp;Release)
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         Complete definition lists parsing
-        <ul>
-
-          <li>
-            Detect <code>:</code> lines and convert to definition lists
-          </li>
-
-          <li>
-            Parse block-level content in definitions
-          </li>
-
-          <li>
-            Estimated: 1-2 hours
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h3 id="medium-priority-future-releases">
-      Medium Priority (Future&nbsp;Releases)
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          MultiMarkdown transclusion syntax (<code>{{file}}</code>)
-        </p>
-
-        <ul>
-
-          <li>
-            Add <code>{{file}}</code> syntax for MMD mode compatibility
-          </li>
-
-          <li>
-            Support wildcard extensions (<code>{{file.*}}</code>)
-          </li>
-
-          <li>
-            Support <code>transclude base</code> metadata
-          </li>
-
-          <li>
-            Estimated: 1-2 hours
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Span-level Inline Attribute Lists
-        </p>
-
-        <ul>
-
-          <li>
-            Support <code>*text*{:.class}</code> syntax
-          </li>
-
-          <li>
-            Attach attributes to inline elements
-          </li>
-
-          <li>
-            Estimated: 2-3 hours
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Expand GitHub Emoji to full set
-        </p>
-
-        <ul>
-
-          <li>
-            Add remaining 1,400+ emoji to reach 1,800+ total
-          </li>
-
-          <li>
-            Estimated: 2-3 hours (mostly data entry)
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h3 id="low-priority-nice-to-have">
-      Low Priority (Nice&nbsp;to&nbsp;Have)
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          HTML Markdown Attributes
-        </p>
-
-        <ul>
-
-          <li>
-            Parse markdown inside HTML based on <code>markdown=&quot;1&quot;</code> attribute
-          </li>
-
-          <li>
-            Handle block vs. span contexts
-          </li>
-
-          <li>
-            Estimated: 3-4 hours
-          </li>
-
-          <li>
-            Complexity: High
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Pygments syntax highlighting integration
-        </p>
-
-        <ul>
-
-          <li>
-            Server-side syntax highlighting using Pygments
-          </li>
-
-          <li>
-            Cache results for performance
-          </li>
-
-          <li>
-            Estimated: 4-6 hours
-          </li>
-
-          <li>
-            Note: Client-side (Prism.js, highlight.js) is recommended instead
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h3 id="future-considerations">
-      Future Considerations
-    </h3>
-
-    <ul>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Performance optimizations
-        </p>
-
-        <ul>
-
-          <li>
-            Profile and optimize hot paths
-          </li>
-
-          <li>
-            Memory usage improvements
-          </li>
-
-          <li>
-            Large document handling
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Additional Markdown extensions
-        </p>
-
-        <ul>
-
-          <li>
-            Leanpub syntax support
-          </li>
-
-          <li>
-            Other processor-specific features based on user demand
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Enhanced error reporting
-        </p>
-
-        <ul>
-
-          <li>
-            Better error messages
-          </li>
-
-          <li>
-            Syntax error highlighting
-          </li>
-
-          <li>
-            Validation warnings
-          </li>
-
-        </ul>
-
-      </li>
-
-      <li>
-<input type="checkbox" disabled="" />         
-        <p>
-          Plugin/extension system
-        </p>
-
-        <ul>
-
-          <li>
-            Allow custom extensions
-          </li>
-
-          <li>
-            Third-party extension support
-          </li>
-
-        </ul>
-
-      </li>
-
-    </ul>
-
-    <h2 id="version-history">
-      Version&nbsp;History
-    </h2>
-
-    <h3 id="v010-current">
-      v0.1.0&nbsp;(Current)
-    </h3>
-
-    <p>
-      <strong>Status:</strong> Production-ready
-    </p>
-
-    <p>
-      <strong>Features:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        All core Markdown features
-      </li>
-
-      <li>
-        GFM compatibility
-      </li>
-
-      <li>
-        MultiMarkdown compatibility (partial)
-      </li>
-
-      <li>
-        Kramdown compatibility (partial)
-      </li>
-
-      <li>
-        Unified mode with all features
-      </li>
-
-      <li>
-        Header ID generation
-      </li>
-
-      <li>
-        Relaxed tables
-      </li>
-
-      <li>
-        Comprehensive CLI tool
-      </li>
-
-      <li>
-        C API and Objective-C wrapper
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>Known Limitations:</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Definition lists parsing incomplete
-      </li>
-
-      <li>
-        Span-level IAL not implemented
-      </li>
-
-      <li>
-        MMD transclusion syntax not implemented
-      </li>
-
-      <li>
-        Grid tables: opt-in only (<code>--grid-tables</code>); some complex Pandoc grid layouts differ (column widths, general rowspan outside partial-separator tables)
-      </li>
-
-    </ul>
-
-    <h3 id="future-versions">
-      Future&nbsp;Versions
-    </h3>
-
-    <p>
-      <strong>v0.2.0 (Planned)</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Complete definition lists
-      </li>
-
-      <li>
-        MMD transclusion syntax
-      </li>
-
-      <li>
-        Additional emoji support
-      </li>
-
-    </ul>
-
-    <p>
-      <strong>v0.3.0 (Future)</strong>
-    </p>
-
-    <ul>
-
-      <li>
-        Span-level IAL
-      </li>
-
-      <li>
-        HTML markdown attributes
-      </li>
-
-      <li>
-        Performance improvements
-      </li>
-
-    </ul>
-
-    <h2 id="contributing">
-      Contributing
+    <h2 id="output-formats">
+      Output&nbsp;formats
     </h2>
 
     <p>
-      If you’d like to help implement any of these features, please:
+      Use <strong><code>-t</code></strong> or <strong><code>--to</code></strong> to select the format:
     </p>
 
-    <ol>
+    <table>
 
-      <li>
-        Check the <a href="https://github.com/ApexMarkdown/apex">GitHub repository</a> for open issues
-      </li>
+      <thead>
 
-      <li>
-        Review the codebase structure in <code>src/extensions/</code>
-      </li>
+        <tr>
 
-      <li>
-        Follow existing code patterns
-      </li>
+          <th>
+            Format
+          </th>
 
-      <li>
-        Add tests for new features
-      </li>
+          <th>
+            Description
+          </th>
 
-      <li>
-        Update documentation
-      </li>
+        </tr>
 
-    </ol>
+      </thead>
 
-    <h2 id="related">
-      Related
-    </h2>
+      <tbody>
 
-    <ul>
+        <tr>
 
-      <li>
-        <a href="Syntax.html">Syntax</a> - Current syntax support
-      </li>
+          <td>
+            <strong>man</strong>
+          </td>
 
-      <li>
-        <a href="Modes.html">Modes</a> - Feature availability by mode
-      </li>
+          <td>
+            Groff/troff roff source (<code>.TH</code>, <code>.SH</code>, <code>.TP</code>, etc.). Use this to produce <code>.1</code>, <code>.5</code>, <code>.7</code> files for <code>man(1)</code>.
+          </td>
 
-      <li>
-        <a href="C-API.html">C API</a> - Programmatic API
-      </li>
+        </tr>
+        <tr>
 
-      <li>
-        <a href="Examples.html">Examples</a> - Usage examples
-      </li>
+          <td>
+            <strong>man-html</strong>
+          </td>
 
-    </ul>
+          <td>
+            Styled HTML that resembles a man page (single document with man-like sections and typography).
+          </td>
 
-  <script>
+        </tr>
+        <tr>
+
+          <td>
+            <strong>Examples</strong>
+          </td>
+
+          <td>
+          </td>
+
+        </tr>
+      </tbody>
+
+    </table>
+
+    <div class="highlight">
+<pre><span></span><span class="c1"># Generate roff (man page source) - write to a file</span>
+apex<span class="w"> </span>-t<span class="w"> </span>man<span class="w"> </span>man/apex.1.md<span class="w"> </span>&gt;<span class="w"> </span>man/apex.1
+
+<span class="c1"># View with man (after installing or from build dir)</span>
+man<span class="w"> </span>./man/apex.1
+<span class="c1"># or: groff -man -Tutf8 man/apex.1 | less</span>
+
+<span class="c1"># Generate styled HTML man page</span>
+apex<span class="w"> </span>-t<span class="w"> </span>man-html<span class="w"> </span>man/apex.1.md<span class="w"> </span>&gt;<span class="w"> </span>apex-man.html
+    </pre>
+  </div>
+
+  <p>
+    Example source and rendered output: <a href="https://apexmarkdown.org/man/apex.1.md">apex.1.md</a> (Markdown source), <a href="https://apexmarkdown.org/man/apex.1.html">apex.1.html</a> (man-html with <code>-s</code>, view in browser).
+    Output is written to stdout; redirect to a file or pipe to <code>man</code>/groff as needed.
+  </p>
+
+  <h2 id="source-markdown-format">
+    Source Markdown&nbsp;format
+  </h2>
+
+  <p>
+    Man page source is typically written in Markdown with:
+  </p>
+
+  <ol>
+
+    <li>
+
+      <p>
+        <strong>Pandoc-style metadata</strong> at the top (optional but useful for <code>.TH</code>):
+      </p>
+
+      <div class="highlight">
+<pre><span></span>% TITLE(SECTION)
+% Author
+% Date
+      </pre>
+    </div>
+
+  </li>
+
+  <li>
+
+    <p>
+      <strong>Top-level headings</strong> for sections: <code># NAME</code>, <code># SYNOPSIS</code>, <code># DESCRIPTION</code>, <code># OPTIONS</code>, etc. Apex turns <code>#</code> into <code>.SH</code> and <code>##</code> into <code>.SS</code>.
+    </p>
+
+  </li>
+
+  <li>
+
+    <p>
+      <strong>Definition lists</strong> for options: put the option name on one line and the description on the next line starting with <code>:</code> or <code>::</code>:
+    </p>
+
+    <div class="highlight">
+<pre><span></span><span class="gs">**-o**</span> <span class="ge">*FILE*</span>, <span class="gs">**--output**</span> <span class="ge">*FILE*</span>
+: Write output to <span class="ge">*FILE*</span> instead of stdout.
+
+<span class="gs">**--standalone**</span>
+: Generate complete HTML document with doctype and body tags.
+    </pre>
+  </div>
+
+</li>
+
+<li>
+
+  <p>
+    <strong>Inline formatting</strong>: use <code>**bold**</code> and <code>*italic*</code> for option names and arguments; they are converted to roff <code>\f[B]</code> and <code>\f[I]</code>.
+    Code in backticks is emitted as roman in roff (for compatibility with all groff devices). Definition list blocks are converted to roff <code>.TP</code> (tagged paragraph) style so each option appears with its description.
+  </p>
+
+</li>
+
+</ol>
+
+<h2 id="generating-from-the-apex-repo">
+  Generating from the&nbsp;Apex&nbsp;repo
+</h2>
+
+<p>
+  If you are building Apex from source:
+  <strong>Using the Makefile:</strong>
+</p>
+
+<div class="highlight">
+<pre><span></span>make<span class="w"> </span>build<span class="w">   </span><span class="c1"># ensure apex is built</span>
+make<span class="w"> </span>man<span class="w">     </span><span class="c1"># generate man/apex.1, man/apex-config.5, man/apex-plugins.7 from their .md sources</span>
+</pre>
+</div>
+
+<p>
+<code>make man</code> depends on <code>build</code>, so it will build the <code>apex</code> binary first if needed, then run <code>apex -t man</code> on each <code>.md</code> file and write the result to the corresponding man file (e.g. <code>man/apex.1.md</code> -&gt; <code>man/apex.1</code>).
+  <strong>Using CMake directly:</strong>
+  When you run <code>cmake --build build</code> (or <code>make</code> in the build directory), the <strong>man_pages</strong> target is built by default. CMake runs <code>apex -t man</code> on each man Markdown source and writes the roff into the build directory. Those files are used at install time (<code>cmake --install build</code>) and installed under <code>share/man/man1</code>, etc.
+  You can also generate a single page by hand:
+</p>
+
+<div class="highlight">
+<pre><span></span>./build/apex<span class="w"> </span>-t<span class="w"> </span>man<span class="w"> </span>man/apex.1.md<span class="w"> </span>&gt;<span class="w"> </span>man/apex.1
+</pre>
+</div>
+
+<h2 Format id="viewing-generated-roff">
+  Viewing generated&nbsp;roff
+</h2>
+
+<ul>
+
+  <li>
+    <strong>man(1):</strong> If the man file is installed (e.g. under <code>/usr/local/share/man</code>), run:
+    <div class="highlight">
+<pre><span></span>man<span class="w"> </span>apex
+    </pre>
+  </div>
+
+</li>
+
+<li>
+  <strong>From file:</strong> To view a roff file without installing:
+  <div class="highlight">
+<pre><span></span>man<span class="w"> </span>./man/apex.1
+<span class="c1"># or</span>
+groff<span class="w"> </span>-man<span class="w"> </span>-Tutf8<span class="w"> </span>man/apex.1<span class="w"> </span><span class="p">|</span><span class="w"> </span>less
+  </pre>
+</div>
+
+</li>
+
+</ul>
+
+<h2 Description id="related">
+  Related
+</h2>
+
+<ul>
+
+  <li>
+    <strong><a href="Command-Line-Options.html">Command Line Options</a></strong> - All <code>-t</code>/<code>--to</code> formats and other flags.
+  </li>
+
+  <li>
+    <strong><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></strong> - Terminal output formats.
+  </li>
+
+</ul>
+
+<script>
 // Hamburger menu functionality
 (function() {
   function initHamburgerMenu() {

@@ -5,8 +5,97 @@
 
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="generator" content="Apex 0.1.49">
+      <meta name="generator" content="Apex 1.1.12">
       <title>Document</title>
+      <style>
+        /* GitHub-style syntax highlighting for Pygments and Skylighting */
+        /* Don't apply background to wrapper when code highlighting is enabled - let default styles handle it */
+        .code-highlighted .highlight, .code-highlighted .sourceCode { background: inherit; border-radius: 6px; padding: 16px; overflow-x: auto; }
+        .highlight pre, .sourceCode pre { margin: 0; padding: 0; background: transparent; }
+        .highlight code, .sourceCode code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.45; }
+        /* Pygments classes */
+        .highlight .k { color: #d73a49; font-weight: 600; } /* Keyword */
+        .highlight .kt { color: #d73a49; } /* Keyword.Type */
+        .highlight .kd { color: #d73a49; font-weight: 600; } /* Keyword.Declaration */
+        .highlight .kn { color: #d73a49; } /* Keyword.Namespace */
+        .highlight .kp { color: #d73a49; } /* Keyword.Pseudo */
+        .highlight .kr { color: #d73a49; font-weight: 600; } /* Keyword.Reserved */
+        .highlight .n { color: #6f42c1; } /* Name */
+        .highlight .na { color: #6f42c1; } /* Name.Attribute */
+        .highlight .nc { color: #6f42c1; font-weight: 600; } /* Name.Class */
+        .highlight .no { color: #005cc5; } /* Name.Constant */
+        .highlight .nd { color: #6f42c1; font-weight: 600; } /* Name.Decorator */
+        .highlight .ni { color: #800080; } /* Name.Entity */
+        .highlight .ne { color: #990000; font-weight: 600; } /* Name.Exception */
+        .highlight .nf { color: #6f42c1; font-weight: 600; } /* Name.Function */
+        .highlight .nl { color: #6f42c1; } /* Name.Label */
+        .highlight .nn { color: #555; } /* Name.Namespace */
+        .highlight .nt { color: #22863a; } /* Name.Tag */
+        .highlight .nv { color: #e36209; } /* Name.Variable */
+        .highlight .s { color: #032f62; } /* String */
+        .highlight .sb { color: #032f62; } /* String.Backtick */
+        .highlight .sc { color: #032f62; } /* String.Char */
+        .highlight .sd { color: #032f62; } /* String.Doc */
+        .highlight .s2 { color: #032f62; } /* String.Double */
+        .highlight .se { color: #032f62; } /* String.Escape */
+        .highlight .sh { color: #032f62; } /* String.Heredoc */
+        .highlight .si { color: #032f62; } /* String.Interpol */
+        .highlight .sx { color: #032f62; } /* String.Other */
+        .highlight .sr { color: #032f62; } /* String.Regex */
+        .highlight .s1 { color: #032f62; } /* String.Single */
+        .highlight .ss { color: #032f62; } /* String.Symbol */
+        .highlight .c { color: #6a737d; font-style: italic; } /* Comment */
+        .highlight .c1 { color: #6a737d; font-style: italic; } /* Comment.Single */
+        .highlight .cm { color: #6a737d; font-style: italic; } /* Comment.Multiline */
+        .highlight .cp { color: #6a737d; font-weight: 600; } /* Comment.Preproc */
+        .highlight .cs { color: #6a737d; font-weight: 600; font-style: italic; } /* Comment.Special */
+        .highlight .m { color: #005cc5; } /* Literal.Number */
+        .highlight .mb { color: #005cc5; } /* Literal.Number.Bin */
+        .highlight .mf { color: #005cc5; } /* Literal.Number.Float */
+        .highlight .mh { color: #005cc5; } /* Literal.Number.Hex */
+        .highlight .mi { color: #005cc5; } /* Literal.Number.Integer */
+        .highlight .il { color: #005cc5; } /* Literal.Number.Integer.Long */
+        .highlight .mo { color: #005cc5; } /* Literal.Number.Oct */
+        .highlight .o { color: #d73a49; } /* Operator */
+        .highlight .ow { color: #d73a49; } /* Operator.Word */
+        .highlight .p { color: #24292e; } /* Punctuation */
+        .highlight .w { color: #e1e4e8; } /* Text.Whitespace */
+        /* Skylighting classes */
+        .sourceCode .kw { color: #d73a49; font-weight: 600; } /* Keyword */
+        .sourceCode .dt { color: #6f42c1; } /* DataType */
+        .sourceCode .dv { color: #005cc5; } /* DecVal */
+        .sourceCode .bn { color: #005cc5; } /* BaseN */
+        .sourceCode .fl { color: #005cc5; } /* Float */
+        .sourceCode .ch { color: #032f62; } /* Char */
+        .sourceCode .st { color: #032f62; } /* String */
+        .sourceCode .co { color: #6a737d; font-style: italic; } /* Comment */
+        .sourceCode .ot { color: #22863a; } /* Other */
+        .sourceCode .al { color: #e36209; font-weight: 600; } /* Alert */
+        .sourceCode .fu { color: #6f42c1; font-weight: 600; } /* Function */
+        .sourceCode .re { color: #032f62; } /* RegionMarker */
+        .sourceCode .er { color: #d73a49; font-weight: 600; } /* Error */
+        .sourceCode .cf { color: #d73a49; font-weight: 600; } /* ControlFlow */
+        .sourceCode .op { color: #d73a49; } /* Operator */
+        .sourceCode .pp { color: #6a737d; } /* Preprocessor */
+        .sourceCode .at { color: #005cc5; } /* Attribute */
+        .sourceCode .do { color: #6a737d; font-style: italic; } /* Documentation */
+        .sourceCode .an { color: #6a737d; font-weight: 600; } /* Annotation */
+        .sourceCode .cv { color: #6a737d; font-weight: 600; font-style: italic; } /* CommentVar */
+        .sourceCode .in { color: #6a737d; } /* Information */
+        .sourceCode .wa { color: #e36209; font-weight: 600; } /* Warning */
+        .sourceCode .im { color: #d73a49; } /* Import */
+        .sourceCode .bu { color: #005cc5; } /* BuiltIn */
+        .sourceCode .ex { color: #6f42c1; } /* Extension */
+        .sourceCode .va { color: #e36209; } /* Variable */
+        .sourceCode .ss { color: #032f62; } /* SpecialString */
+        .sourceCode .sc { color: #032f62; } /* SpecialChar */
+        .sourceCode .vs { color: #032f62; } /* VerbatimString */
+        .sourceCode .il { color: #005cc5; } /* Special */
+        /* Line numbers (Skylighting) */
+        .sourceCode.numberSource .sourceCode { counter-reset: line; }
+        .sourceCode.numberSource .sourceCode > span { position: relative; left: -4em; counter-increment: line; }
+        .sourceCode.numberSource .sourceCode > span > a:first-child::before { content: counter(line); position: relative; left: -1em; text-align: right; vertical-align: baseline; border: none; display: inline-block; min-width: 1em; padding-right: 0.5em; color: #aaa; }
+      </style>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -35,10 +124,52 @@
         ins { background: #d4fcbc; text-decoration: none; }
         del { background: #fbb6c2; text-decoration: line-through; }
         mark { background: #fff3cd; }
+        .smallcaps { font-variant: small-caps; }
+        .underline { text-decoration: underline; }
+        span.mark { background: #fff3cd; }
+        .hidden { display: none; }
+        .quarto-xref { font-variant: normal; }
         .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }
+        .mkhashtag { color: #666; }
+        .mkstyledtag {
+          display: inline-block;
+          background: #e0e0e0;
+          padding: 3px 9px;
+          border-radius: 20px;
+          font-size: 0.9em;
+          line-height: 1.4;
+          color: #333;
+          margin: 0 2px;
+        }
       </style>
+        <meta name="paginate" content="symbols"/>
+      <meta name="highlight-language-only" content="true"/>
+      <meta name="code-line-numbers" content="false"/>
+      <meta name="code-highlight" content="pygments"/>
+      <meta name="sup-sub" content="true"/>
+      <meta name="relaxed-tables" content="true"/>
+      <meta name="includes" content="true"/>
+      <meta name="autolink" content="true"/>
+      <meta name="pretty" content="false"/>
+      <meta name="standalone" content="false"/>
+      <meta name="mode" content="unified"/>
+      <meta name="markdown-in-html" content="true"/>
+      <meta name="image-captions" content="true"/>
+      <meta name="wikilink-extension" content="html"/>
+      <meta name="wikilink-space" content="hyphen"/>
+      <meta name="wikilinks" content="true"/>
+      <meta name="widont" content="true"/>
+      <meta name="plugins" content="true"/>
+      <meta name="id-format" content="gfm"/>
+
   <style>
-/* Base styles */
+:root {
+  /* border-box width of the fixed sidebar; body offset includes a small gap */
+  --sidebar-width: 250px;
+  --sidebar-offset: 270px;
+}
+
+/* Base styles — override Apex standalone centering (max-width + margin: auto) */
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,6 +179,11 @@ body {
   line-height: 1.65;
   color: #1e293b;
   background-color: #fff;
+  max-width: none;
+  width: auto;
+  margin: 2rem 2rem 2rem var(--sidebar-offset);
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 /* Sidebar / Main TOC - wider on larger screens */
@@ -56,9 +192,10 @@ body {
   position: fixed;
   left: 0;
   top: 0;
-  width: auto;
-  min-width: 180px;
-  max-width: 250px;
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
   height: 100vh;
   overflow-y: auto;
   background: #1e293b;
@@ -67,7 +204,6 @@ body {
   padding: 24px 20px 130px;
   font-size: 14px;
   z-index: 100;
-  margin-right: 1rem;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
 }
@@ -116,11 +252,6 @@ body {
   font-weight: 500;
 }
 
-/* Body margin for sidebar */
-body {
-  margin-left: 270px;
-}
-
 /* Hamburger menu button */
 .hamburger-menu {
   display: none;
@@ -136,6 +267,7 @@ body {
   color: rgba(255, 255, 255, 0.9);
   font-size: 20px;
   line-height: 1;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -153,9 +285,7 @@ body {
 
 /* Move hamburger to the right of the sidebar when menu is open */
 .hamburger-menu.active {
-  left: calc(
-    250px + 12px
-  ); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
+  left: calc(var(--sidebar-width) + 12px);
 }
 
 .hamburger-menu.active {
@@ -251,7 +381,7 @@ body {
 .floating-toc {
   position: fixed;
   top: 0;
-  left: 270px;
+  left: var(--sidebar-offset);
   right: 0;
   z-index: 50;
   opacity: 0;
@@ -677,7 +807,7 @@ ol ul {
   }
 
   body {
-    margin-left: 0;
+    margin: 2rem 1rem;
   }
 
   .floating-toc {
@@ -687,7 +817,7 @@ ol ul {
 
 </style></head>
 
-  <body>
+  <body class="code-highlighted">
 <div class="floating-toc" id="floating-toc">
   <div class="floating-toc-container">
     <div class="floating-toc-header">
@@ -702,12 +832,12 @@ ol ul {
 <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
 <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
 
-<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
+<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
     <h1 id="plugins">
       Plugins
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#plugins">Plugins</a><ul><li><a href="#enabling-and-disabling-plugins">Enabling and disabling plugins</a></li><li><a href="#where-plugins-live">Where plugins live</a></li><li><a href="#processing-phases">Processing phases</a></li><li><a href="#plugin-manifest-pluginyml">Plugin manifest: plugin.yml</a><ul><li><a href="#metadata-fields-for-directories-and-installers">Metadata fields for directories and installers</a></li><li><a href="#post-install-hooks-postinstall">Post-install hooks (post_install)</a></li></ul></li><li><a href="#plugin-bundles-bundle-key">Plugin bundles (bundle key)</a><ul><li><a href="#bundle-structure">Bundle structure</a></li><li><a href="#inheritance-and-overrides">Inheritance and overrides</a></li><li><a href="#behavior-and-limitations">Behavior and limitations</a></li></ul></li><li><a href="#external-handler-plugins-scriptscommands">External handler plugins (scripts/commands)</a><ul><li><a href="#manifest-fields">Manifest fields</a></li><li><a href="#json-protocol">JSON protocol</a></li></ul></li><li><a href="#declarative-regex-plugins-no-scripting">Declarative regex plugins (no scripting)</a><ul><li><a href="#manifest-fields">Manifest fields</a></li></ul></li><li><a href="#support-directory-and-environment-variables">Support directory and environment variables</a><ul><li><a href="#support-directory-apexsupportdir">Support directory (APEX_SUPPORT_DIR)</a></li><li><a href="#environment-variables-for-external-plugins">Environment variables for external plugins</a></li></ul></li><li><a href="#installing-plugins-from-the-directory">Installing plugins from the directory</a><ul><li><a href="#listing-available-plugins">Listing available plugins</a></li><li><a href="#installing-a-plugin">Installing a plugin</a><ul><li><a href="#security-confirmation-for-direct-installs">Security confirmation for direct installs</a></li><li><a href="#installation-process">Installation process</a></li></ul></li><li><a href="#uninstalling-a-plugin">Uninstalling a plugin</a></li></ul></li><li><a href="#share-your-plugin">Share Your Plugin</a></li><li><a href="#example-kbd-liquid-tag-plugin">Example: kbd liquid tag plugin</a><ul><li><a href="#directory-layout">Directory layout</a></li><li><a href="#pluginyml">plugin.yml</a></li><li><a href="#kbdpluginrb-simplified-shape">kbd_plugin.rb (simplified shape)</a></li></ul></li><li><a href="#example-memo-span-plugin-declarative">Example: 📝 span plugin (declarative)</a><ul><li><a href="#directory-layout">Directory layout</a></li><li><a href="#pluginyml">plugin.yml</a></li></ul></li><li><a href="#putting-it-all-together">Putting it all together</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#plugins">Plugins</a><ul><li><a href="#enabling-and-disabling-plugins">Enabling and disabling&nbsp;plugins</a></li><li><a href="#where-plugins-live">Where plugins&nbsp;live</a></li><li><a href="#disabling-a-global-plugin-within-a-project-shadowno-op">Disabling a global plugin within a project&nbsp;(shadow/no-op)</a></li><li><a href="#processing-phases">Processing&nbsp;phases</a></li><li><a href="#plugin-manifest-pluginyml">Plugin manifest:&nbsp;plugin.yml</a><ul><li><a href="#metadata-fields-for-directories-and-installers">Metadata fields for directories and&nbsp;installers</a></li><li><a href="#post-install-hooks-postinstall">Post-install hooks&nbsp;(post_install)</a></li></ul></li><li><a href="#plugin-bundles-bundle-key">Plugin bundles (bundle&nbsp;key)</a><ul><li><a href="#bundle-structure">Bundle&nbsp;structure</a></li><li><a href="#inheritance-and-overrides">Inheritance and&nbsp;overrides</a></li><li><a href="#behavior-and-limitations">Behavior and&nbsp;limitations</a></li></ul></li><li><a href="#external-handler-plugins-scriptscommands">External handler plugins&nbsp;(scripts/commands)</a><ul><li><a href="#manifest-fields">Manifest&nbsp;fields</a></li><li><a href="#json-protocol">JSON&nbsp;protocol</a></li></ul></li><li><a href="#declarative-regex-plugins-no-scripting">Declarative regex plugins (no&nbsp;scripting)</a><ul><li><a href="#manifest-fields">Manifest&nbsp;fields</a></li></ul></li><li><a href="#support-directory-and-environment-variables">Support directory and environment&nbsp;variables</a><ul><li><a href="#support-directory-apexsupportdir">Support directory&nbsp;(APEX_SUPPORT_DIR)</a></li><li><a href="#environment-variables-for-external-plugins">Environment variables for external&nbsp;plugins</a></li></ul></li><li><a href="#installing-plugins-from-the-directory">Installing plugins from the&nbsp;directory</a><ul><li><a href="#listing-available-plugins">Listing available&nbsp;plugins</a></li><li><a href="#installing-a-plugin">Installing&nbsp;a&nbsp;plugin</a><ul><li><a href="#security-confirmation-for-direct-installs">Security confirmation for direct&nbsp;installs</a></li><li><a href="#installation-process">Installation&nbsp;process</a></li></ul></li><li><a href="#uninstalling-a-plugin">Uninstalling&nbsp;a&nbsp;plugin</a></li></ul></li><li><a href="#share-your-plugin">Share Your&nbsp;Plugin</a></li><li><a href="#example-kbd-liquid-tag-plugin">Example: kbd liquid tag plugin</a><ul><li><a href="#directory-layout">Directory&nbsp;layout</a></li><li><a href="#pluginyml">plugin.yml</a></li><li><a href="#kbdpluginrb-simplified-shape">kbd_plugin.rb (simplified shape)</a></li></ul></li><li><a href="#example-emoji-span-plugin-declarative">Example: :emoji: span plugin (declarative)</a><ul><li><a href="#directory-layout">Directory&nbsp;layout</a></li><li><a href="#pluginyml">plugin.yml</a></li></ul></li><li><a href="#putting-it-all-together">Putting it all&nbsp;together</a></li></ul></li></ul></nav>
 
     <p>
       Apex supports a lightweight plugin system that lets you add new syntax and post‑processing behavior <strong>without patching the core</strong>. Plugins can be small scripts (Ruby, Python, etc.) or simple declarative regex rules defined in YAML.
@@ -720,54 +850,58 @@ ol ul {
     <ul>
 
       <li>
-<strong>        Where plugins live</strong>
+        <strong>Where plugins live</strong>
       </li>
 
       <li>
-<strong>        How to enable/disable plugins</strong>
+        <strong>How to enable/disable plugins</strong>
       </li>
 
       <li>
-<strong>        Processing phases</strong>
+        <strong>Processing phases</strong>
       </li>
 
       <li>
-<strong>        Plugin manifest format (<code>plugin.yml</code>)</strong>
+        <strong>Plugin manifest format (<code>plugin.yml</code>)</strong>
       </li>
 
       <li>
-<strong>        External handler plugins (scripts/commands)</strong>
+        <strong>External handler plugins (scripts/commands)</strong>
       </li>
 
       <li>
-<strong>        Declarative regex plugins (pure YAML)</strong>
+        <strong>Declarative regex plugins (pure YAML)</strong>
       </li>
 
       <li>
-<strong>        Plugin bundles (<code>bundle</code> key)</strong>
+        <strong>Plugin bundles (<code>bundle</code> key)</strong>
       </li>
 
       <li>
-<strong>        Support directory and environment variables</strong>
+        <strong>Support directory and environment variables</strong>
       </li>
 
       <li>
-<strong>        Plugin metadata for directories and installers</strong>
+        <strong>Plugin metadata for directories and installers</strong>
       </li>
 
       <li>
-<strong>        Installing plugins from the directory or a Git URL</strong>
+        <strong>Installing plugins from the directory or a Git URL</strong>
       </li>
 
       <li>
-<strong>        Examples: <code>kbd</code> liquid tag and <code>📝</code> spans</strong>
+        <strong>Examples: <code>kbd</code> liquid tag and <code><span class=\"emoji\">:emoji:</span></code> spans</strong>
       </li>
 
     </ul>
 
+    <p>
+      If you are using plugins from Swift/Xcode, see <a href="Xcode-Integration#apexoptions-vs-apex_options">Xcode Integration</a> for guidance on when to use high-level <code>ApexOptions</code> vs low-level <code>apex_options</code> and required imports (<code>Apex</code> + <code>ApexC</code>) for direct C struct field access.
+    </p>
+
 <hr />
     <h2 id="enabling-and-disabling-plugins">
-      Enabling and disabling plugins
+      Enabling and disabling&nbsp;plugins
     </h2>
 
     <p>
@@ -779,17 +913,17 @@ ol ul {
       <li>
 
         <p>
-<strong>          CLI flags</strong>
+          <strong>CLI flags</strong>
         </p>
 
         <ul>
 
           <li>
-<strong>            Enable plugins</strong>: <code>apex --plugins input.md</code>
+            <strong>Enable plugins</strong>: <code>apex --plugins input.md</code>
           </li>
 
           <li>
-<strong>            Disable plugins</strong>: <code>apex --no-plugins input.md</code>
+            <strong>Disable plugins</strong>: <code>apex --no-plugins input.md</code>
           </li>
 
         </ul>
@@ -799,7 +933,7 @@ ol ul {
       <li>
 
         <p>
-<strong>          Metadata keys</strong> (in the document’s front matter)
+          <strong>Metadata keys</strong> (in the document’s front matter)
         </p>
 
         <ul>
@@ -834,11 +968,13 @@ ol ul {
               Example:
             </p>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">title</span><span class="pi">:</span> <span class="s">Plugin demo</span>
-<span class="na">plugins</span><span class="pi">:</span> <span class="kc">true</span>
+            <div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Plugin demo</span>
+<span class="nt">plugins</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="nn">---</span>
-</code></pre>
+            </pre>
+          </div>
 
         </li>
 
@@ -849,7 +985,7 @@ ol ul {
     <li>
 
       <p>
-<strong>        Precedence</strong>
+        <strong>Precedence</strong>
       </p>
 
       <ul>
@@ -886,11 +1022,11 @@ ol ul {
 
 <hr />
   <h2 id="where-plugins-live">
-    Where plugins live
+    Where plugins&nbsp;live
   </h2>
 
   <p>
-    Plugins are discovered from <strong>two locations</strong>, in this order:
+    Plugins are discovered from <strong>project</strong> and <strong>user</strong> locations, in this order:
   </p>
 
   <ul>
@@ -898,13 +1034,13 @@ ol ul {
     <li>
 
       <p>
-<strong>        Project-local plugins</strong>
+        <strong>Project-local plugins (current directory)</strong>
       </p>
 
       <ul>
 
         <li>
-          Directory: <code>.apex/plugins/</code> in the same project as your documents
+          Directory: <code>.apex/plugins/</code> under the <strong>current working directory</strong>.
         </li>
 
         <li>
@@ -934,7 +1070,59 @@ ol ul {
     <li>
 
       <p>
-<strong>        Global (user) plugins</strong>
+        <strong>Project-local plugins (base directory)</strong>
+      </p>
+
+      <ul>
+
+        <li>
+          If Apex knows a <code>base_directory</code> (from <code>--base-dir</code>, metadata, or the input file’s directory), it also looks in:
+          <ul>
+
+            <li>
+<code>&lt;base_directory&gt;/.apex/plugins/</code>
+            </li>
+
+          </ul>
+
+        </li>
+
+      </ul>
+
+    </li>
+
+    <li>
+
+      <p>
+        <strong>Project-local plugins (Git repository root)</strong>
+      </p>
+
+      <ul>
+
+        <li>
+          If the current directory is inside a Git repository and <code>git rev-parse --show-toplevel</code> succeeds, Apex will also look in:
+          <ul>
+
+            <li>
+<code>&lt;git-top-level&gt;/.apex/plugins/</code>
+            </li>
+
+          </ul>
+
+        </li>
+
+        <li>
+          This is only used when the Git top-level is a parent of (or equal to) the current directory.
+        </li>
+
+      </ul>
+
+    </li>
+
+    <li>
+
+      <p>
+        <strong>Global (user) plugins</strong>
       </p>
 
       <ul>
@@ -994,140 +1182,233 @@ ol ul {
   </ul>
 
   <p>
-<strong>    Plugin IDs must be unique.</strong> If a project plugin and a global plugin share the same <code>id</code>, the <strong>project plugin wins</strong> and the global one is ignored.
+    <strong>Plugin IDs must be unique.</strong> If a project plugin and a global plugin share the same <code>id</code>, the <strong>project plugin wins</strong> and the global one is ignored.
   </p>
 
 <hr />
-  <h2 id="processing-phases">
-    Processing phases
+  <h2 id="disabling-a-global-plugin-within-a-project-shadowno-op">
+    Disabling a global plugin within a project&nbsp;(shadow/no-op)
   </h2>
 
   <p>
-    Apex exposes several <strong>phases</strong> in its pipeline. Plugins can hook into one or more phases; for now, two are wired up:
+    Sometimes you may want to <strong>disable</strong> a plugin that is installed globally, but only for a specific project. Apex’s lookup order makes this easy: you can <strong>shadow</strong> a global plugin with a <strong>no-op project plugin</strong> that has the same <code>id</code>.
+  </p>
+
+  <p>
+    Key points:
   </p>
 
   <ul>
 
     <li>
-
-      <p>
-<strong><code>pre_parse</code></strong>
-      </p>
-
-      <ul>
-
-        <li>
-          Runs on the <strong>raw Markdown text</strong> <em>before</em> it is parsed.
-        </li>
-
-        <li>
-          Good for:
-          <ul>
-
-            <li>
-              Custom syntax (e.g. <code>{% kbd ... %}</code>)
-            </li>
-
-            <li>
-              Textual rewrites
-            </li>
-
-            <li>
-              Adding/removing markup before Apex sees it
-            </li>
-
-          </ul>
-
-        </li>
-
-      </ul>
-
+      <strong>Project plugins are loaded before global plugins.</strong>
     </li>
 
     <li>
+      If two plugins share the same <code>id</code>, the <strong>first one wins</strong> and the later one is ignored.
+    </li>
 
-      <p>
-<strong><code>post_render</code></strong>
-      </p>
-
-      <ul>
-
-        <li>
-          Runs on the <strong>final HTML output</strong> after Apex finishes rendering.
-        </li>
-
-        <li>
-          Good for:
-          <ul>
-
-            <li>
-              Wrapping elements in spans/divs
-            </li>
-
-            <li>
-              Adding CSS classes
-            </li>
-
-            <li>
-              Simple HTML post-processing (e.g. turning <code>📝</code> into <code>&lt;span&gt;</code>)
-            </li>
-
-          </ul>
-
-        </li>
-
-      </ul>
-
+    <li>
+      A plugin that has <strong>no handler and no regex</strong> is a <strong>true no-op</strong>: it is loaded, but never changes the text.
     </li>
 
   </ul>
 
   <p>
-    Internally, plugins for each phase are run in a <strong>deterministic order</strong>:
+    To disable a global plugin called <code>emoji-span</code> just for one project:
   </p>
 
   <ol>
 
     <li>
-      Sorted by <strong>priority</strong> (lower numbers first; default is <code>100</code>).
-    </li>
-
-    <li>
-      Ties broken by <strong>plugin <code>id</code></strong> (lexicographically).
-    </li>
-
-  </ol>
-
-<hr />
-  <h2 id="plugin-manifest-pluginyml">
-    Plugin manifest: <code>plugin.yml</code>
-  </h2>
-
-  <p>
-    Each plugin is defined by a <strong>manifest</strong> file:
-  </p>
-
-  <ul>
-
-    <li>
 
       <p>
-<strong>        File name</strong>: <code>plugin.yml</code>
+        Create a project plugins directory:
       </p>
 
-    </li>
-
-    <li>
-
-      <p>
-<strong>        Location</strong>: inside the plugin’s directory, e.g.:
-      </p>
-
-<pre><code class="highlight language-text">.apex/plugins/kbd/plugin.yml
-~/.config/apex/plugins/emoji/plugin.yml
-</code></pre>
+      <div class="highlight">
+<pre><span></span>.apex/
+  plugins/
+    emoji-span/
+      plugin.yml
+      </pre>
+    </div>
 
   </li>
+
+  <li>
+
+    <p>
+      Add a minimal <strong>no-op</strong> manifest that declares the same <code>id</code> and a phase, but no handler or pattern:
+    </p>
+
+    <div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emoji-span</span>
+<span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">post_render</span><span class="w">   </span><span class="c1"># or pre_parse, depending on the original plugin</span>
+<span class="c1"># No handler.command, pattern, or replacement on purpose:</span>
+<span class="c1"># this plugin will be loaded, but it does nothing.</span>
+<span class="nn">---</span>
+    </pre>
+  </div>
+
+</li>
+
+</ol>
+
+<p>
+  When you run Apex with plugins enabled in that project:
+</p>
+
+<ul>
+
+  <li>
+    The project-local <code>emoji-span</code> plugin is discovered first.
+  </li>
+
+  <li>
+    Because a plugin with id <code>emoji-span</code> already exists, the <strong>global</strong> <code>emoji-span</code> plugin is <strong>skipped</strong>.
+  </li>
+
+  <li>
+    Since the project version has no handler or regex, it is effectively a <strong>no-op</strong>, which means the global plugin is <strong>disabled for this project only</strong>.
+  </li>
+
+</ul>
+
+<hr />
+<h2 id="processing-phases">
+  Processing&nbsp;phases
+</h2>
+
+<p>
+  Apex exposes several <strong>phases</strong> in its pipeline. Plugins can hook into one or more phases; for now, two are wired up:
+</p>
+
+<ul>
+
+  <li>
+
+    <p>
+      <strong><code>pre_parse</code></strong>
+    </p>
+
+    <ul>
+
+      <li>
+        Runs on the <strong>raw Markdown text</strong> <em>before</em> it is parsed.
+      </li>
+
+      <li>
+        Good for:
+        <ul>
+
+          <li>
+            Custom syntax (e.g. <code>&lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt;</code>)
+          </li>
+
+          <li>
+            Textual rewrites
+          </li>
+
+          <li>
+            Adding/removing markup before Apex sees it
+          </li>
+
+        </ul>
+
+      </li>
+
+    </ul>
+
+  </li>
+
+  <li>
+
+    <p>
+      <strong><code>post_render</code></strong>
+    </p>
+
+    <ul>
+
+      <li>
+        Runs on the <strong>final HTML output</strong> after Apex finishes rendering.
+      </li>
+
+      <li>
+        Good for:
+        <ul>
+
+          <li>
+            Wrapping elements in spans/divs
+          </li>
+
+          <li>
+            Adding CSS classes
+          </li>
+
+          <li>
+            Simple HTML post-processing (e.g. turning <code><span class=\"emoji\">:emoji:</span></code> into <code>&lt;span&gt;</code>)
+          </li>
+
+        </ul>
+
+      </li>
+
+    </ul>
+
+  </li>
+
+</ul>
+
+<p>
+  Internally, plugins for each phase are run in a <strong>deterministic order</strong>:
+</p>
+
+<ol>
+
+  <li>
+    Sorted by <strong>priority</strong> (lower numbers first; default is <code>100</code>).
+  </li>
+
+  <li>
+    Ties broken by <strong>plugin <code>id</code></strong> (lexicographically).
+  </li>
+
+</ol>
+
+<hr />
+<h2 id="plugin-manifest-pluginyml">
+  Plugin manifest:&nbsp;<code>plugin.yml</code>
+</h2>
+
+<p>
+  Each plugin is defined by a <strong>manifest</strong> file:
+</p>
+
+<ul>
+
+  <li>
+
+    <p>
+      <strong>File name</strong>: <code>plugin.yml</code>
+    </p>
+
+  </li>
+
+  <li>
+
+    <p>
+      <strong>Location</strong>: inside the plugin’s directory, e.g.:
+    </p>
+
+    <div class="highlight">
+<pre><span></span>.apex/plugins/kbd/plugin.yml
+~/.config/apex/plugins/emoji/plugin.yml
+    </pre>
+  </div>
+
+</li>
 
 </ul>
 
@@ -1135,19 +1416,21 @@ ol ul {
   At minimum, a plugin needs:
 </p>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">my-plugin</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-plugin</span>
 <span class="c1"># Optional, but strongly recommended metadata:</span>
 <span class="c1"># title: Human-friendly name (if omitted, tools may fall back to id)</span>
 <span class="c1"># author: Name or handle of the plugin author</span>
 <span class="c1"># description: Short, human-readable description of what the plugin does</span>
 <span class="c1"># homepage: URL for the plugin landing page or README</span>
 <span class="c1"># repo: Canonical Git repository URL used for installation/updates</span>
-<span class="na">phase</span><span class="pi">:</span> <span class="s">pre_parse</span>           <span class="c1"># or post_render</span>
-<span class="na">priority</span><span class="pi">:</span> <span class="m">100</span>              <span class="c1"># optional, lower runs earlier</span>
-<span class="na">timeout_ms</span><span class="pi">:</span> <span class="m">0</span>              <span class="c1"># optional, 0 = no extra timeout logic (best-effort)</span>
+<span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pre_parse</span><span class="w">           </span><span class="c1"># or post_render</span>
+<span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span><span class="w">              </span><span class="c1"># optional, lower runs earlier</span>
+<span class="nt">timeout_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">              </span><span class="c1"># optional, 0 = no extra timeout logic (best-effort)</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
   From there, you choose <strong>one of two plugin types</strong>:
@@ -1156,7 +1439,7 @@ ol ul {
 <ul>
 
   <li>
-<strong>    External handler plugin</strong>
+    <strong>External handler plugin</strong>
     <ul>
 
       <li>
@@ -1172,7 +1455,7 @@ ol ul {
   </li>
 
   <li>
-<strong>    Declarative regex plugin</strong>
+    <strong>Declarative regex plugin</strong>
     <ul>
 
       <li>
@@ -1194,7 +1477,7 @@ ol ul {
 </p>
 
 <h3 id="metadata-fields-for-directories-and-installers">
-  Metadata fields for directories and installers
+  Metadata fields for directories and&nbsp;installers
 </h3>
 
 <p>
@@ -1204,27 +1487,27 @@ ol ul {
 <ul>
 
   <li>
-<strong><code>title</code></strong>: Short, human-friendly name for the plugin (e.g. <code>Keyboard Shortcuts</code>).
+    <strong><code>title</code></strong>: Short, human-friendly name for the plugin (e.g. <code>Keyboard Shortcuts</code>).
   </li>
 
   <li>
-<strong><code>author</code></strong>: Free-form author string (your name, handle, or organization).
+    <strong><code>author</code></strong>: Free-form author string (your name, handle, or organization).
   </li>
 
   <li>
-<strong><code>description</code></strong>: One–two sentence description of what the plugin does. This is already used in examples and is what directory listings will usually display.
+    <strong><code>description</code></strong>: One–two sentence description of what the plugin does. This is already used in examples and is what directory listings will usually display.
   </li>
 
   <li>
-<strong><code>homepage</code></strong>: Informational URL where users can learn more about the plugin—often a README, documentation site, or the GitHub project page. This field is <strong>not</strong> used for cloning, but may be shown in <code>--list-plugins</code> output.
+    <strong><code>homepage</code></strong>: Informational URL where users can learn more about the plugin—often a README, documentation site, or the GitHub project page. This field is <strong>not</strong> used for cloning, but may be shown in <code>--list-plugins</code> output.
   </li>
 
   <li>
-<strong><code>repo</code></strong>: <strong>Canonical Git URL</strong> for the plugin repository, used by Apex when installing plugins from the central directory (for example, <code>https://github.com/ApexMarkdown/apex-kbd-plugin.git</code>). The repository must contain the <code>plugin.yml</code> manifest (and any supporting files) at its root.
+    <strong><code>repo</code></strong>: <strong>Canonical Git URL</strong> for the plugin repository, used by Apex when installing plugins from the central directory (for example, <code>https://github.com/ApexMarkdown/apex-kbd-plugin.git</code>). The repository must contain the <code>plugin.yml</code> manifest (and any supporting files) at its root.
   </li>
 
   <li>
-<strong><code>post_install</code></strong>: Optional command that Apex will run after cloning the plugin during <code>--install-plugin</code>. See “Post-install hooks” below.
+    <strong><code>post_install</code></strong>: Optional command that Apex will run after cloning the plugin during <code>--install-plugin</code>. See “Post-install hooks” below.
   </li>
 
 </ul>
@@ -1234,26 +1517,30 @@ ol ul {
 </p>
 
 <h3 id="post-install-hooks-postinstall">
-  Post-install hooks (<code>post_install</code>)
+  Post-install hooks&nbsp;(<code>post_install</code>)
 </h3>
 
 <p>
   External plugins can define an optional <code>post_install</code> command in <code>plugin.yml</code> that Apex will run immediately after cloning the plugin during <code>--install-plugin</code>:
 </p>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">kbd</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kbd</span>
 <span class="c1"># ... other fields ...</span>
-<span class="na">post_install</span><span class="pi">:</span> <span class="s">./post_install.sh</span>
+<span class="nt">post_install</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./post_install.sh</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
   When you run:
 </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--install-plugin</span> kbd
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--install-plugin<span class="w"> </span>kbd
+</pre>
+</div>
 
 <p>
   Apex will:
@@ -1301,7 +1588,7 @@ ol ul {
 
 <hr />
 <h2 id="plugin-bundles-bundle-key">
-  Plugin bundles (<code>bundle</code> key)
+  Plugin bundles (<code>bundle</code>&nbsp;key)
 </h2>
 
 <p>
@@ -1311,7 +1598,7 @@ ol ul {
 <ul>
 
   <li>
-<code>kbd</code> – expands <code>{% kbd @3 %}</code> keyboard shortcuts
+<code>kbd</code> – expands <code>&lt;span class=&quot;keycombo combined&quot; title=&quot;Command-3&quot;&gt;&lt;kbd class=&quot;mod symbol&quot;&gt;&amp;#8984;&lt;/kbd&gt;&lt;kbd class=&quot;key symbol&quot;&gt;3&lt;/kbd&gt;&lt;/span&gt;</code> keyboard shortcuts
   </li>
 
   <li>
@@ -1329,7 +1616,7 @@ ol ul {
 </p>
 
 <h3 id="bundle-structure">
-  Bundle structure
+  Bundle&nbsp;structure
 </h3>
 
 <p>
@@ -1352,39 +1639,41 @@ ol ul {
   Example:
 </p>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">documentation</span>
-<span class="na">title</span><span class="pi">:</span> <span class="s">Documentation helpers</span>
-<span class="na">author</span><span class="pi">:</span> <span class="s">Brett Terpstra</span>
-<span class="na">description</span><span class="pi">:</span> <span class="s">A bundle of documentation-related helpers (kbd, menubar, prefpane).</span>
-<span class="na">homepage</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-plugin-documentation</span>
-<span class="na">repo</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-plugin-documentation.git</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">documentation</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Documentation helpers</span>
+<span class="nt">author</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Brett Terpstra</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">A bundle of documentation-related helpers (kbd, menubar, prefpane).</span>
+<span class="nt">homepage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-plugin-documentation</span>
+<span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-plugin-documentation.git</span>
 
 <span class="c1"># Each entry in bundle defines a child plugin</span>
-<span class="na">bundle</span><span class="pi">:</span>
-  <span class="pi">-</span> <span class="na">id</span><span class="pi">:</span> <span class="s">kbd</span>
-    <span class="na">title</span><span class="pi">:</span> <span class="s">Keyboard Shortcuts</span>
-    <span class="na">description</span><span class="pi">:</span> <span class="s">Render {% kbd ... %} key combos to HTML &lt;kbd&gt; elements</span>
-    <span class="na">phase</span><span class="pi">:</span> <span class="s">pre_parse</span>
-    <span class="na">priority</span><span class="pi">:</span> <span class="m">100</span>
-    <span class="na">handler</span><span class="pi">:</span>
-      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">ruby</span><span class="nv"> </span><span class="s">kbd_plugin.rb"</span>
+<span class="nt">bundle</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kbd</span>
+<span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Keyboard Shortcuts</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Render &lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt; key combos to HTML &lt;kbd&gt; elements</span>
+<span class="w">    </span><span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pre_parse</span>
+<span class="w">    </span><span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="w">    </span><span class="nt">handler</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ruby</span><span class="nv"> </span><span class="s">kbd_plugin.rb&quot;</span>
 
-  <span class="pi">-</span> <span class="na">id</span><span class="pi">:</span> <span class="s">menubar</span>
-    <span class="na">title</span><span class="pi">:</span> <span class="s">Menubar Paths</span>
-    <span class="na">description</span><span class="pi">:</span> <span class="s">Render {% menubar File, Open %} to a styled menu path</span>
-    <span class="na">phase</span><span class="pi">:</span> <span class="s">pre_parse</span>
-    <span class="na">handler</span><span class="pi">:</span>
-      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">ruby</span><span class="nv"> </span><span class="s">menubar_plugin.rb"</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">menubar</span>
+<span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Menubar Paths</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Render {% menubar File, Open %} to a styled menu path</span>
+<span class="w">    </span><span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pre_parse</span>
+<span class="w">    </span><span class="nt">handler</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ruby</span><span class="nv"> </span><span class="s">menubar_plugin.rb&quot;</span>
 
-  <span class="pi">-</span> <span class="na">id</span><span class="pi">:</span> <span class="s">prefspane</span>
-    <span class="na">title</span><span class="pi">:</span> <span class="s">Preferences Pane</span>
-    <span class="na">description</span><span class="pi">:</span> <span class="s">Render {% prefspane Advanced, Processor %} to a styled preference path</span>
-    <span class="na">phase</span><span class="pi">:</span> <span class="s">pre_parse</span>
-    <span class="na">handler</span><span class="pi">:</span>
-      <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">ruby</span><span class="nv"> </span><span class="s">prefspane_plugin.rb"</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">prefspane</span>
+<span class="w">    </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Preferences Pane</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Render {% prefspane Advanced, Processor %} to a styled preference path</span>
+<span class="w">    </span><span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pre_parse</span>
+<span class="w">    </span><span class="nt">handler</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ruby</span><span class="nv"> </span><span class="s">prefspane_plugin.rb&quot;</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
   Apex will treat this as <strong>three distinct plugins</strong>:
@@ -1411,7 +1700,7 @@ ol ul {
 </p>
 
 <h3 id="inheritance-and-overrides">
-  Inheritance and overrides
+  Inheritance and&nbsp;overrides
 </h3>
 
 <p>
@@ -1523,13 +1812,13 @@ ol ul {
 </p>
 
 <h3 id="behavior-and-limitations">
-  Behavior and limitations
+  Behavior and&nbsp;limitations
 </h3>
 
 <ul>
 
   <li>
-<strong>    Discovery</strong>:
+    <strong>Discovery</strong>:
     <ul>
 
       <li>
@@ -1553,7 +1842,7 @@ ol ul {
   </li>
 
   <li>
-<strong>    Phases and IDs</strong>:
+    <strong>Phases and IDs</strong>:
     <ul>
 
       <li>
@@ -1581,7 +1870,7 @@ ol ul {
   </li>
 
   <li>
-<strong>    libyaml requirement</strong>:
+    <strong>libyaml requirement</strong>:
     <ul>
 
       <li>
@@ -1600,7 +1889,7 @@ ol ul {
 
 <hr />
 <h2 id="external-handler-plugins-scriptscommands">
-  External handler plugins (scripts/commands)
+  External handler plugins&nbsp;(scripts/commands)
 </h2>
 
 <p>
@@ -1608,48 +1897,50 @@ ol ul {
 </p>
 
 <h3 id="manifest-fields">
-  Manifest fields
+  Manifest&nbsp;fields
 </h3>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">kbd</span>
-<span class="na">title</span><span class="pi">:</span> <span class="s">Keyboard Shortcuts</span>
-<span class="na">author</span><span class="pi">:</span> <span class="s">Brett Terpstra</span>
-<span class="na">description</span><span class="pi">:</span> <span class="s">Render {% kbd ... %} key combos to HTML</span>
-<span class="na">homepage</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-kbd-plugin</span>
-<span class="na">repo</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-kbd-plugin.git</span>
-<span class="na">phase</span><span class="pi">:</span> <span class="s">pre_parse</span>
-<span class="na">priority</span><span class="pi">:</span> <span class="m">100</span>
-<span class="na">timeout_ms</span><span class="pi">:</span> <span class="m">0</span>        <span class="c1"># optional</span>
-<span class="na">handler</span><span class="pi">:</span>
-  <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">ruby</span><span class="nv"> </span><span class="s">kbd_plugin.rb"</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kbd</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Keyboard Shortcuts</span>
+<span class="nt">author</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Brett Terpstra</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Render &lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt; key combos to HTML</span>
+<span class="nt">homepage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-kbd-plugin</span>
+<span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-kbd-plugin.git</span>
+<span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pre_parse</span>
+<span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="nt">timeout_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span><span class="w">        </span><span class="c1"># optional</span>
+<span class="nt">handler</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ruby</span><span class="nv"> </span><span class="s">kbd_plugin.rb&quot;</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <ul>
 
   <li>
-<strong><code>id</code></strong>: unique identifier (no spaces recommended).
+    <strong><code>id</code></strong>: unique identifier (no spaces recommended).
   </li>
 
   <li>
-<strong><code>title</code>/<code>author</code>/<code>description</code>/<code>homepage</code>/<code>repo</code></strong>: optional metadata used by listing/installation tools and plugin directories.
+    <strong><code>title</code>/<code>author</code>/<code>description</code>/<code>homepage</code>/<code>repo</code></strong>: optional metadata used by listing/installation tools and plugin directories.
   </li>
 
   <li>
-<strong><code>phase</code></strong>: <code>pre_parse</code> or <code>post_render</code>.
+    <strong><code>phase</code></strong>: <code>pre_parse</code> or <code>post_render</code>.
   </li>
 
   <li>
-<strong><code>priority</code></strong>: integer; lower runs first.
+    <strong><code>priority</code></strong>: integer; lower runs first.
   </li>
 
   <li>
-<strong><code>timeout_ms</code></strong>: optional; host may use this as a soft cap.
+    <strong><code>timeout_ms</code></strong>: optional; host may use this as a soft cap.
   </li>
 
   <li>
-<strong><code>handler.command</code></strong>:
+    <strong><code>handler.command</code></strong>:
     <ul>
 
       <li>
@@ -1667,20 +1958,22 @@ ol ul {
 </ul>
 
 <h3 id="json-protocol">
-  JSON protocol
+  JSON&nbsp;protocol
 </h3>
 
 <p>
   For text phases (<code>pre_parse</code>, <code>post_render</code>), Apex sends your command a JSON object on <strong>stdin</strong>:
 </p>
 
-<pre><code class="highlight language-json"><span class="p">{</span><span class="w">
-  </span><span class="nl">"version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
-  </span><span class="nl">"plugin_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"kbd"</span><span class="p">,</span><span class="w">
-  </span><span class="nl">"phase"</span><span class="p">:</span><span class="w"> </span><span class="s2">"pre_parse"</span><span class="p">,</span><span class="w">
-  </span><span class="nl">"text"</span><span class="p">:</span><span class="w"> </span><span class="s2">"raw or rendered text here"</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;plugin_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;kbd&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;phase&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pre_parse&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;raw or rendered text here&quot;</span>
+<span class="p">}</span>
+</pre>
+</div>
 
 <p>
   Your plugin should:
@@ -1712,7 +2005,7 @@ ol ul {
 
 <hr />
 <h2 id="declarative-regex-plugins-no-scripting">
-  Declarative regex plugins (no scripting)
+  Declarative regex plugins (no&nbsp;scripting)
 </h2>
 
 <p>
@@ -1720,33 +2013,35 @@ ol ul {
 </p>
 
 <h3 id="manifest-fields">
-  Manifest fields
+  Manifest&nbsp;fields
 </h3>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">emoji-span</span>
-<span class="na">title</span><span class="pi">:</span> <span class="s">Emoji span wrapper</span>
-<span class="na">author</span><span class="pi">:</span> <span class="s">Brett Terpstra</span>
-<span class="na">description</span><span class="pi">:</span> <span class="s">Wrap 📝 markers in a span for styling</span>
-<span class="na">homepage</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-emoji-plugin</span>
-<span class="na">repo</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-emoji-plugin.git</span>
-<span class="na">phase</span><span class="pi">:</span> <span class="s">post_render</span>
-<span class="na">pattern</span><span class="pi">:</span> <span class="s2">"</span><span class="s">(:[a-zA-Z0-9_+-]+:)"</span>
-<span class="na">replacement</span><span class="pi">:</span> <span class="s2">"</span><span class="s">&lt;span</span><span class="nv"> </span><span class="s">class=</span><span class="se">\"</span><span class="s">emoji</span><span class="se">\"</span><span class="s">&gt;$1&lt;/span&gt;"</span>
-<span class="na">flags</span><span class="pi">:</span> <span class="s2">"</span><span class="s">i"</span>          <span class="c1"># optional: e.g. i, m, s</span>
-<span class="na">priority</span><span class="pi">:</span> <span class="m">200</span>
-<span class="na">timeout_ms</span><span class="pi">:</span> <span class="m">0</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emoji-span</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Emoji span wrapper</span>
+<span class="nt">author</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Brett Terpstra</span>
+<span class="nt">description: Wrap :emoji</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">markers in a span for styling</span>
+<span class="nt">homepage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-emoji-plugin</span>
+<span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-emoji-plugin.git</span>
+<span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">post_render</span>
+<span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;(:[a-zA-Z0-9_+-]+:)&quot;</span>
+<span class="nt">replacement</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;span</span><span class="nv"> </span><span class="s">class=\&quot;emoji\&quot;&gt;$1&lt;/span&gt;&quot;</span>
+<span class="nt">flags</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;i&quot;</span><span class="w">          </span><span class="c1"># optional: e.g. i, m, s</span>
+<span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200</span>
+<span class="nt">timeout_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <ul>
 
   <li>
-<strong><code>pattern</code></strong>: POSIX regular expression (compiled via <code>regcomp</code>).
+    <strong><code>pattern</code></strong>: POSIX regular expression (compiled via <code>regcomp</code>).
   </li>
 
   <li>
-<strong><code>replacement</code></strong>:
+    <strong><code>replacement</code></strong>:
     <ul>
 
       <li>
@@ -1762,7 +2057,7 @@ ol ul {
   </li>
 
   <li>
-<strong><code>flags</code></strong> (optional):
+    <strong><code>flags</code></strong> (optional):
     <ul>
 
       <li>
@@ -1809,7 +2104,7 @@ ol ul {
 
 <hr />
 <h2 id="support-directory-and-environment-variables">
-  Support directory and environment variables
+  Support directory and environment&nbsp;variables
 </h2>
 
 <p>
@@ -1817,7 +2112,7 @@ ol ul {
 </p>
 
 <h3 id="support-directory-apexsupportdir">
-  Support directory (<code>APEX_SUPPORT_DIR</code>)
+  Support directory&nbsp;(<code>APEX_SUPPORT_DIR</code>)
 </h3>
 
 <p>
@@ -1856,15 +2151,17 @@ ol ul {
   For each plugin, Apex creates:
 </p>
 
-<pre><code class="highlight language-text">APEX_SUPPORT_DIR/&lt;plugin-id&gt;/
-</code></pre>
+<div class="highlight">
+<pre><span></span>APEX_SUPPORT_DIR/&lt;plugin-id&gt;/
+</pre>
+</div>
 
 <p>
   You can safely write caches, logs, or temporary files there.
 </p>
 
 <h3 id="environment-variables-for-external-plugins">
-  Environment variables for external plugins
+  Environment variables for external&nbsp;plugins
 </h3>
 
 <p>
@@ -1876,7 +2173,7 @@ ol ul {
   <li>
 
     <p>
-<strong><code>APEX_PLUGIN_DIR</code></strong>
+      <strong><code>APEX_PLUGIN_DIR</code></strong>
     </p>
 
     <ul>
@@ -1896,7 +2193,7 @@ ol ul {
   <li>
 
     <p>
-<strong><code>APEX_SUPPORT_DIR</code></strong>
+      <strong><code>APEX_SUPPORT_DIR</code></strong>
     </p>
 
     <ul>
@@ -1916,7 +2213,7 @@ ol ul {
   <li>
 
     <p>
-<strong><code>APEX_FILE_PATH</code></strong>
+      <strong><code>APEX_FILE_PATH</code></strong>
     </p>
 
     <ul>
@@ -1957,7 +2254,7 @@ ol ul {
 
 <hr />
 <h2 id="installing-plugins-from-the-directory">
-  Installing plugins from the directory
+  Installing plugins from the&nbsp;directory
 </h2>
 
 <p>
@@ -1980,46 +2277,50 @@ ol ul {
   Each entry in <code>apex-plugins.json</code> looks like this:
 </p>
 
-<pre><code class="highlight language-json"><span class="p">{</span><span class="w">
-  </span><span class="nl">"plugins"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-    </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"kbd"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Keyboard Shortcuts"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Renders {% kbd %} tags as &lt;kbd&gt; elements."</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"author"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Brett Terpstra"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"homepage"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://github.com/ApexMarkdown/apex-plugin-kbd"</span><span class="p">,</span><span class="w">
-      </span><span class="nl">"repo"</span><span class="p">:</span><span class="w"> </span><span class="s2">"https://github.com/ApexMarkdown/apex-plugin-kbd"</span><span class="w">
-    </span><span class="p">}</span><span class="w">
-  </span><span class="p">]</span><span class="w">
-</span><span class="p">}</span><span class="w">
-</span></code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;plugins&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;kbd&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Keyboard Shortcuts&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Renders {% kbd %} tags as &lt;kbd&gt; elements.&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;author&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Brett Terpstra&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;homepage&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://github.com/ApexMarkdown/apex-plugin-kbd&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;repo&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://github.com/ApexMarkdown/apex-plugin-kbd&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre>
+</div>
 
 <ul>
 
   <li>
-<strong><code>id</code></strong> must match the plugin <code>id</code> declared in that repo’s <code>plugin.yml</code>.
+    <strong><code>id</code></strong> must match the plugin <code>id</code> declared in that repo’s <code>plugin.yml</code>.
   </li>
 
   <li>
-<strong><code>repo</code></strong> is the canonical Git URL that Apex will pass to <code>git clone</code>.
+    <strong><code>repo</code></strong> is the canonical Git URL that Apex will pass to <code>git clone</code>.
   </li>
 
   <li>
-<strong><code>title</code></strong>, <strong><code>author</code></strong>, <strong><code>description</code></strong>, and <strong><code>homepage</code></strong> are used for human-readable listings.
+    <strong><code>title</code></strong>, <strong><code>author</code></strong>, <strong><code>description</code></strong>, and <strong><code>homepage</code></strong> are used for human-readable listings.
   </li>
 
 </ul>
 
 <h3 id="listing-available-plugins">
-  Listing available plugins
+  Listing available&nbsp;plugins
 </h3>
 
 <p>
   To see what plugins are available in the central directory, use:
 </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--list-plugins</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--list-plugins
+</pre>
+</div>
 
 <p>
   This command:
@@ -2041,7 +2342,8 @@ ol ul {
 
 </ul>
 
-<pre><code class="highlight language-text">## Installed Plugins
+<div class="highlight">
+<pre><span></span>## Installed Plugins
 
 kbd                  - Keyboard Shortcuts  (author: Brett Terpstra)
     Renders {% kbd %} tags as &lt;kbd&gt; elements.
@@ -2052,12 +2354,13 @@ kbd                  - Keyboard Shortcuts  (author: Brett Terpstra)
 ## Available Plugins
 
 emoji-span           - Emoji span wrapper  (author: Brett Terpstra)
-    Wrap 📝 markers in a span for styling.
+    Wrap <span class=\"emoji\">:emoji:</span> markers in a span for styling.
     homepage: https://github.com/ApexMarkdown/apex-emoji-plugin
-</code></pre>
+</pre>
+</div>
 
 <h3 id="installing-a-plugin">
-  Installing a plugin
+  Installing&nbsp;a&nbsp;plugin
 </h3>
 
 <p>
@@ -2069,11 +2372,13 @@ emoji-span           - Emoji span wrapper  (author: Brett Terpstra)
   <li>
 
     <p>
-<strong>      Plugin ID from the directory</strong> (recommended for curated plugins):
+      <strong>Plugin ID from the directory</strong> (recommended for curated plugins):
     </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--install-plugin</span> kbd
-</code></pre>
+    <div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--install-plugin<span class="w"> </span>kbd
+    </pre>
+  </div>
 
   <p>
     This will:
@@ -2104,29 +2409,35 @@ emoji-span           - Emoji span wrapper  (author: Brett Terpstra)
 <li>
 
   <p>
-<strong>    Full Git URL</strong> (for plugins not in the directory):
+    <strong>Full Git URL</strong> (for plugins not in the directory):
   </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--install-plugin</span> https://github.com/ttscoff/apex-plugin-kbd.git
-</code></pre>
+  <div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--install-plugin<span class="w"> </span>https://github.com/ttscoff/apex-plugin-kbd.git
+  </pre>
+</div>
 
 <p>
   Also works with SSH URLs:
 </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--install-plugin</span> git@github.com:ttscoff/apex-plugin-kbd.git
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--install-plugin<span class="w"> </span>git@github.com:ttscoff/apex-plugin-kbd.git
+</pre>
+</div>
 
 </li>
 
 <li>
 
   <p>
-<strong>    GitHub shorthand</strong> (<code>user/repo</code> format):
+    <strong>GitHub shorthand</strong> (<code>user/repo</code> format):
   </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--install-plugin</span> ttscoff/apex-plugin-kbd
-</code></pre>
+  <div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--install-plugin<span class="w"> </span>ttscoff/apex-plugin-kbd
+  </pre>
+</div>
 
 <p>
   This is automatically expanded to <code>https://github.com/ttscoff/apex-plugin-kbd.git</code>.
@@ -2137,16 +2448,18 @@ emoji-span           - Emoji span wrapper  (author: Brett Terpstra)
 </ol>
 
 <h4 id="security-confirmation-for-direct-installs">
-  Security confirmation for direct installs
+  Security confirmation for direct&nbsp;installs
 </h4>
 
 <p>
   When installing from a <strong>direct Git URL or GitHub shorthand</strong> (i.e., anything outside the curated directory), Apex will prompt:
 </p>
 
-<pre><code class="highlight language-text">Apex plugins execute unverified code. Only install plugins from trusted sources.
+<div class="highlight">
+<pre><span></span>Apex plugins execute unverified code. Only install plugins from trusted sources.
 Continue? (y/n)
-</code></pre>
+</pre>
+</div>
 
 <ul>
 
@@ -2161,11 +2474,11 @@ Continue? (y/n)
 </ul>
 
 <p>
-<strong>  Directory ID installs</strong> (like <code>--install-plugin kbd</code> from the curated list) do <strong>not</strong> show this prompt, as those plugins have been reviewed and included in the central directory.
+  <strong>Directory ID installs</strong> (like <code>--install-plugin kbd</code> from the curated list) do <strong>not</strong> show this prompt, as those plugins have been reviewed and included in the central directory.
 </p>
 
 <h4 id="installation-process">
-  Installation process
+  Installation&nbsp;process
 </h4>
 
 <p>
@@ -2255,7 +2568,7 @@ Continue? (y/n)
 <blockquote>
 
   <p>
-<strong>    Security note:</strong> Apex plugins execute unverified code. Only install plugins from trusted sources. When installing from a direct Git URL or GitHub repo name, you will be prompted to confirm before the plugin is cloned.
+    <strong>Security note:</strong> Apex plugins execute unverified code. Only install plugins from trusted sources. When installing from a direct Git URL or GitHub repo name, you will be prompted to confirm before the plugin is cloned.
   </p>
 
 </blockquote>
@@ -2297,15 +2610,17 @@ Continue? (y/n)
 </ul>
 
 <h3 id="uninstalling-a-plugin">
-  Uninstalling a plugin
+  Uninstalling&nbsp;a&nbsp;plugin
 </h3>
 
 <p>
   To remove a locally installed plugin, use:
 </p>
 
-<pre><code class="highlight language-bash">apex <span class="nt">--uninstall-plugin</span> kbd
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>--uninstall-plugin<span class="w"> </span>kbd
+</pre>
+</div>
 
 <p>
   The <code>--uninstall-plugin</code> command:
@@ -2332,7 +2647,7 @@ Continue? (y/n)
 </p>
 
 <h2 id="share-your-plugin">
-  Share Your Plugin
+  Share Your&nbsp;Plugin
 </h2>
 
 <p>
@@ -2342,11 +2657,11 @@ Continue? (y/n)
 <ol>
 
   <li>
-<strong>    Fork</strong> the <code>ApexMarkdown/apex-plugins</code> repository on GitHub to your own account or organization.
+    <strong>Fork</strong> the <code>ApexMarkdown/apex-plugins</code> repository on GitHub to your own account or organization.
   </li>
 
   <li>
-<strong>    Clone</strong> your fork locally and create a new branch for your plugin entry (for example, <code>add-kbd-plugin</code>).
+    <strong>Clone</strong> your fork locally and create a new branch for your plugin entry (for example, <code>add-kbd-plugin</code>).
   </li>
 
   <li>
@@ -2401,52 +2716,58 @@ Continue? (y/n)
 </h2>
 
 <p>
-  This example shows how to support a liquid-style <code>{% kbd ... %}</code> syntax, turning key combos into <code>&lt;kbd&gt;</code> markup.
+  This example shows how to support a liquid-style <code>&lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt;</code> syntax, turning key combos into <code>&lt;kbd&gt;</code> markup.
 </p>
 
 <h3 id="directory-layout">
-  Directory layout
+  Directory&nbsp;layout
 </h3>
 
 <p>
   Project-local example:
 </p>
 
-<pre><code class="highlight language-text">.apex/
+<div class="highlight">
+<pre><span></span>.apex/
   plugins/
     kbd/
       plugin.yml
       kbd_plugin.rb
-</code></pre>
+</pre>
+</div>
 
 <p>
   Global example:
 </p>
 
-<pre><code class="highlight language-text">~/.config/apex/plugins/
+<div class="highlight">
+<pre><span></span>~/.config/apex/plugins/
   kbd/
     plugin.yml
     kbd_plugin.rb
-</code></pre>
+</pre>
+</div>
 
 <h3 id="pluginyml">
 <code>plugin.yml</code>
 </h3>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">kbd</span>
-<span class="na">title</span><span class="pi">:</span> <span class="s">Keyboard Shortcuts</span>
-<span class="na">author</span><span class="pi">:</span> <span class="s">Brett Terpstra</span>
-<span class="na">description</span><span class="pi">:</span> <span class="s">Render {% kbd ... %} key combos to HTML &lt;kbd&gt; elements</span>
-<span class="na">homepage</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-kbd-plugin</span>
-<span class="na">repo</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-kbd-plugin.git</span>
-<span class="na">phase</span><span class="pi">:</span> <span class="s">pre_parse</span>
-<span class="na">priority</span><span class="pi">:</span> <span class="m">100</span>
-<span class="na">timeout_ms</span><span class="pi">:</span> <span class="m">0</span>
-<span class="na">handler</span><span class="pi">:</span>
-  <span class="na">command</span><span class="pi">:</span> <span class="s2">"</span><span class="s">ruby</span><span class="nv"> </span><span class="s">kbd_plugin.rb"</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kbd</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Keyboard Shortcuts</span>
+<span class="nt">author</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Brett Terpstra</span>
+<span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Render &lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt; key combos to HTML &lt;kbd&gt; elements</span>
+<span class="nt">homepage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-kbd-plugin</span>
+<span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-kbd-plugin.git</span>
+<span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">pre_parse</span>
+<span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+<span class="nt">timeout_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+<span class="nt">handler</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">command</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;ruby</span><span class="nv"> </span><span class="s">kbd_plugin.rb&quot;</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <h3 id="kbdpluginrb-simplified-shape">
 <code>kbd_plugin.rb</code> (simplified shape)
@@ -2467,7 +2788,7 @@ Continue? (y/n)
   </li>
 
   <li>
-    Replaces each <code>{% kbd ... %}</code> occurrence with properly formatted <code>&lt;kbd&gt;</code> HTML.
+    Replaces each <code>&lt;span class=&quot;keycombo combined&quot; title=&quot;...&quot;&gt;&lt;kbd class=&quot;key symbol&quot;&gt;...&lt;/kbd&gt;&lt;/span&gt;</code> occurrence with properly formatted <code>&lt;kbd&gt;</code> HTML.
   </li>
 
   <li>
@@ -2480,68 +2801,74 @@ Continue? (y/n)
   A very abridged sketch:
 </p>
 
-<pre><code class="highlight language-ruby"><span class="c1">#!/usr/bin/env ruby</span>
-<span class="nb">require</span> <span class="s2">"json"</span>
+<div class="highlight">
+<pre><span></span><span class="ch">#!/usr/bin/env ruby</span>
+<span class="nb">require</span><span class="w"> </span><span class="s2">&quot;json&quot;</span>
 
-<span class="n">payload</span> <span class="o">=</span> <span class="no">JSON</span><span class="p">.</span><span class="nf">parse</span><span class="p">(</span><span class="vg">$stdin</span><span class="p">.</span><span class="nf">read</span><span class="p">)</span>
-<span class="n">text</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="s2">"text"</span><span class="p">]</span> <span class="o">||</span> <span class="s2">""</span>
+<span class="n">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="no">JSON</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="vg">$stdin</span><span class="o">.</span><span class="n">read</span><span class="p">)</span>
+<span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span><span class="o">[</span><span class="s2">&quot;text&quot;</span><span class="o">]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s2">&quot;&quot;</span>
 
 <span class="c1"># ... helper methods for normalizing modifier names, etc. ...</span>
 
-<span class="k">def</span> <span class="nf">render_kbd</span><span class="p">(</span><span class="n">markup</span><span class="p">)</span>
-  <span class="c1"># convert markup like "^~@r" to HTML</span>
-  <span class="c1"># returning something like:</span>
-  <span class="c1">#   &lt;kbd&gt;⌃&lt;/kbd&gt;+&lt;kbd&gt;⌥&lt;/kbd&gt;+&lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;R&lt;/kbd&gt;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">render_kbd</span><span class="p">(</span><span class="n">markup</span><span class="p">)</span>
+<span class="w">  </span><span class="c1"># convert markup like &quot;^~@r&quot; to HTML</span>
+<span class="w">  </span><span class="c1"># returning something like:</span>
+<span class="w">  </span><span class="c1">#   &lt;kbd&gt;⌃&lt;/kbd&gt;+&lt;kbd&gt;⌥&lt;/kbd&gt;+&lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;R&lt;/kbd&gt;</span>
 <span class="k">end</span>
 
-<span class="n">result</span> <span class="o">=</span> <span class="n">text</span><span class="p">.</span><span class="nf">gsub</span><span class="p">(</span><span class="sr">/\{%\s*kbd\s+([^%]+)%\}/</span><span class="p">)</span> <span class="k">do</span>
-  <span class="n">render_kbd</span><span class="p">(</span><span class="no">Regexp</span><span class="p">.</span><span class="nf">last_match</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+<span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">text</span><span class="o">.</span><span class="n">gsub</span><span class="p">(</span><span class="sr">/\{%\s*kbd\s+([^%]+)%\}/</span><span class="p">)</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="n">render_kbd</span><span class="p">(</span><span class="no">Regexp</span><span class="o">.</span><span class="n">last_match</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
 <span class="k">end</span>
 
-<span class="nb">print</span> <span class="n">result</span>
-</code></pre>
+<span class="nb">print</span><span class="w"> </span><span class="n">result</span>
+</pre>
+</div>
 
 <p>
   You can customize this script as you like; the only requirement is that it obey the stdin JSON / stdout contract.
 </p>
 
 <hr />
-<h2 id="example-memo-span-plugin-declarative">
-  Example: <code>📝</code> span plugin (declarative)
+<h2 id="example-emoji-span-plugin-declarative">
+  Example: <code><span class=\"emoji\">:emoji:</span></code> span plugin (declarative)
 </h2>
 
 <p>
-  This plugin turns <code>📝</code> tokens in the final HTML into <code>&lt;span class=&quot;emoji&quot;&gt;📝&lt;/span&gt;</code>.
+  This plugin turns <code><span class=\"emoji\">:emoji:</span></code> tokens in the final HTML into <code>&lt;span class=&quot;emoji&quot;&gt;<span class=\"emoji\">:emoji:</span>&lt;/span&gt;</code>.
 </p>
 
 <h3 id="directory-layout">
-  Directory layout
+  Directory&nbsp;layout
 </h3>
 
-<pre><code class="highlight language-text">~/.config/apex/plugins/
+<div class="highlight">
+<pre><span></span>~/.config/apex/plugins/
   emoji/
     plugin.yml
-</code></pre>
+</pre>
+</div>
 
 <h3 id="pluginyml">
 <code>plugin.yml</code>
 </h3>
 
-<pre><code class="highlight language-yaml"><span class="nn">---</span>
-<span class="na">id</span><span class="pi">:</span> <span class="s">emoji-span</span>
-<span class="na">title</span><span class="pi">:</span> <span class="s">Emoji span wrapper</span>
-<span class="na">author</span><span class="pi">:</span> <span class="s">Brett Terpstra</span>
-<span class="na">description</span><span class="pi">:</span> <span class="s">Wrap 📝 markers in a span for styling</span>
-<span class="na">homepage</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-emoji-plugin</span>
-<span class="na">repo</span><span class="pi">:</span> <span class="s">https://github.com/ApexMarkdown/apex-emoji-plugin.git</span>
-<span class="na">phase</span><span class="pi">:</span> <span class="s">post_render</span>
-<span class="na">pattern</span><span class="pi">:</span> <span class="s2">"</span><span class="s">(:[a-zA-Z0-9_+-]+:)"</span>
-<span class="na">replacement</span><span class="pi">:</span> <span class="s2">"</span><span class="s">&lt;span</span><span class="nv"> </span><span class="s">class=</span><span class="se">\"</span><span class="s">emoji</span><span class="se">\"</span><span class="s">&gt;$1&lt;/span&gt;"</span>
-<span class="na">flags</span><span class="pi">:</span> <span class="s2">"</span><span class="s">i"</span>
-<span class="na">priority</span><span class="pi">:</span> <span class="m">200</span>
-<span class="na">timeout_ms</span><span class="pi">:</span> <span class="m">0</span>
+<div class="highlight">
+<pre><span></span><span class="nn">---</span>
+<span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emoji-span</span>
+<span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Emoji span wrapper</span>
+<span class="nt">author</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Brett Terpstra</span>
+<span class="nt">description: Wrap :emoji</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">markers in a span for styling</span>
+<span class="nt">homepage</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-emoji-plugin</span>
+<span class="nt">repo</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://github.com/ApexMarkdown/apex-emoji-plugin.git</span>
+<span class="nt">phase</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">post_render</span>
+<span class="nt">pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;(:[a-zA-Z0-9_+-]+:)&quot;</span>
+<span class="nt">replacement</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;&lt;span</span><span class="nv"> </span><span class="s">class=\&quot;emoji\&quot;&gt;$1&lt;/span&gt;&quot;</span>
+<span class="nt">flags</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;i&quot;</span>
+<span class="nt">priority</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200</span>
+<span class="nt">timeout_ms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
 <span class="nn">---</span>
-</code></pre>
+</pre>
+</div>
 
 <p>
   Because this is a declarative plugin, <strong>no external command is run</strong>. Apex compiles the regex and runs the replacements internally.
@@ -2549,7 +2876,7 @@ Continue? (y/n)
 
 <hr />
 <h2 id="putting-it-all-together">
-  Putting it all together
+  Putting it all&nbsp;together
 </h2>
 
 <p>
@@ -2561,7 +2888,7 @@ Continue? (y/n)
   <li>
 
     <p>
-<strong>      Create a plugin directory</strong>
+      <strong>Create a plugin directory</strong>
     </p>
 
     <ul>
@@ -2581,7 +2908,7 @@ Continue? (y/n)
   <li>
 
     <p>
-<strong>      Add <code>plugin.yml</code></strong>
+      <strong>Add <code>plugin.yml</code></strong>
     </p>
 
     <ul>
@@ -2621,7 +2948,7 @@ Continue? (y/n)
   <li>
 
     <p>
-<strong>      Add code (if external)</strong>
+      <strong>Add code (if external)</strong>
     </p>
 
     <ul>
@@ -2641,7 +2968,7 @@ Continue? (y/n)
   <li>
 
     <p>
-<strong>      Enable plugins</strong>
+      <strong>Enable plugins</strong>
     </p>
 
     <ul>
@@ -2669,7 +2996,7 @@ Continue? (y/n)
   <li>
 
     <p>
-<strong>      Test</strong>
+      <strong>Test</strong>
     </p>
 
     <ul>

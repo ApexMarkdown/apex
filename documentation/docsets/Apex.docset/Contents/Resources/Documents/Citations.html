@@ -5,8 +5,97 @@
 
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="generator" content="Apex 0.1.49">
+      <meta name="generator" content="Apex 1.1.12">
       <title>Document</title>
+      <style>
+        /* GitHub-style syntax highlighting for Pygments and Skylighting */
+        /* Don't apply background to wrapper when code highlighting is enabled - let default styles handle it */
+        .code-highlighted .highlight, .code-highlighted .sourceCode { background: inherit; border-radius: 6px; padding: 16px; overflow-x: auto; }
+        .highlight pre, .sourceCode pre { margin: 0; padding: 0; background: transparent; }
+        .highlight code, .sourceCode code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 12px; line-height: 1.45; }
+        /* Pygments classes */
+        .highlight .k { color: #d73a49; font-weight: 600; } /* Keyword */
+        .highlight .kt { color: #d73a49; } /* Keyword.Type */
+        .highlight .kd { color: #d73a49; font-weight: 600; } /* Keyword.Declaration */
+        .highlight .kn { color: #d73a49; } /* Keyword.Namespace */
+        .highlight .kp { color: #d73a49; } /* Keyword.Pseudo */
+        .highlight .kr { color: #d73a49; font-weight: 600; } /* Keyword.Reserved */
+        .highlight .n { color: #6f42c1; } /* Name */
+        .highlight .na { color: #6f42c1; } /* Name.Attribute */
+        .highlight .nc { color: #6f42c1; font-weight: 600; } /* Name.Class */
+        .highlight .no { color: #005cc5; } /* Name.Constant */
+        .highlight .nd { color: #6f42c1; font-weight: 600; } /* Name.Decorator */
+        .highlight .ni { color: #800080; } /* Name.Entity */
+        .highlight .ne { color: #990000; font-weight: 600; } /* Name.Exception */
+        .highlight .nf { color: #6f42c1; font-weight: 600; } /* Name.Function */
+        .highlight .nl { color: #6f42c1; } /* Name.Label */
+        .highlight .nn { color: #555; } /* Name.Namespace */
+        .highlight .nt { color: #22863a; } /* Name.Tag */
+        .highlight .nv { color: #e36209; } /* Name.Variable */
+        .highlight .s { color: #032f62; } /* String */
+        .highlight .sb { color: #032f62; } /* String.Backtick */
+        .highlight .sc { color: #032f62; } /* String.Char */
+        .highlight .sd { color: #032f62; } /* String.Doc */
+        .highlight .s2 { color: #032f62; } /* String.Double */
+        .highlight .se { color: #032f62; } /* String.Escape */
+        .highlight .sh { color: #032f62; } /* String.Heredoc */
+        .highlight .si { color: #032f62; } /* String.Interpol */
+        .highlight .sx { color: #032f62; } /* String.Other */
+        .highlight .sr { color: #032f62; } /* String.Regex */
+        .highlight .s1 { color: #032f62; } /* String.Single */
+        .highlight .ss { color: #032f62; } /* String.Symbol */
+        .highlight .c { color: #6a737d; font-style: italic; } /* Comment */
+        .highlight .c1 { color: #6a737d; font-style: italic; } /* Comment.Single */
+        .highlight .cm { color: #6a737d; font-style: italic; } /* Comment.Multiline */
+        .highlight .cp { color: #6a737d; font-weight: 600; } /* Comment.Preproc */
+        .highlight .cs { color: #6a737d; font-weight: 600; font-style: italic; } /* Comment.Special */
+        .highlight .m { color: #005cc5; } /* Literal.Number */
+        .highlight .mb { color: #005cc5; } /* Literal.Number.Bin */
+        .highlight .mf { color: #005cc5; } /* Literal.Number.Float */
+        .highlight .mh { color: #005cc5; } /* Literal.Number.Hex */
+        .highlight .mi { color: #005cc5; } /* Literal.Number.Integer */
+        .highlight .il { color: #005cc5; } /* Literal.Number.Integer.Long */
+        .highlight .mo { color: #005cc5; } /* Literal.Number.Oct */
+        .highlight .o { color: #d73a49; } /* Operator */
+        .highlight .ow { color: #d73a49; } /* Operator.Word */
+        .highlight .p { color: #24292e; } /* Punctuation */
+        .highlight .w { color: #e1e4e8; } /* Text.Whitespace */
+        /* Skylighting classes */
+        .sourceCode .kw { color: #d73a49; font-weight: 600; } /* Keyword */
+        .sourceCode .dt { color: #6f42c1; } /* DataType */
+        .sourceCode .dv { color: #005cc5; } /* DecVal */
+        .sourceCode .bn { color: #005cc5; } /* BaseN */
+        .sourceCode .fl { color: #005cc5; } /* Float */
+        .sourceCode .ch { color: #032f62; } /* Char */
+        .sourceCode .st { color: #032f62; } /* String */
+        .sourceCode .co { color: #6a737d; font-style: italic; } /* Comment */
+        .sourceCode .ot { color: #22863a; } /* Other */
+        .sourceCode .al { color: #e36209; font-weight: 600; } /* Alert */
+        .sourceCode .fu { color: #6f42c1; font-weight: 600; } /* Function */
+        .sourceCode .re { color: #032f62; } /* RegionMarker */
+        .sourceCode .er { color: #d73a49; font-weight: 600; } /* Error */
+        .sourceCode .cf { color: #d73a49; font-weight: 600; } /* ControlFlow */
+        .sourceCode .op { color: #d73a49; } /* Operator */
+        .sourceCode .pp { color: #6a737d; } /* Preprocessor */
+        .sourceCode .at { color: #005cc5; } /* Attribute */
+        .sourceCode .do { color: #6a737d; font-style: italic; } /* Documentation */
+        .sourceCode .an { color: #6a737d; font-weight: 600; } /* Annotation */
+        .sourceCode .cv { color: #6a737d; font-weight: 600; font-style: italic; } /* CommentVar */
+        .sourceCode .in { color: #6a737d; } /* Information */
+        .sourceCode .wa { color: #e36209; font-weight: 600; } /* Warning */
+        .sourceCode .im { color: #d73a49; } /* Import */
+        .sourceCode .bu { color: #005cc5; } /* BuiltIn */
+        .sourceCode .ex { color: #6f42c1; } /* Extension */
+        .sourceCode .va { color: #e36209; } /* Variable */
+        .sourceCode .ss { color: #032f62; } /* SpecialString */
+        .sourceCode .sc { color: #032f62; } /* SpecialChar */
+        .sourceCode .vs { color: #032f62; } /* VerbatimString */
+        .sourceCode .il { color: #005cc5; } /* Special */
+        /* Line numbers (Skylighting) */
+        .sourceCode.numberSource .sourceCode { counter-reset: line; }
+        .sourceCode.numberSource .sourceCode > span { position: relative; left: -4em; counter-increment: line; }
+        .sourceCode.numberSource .sourceCode > span > a:first-child::before { content: counter(line); position: relative; left: -1em; text-align: right; vertical-align: baseline; border: none; display: inline-block; min-width: 1em; padding-right: 0.5em; color: #aaa; }
+      </style>
       <style>
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -35,10 +124,52 @@
         ins { background: #d4fcbc; text-decoration: none; }
         del { background: #fbb6c2; text-decoration: line-through; }
         mark { background: #fff3cd; }
+        .smallcaps { font-variant: small-caps; }
+        .underline { text-decoration: underline; }
+        span.mark { background: #fff3cd; }
+        .hidden { display: none; }
+        .quarto-xref { font-variant: normal; }
         .critic.comment { background: #e7e7e7; color: #666; font-style: italic; }
+        .mkhashtag { color: #666; }
+        .mkstyledtag {
+          display: inline-block;
+          background: #e0e0e0;
+          padding: 3px 9px;
+          border-radius: 20px;
+          font-size: 0.9em;
+          line-height: 1.4;
+          color: #333;
+          margin: 0 2px;
+        }
       </style>
+        <meta name="paginate" content="symbols"/>
+      <meta name="highlight-language-only" content="true"/>
+      <meta name="code-line-numbers" content="false"/>
+      <meta name="code-highlight" content="pygments"/>
+      <meta name="sup-sub" content="true"/>
+      <meta name="relaxed-tables" content="true"/>
+      <meta name="includes" content="true"/>
+      <meta name="autolink" content="true"/>
+      <meta name="pretty" content="false"/>
+      <meta name="standalone" content="false"/>
+      <meta name="mode" content="unified"/>
+      <meta name="markdown-in-html" content="true"/>
+      <meta name="image-captions" content="true"/>
+      <meta name="wikilink-extension" content="html"/>
+      <meta name="wikilink-space" content="hyphen"/>
+      <meta name="wikilinks" content="true"/>
+      <meta name="widont" content="true"/>
+      <meta name="plugins" content="true"/>
+      <meta name="id-format" content="gfm"/>
+
   <style>
-/* Base styles */
+:root {
+  /* border-box width of the fixed sidebar; body offset includes a small gap */
+  --sidebar-width: 250px;
+  --sidebar-offset: 270px;
+}
+
+/* Base styles — override Apex standalone centering (max-width + margin: auto) */
 body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -48,6 +179,11 @@ body {
   line-height: 1.65;
   color: #1e293b;
   background-color: #fff;
+  max-width: none;
+  width: auto;
+  margin: 2rem 2rem 2rem var(--sidebar-offset);
+  padding: 0 1rem;
+  box-sizing: border-box;
 }
 
 /* Sidebar / Main TOC - wider on larger screens */
@@ -56,9 +192,10 @@ body {
   position: fixed;
   left: 0;
   top: 0;
-  width: auto;
-  min-width: 180px;
-  max-width: 250px;
+  box-sizing: border-box;
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  max-width: var(--sidebar-width);
   height: 100vh;
   overflow-y: auto;
   background: #1e293b;
@@ -67,7 +204,6 @@ body {
   padding: 24px 20px 130px;
   font-size: 14px;
   z-index: 100;
-  margin-right: 1rem;
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.08);
   transition: transform 0.3s ease;
 }
@@ -116,11 +252,6 @@ body {
   font-weight: 500;
 }
 
-/* Body margin for sidebar */
-body {
-  margin-left: 270px;
-}
-
 /* Hamburger menu button */
 .hamburger-menu {
   display: none;
@@ -136,6 +267,7 @@ body {
   color: rgba(255, 255, 255, 0.9);
   font-size: 20px;
   line-height: 1;
+  box-sizing: border-box;
   width: 44px;
   height: 44px;
   align-items: center;
@@ -153,9 +285,7 @@ body {
 
 /* Move hamburger to the right of the sidebar when menu is open */
 .hamburger-menu.active {
-  left: calc(
-    250px + 12px
-  ); /* Position just to the right of sidebar (max-width 250px + 12px padding) */
+  left: calc(var(--sidebar-width) + 12px);
 }
 
 .hamburger-menu.active {
@@ -251,7 +381,7 @@ body {
 .floating-toc {
   position: fixed;
   top: 0;
-  left: 270px;
+  left: var(--sidebar-offset);
   right: 0;
   z-index: 50;
   opacity: 0;
@@ -677,7 +807,7 @@ ol ul {
   }
 
   body {
-    margin-left: 0;
+    margin: 2rem 1rem;
   }
 
   .floating-toc {
@@ -687,7 +817,7 @@ ol ul {
 
 </style></head>
 
-  <body>
+  <body class="code-highlighted">
 <div class="floating-toc" id="floating-toc">
   <div class="floating-toc-container">
     <div class="floating-toc-header">
@@ -702,77 +832,85 @@ ol ul {
 <button class="hamburger-menu" id="hamburger-menu" aria-label="Toggle navigation"></button>
 <div class="mobile-menu-overlay" id="mobile-menu-overlay"></div>
 
-<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
+<nav class="main-toc"><ul><li><a href="Home.html">Home</a></li><li><a href="Getting-Started.html">Getting Started</a></li><li><a href="Installation.html">Installation</a></li><li><a href="Usage.html">Usage</a></li><li><a href="Syntax.html">Syntax</a></li><li><a href="Callouts.html">Callouts</a></li><li><a href="Tables.html">Tables</a></li><li><a href="Inline-Attribute-Lists.html">Inline Attribute Lists</a></li><li><a href="Modes.html">Modes</a></li><li><a href="Quarto-Mode.html">Quarto Mode</a></li><li><a href="Command-Line-Options.html">Command Line Options</a></li><li><a href="Rendering-Markdown-In-Terminal.html">Rendering Markdown in the Terminal</a></li><li><a href="Generating-Man-Pages.html">Generating Man Pages</a></li><li><a href="Multi-File-Documents.html">Multi-file Documents</a></li><li><a href="Citations.html">Citations</a></li><li><a href="Indices.html">Indices</a></li><li><a href="Metadata-Transforms.html">Metadata Transforms</a></li><li><a href="Pandoc-Integration.html">Integrating with Pandoc</a></li><li><a href="Using-Apex-with-Jekyll.html">Using Apex with Jekyll</a></li><li><a href="Header-IDs.html">Header IDs</a></li><li><a href="C-API.html">C API</a></li><li><a href="Writing-Tests.html">Writing Tests</a></li><li><a href="Xcode-Integration.html">Xcode Integration</a></li><li><a href="Examples.html">Examples</a></li><li><a href="Plugins.html">Plugins</a></li><li><a href="Filters.html">Filters</a></li><li><a href="Troubleshooting.html">Troubleshooting</a></li><li><a href="Credits.html">Credits</a></li></ul></nav>
 
     <h1 id="citations-and-bibliography">
-      Citations and Bibliography
+      Citations and&nbsp;Bibliography
     </h1>
-<nav class="page-toc" id="page-toc-top"><ul><li><a href="#citations-and-bibliography">Citations and Bibliography</a><ul><li><a href="#quick-start">Quick Start</a></li><li><a href="#citation-syntaxes">Citation Syntaxes</a><ul><li><a href="#pandoc-syntax">Pandoc Syntax</a></li><li><a href="#multimarkdown-syntax">MultiMarkdown Syntax</a></li><li><a href="#mmark-syntax">mmark Syntax</a></li></ul></li><li><a href="#bibliography-formats">Bibliography Formats</a><ul><li><a href="#bibtex-bib">BibTeX (.bib)</a></li><li><a href="#csl-json-json">CSL JSON (.json)</a></li><li><a href="#csl-yaml-yml-yaml">CSL YAML (.yml, .yaml)</a></li></ul></li><li><a href="#specifying-bibliography">Specifying Bibliography</a><ul><li><a href="#command-line">Command Line</a></li><li><a href="#document-metadata">Document Metadata</a></li></ul></li><li><a href="#bibliography-generation">Bibliography Generation</a></li><li><a href="#citation-options">Citation Options</a><ul><li><a href="#link-citations">Link Citations</a></li><li><a href="#suppress-bibliography">Suppress Bibliography</a></li><li><a href="#citation-style-csl">Citation Style (CSL)</a></li></ul></li><li><a href="#mode-support">Mode Support</a></li><li><a href="#performance">Performance</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
+<nav class="page-toc" id="page-toc-top"><ul><li><a href="#citations-and-bibliography">Citations and&nbsp;Bibliography</a><ul><li><a href="#quick-start">Quick&nbsp;Start</a></li><li><a href="#citation-syntaxes">Citation&nbsp;Syntaxes</a><ul><li><a href="#pandoc-syntax">Pandoc&nbsp;Syntax</a></li><li><a href="#multimarkdown-syntax">MultiMarkdown&nbsp;Syntax</a></li><li><a href="#mmark-syntax">mmark&nbsp;Syntax</a></li></ul></li><li><a href="#bibliography-formats">Bibliography&nbsp;Formats</a><ul><li><a href="#bibtex-bib">BibTeX&nbsp;(.bib)</a></li><li><a href="#csl-json-json">CSL JSON&nbsp;(.json)</a></li><li><a href="#csl-yaml-yml-yaml">CSL YAML (.yml,&nbsp;.yaml)</a></li></ul></li><li><a href="#specifying-bibliography">Specifying Bibliography</a><ul><li><a href="#command-line">Command&nbsp;Line</a></li><li><a href="#document-metadata">Document&nbsp;Metadata</a></li></ul></li><li><a href="#bibliography-generation">Bibliography&nbsp;Generation</a></li><li><a href="#citation-options">Citation&nbsp;Options</a><ul><li><a href="#link-citations">Link&nbsp;Citations</a></li><li><a href="#suppress-bibliography">Suppress Bibliography</a></li><li><a href="#citation-style-csl">Citation Style&nbsp;(CSL)</a></li></ul></li><li><a href="#mode-support">Mode&nbsp;Support</a></li><li><a href="#performance">Performance</a></li><li><a href="#related">Related</a></li></ul></li></ul></nav>
 
     <p>
       Apex supports citations and bibliographies with multiple syntax styles and bibliography formats. Citations are processed in <strong>MultiMarkdown</strong> and <strong>unified</strong> modes.
     </p>
 
     <h2 id="quick-start">
-      Quick Start
+      Quick&nbsp;Start
     </h2>
 
     <p>
-<strong>      1. Create a bibliography file:</strong>
+      <strong>1. Create a bibliography file:</strong>
     </p>
 
     <p>
       Create a BibTeX file (<code>references.bib</code>):
     </p>
 
-<pre><code class="highlight language-bibtex"><span class="nc">@article</span><span class="p">{</span><span class="nl">doe99</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Doe, John}</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Article Title}</span><span class="p">,</span>
-  <span class="na">journal</span> <span class="p">=</span> <span class="s">{Journal Name}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{1999}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{1}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{1--10}</span>
+    <div class="highlight">
+<pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">doe99</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Doe, John}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Article Title}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Journal Name}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{1999}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{1}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{1--10}</span>
 <span class="p">}</span>
 
 <span class="nc">@book</span><span class="p">{</span><span class="nl">smith2000</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Smith, Jane}</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Book Title}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Publisher}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2000}</span>
+<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Smith, Jane}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Book Title}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Publisher}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{2000}</span>
 <span class="p">}</span>
-</code></pre>
+    </pre>
+  </div>
 
   <p>
-<strong>    2. Add citations to your document:</strong>
+    <strong>2. Add citations to your document:</strong>
   </p>
 
-<pre><code class="highlight language-markdown"><span class="nn">---</span>
-<span class="na">bibliography</span><span class="pi">:</span> <span class="s">references.bib</span>
-<span class="nn">---</span>
+  <div class="highlight">
+<pre><span></span>---
+<span class="gu">bibliography: references.bib</span>
+<span class="gu">---</span>
 
 See [@doe99] for details. Smith discusses this in [@smith2000].
 
 <span class="gu">## References</span>
 
-<span class="c">&lt;!-- REFERENCES --&gt;</span>
-</code></pre>
+&lt;!-- REFERENCES --&gt;
+  </pre>
+</div>
 
 <p>
-<strong>  3. Process with Apex:</strong>
+  <strong>3. Process with Apex:</strong>
 </p>
 
-<pre><code class="highlight language-bash">apex document.md <span class="nt">--bibliography</span> references.bib
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>references.bib
+</pre>
+</div>
 
 <p>
   Or specify in metadata (as shown above) and just run:
 </p>
 
-<pre><code class="highlight language-bash">apex document.md
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>document.md
+</pre>
+</div>
 
 <h2 id="citation-syntaxes">
-  Citation Syntaxes
+  Citation&nbsp;Syntaxes
 </h2>
 
 <p>
@@ -780,7 +918,7 @@ See [@doe99] for details. Smith discusses this in [@smith2000].
 </p>
 
 <h3 id="pandoc-syntax">
-  Pandoc Syntax
+  Pandoc&nbsp;Syntax
 </h3>
 
 <p>
@@ -788,53 +926,65 @@ See [@doe99] for details. Smith discusses this in [@smith2000].
 </p>
 
 <p>
-<strong>  Basic citation:</strong>
+  <strong>Basic citation:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">See [@doe99] for details.
-</code></pre>
+<div class="highlight">
+<pre><span></span>See [@doe99] for details.
+</pre>
+</div>
 
 <p>
-<strong>  Multiple citations:</strong>
+  <strong>Multiple citations:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">See [@doe99; @smith2000; @smith2004] for more information.
-</code></pre>
+<div class="highlight">
+<pre><span></span>See [@doe99; <span class="ni">@smith2000</span>; <span class="ni">@smith2004</span>] for more information.
+</pre>
+</div>
 
 <p>
-<strong>  Author in text:</strong>
+  <strong>Author in text:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">@smith04 says blah.
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="ni">@smith04</span> says blah.
+</pre>
+</div>
 
 <p>
-<strong>  Author suppressed (year only):</strong>
+  <strong>Author suppressed (year only):</strong>
 </p>
 
-<pre><code class="highlight language-markdown">Smith says blah [-@smith04].
-</code></pre>
+<div class="highlight">
+<pre><span></span>Smith says blah [-@smith04].
+</pre>
+</div>
 
 <p>
-<strong>  With locator (page numbers):</strong>
+  <strong>With locator (page numbers):</strong>
 </p>
 
-<pre><code class="highlight language-markdown">@smith04 [p. 33] says blah.
-See @doe99, pp. 33-35 and <span class="ge">*passim*</span>.
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="ni">@smith04</span> [p. 33] says blah.
+See <span class="ni">@doe99</span>, pp. 33-35 and <span class="ge">*passim*</span>.
+</pre>
+</div>
 
 <p>
-<strong>  Output:</strong>
+  <strong>Output:</strong>
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>See <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"doe99"</span><span class="nt">&gt;</span>(Doe, John 1999)<span class="nt">&lt;/span&gt;</span> for details.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>See <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"doe99 smith2000 smith2004"</span><span class="nt">&gt;</span>(Doe, John 1999; Smith, Jane 2000, 2004)<span class="nt">&lt;/span&gt;</span> for more information.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"smith04"</span><span class="nt">&gt;</span>Smith, John (2004)<span class="nt">&lt;/span&gt;</span> says blah.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Smith says blah <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"smith04"</span><span class="nt">&gt;</span>(2004)<span class="nt">&lt;/span&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>See <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;doe99&quot;</span><span class="p">&gt;</span>(Doe, John 1999)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> for details.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>See <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;doe99 smith2000 smith2004&quot;</span><span class="p">&gt;</span>(Doe, John 1999; Smith, Jane 2000, 2004)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> for more information.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;smith04&quot;</span><span class="p">&gt;</span>Smith, John (2004)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> says blah.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Smith says blah <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;smith04&quot;</span><span class="p">&gt;</span>(2004)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="multimarkdown-syntax">
-  MultiMarkdown Syntax
+  MultiMarkdown&nbsp;Syntax
 </h3>
 
 <p>
@@ -842,43 +992,53 @@ See @doe99, pp. 33-35 and <span class="ge">*passim*</span>.
 </p>
 
 <p>
-<strong>  Basic citation:</strong>
+  <strong>Basic citation:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">This is a statement[#Doe:2006].
-</code></pre>
+<div class="highlight">
+<pre><span></span>This is a statement[#Doe:2006].
+</pre>
+</div>
 
 <p>
-<strong>  With locator:</strong>
+  <strong>With locator:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">This is a statement<span class="p">[</span><span class="nv">p. 23</span><span class="p">][</span><span class="ss">#Doe:2006</span><span class="p">]</span>.
-</code></pre>
+<div class="highlight">
+<pre><span></span>This is a statement[p. 23][#Doe:2006].
+</pre>
+</div>
 
 <p>
-<strong>  Empty locator:</strong>
+  <strong>Empty locator:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">This is a statement<span class="p">[][</span><span class="ss">#Doe:2006</span><span class="p">]</span>.
-</code></pre>
+<div class="highlight">
+<pre><span></span>This is a statement[][#Doe:2006].
+</pre>
+</div>
 
 <p>
-<strong>  Inline citation:</strong>
+  <strong>Inline citation:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">As per Doe.[#John Doe. <span class="ge">*A Totally Fake Book 1*</span>. Vanity Press, 2006.]
-</code></pre>
+<div class="highlight">
+<pre><span></span>As per Doe.[#John Doe. <span class="ge">*A Totally Fake Book 1*</span>. Vanity Press, 2006.]
+</pre>
+</div>
 
 <p>
-<strong>  Output:</strong>
+  <strong>Output:</strong>
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>This is a statement<span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"Doe:2006"</span><span class="nt">&gt;</span>(Doe:2006)<span class="nt">&lt;/span&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>This is a statement[p. 23]<span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"Doe:2006"</span><span class="nt">&gt;</span>(Doe:2006)<span class="nt">&lt;/span&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This is a statement<span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;Doe:2006&quot;</span><span class="p">&gt;</span>(Doe:2006)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This is a statement[p. 23]<span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;Doe:2006&quot;</span><span class="p">&gt;</span>(Doe:2006)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="mmark-syntax">
-  mmark Syntax
+  mmark&nbsp;Syntax
 </h3>
 
 <p>
@@ -886,43 +1046,53 @@ See @doe99, pp. 33-35 and <span class="ge">*passim*</span>.
 </p>
 
 <p>
-<strong>  Basic citation:</strong>
+  <strong>Basic citation:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">This references [@RFC2535].
-</code></pre>
+<div class="highlight">
+<pre><span></span>This references [@RFC2535].
+</pre>
+</div>
 
 <p>
-<strong>  Normative citation:</strong>
+  <strong>Normative citation:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">This references [@!RFC1034] (normative).
-</code></pre>
+<div class="highlight">
+<pre><span></span>This references [@!RFC1034] (normative).
+</pre>
+</div>
 
 <p>
-<strong>  Multiple citations:</strong>
+  <strong>Multiple citations:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">Multiple citations: [@RFC1034;@RFC1035].
-</code></pre>
+<div class="highlight">
+<pre><span></span>Multiple citations: [@RFC1034;@RFC1035].
+</pre>
+</div>
 
 <p>
-<strong>  Combined reference:</strong>
+  <strong>Combined reference:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">Combined reference: [@RFC1034@STD3].
-</code></pre>
+<div class="highlight">
+<pre><span></span>Combined reference: [@RFC1034@STD3].
+</pre>
+</div>
 
 <p>
-<strong>  Output:</strong>
+  <strong>Output:</strong>
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>This references <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"RFC2535"</span><span class="nt">&gt;</span>(RFC2535)<span class="nt">&lt;/span&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-<span class="nt">&lt;p&gt;</span>Multiple citations: <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"RFC1034"</span><span class="nt">&gt;</span>(RFC1034)<span class="nt">&lt;/span&gt;</span>;<span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"RFC1035"</span><span class="nt">&gt;</span>(RFC1035)<span class="nt">&lt;/span&gt;</span>.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>This references <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;RFC2535&quot;</span><span class="p">&gt;</span>(RFC2535)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>Multiple citations: <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;RFC1034&quot;</span><span class="p">&gt;</span>(RFC1034)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>;<span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;RFC1035&quot;</span><span class="p">&gt;</span>(RFC1035)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h2 id="bibliography-formats">
-  Bibliography Formats
+  Bibliography&nbsp;Formats
 </h2>
 
 <p>
@@ -930,198 +1100,222 @@ See @doe99, pp. 33-35 and <span class="ge">*passim*</span>.
 </p>
 
 <h3 id="bibtex-bib">
-  BibTeX (<code>.bib</code>)
+  BibTeX&nbsp;(<code>.bib</code>)
 </h3>
 
 <p>
   Standard BibTeX format:
 </p>
 
-<pre><code class="highlight language-bibtex"><span class="nc">@article</span><span class="p">{</span><span class="nl">doe99</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Doe, John}</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Article Title}</span><span class="p">,</span>
-  <span class="na">journal</span> <span class="p">=</span> <span class="s">{Journal Name}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{1999}</span><span class="p">,</span>
-  <span class="na">volume</span> <span class="p">=</span> <span class="s">{1}</span><span class="p">,</span>
-  <span class="na">pages</span> <span class="p">=</span> <span class="s">{1--10}</span>
+<div class="highlight">
+<pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">doe99</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Doe, John}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Article Title}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Journal Name}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{1999}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{1}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{1--10}</span>
 <span class="p">}</span>
 
 <span class="nc">@book</span><span class="p">{</span><span class="nl">smith2000</span><span class="p">,</span>
-  <span class="na">author</span> <span class="p">=</span> <span class="s">{Smith, Jane}</span><span class="p">,</span>
-  <span class="na">title</span> <span class="p">=</span> <span class="s">{Book Title}</span><span class="p">,</span>
-  <span class="na">publisher</span> <span class="p">=</span> <span class="s">{Publisher}</span><span class="p">,</span>
-  <span class="na">year</span> <span class="p">=</span> <span class="s">{2000}</span>
+<span class="w">  </span><span class="na">author</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Smith, Jane}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Book Title}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{Publisher}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">{2000}</span>
 <span class="p">}</span>
-</code></pre>
+</pre>
+</div>
 
 <h3 id="csl-json-json">
-  CSL JSON (<code>.json</code>)
+  CSL JSON&nbsp;(<code>.json</code>)
 </h3>
 
 <p>
   Citation Style Language JSON format:
 </p>
 
-<pre><code class="highlight language-json"><span class="p">[</span><span class="w">
-  </span><span class="p">{</span><span class="w">
-    </span><span class="nl">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"doe99"</span><span class="p">,</span><span class="w">
-    </span><span class="nl">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"article-journal"</span><span class="p">,</span><span class="w">
-    </span><span class="nl">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Article Title"</span><span class="p">,</span><span class="w">
-    </span><span class="nl">"author"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
-      </span><span class="p">{</span><span class="w">
-        </span><span class="nl">"family"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Doe"</span><span class="p">,</span><span class="w">
-        </span><span class="nl">"given"</span><span class="p">:</span><span class="w"> </span><span class="s2">"John"</span><span class="w">
-      </span><span class="p">}</span><span class="w">
-    </span><span class="p">],</span><span class="w">
-    </span><span class="nl">"container-title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Journal Name"</span><span class="p">,</span><span class="w">
-    </span><span class="nl">"issued"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-      </span><span class="nl">"date-parts"</span><span class="p">:</span><span class="w"> </span><span class="p">[[</span><span class="mi">1999</span><span class="p">]]</span><span class="w">
-    </span><span class="p">},</span><span class="w">
-    </span><span class="nl">"volume"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w">
-    </span><span class="nl">"page"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1-10"</span><span class="w">
-  </span><span class="p">}</span><span class="w">
-</span><span class="p">]</span><span class="w">
-</span></code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;doe99&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;article-journal&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Article Title&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;author&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;family&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Doe&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;given&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;John&quot;</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;container-title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Journal Name&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;issued&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;date-parts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[[</span><span class="mi">1999</span><span class="p">]]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;volume&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;page&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1-10&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">]</span>
+</pre>
+</div>
 
 <h3 id="csl-yaml-yml-yaml">
-  CSL YAML (<code>.yml</code>, <code>.yaml</code>)
+  CSL YAML (<code>.yml</code>,&nbsp;<code>.yaml</code>)
 </h3>
 
 <p>
   Citation Style Language YAML format:
 </p>
 
-<pre><code class="highlight language-yaml"><span class="pi">-</span> <span class="na">id</span><span class="pi">:</span> <span class="s">doe99</span>
-  <span class="na">type</span><span class="pi">:</span> <span class="s">article-journal</span>
-  <span class="na">title</span><span class="pi">:</span> <span class="s">Article Title</span>
-  <span class="na">author</span><span class="pi">:</span>
-    <span class="pi">-</span> <span class="na">family</span><span class="pi">:</span> <span class="s">Doe</span>
-      <span class="na">given</span><span class="pi">:</span> <span class="s">John</span>
-  <span class="na">container-title</span><span class="pi">:</span> <span class="s">Journal Name</span>
-  <span class="na">issued</span><span class="pi">:</span>
-    <span class="na">date-parts</span><span class="pi">:</span>
-      <span class="pi">-</span> <span class="pi">-</span> <span class="m">1999</span>
-  <span class="na">volume</span><span class="pi">:</span> <span class="m">1</span>
-  <span class="na">page</span><span class="pi">:</span> <span class="s">1-10</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">doe99</span>
+<span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">article-journal</span>
+<span class="w">  </span><span class="nt">title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Article Title</span>
+<span class="w">  </span><span class="nt">author</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">family</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Doe</span>
+<span class="w">      </span><span class="nt">given</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">John</span>
+<span class="w">  </span><span class="nt">container-title</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Journal Name</span>
+<span class="w">  </span><span class="nt">issued</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">date-parts</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1999</span>
+<span class="w">  </span><span class="nt">volume</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">  </span><span class="nt">page</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1-10</span>
+</pre>
+</div>
 
 <h2 id="specifying-bibliography">
   Specifying Bibliography
 </h2>
 
 <h3 id="command-line">
-  Command Line
+  Command&nbsp;Line
 </h3>
 
-<pre><code class="highlight language-bash"><span class="c"># Single file</span>
-apex document.md <span class="nt">--bibliography</span> references.bib
+<div class="highlight">
+<pre><span></span><span class="c1"># Single file</span>
+apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>references.bib
 
-<span class="c"># Multiple files</span>
-apex document.md <span class="nt">--bibliography</span> refs1.bib <span class="nt">--bibliography</span> refs2.bib
+<span class="c1"># Multiple files</span>
+apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>refs1.bib<span class="w"> </span>--bibliography<span class="w"> </span>refs2.bib
 
-<span class="c"># With base directory</span>
-apex document.md <span class="nt">--bibliography</span> refs.bib <span class="nt">--base-dir</span> /path/to/docs
-</code></pre>
+<span class="c1"># With base directory</span>
+apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>refs.bib<span class="w"> </span>--base-dir<span class="w"> </span>/path/to/docs
+</pre>
+</div>
 
 <h3 id="document-metadata">
-  Document Metadata
+  Document&nbsp;Metadata
 </h3>
 
 <p>
-<strong>  YAML front matter:</strong>
+  <strong>YAML front matter:</strong>
 </p>
 
-<pre><code class="highlight language-markdown"><span class="nn">---</span>
-<span class="na">bibliography</span><span class="pi">:</span> <span class="s">references.bib</span>
-<span class="nn">---</span>
+<div class="highlight">
+<pre><span></span>---
+<span class="gu">bibliography: references.bib</span>
+<span class="gu">---</span>
 
 See [@doe99] for details.
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  Multiple files:</strong>
+  <strong>Multiple files:</strong>
 </p>
 
-<pre><code class="highlight language-markdown"><span class="nn">---</span>
-<span class="na">bibliography</span><span class="pi">:</span>
-  <span class="pi">-</span> <span class="s">refs1.bib</span>
-  <span class="pi">-</span> <span class="s">refs2.bib</span>
-<span class="nn">---</span>
+<div class="highlight">
+<pre><span></span>---
+bibliography:
+<span class="w">  </span><span class="k">-</span><span class="w"> </span>refs1.bib
+<span class="gu">  - refs2.bib</span>
+<span class="gu">---</span>
 
 See [@doe99] for details.
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  MultiMarkdown metadata:</strong>
+  <strong>MultiMarkdown metadata:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">Bibliography: references.bib
+<div class="highlight">
+<pre><span></span>Bibliography: references.bib
 
 See [@doe99] for details.
-</code></pre>
+</pre>
+</div>
 
 <p>
-<strong>  Pandoc title block:</strong>
+  <strong>Pandoc title block:</strong>
 </p>
 
-<pre><code class="highlight language-markdown">% Bibliography: references.bib
+<div class="highlight">
+<pre><span></span>% Bibliography: references.bib
 
 See [@doe99] for details.
-</code></pre>
+</pre>
+</div>
 
 <h2 id="bibliography-generation">
-  Bibliography Generation
+  Bibliography&nbsp;Generation
 </h2>
 
 <p>
   Bibliography is automatically generated from all cited entries and inserted at the <code>&lt;!-- REFERENCES --&gt;</code> marker:
 </p>
 
-<pre><code class="highlight language-markdown">See [@doe99] and [@smith2000] for details.
+<div class="highlight">
+<pre><span></span>See [@doe99] and [@smith2000] for details.
 
 <span class="gu">## References</span>
 
-<span class="c">&lt;!-- REFERENCES --&gt;</span>
-</code></pre>
+&lt;!-- REFERENCES --&gt;
+</pre>
+</div>
 
 <p>
-<strong>  Output:</strong>
+  <strong>Output:</strong>
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>See <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"doe99"</span><span class="nt">&gt;</span>(Doe, John 1999)<span class="nt">&lt;/span&gt;</span> and <span class="nt">&lt;span</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"smith2000"</span><span class="nt">&gt;</span>(Smith, Jane 2000)<span class="nt">&lt;/span&gt;</span> for details.<span class="nt">&lt;/p&gt;</span>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>See <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;doe99&quot;</span><span class="p">&gt;</span>(Doe, John 1999)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> and <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;smith2000&quot;</span><span class="p">&gt;</span>(Smith, Jane 2000)<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span> for details.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
 
-<span class="nt">&lt;h2&gt;</span>References<span class="nt">&lt;/h2&gt;</span>
-<span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"refs"</span> <span class="na">class=</span><span class="s">"references csl-bib-body"</span><span class="nt">&gt;</span>
-<span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"ref-doe99"</span> <span class="na">class=</span><span class="s">"csl-entry"</span><span class="nt">&gt;</span>Doe, John 1999. <span class="nt">&lt;em&gt;</span>Article Title<span class="nt">&lt;/em&gt;</span>. <span class="nt">&lt;em&gt;</span>Journal Name<span class="nt">&lt;/em&gt;</span> 1: 1--10<span class="nt">&lt;/div&gt;</span>
-<span class="nt">&lt;div</span> <span class="na">id=</span><span class="s">"ref-smith2000"</span> <span class="na">class=</span><span class="s">"csl-entry"</span><span class="nt">&gt;</span>Smith, Jane 2000. <span class="nt">&lt;em&gt;</span>Book Title<span class="nt">&lt;/em&gt;</span>. Publisher<span class="nt">&lt;/div&gt;</span>
-<span class="nt">&lt;/div&gt;</span>
-</code></pre>
+<span class="p">&lt;</span><span class="nt">h2</span><span class="p">&gt;</span>References<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;refs&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;references csl-bib-body&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ref-doe99&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;csl-entry&quot;</span><span class="p">&gt;</span>Doe, John 1999. <span class="p">&lt;</span><span class="nt">em</span><span class="p">&gt;</span>Article Title<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span>. <span class="p">&lt;</span><span class="nt">em</span><span class="p">&gt;</span>Journal Name<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span> 1: 1--10<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">&quot;ref-smith2000&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;csl-entry&quot;</span><span class="p">&gt;</span>Smith, Jane 2000. <span class="p">&lt;</span><span class="nt">em</span><span class="p">&gt;</span>Book Title<span class="p">&lt;/</span><span class="nt">em</span><span class="p">&gt;</span>. Publisher<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <p>
   If no <code>&lt;!-- REFERENCES --&gt;</code> marker is found, the bibliography is appended to the end of the document.
 </p>
 
 <h2 id="citation-options">
-  Citation Options
+  Citation&nbsp;Options
 </h2>
 
 <h3 id="link-citations">
-  Link Citations
+  Link&nbsp;Citations
 </h3>
 
 <p>
   Use <code>--link-citations</code> to make citations link to their bibliography entries:
 </p>
 
-<pre><code class="highlight language-bash">apex document.md <span class="nt">--bibliography</span> refs.bib <span class="nt">--link-citations</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>refs.bib<span class="w"> </span>--link-citations
+</pre>
+</div>
 
 <p>
-<strong>  Output:</strong>
+  <strong>Output:</strong>
 </p>
 
-<pre><code class="highlight language-html"><span class="nt">&lt;p&gt;</span>See <span class="nt">&lt;a</span> <span class="na">href=</span><span class="s">"#ref-doe99"</span> <span class="na">class=</span><span class="s">"citation"</span> <span class="na">data-cites=</span><span class="s">"doe99"</span><span class="nt">&gt;</span>(Doe, John 1999)<span class="nt">&lt;/a&gt;</span> for details.<span class="nt">&lt;/p&gt;</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>See <span class="p">&lt;</span><span class="nt">a</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;#ref-doe99&quot;</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;citation&quot;</span> <span class="na">data-cites</span><span class="o">=</span><span class="s">&quot;doe99&quot;</span><span class="p">&gt;</span>(Doe, John 1999)<span class="p">&lt;/</span><span class="nt">a</span><span class="p">&gt;</span> for details.<span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</pre>
+</div>
 
 <h3 id="suppress-bibliography">
   Suppress Bibliography
@@ -1131,36 +1325,42 @@ See [@doe99] for details.
   Use <code>--no-bibliography</code> to suppress bibliography output while still processing citations:
 </p>
 
-<pre><code class="highlight language-bash">apex document.md <span class="nt">--bibliography</span> refs.bib <span class="nt">--no-bibliography</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>refs.bib<span class="w"> </span>--no-bibliography
+</pre>
+</div>
 
 <h3 id="citation-style-csl">
-  Citation Style (CSL)
+  Citation Style&nbsp;(CSL)
 </h3>
 
 <p>
   Specify a Citation Style Language file to control citation and bibliography formatting:
 </p>
 
-<pre><code class="highlight language-bash">apex document.md <span class="nt">--bibliography</span> refs.bib <span class="nt">--csl</span> apa.csl
-</code></pre>
+<div class="highlight">
+<pre><span></span>apex<span class="w"> </span>document.md<span class="w"> </span>--bibliography<span class="w"> </span>refs.bib<span class="w"> </span>--csl<span class="w"> </span>apa.csl
+</pre>
+</div>
 
 <p>
   CSL files can also be specified in metadata:
 </p>
 
-<pre><code class="highlight language-markdown"><span class="nn">---</span>
-<span class="na">bibliography</span><span class="pi">:</span> <span class="s">refs.bib</span>
-<span class="na">csl</span><span class="pi">:</span> <span class="s">apa.csl</span>
-<span class="nn">---</span>
-</code></pre>
+<div class="highlight">
+<pre><span></span>---
+bibliography: refs.bib
+<span class="gu">csl: apa.csl</span>
+<span class="gu">---</span>
+</pre>
+</div>
 
 <h2 id="mode-support">
-  Mode Support
+  Mode&nbsp;Support
 </h2>
 
 <p>
-<strong>  Unified mode:</strong>
+  <strong>Unified mode:</strong>
 </p>
 
 <ul>
@@ -1180,7 +1380,7 @@ See [@doe99] for details.
 </ul>
 
 <p>
-<strong>  MultiMarkdown mode:</strong>
+  <strong>MultiMarkdown mode:</strong>
 </p>
 
 <ul>
@@ -1200,7 +1400,7 @@ See [@doe99] for details.
 </ul>
 
 <p>
-<strong>  CommonMark/GFM modes:</strong>
+  <strong>CommonMark/GFM modes:</strong>
 </p>
 
 <ul>
@@ -1212,7 +1412,7 @@ See [@doe99] for details.
 </ul>
 
 <p>
-<strong>  Kramdown mode:</strong>
+  <strong>Kramdown mode:</strong>
 </p>
 
 <ul>
@@ -1238,15 +1438,15 @@ See [@doe99] for details.
 <ul>
 
   <li>
-<a href="Command-Line-Options.html">    Command Line Options</a> - Citation-related CLI flags
+    <a href="Command-Line-Options.html">Command Line Options</a> - Citation-related CLI flags
   </li>
 
   <li>
-<a href="Syntax.html">    Syntax</a> - Citation syntax reference
+    <a href="Syntax.html">Syntax</a> - Citation syntax reference
   </li>
 
   <li>
-<a href="Modes.html">    Modes</a> - Mode-specific citation support
+    <a href="Modes.html">Modes</a> - Mode-specific citation support
   </li>
 
 </ul>
