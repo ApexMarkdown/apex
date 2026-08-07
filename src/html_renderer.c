@@ -396,16 +396,36 @@ static char *get_node_text_fingerprint(cmark_node *node) {
         }
     }
 
-    /* For links, use the URL */
+    /* For links, use URL + link text (first text child) to disambiguate
+     * same-href links and avoid matching raw HTML <a> tags. */
     if (type == CMARK_NODE_LINK) {
         const char *url = cmark_node_get_url(node);
         if (url) {
-            size_t len = strlen(url);
-            if (len > 50) len = 50;
-            char *fingerprint = malloc(len + 1);
+            size_t url_len = strlen(url);
+            if (url_len > 50) url_len = 50;
+            const char *text = NULL;
+            for (cmark_node *child = cmark_node_first_child(node); child;
+                 child = cmark_node_next(child)) {
+                if (cmark_node_get_type(child) == CMARK_NODE_TEXT) {
+                    text = cmark_node_get_literal(child);
+                    if (text && *text) break;
+                    text = NULL;
+                }
+            }
+            size_t text_len = text ? strlen(text) : 0;
+            if (text_len > 20) text_len = 20;
+            size_t total = url_len + (text_len ? 1 + text_len : 0);
+            if (total > 50) total = 50;
+            char *fingerprint = malloc(total + 1);
             if (fingerprint) {
-                memcpy(fingerprint, url, len);
-                fingerprint[len] = '\0';
+                memcpy(fingerprint, url, url_len);
+                size_t pos = url_len;
+                if (text_len && pos + 1 + text_len <= 50) {
+                    fingerprint[pos++] = '|';
+                    memcpy(fingerprint + pos, text, text_len);
+                    pos += text_len;
+                }
+                fingerprint[pos] = '\0';
                 return fingerprint;
             }
         }
@@ -722,6 +742,23 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                                         }
                                     }
                                 }
+                            } else if (elem_type == CMARK_NODE_LINK && fp_idx < 49) {
+                                /* Append visible text before any nested tag (skip image-only links). */
+                                const char *content_start = tag_end;
+                                if (*content_start == '>') content_start++;
+                                if (*content_start && *content_start != '<') {
+                                    size_t text_len = 0;
+                                    while (content_start[text_len] &&
+                                           content_start[text_len] != '<' &&
+                                           text_len < 20) {
+                                        text_len++;
+                                    }
+                                    if (text_len > 0 && fp_idx + 1 + text_len <= 50) {
+                                        html_fingerprint[fp_idx++] = '|';
+                                        memcpy(html_fingerprint + fp_idx, content_start, text_len);
+                                        fp_idx += text_len;
+                                    }
+                                }
                             }
                             html_fingerprint[fp_idx] = '\0';
                         }
@@ -775,6 +812,35 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                             break;
                         }
                     }
+                } else if (elem_type == CMARK_NODE_LINK) {
+                    /* Links: match by href(+text) fingerprint among unused attrs.
+                     * Raw HTML <a> tags inflate html link_count, so element_index is
+                     * not reliable. Consume matching fingerprints in document order. */
+                    if (fp_idx > 0) {
+                        for (attr_node *a = attr_list; a; a = a->next, idx++) {
+                            if (used[idx]) continue;
+                            if (a->node_type != CMARK_NODE_LINK) continue;
+                            if (!a->text_fingerprint) continue;
+                            if (strncmp(a->text_fingerprint, html_fingerprint, 50) == 0) {
+                                matching = a;
+                                used[idx] = true;
+                                break;
+                            }
+                        }
+                    }
+                    /* Fall back to index only when no fingerprint is available. */
+                    if (!matching) {
+                        idx = 0;
+                        for (attr_node *a = attr_list; a; a = a->next, idx++) {
+                            if (used[idx]) continue;
+                            if (a->node_type != CMARK_NODE_LINK) continue;
+                            if (!a->text_fingerprint && a->element_index == elem_idx) {
+                                matching = a;
+                                used[idx] = true;
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     /* For other elements, use the existing matching logic */
                     for (attr_node *a = attr_list; a; a = a->next, idx++) {
@@ -789,10 +855,8 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                         /* Try fingerprint match first (works for both block and inline) */
                         if (a->text_fingerprint && fp_idx > 0 &&
                             strncmp(a->text_fingerprint, html_fingerprint, 50) == 0) {
-                            /* For inline elements, also check element_index to handle duplicates.
-                             * (Images with same src use sequential matching in the branch above.) */
-                            if (elem_type == CMARK_NODE_LINK || elem_type == CMARK_NODE_IMAGE ||
-                                elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH ||
+                            /* For inline elements, also check element_index to handle duplicates. */
+                            if (elem_type == CMARK_NODE_STRONG || elem_type == CMARK_NODE_EMPH ||
                                 elem_type == CMARK_NODE_CODE) {
                                 if (a->element_index == elem_idx) {
                                     matching = a;

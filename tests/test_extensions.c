@@ -808,6 +808,69 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* Raw HTML <a> must not steal/drop later markdown link IAL classes */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.enable_autolink = false;
+        opts.enable_image_captions = false;
+        const char *md =
+            "<div class=\"note\">\n"
+            "<p>See <a href=\"/integrations#getting-started\">Integrations</a>.</p>\n"
+            "</div>\n\n"
+            "- [![alt](/x.jpg avif){:loading=lazy width=400 height=400}]"
+            "(/x@2x.jpg){.widget-shot.js-lightbox}\n"
+            "{.g}\n";
+        char *html = apex_markdown_to_html(md, strlen(md), &opts);
+        assert_contains(html,
+            "<a href=\"/x@2x.jpg\" class=\"widget-shot js-lightbox\">",
+            "raw html <a> must not steal/drop later link IAL classes");
+        assert_contains(html,
+            "href=\"/integrations#getting-started\">Integrations</a>",
+            "raw html callout link remains unchanged");
+        assert_not_contains(html,
+            "href=\"/integrations#getting-started\" class=\"widget-shot",
+            "IAL must not be injected onto the raw html <a>");
+        apex_free_string(html);
+    }
+
+    /* Distinct href IALs after a raw HTML <a> keep correct classes */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.enable_autolink = false;
+        const char *md =
+            "<p><a href=\"/raw\">Raw</a></p>\n\n"
+            "[One](/one){.class-one}\n\n"
+            "[Two](/two){.class-two}\n";
+        char *html = apex_markdown_to_html(md, strlen(md), &opts);
+        assert_contains(html, "<a href=\"/one\" class=\"class-one\">",
+                        "distinct href after raw <a>: first link IAL");
+        assert_contains(html, "<a href=\"/two\" class=\"class-two\">",
+                        "distinct href after raw <a>: second link IAL");
+        assert_not_contains(html, "href=\"/raw\" class=",
+                            "distinct href after raw <a>: raw link unchanged");
+        apex_free_string(html);
+    }
+
+    /* Same-href markdown links after raw HTML <a>: disambiguate by order */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        opts.enable_autolink = false;
+        const char *md =
+            "<p><a href=\"/same\">Raw</a></p>\n\n"
+            "[First](/same){.first}\n\n"
+            "[Second](/same){.second}\n";
+        char *html = apex_markdown_to_html(md, strlen(md), &opts);
+        assert_contains(html, "<a href=\"/same\" class=\"first\">First</a>",
+                        "same href after raw <a>: first markdown link IAL");
+        assert_contains(html, "<a href=\"/same\" class=\"second\">Second</a>",
+                        "same href after raw <a>: second markdown link IAL");
+        assert_not_contains(html, "href=\"/same\" class=\"first\">Raw",
+                            "same href after raw <a>: raw link not given first IAL");
+        assert_not_contains(html, "href=\"/same\" class=\"second\">Raw",
+                            "same href after raw <a>: raw link not given second IAL");
+        apex_free_string(html);
+    }
+
     /* Video URL: ![alt](video.mp4) emits <video> */
     {
         apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);

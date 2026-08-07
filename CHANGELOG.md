@@ -4,6 +4,10 @@ All notable changes to Apex will be documented in this file.
 
 ## [1.1.14] - 2026-08-03
 
+### Fixed
+
+- **Link IAL attributes** (e.g. `{.js-lightbox}`) are preserved when a raw HTML `<a>` appears earlier in the document.
+
 ### Changed
 
 - **RTF remote images** show a hyperlinked alt label (or "image" when alt is empty) instead of dumping raw URLs.
