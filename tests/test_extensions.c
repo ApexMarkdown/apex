@@ -2189,6 +2189,37 @@ void test_abbreviations(void) {
     assert_contains(html, "<abbr title=\"abbreviation syntax\">ABBR</abbr>", "Inline abbr when mixed");
     apex_free_string(html);
 
+    /* Regression for issue #31: preprocessing must preserve physical lines
+     * longer than the old 1024-byte abbreviation and 2048-byte ALD buffers. */
+    const char *tail_marker = "END-OF-LONG-LINE";
+    const size_t prefix_len = 2160;
+    size_t marker_len = strlen(tail_marker);
+    char *long_line = malloc(prefix_len + marker_len + 2);
+    if (long_line) {
+        memset(long_line, 'a', prefix_len);
+        memcpy(long_line + prefix_len, tail_marker, marker_len);
+        long_line[prefix_len + marker_len] = '\n';
+        long_line[prefix_len + marker_len + 1] = '\0';
+
+        const apex_mode_t modes[] = {
+            APEX_MODE_MULTIMARKDOWN,
+            APEX_MODE_KRAMDOWN,
+            APEX_MODE_UNIFIED,
+            APEX_MODE_QUARTO
+        };
+        const char *mode_names[] = {"MMD", "Kramdown", "Unified", "Quarto"};
+        for (size_t i = 0; i < sizeof(modes) / sizeof(modes[0]); i++) {
+            apex_options long_opts = apex_options_for_mode(modes[i]);
+            html = apex_markdown_to_html(long_line, strlen(long_line), &long_opts);
+            test_resultf(html && strstr(html, tail_marker) != NULL,
+                         "%s mode preserves lines longer than 2048 bytes", mode_names[i]);
+            apex_free_string(html);
+        }
+        free(long_line);
+    } else {
+        test_result(false, "Allocate issue #31 long-line regression input");
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Abbreviations Tests", had_failures, false);
 }

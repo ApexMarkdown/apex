@@ -129,9 +129,13 @@ abbr_item *apex_extract_abbreviations(char **text_ptr) {
     while ((line_end = strchr(line_start, '\n')) != NULL || *line_start) {
         if (!line_end) line_end = line_start + strlen(line_start);
 
-        size_t line_len = line_end - line_start;
-        char line[1024];
-        if (line_len >= sizeof(line)) line_len = sizeof(line) - 1;
+        size_t line_len = (size_t)(line_end - line_start);
+        char *line = malloc(line_len + 1);
+        if (!line) {
+            apex_free_abbreviations(abbrs);
+            free(output);
+            return NULL;
+        }
         memcpy(line, line_start, line_len);
         line[line_len] = '\0';
 
@@ -157,6 +161,7 @@ abbr_item *apex_extract_abbreviations(char **text_ptr) {
                 }
 
                 /* Skip this line in output */
+                free(line);
                 line_start = *line_end ? line_end + 1 : line_end;
                 continue;
             }
@@ -184,6 +189,7 @@ abbr_item *apex_extract_abbreviations(char **text_ptr) {
                 }
 
                 /* Skip this line in output */
+                free(line);
                 line_start = *line_end ? line_end + 1 : line_end;
                 continue;
             }
@@ -192,6 +198,7 @@ abbr_item *apex_extract_abbreviations(char **text_ptr) {
         /* Not an abbreviation, copy line to output */
         memcpy(output_write, line_start, line_len);
         output_write += line_len;
+        free(line);
         if (*line_end) {
             *output_write++ = '\n';
             line_start = line_end + 1;
