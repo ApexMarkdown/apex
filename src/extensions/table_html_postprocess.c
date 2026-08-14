@@ -1092,49 +1092,14 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
             col_idx = 0;
             prev_cell_matching = NULL;  /* Reset previous cell matching for new row */
 
-            /* Map HTML row index to AST row index.
-             * HTML rows skip separator rows (which are marked for removal in AST).
-             * So we need to find the AST row that corresponds to this HTML row.
+            /* Map HTML row index to AST row index 1:1.
              *
-             * IMPORTANT: row_idx includes ALL <tr> tags, including the header in <thead>.
-             * But the header row is handled separately, so for tbody/tfoot rows, we need to
-             * account for that. The header is typically AST row 0, and it's the first HTML row.
-             * So for tbody/tfoot rows, row_idx will be >= 1 (1 = first data row, 2 = second data row, etc.).
-             *
-             * The mapping should count all non-removed rows, including the header, to match row_idx.
-             * Note: This mapping is only needed when we have attributes to process. */
-            ast_row_idx = -1;
-            if (all_cells) {
-                int html_row_count = -1;  /* Start at -1, will be 0 for header */
-                for (int r = 0; r < 100; r++) {  /* Check up to 100 AST rows */
-                    /* Check if this AST row has any non-removed cells */
-                    bool has_non_removed = false;
-                    for (all_cell *c = all_cells; c; c = c->next) {
-                        if (c->table_index == table_idx &&
-                            c->row_index == r &&
-                            !c->is_removed) {
-                            has_non_removed = true;
-                            break;
-                        }
-                    }
-                    /* If this AST row has non-removed cells, it appears in HTML */
-                    if (has_non_removed) {
-                        html_row_count++;
-                        if (html_row_count == row_idx) {
-                            ast_row_idx = r;
-                            break;
-                        }
-                    }
-                }
-            } else {
-                /* No all_cells available (alignment-only processing) - use row_idx directly */
-                ast_row_idx = row_idx;
-            }
-
-            if (ast_row_idx == -1) {
-                /* Fallback: use row_idx directly */
-                ast_row_idx = row_idx;
-            }
+             * cmark still emits rows that the AST marks data-remove (dummy headerless
+             * thead, em-dash separator leftovers, === markers). Those <tr> tags are
+             * present in the HTML we walk here and are stripped only when we decide
+             * should_skip_row. Counting only non-removed AST rows desyncs indices and
+             * can apply a later row's colspan onto earlier blank cells (| |). */
+            ast_row_idx = row_idx;
 
             /* Pre-calculate which original columns will be visible in this row's HTML.
              * This creates a mapping: HTML position -> original column index.
@@ -1409,13 +1374,55 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
             /* Note: Once we're in tfoot, we stay in tfoot - don't reopen tbody */
             /* tfoot rows should be at the end of the table */
 
-            /* Check if this row should be completely removed (all cells marked for removal) */
-            /* For tfoot rows that are pure === markers (all cells marked), skip the entire row */
-            /* For tfoot rows with actual content, render them normally */
+            /* Check if this row should be completely removed (all cells marked for removal).
+             * Always skip fully-removed rows (dummy headerless thead, em-dash separators, ===),
+             * even among the first HTML rows — force_keep only protects real data rows. */
             bool should_skip_row = false;
+            bool row_fully_removed = false;
+
+            if (all_cells) {
+                int total_cells_in_row = 0;
+                int removed_cells_in_row = 0;
+                for (all_cell *c = all_cells; c; c = c->next) {
+                    if (c->table_index == table_idx && c->row_index == ast_row_idx) {
+                        total_cells_in_row++;
+                        if (c->is_removed) {
+                            removed_cells_in_row++;
+                        }
+                    }
+                }
+                if (total_cells_in_row > 0 && total_cells_in_row == removed_cells_in_row) {
+                    /* Fully-removed === marker rows: drop the whole <tr>.
+                     * Em-dash separators and empty dummy headers: keep <tr>, remove
+                     * cells individually so an empty <tr></tr> remains (needed for
+                     * relaxed-header detection and empty-thead cleanup). */
+                    bool is_equals_row = false;
+                    if (attrs) {
+                        for (cell_attr *a = attrs; a; a = a->next) {
+                            if (a->table_index != table_idx || a->row_index != ast_row_idx)
+                                continue;
+                            if (!a->cell_text) continue;
+                            const char *text = a->cell_text;
+                            while (*text && isspace((unsigned char)*text)) text++;
+                            if (text[0] == '=' && text[1] == '=' && text[2] == '=') {
+                                is_equals_row = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (is_equals_row) {
+                        row_fully_removed = true;
+                        should_skip_row = true;
+                    } else {
+                        row_fully_removed = false;
+                        should_skip_row = false;
+                    }
+                }
+            }
 
             /* CRITICAL SAFEGUARD: If this is one of the first few rows (row_idx <= 3), it's
-             * almost certainly in tbody, not tfoot. NEVER skip it.
+             * almost certainly in tbody, not tfoot. Do not skip via tfoot/=== heuristics.
+             * Fully-removed rows stay skipped (row_fully_removed).
              * Note: row_idx is incremented before this check (line 894), so:
              * - row_idx 1 = header
              * - row_idx 2 = first data row
@@ -1426,7 +1433,7 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
              * This check must run FIRST, before any other skip logic, to ensure these rows
              * are always rendered. */
             bool force_keep_row = false;
-            if (row_idx <= 3) {
+            if (!row_fully_removed && row_idx <= 3) {
                 /* First few rows (header + first two data rows) are always in tbody - never skip them */
                 force_keep_row = true;
                 should_skip_row = false;
@@ -1437,11 +1444,11 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
             /* CRITICAL: Only check if row should be skipped if we haven't already determined
              * it should be in tbody. If current_row_is_tfoot is false, this row was either
              * never marked as tfoot OR was forced to tbody because it appears before === in HTML.
-             * In either case, it should NOT be skipped, even if all cells are marked for removal.
+             * Fully-removed rows are already handled via row_fully_removed.
              *
              * IMPORTANT: We must check this AFTER setting current_row_is_tfoot, so we know
              * if the row was forced to tbody. */
-            if (!force_keep_row && current_row_is_tfoot) {
+            if (!row_fully_removed && !force_keep_row && current_row_is_tfoot) {
                 /* Count ALL cells in this row (using all_cells) to see if any are non-removed */
                 int total_cells_in_row = 0;
                 int removed_cells_in_row = 0;
@@ -1577,15 +1584,16 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
              *
              * FINAL OVERRIDE: This is the last check before skipping, so it must override any
              * previous skip decisions. Also check force_keep_row flag. */
-            if (force_keep_row || was_forced_to_tbody || (final_min_equals_row_idx >= 0 && row_idx <= 3) ||
-                (min_equals_row_idx >= 0 && row_idx <= 3)) {
+            if (!row_fully_removed && (force_keep_row || was_forced_to_tbody || (final_min_equals_row_idx >= 0 && row_idx <= 3) ||
+                (min_equals_row_idx >= 0 && row_idx <= 3))) {
                 should_skip_row = false;
                 current_row_is_tfoot = false;
             }
 
             /* FINAL CHECK: If force_keep_row is true, NEVER skip this row, regardless of should_skip_row.
-             * Also, if row_idx <= 3, protect it as an extra safeguard. */
-            if (force_keep_row || row_idx <= 3) {
+             * Also, if row_idx <= 3, protect it as an extra safeguard.
+             * Fully-removed rows (dummy/separator/===) stay skipped. */
+            if (!row_fully_removed && (force_keep_row || row_idx <= 3)) {
                 should_skip_row = false;
                 /* If this is one of the first few rows and there's a === row, it's definitely in tbody */
                 if (row_idx <= 3 && min_equals_row_idx >= 0) {
@@ -1878,6 +1886,10 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                                 /* Compare (case-sensitive, but we can make it more lenient if needed) */
                                 content_matches = (strncmp(attr_text, html_text, strlen(attr_text)) == 0 &&
                                                  (html_text[strlen(attr_text)] == '\0' || isspace((unsigned char)html_text[strlen(attr_text)])));
+                            } else {
+                                /* Non-empty AST text must not match an empty HTML cell.
+                                 * Otherwise colspan from |full||||| attaches to | | blanks. */
+                                content_matches = false;
                             }
                         }
                         if (content_matches) {
@@ -1887,47 +1899,25 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                     }
                 }
 
-                /* If no match found in current row, also check the previous AST row.
-                 * This is especially important for tfoot rows with === markers, where the row mapping
-                 * might skip the === row if all its cells are marked for removal. */
+                /* If no match found in current row, also check the previous AST row —
+                 * but ONLY for === tfoot marker cells. Em-dash separator rows are also
+                 * data-remove; applying those to the next row would delete legitimate
+                 * blank cells (| |). */
                 if (!matching && ast_row_idx > 0) {
                     for (cell_attr *a = attrs; a; a = a->next) {
                         if (a->table_index == table_idx &&
                             a->row_index == ast_row_idx - 1 &&
                             a->col_index == target_original_col &&
-                            strstr(a->attributes, "data-remove")) {
-                            /* Check if content matches (for === cells) - extract if needed */
-                            bool content_matches = true;
-                            if (a->cell_text && a->cell_text[0] != '\0') {
-                                if (cell_preview[0] == '\0') {
-                                    bool is_th = strncmp(read, "<th", 3) == 0;
-                                    const char *close_tag = is_th ? "</th>" : "</td>";
-                                    const char *content_start = strchr(read, '>');
-                                    if (content_start) {
-                                        const char *content_end = strstr(content_start + 1, close_tag);
-                                        if (content_end && content_end - content_start - 1 < 99) {
-                                            size_t len = content_end - content_start - 1;
-                                            strncpy(cell_preview, content_start + 1, len);
-                                            cell_preview[len] = '\0';
-                                            while (len > 0 && (cell_preview[len-1] == '\n' || cell_preview[len-1] == '\r' || isspace((unsigned char)cell_preview[len-1]))) {
-                                                cell_preview[--len] = '\0';
-                                            }
-                                        }
-                                    }
-                                }
-                                if (cell_preview[0] != '\0') {
-                                    const char *attr_text = a->cell_text;
-                                    const char *html_text = cell_preview;
-                                    while (*attr_text && isspace((unsigned char)*attr_text)) attr_text++;
-                                    while (*html_text && isspace((unsigned char)*html_text)) html_text++;
-                                    content_matches = (strncmp(attr_text, html_text, strlen(attr_text)) == 0 &&
-                                                     (html_text[strlen(attr_text)] == '\0' || isspace((unsigned char)html_text[strlen(attr_text)])));
-                                }
+                            strstr(a->attributes, "data-remove") &&
+                            a->cell_text) {
+                            const char *marker = a->cell_text;
+                            while (*marker && isspace((unsigned char)*marker)) marker++;
+                            if (!(marker[0] == '=' && marker[1] == '=' && marker[2] == '=')) {
+                                continue;
                             }
-                            if (content_matches) {
-                                matching = a;
-                                break;
-                            }
+                            /* === marker from previous row — treat as match for removal */
+                            matching = a;
+                            break;
                         }
                     }
                 }
@@ -2068,8 +2058,6 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                             if (attr_len > 0 && html_len > 0 &&
                                 attr_len == html_len &&
                                 strncmp(attr_text, html_text, attr_len) == 0) {
-                                fprintf(stderr, "DEBUG MATCH: Found colspan cell by content fallback (same row) - text=[%s] attrs=[%s]\n",
-                                        html_text, a->attributes);
                                 matching = a;
                                 break;
                             }

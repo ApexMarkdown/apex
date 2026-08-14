@@ -213,6 +213,35 @@ void test_advanced_tables(void) {
     assert_not_contains(html, "colspan", "Empty cells table: no colspan attribute (empty cells don't create colspan)");
     apex_free_string(html);
 
+    /* Blank cells use spaced pipes (| |); colspan only for consecutive pipes (||).
+     * A later full-width colspan row must not steal blanks from earlier indent rows. */
+    const char *blank_then_colspan =
+        "|:-|:-|:-|:-|:-|\n"
+        "|a|b|c|d|e|\n"
+        "| | |x|y|z|\n"
+        "| | |p|q|r|\n"
+        "|full|||||\n";
+    html = apex_markdown_to_html(blank_then_colspan, strlen(blank_then_colspan), &opts);
+    assert_contains(html, "<td colspan=\"5\">full</td>", "Blank then colspan: full-width colspan on last row");
+    assert_contains(html, ">x</td>", "Blank then colspan: indent cell x present");
+    assert_contains(html, ">p</td>", "Blank then colspan: indent cell p present");
+    /* First indent row should keep two leading blank cells, not a colspan on an empty cell */
+    assert_not_contains(html, "<td colspan=\"5\"></td>", "Blank then colspan: no empty-cell colspan on indent rows");
+    assert_not_contains(html, "<th colspan=\"5\"></th>", "Blank then colspan: no empty th colspan on indent rows");
+    apex_free_string(html);
+
+    /* Spaced empty cell between content stays a blank column, not a span */
+    const char *spaced_blank_between =
+        "| H1 | H2 | H3 |\n"
+        "|----|----|----|\n"
+        "| A | | B |\n";
+    html = apex_markdown_to_html(spaced_blank_between, strlen(spaced_blank_between), &opts);
+    assert_contains(html, "<td>A</td>", "Spaced blank between: A present");
+    assert_contains(html, "<td></td>", "Spaced blank between: blank cell present");
+    assert_contains(html, "<td>B</td>", "Spaced blank between: B present");
+    assert_not_contains(html, "colspan", "Spaced blank between: no colspan from | |");
+    apex_free_string(html);
+
     /* Test dash-only separator row removal (rows containing only — should be removed). */
     const char *dash_row =
         "| H1 | H2 |\n"
