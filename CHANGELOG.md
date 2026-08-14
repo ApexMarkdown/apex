@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.17] - 2026-08-14
+
+### Fixed
+
+- **Spaced pipes (`| |`) stay blank cells** even when a later row uses consecutive pipes (`|||||`) for colspan
+- **Colspan only from consecutive pipes** (`||` / `|||`) or bare `<<`, not from whitespace-only cells
+- **Indent/blank columns keep alignment** when a full-width colspan row follows (Hazel-style tables)
+
 ## [1.1.16] - 2026-08-14
 
 ## [1.1.15] - 2026-08-07
@@ -3149,6 +3157,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.17]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.17
 [1.1.16]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.16
 [1.1.15]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.15
 [1.1.14]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.14
