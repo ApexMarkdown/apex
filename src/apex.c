@@ -3303,13 +3303,93 @@ bool apex_options_apply_meta_file(apex_options *options, const char *path) {
         return false;
     }
 
+    apex_options original_options = *options;
     apex_metadata_item *metadata = apex_load_metadata_from_file(path);
     if (!metadata) {
         return false;
     }
 
     apex_apply_metadata_to_options(metadata, options);
+
+    bool owns_csl_file = options->csl_file &&
+                         options->csl_file != original_options.csl_file;
+    bool owns_document_title = options->document_title &&
+                               options->document_title != original_options.document_title;
+    bool owns_base_directory = options->base_directory &&
+                               options->base_directory != original_options.base_directory;
+    bool owns_wikilink_extension = options->wikilink_extension &&
+                                   options->wikilink_extension != original_options.wikilink_extension;
+    bool owns_theme_name = options->theme_name &&
+                           options->theme_name != original_options.theme_name;
+    bool owns_code_highlight_theme = options->code_highlight_theme &&
+                                     options->code_highlight_theme != original_options.code_highlight_theme;
+    bool owns_stylesheet_paths = options->stylesheet_paths &&
+                                 options->stylesheet_paths != original_options.stylesheet_paths;
+
+    char *csl_file = owns_csl_file ? strdup(options->csl_file) : NULL;
+    char *document_title = owns_document_title ? strdup(options->document_title) : NULL;
+    char *base_directory = owns_base_directory ? strdup(options->base_directory) : NULL;
+    char *wikilink_extension = owns_wikilink_extension ? strdup(options->wikilink_extension) : NULL;
+    char *theme_name = owns_theme_name ? strdup(options->theme_name) : NULL;
+    char *code_highlight_theme = owns_code_highlight_theme ? strdup(options->code_highlight_theme) : NULL;
+    const char **stylesheet_paths = NULL;
+    bool copy_failed = (owns_csl_file && !csl_file) ||
+                       (owns_document_title && !document_title) ||
+                       (owns_base_directory && !base_directory) ||
+                       (owns_wikilink_extension && !wikilink_extension) ||
+                       (owns_theme_name && !theme_name) ||
+                       (owns_code_highlight_theme && !code_highlight_theme);
+
+    if (owns_stylesheet_paths) {
+        stylesheet_paths = calloc(options->stylesheet_count + 1, sizeof(*stylesheet_paths));
+        if (!stylesheet_paths) {
+            copy_failed = true;
+        } else {
+            for (size_t i = 0; i < options->stylesheet_count; i++) {
+                if (options->stylesheet_paths[i]) {
+                    stylesheet_paths[i] = strdup(options->stylesheet_paths[i]);
+                    if (!stylesheet_paths[i]) {
+                        copy_failed = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (copy_failed) {
+        free(csl_file);
+        free(document_title);
+        free(base_directory);
+        free(wikilink_extension);
+        free(theme_name);
+        free(code_highlight_theme);
+        if (stylesheet_paths) {
+            for (size_t i = 0; i < options->stylesheet_count; i++) {
+                free((void *)stylesheet_paths[i]);
+            }
+            free(stylesheet_paths);
+        }
+        if (owns_stylesheet_paths) {
+            free(options->stylesheet_paths);
+        }
+        apex_free_metadata(metadata);
+        *options = original_options;
+        return false;
+    }
+
+    if (owns_stylesheet_paths) {
+        free(options->stylesheet_paths);
+    }
     apex_free_metadata(metadata);
+
+    if (owns_csl_file) options->csl_file = csl_file;
+    if (owns_document_title) options->document_title = document_title;
+    if (owns_base_directory) options->base_directory = base_directory;
+    if (owns_wikilink_extension) options->wikilink_extension = wikilink_extension;
+    if (owns_theme_name) options->theme_name = theme_name;
+    if (owns_code_highlight_theme) options->code_highlight_theme = code_highlight_theme;
+    if (owns_stylesheet_paths) options->stylesheet_paths = stylesheet_paths;
     return true;
 }
 

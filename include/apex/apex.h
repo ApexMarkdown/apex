@@ -21,8 +21,8 @@ typedef struct cmark_node cmark_node;
 
 #define APEX_VERSION_MAJOR 1
 #define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 19
-#define APEX_VERSION_STRING "1.1.19"
+#define APEX_VERSION_PATCH 20
+#define APEX_VERSION_STRING "1.1.20"
 
 /**
  * Processor compatibility modes
@@ -351,8 +351,11 @@ apex_options apex_options_for_mode(apex_mode_t mode);
 /**
  * Load metadata from an external file and apply it to options.
  * Supports the same YAML, Pandoc, and MultiMarkdown formats as the CLI.
+ * String fields populated by this function are heap-allocated copies. The
+ * caller may leave them allocated for the process lifetime or free each field
+ * individually after the final conversion that uses these options.
  * @return true on success; false if options or path is NULL, path is empty,
- *         or the file cannot be loaded.
+ *         the file cannot be loaded, or ownership copies cannot be allocated.
  */
 bool apex_options_apply_meta_file(apex_options *options, const char *path);
 

@@ -820,6 +820,10 @@ void test_metadata_control_options(void) {
                        "metadata file API loads a valid file");
     assert_option_bool(opts.enable_indices, false,
                        "metadata file API applies boolean options");
+    assert_option_string(opts.csl_file, "test.csl",
+                         "metadata file API owns csl after returning");
+    assert_option_string(opts.document_title, "Test Document from File",
+                         "metadata file API owns title after returning");
 #endif
 
     /* Test loading metadata from file */

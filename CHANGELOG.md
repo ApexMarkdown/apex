@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.20] - 2026-09-05
+
+### Fixed
+
+- **Metadata file string ownership** keeps paths, titles, themes, and stylesheet values valid after `apex_options_apply_meta_file` returns
+
 ## [1.1.19] - 2026-09-05
 
 ### New
@@ -3205,6 +3211,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.20]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.20
 [1.1.19]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.19
 [1.1.18]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.18
 [1.1.17]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.17
