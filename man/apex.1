@@ -161,8 +161,7 @@ Output format. One of:
 \f[B]man\-html\f[] \- Styled HTML man page (use \f[B]\-\-standalone\f[] for full page with nav sidebar)
 
 .IP \(bu 2
-\f[B]rtf\f[] \- Rich Text Format (native writer; write to a \fR.rtf\f[] file for best results)
-When using a terminal format, Apex emits ANSI\-colored output suitable for TTYs and terminal emulators.
+\f[B]rtf\f[] \- Rich Text Format (native writer; write to a \fR.rtf\f[] file for best results) When using a terminal format, Apex emits ANSI\-colored output suitable for TTYs and terminal emulators.
 
 .TP
 \f[B]\-\-toc\-min\-max\f[] MIN,MAX
@@ -347,6 +346,9 @@ MultiMarkdown: \fR[#key]\f[]
 mmark: \fR[@RFC1234]\f[] Bibliography is inserted at the \fR<!\-\- REFERENCES \-\->\f[] marker or appended to the end of the document if no marker is found.
 
 .SS Indices
+
+.PP
+\f[B]\-\-concordance\f[] \f[I]FILE\f[] : TextIndex concordance file (tab\-separated). Searches the document for each rule's column\-1 pattern and inserts \fR[match]{^col2}\f[] index marks before TextIndex processing. Can be specified multiple times. Enables indices and TextIndex syntax when used. Matches inside existing index marks, \fR{index}\f[] directives, and HTML tags are skipped. See https://mattgemmell.scot/textindex/#concordance\-files (https://mattgemmell.scot/textindex/#concordance\-files) for the concordance file format.
 
 .PP
 \f[B]\-\-indices\f[] : Enable index processing. Supports both mmark and TextIndex syntax. Default: enabled in MultiMarkdown and unified modes.

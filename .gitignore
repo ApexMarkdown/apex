@@ -77,3 +77,4 @@ docs
 .cursor
 .github/prompts
 buildnotes.md
+build-*

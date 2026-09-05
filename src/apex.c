@@ -3022,6 +3022,7 @@ apex_options apex_options_default(void) {
     opts.enable_leanpub_index_syntax = false;
     opts.suppress_index = false;
     opts.group_index_by_letter = true;
+    opts.concordance_files = NULL;
 
     /* Wiki link options */
     opts.wikilink_space = 0;  /* Default: dash (0=dash, 1=none, 2=underscore, 3=space) */
@@ -4926,13 +4927,27 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Process index entries (preprocessing) */
     apex_index_registry index_registry = {0};
+    char *concordance_processed = NULL;
     char *indices_processed = NULL;
+    if (options->enable_indices && options->concordance_files && options->concordance_files[0]) {
+        PROGRESS_REPORT("Applying concordance", -1);
+        PROFILE_START(concordance);
+        concordance_processed = apex_apply_concordance(text_ptr, options);
+        PROFILE_END(concordance);
+        if (concordance_processed) {
+            text_ptr = concordance_processed;
+        }
+    }
     if (options->enable_indices) {
         PROGRESS_REPORT("Processing indices", -1);
         PROFILE_START(indices);
         indices_processed = apex_process_index_entries(text_ptr, &index_registry, options);
         PROFILE_END(indices);
         if (indices_processed) {
+            if (concordance_processed) {
+                free(concordance_processed);
+                concordance_processed = NULL;
+            }
             text_ptr = indices_processed;
         }
     }
@@ -6677,6 +6692,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     if (deflist_processed) free(deflist_processed);
     if (fenced_divs_processed) free(fenced_divs_processed);
     if (metadata_replaced) free(metadata_replaced);
+    if (concordance_processed) free(concordance_processed);
     if (autolinks_processed) free(autolinks_processed);
     if (html_markdown_processed) free(html_markdown_processed);
     if (hashtags_processed) free(hashtags_processed);

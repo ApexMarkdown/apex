@@ -19,6 +19,9 @@ class Apex < Formula
 
   def install
     bin.install "apex"
+    man1.install "apex.1" if File.exist?("apex.1")
+    man5.install "apex-config.5" if File.exist?("apex-config.5")
+    man7.install "apex-plugins.7" if File.exist?("apex-plugins.7")
     # Fix libyaml path to point to Homebrew's libyaml
     # This handles both Apple Silicon (/opt/homebrew) and Intel (/usr/local) installations
     libyaml_path = "#{HOMEBREW_PREFIX}/lib/libyaml-0.2.dylib"
@@ -34,5 +37,7 @@ class Apex < Formula
     (testpath / "test.md").write("# Hello World\n")
     assert_match "<h1 id=\"hello-world\">Hello World</h1>", shell_output("#{bin}/apex test.md")
     assert_match version.to_s, shell_output("#{bin}/apex --version", 2)
+    # Assert once the release tarball includes man pages (bundled by make release-*)
+    assert_path_exists man1/"apex.1" if (buildpath/"apex.1").exist?
   end
 end

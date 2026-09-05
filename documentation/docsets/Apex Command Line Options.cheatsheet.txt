@@ -274,6 +274,12 @@ END
 			notes %(Enable tooltips on citations when hovering)
 		end
 		entry do
+			name 'Concordance'
+			command '--concordance FILE'
+
+			notes %(TextIndex concordance TSV file; enables indices; can be used multiple times)
+		end
+		entry do
 			name 'Indices'
 			command '--indices'
 

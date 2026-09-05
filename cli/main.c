@@ -95,6 +95,7 @@ typedef struct apex_cli_option_mask {
     bool show_tooltips;
     bool indices;
     bool suppress_index;
+    bool concordance;
     bool stylesheet;
 } apex_cli_option_mask;
 
@@ -215,6 +216,11 @@ static void apex_cli_restore_argv_options(apex_options *opts,
         opts->enable_leanpub_index_syntax = snap->enable_leanpub_index_syntax;
     }
     if (m->suppress_index) opts->suppress_index = snap->suppress_index;
+    if (m->concordance) {
+        opts->concordance_files = snap->concordance_files;
+        opts->enable_indices = snap->enable_indices;
+        opts->enable_textindex_syntax = snap->enable_textindex_syntax;
+    }
     if (m->stylesheet) {
         opts->stylesheet_paths = snap->stylesheet_paths;
         opts->stylesheet_count = snap->stylesheet_count;
@@ -994,6 +1000,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream\n");
     fprintf(stderr, "                         When a SUMMARY.md file is provided, treat it as a GitBook index and combine\n");
     fprintf(stderr, "                         the linked files in order. Output is raw Markdown suitable for piping back into Apex.\n");
+    fprintf(stderr, "  --concordance FILE      TextIndex concordance TSV file (can be used multiple times; enables indices)\n");
     fprintf(stderr, "  --csl FILE              Citation style file (CSL format)\n");
     fprintf(stderr, "  --css FILE, --style FILE  Link to CSS file(s) in document head. With HTML: requires -s/--standalone.\n");
     fprintf(stderr, "                         With -t man-html -s: include custom CSS in the man page. Can be used multiple times or comma-separated (e.g., --css style.css)\n");
@@ -2020,6 +2027,11 @@ int main(int argc, char *argv[]) {
     size_t bibliography_count = 0;
     size_t bibliography_capacity = 4;
 
+    /* Concordance files (NULL-terminated array) */
+    char **concordance_files = NULL;
+    size_t concordance_count = 0;
+    size_t concordance_capacity = 4;
+
     /* Stylesheet files (NULL-terminated array) */
     char **stylesheet_files = NULL;
     size_t stylesheet_count = 0;
@@ -2820,6 +2832,30 @@ int main(int argc, char *argv[]) {
             cli_opt_mask.bibliography = true;
             bibliography_files[bibliography_count++] = argv[i];
             options.enable_citations = true;  /* Enable citations when bibliography is provided */
+        } else if (strcmp(argv[i], "--concordance") == 0) {
+            if (++i >= argc) {
+                fprintf(stderr, "Error: --concordance requires an argument\n");
+                return 1;
+            }
+            if (!concordance_files) {
+                concordance_files = malloc(concordance_capacity * sizeof(char*));
+                if (!concordance_files) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+            } else if (concordance_count >= concordance_capacity) {
+                concordance_capacity *= 2;
+                char **new_files = realloc(concordance_files, concordance_capacity * sizeof(char*));
+                if (!new_files) {
+                    fprintf(stderr, "Error: Memory allocation failed\n");
+                    return 1;
+                }
+                concordance_files = new_files;
+            }
+            cli_opt_mask.concordance = true;
+            concordance_files[concordance_count++] = argv[i];
+            options.enable_indices = true;
+            options.enable_textindex_syntax = true;
         } else if (strcmp(argv[i], "--csl") == 0) {
             if (++i >= argc) {
                 fprintf(stderr, "Error: --csl requires an argument\n");
@@ -4086,6 +4122,17 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Set concordance files in options (NULL-terminated array) */
+    if (concordance_count > 0) {
+        concordance_files = realloc(concordance_files, (concordance_count + 1) * sizeof(char*));
+        if (concordance_files) {
+            concordance_files[concordance_count] = NULL;
+            options.concordance_files = concordance_files;
+            options.enable_indices = true;
+            options.enable_textindex_syntax = true;
+        }
+    }
+
     /* Set stylesheet files in options (NULL-terminated array) */
     if (stylesheet_count > 0) {
         stylesheet_files = realloc(stylesheet_files, (stylesheet_count + 1) * sizeof(char*));
@@ -4507,6 +4554,11 @@ int main(int argc, char *argv[]) {
     /* Free bibliography files array */
     if (bibliography_files) {
         free(bibliography_files);
+    }
+
+    /* Free concordance files array */
+    if (concordance_files) {
+        free(concordance_files);
     }
 
     /* Free script tags array and contents */

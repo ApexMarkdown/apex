@@ -144,6 +144,7 @@ let package = Package(
                 "src/extensions/grid_tables.c",
                 "src/extensions/citations.c",
                 "src/extensions/index.c",
+                "src/extensions/concordance.c",
                 "src/extensions/syntax_highlight.c",
                 "src/pretty_html.c",
                 "src/buffer.c",

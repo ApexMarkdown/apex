@@ -488,6 +488,16 @@ found.
 
 ## Indices
 
+**--concordance** *FILE*
+: TextIndex concordance file (tab-separated). Searches the
+    document for each rule's column-1 pattern and inserts
+    `[match]{^col2}` index marks before TextIndex processing.
+    Can be specified multiple times. Enables indices and
+    TextIndex syntax when used. Matches inside existing index
+    marks, `{index}` directives, and HTML tags are skipped.
+    See https://mattgemmell.scot/textindex/#concordance-files
+    for the concordance file format.
+
 **--indices**
 : Enable index processing. Supports both mmark and TextIndex
     syntax. Default: enabled in MultiMarkdown and unified modes.

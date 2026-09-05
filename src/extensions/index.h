@@ -90,6 +90,13 @@ char *apex_generate_index_html(apex_index_registry *registry, const apex_options
 char *apex_insert_index(const char *html, apex_index_registry *registry, const apex_options *options);
 
 /**
+ * Apply TextIndex concordance file(s): scan the document for column-1 patterns
+ * and insert [match]{^col2} marks. Returns a new string if any marks were added,
+ * or NULL if unchanged / no concordance files.
+ */
+char *apex_apply_concordance(const char *text, const apex_options *options);
+
+/**
  * Free index registry
  */
 void apex_free_index_registry(apex_index_registry *registry);

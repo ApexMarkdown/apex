@@ -1317,6 +1317,30 @@ void test_indices(void) {
                         "TextIndex ## alias does not create a locator for the definition");
     apex_free_string(html);
 
+    /* TextIndex Fig. 16: disable/enable processing with {^-} / {^+} */
+    const char *textindex_toggle =
+        "{^-} This index mark won't be processed: foo{^} {^+} after{^}.";
+    html = apex_markdown_to_html(textindex_toggle, strlen(textindex_toggle), &opts);
+    assert_contains(html, "foo{^}", "TextIndex {^-} leaves marks untouched while disabled");
+    assert_contains(html, "after<span class=\"index\"", "TextIndex {^+} re-enables processing");
+    assert_contains(html, "after <a class=\"index-return\"", "TextIndex mark after {^+} is indexed");
+    assert_not_contains(html, "foo <a class=\"index-return\"", "TextIndex mark inside {^-} region is not indexed");
+    assert_not_contains(html, "{^-}", "TextIndex {^-} toggle mark is consumed when it disables");
+    assert_not_contains(html, "{^+}", "TextIndex {^+} toggle mark is consumed when it enables");
+    assert_not_contains(html, "> - <a class=\"index-return\"", "TextIndex {^-} is not indexed as a heading");
+    assert_not_contains(html, "> + <a class=\"index-return\"", "TextIndex {^+} is not indexed as a heading");
+    apex_free_string(html);
+
+    const char *textindex_toggle_redundant =
+        "{^-} hidden{^} {^-} still{^} {^+} shown{^} {^+} trailing.";
+    html = apex_markdown_to_html(textindex_toggle_redundant, strlen(textindex_toggle_redundant), &opts);
+    assert_contains(html, "hidden{^}", "TextIndex redundant region keeps first disabled mark literal");
+    assert_contains(html, "{^-}", "TextIndex redundant {^-} stays when already disabled");
+    assert_contains(html, "still{^}", "TextIndex marks stay literal until {^+}");
+    assert_contains(html, "shown<span class=\"index\"", "TextIndex processing resumes after effective {^+}");
+    assert_contains(html, "{^+}", "TextIndex redundant {^+} stays when already enabled");
+    apex_free_string(html);
+
     /* Test Leanpub index syntax */
     const char *leanpub_basic = "Call me Ishmael{i: Ishmael}.";
     html = apex_markdown_to_html(leanpub_basic, strlen(leanpub_basic), &opts);
@@ -1460,6 +1484,36 @@ void test_indices(void) {
     assert_contains(html, "index-return", "Index entries have return links");
     assert_contains(html, "href=\"#idxref-", "Index entries link to anchors");
     apex_free_string(html);
+
+    /* Concordance files: auto-mark terms from TSV before TextIndex processing */
+    {
+        apex_options opts_conc = apex_options_default();
+        opts_conc.mode = APEX_MODE_UNIFIED;
+        opts_conc.enable_indices = true;
+        opts_conc.enable_textindex_syntax = true;
+        opts_conc.base_directory = "tests";
+        const char *conc_files[] = {"test_concordance.tsv", NULL};
+        opts_conc.concordance_files = (char **)conc_files;
+
+        const char *conc_doc =
+            "A widget and another Widget appear. The MacBook is nice. Configuration helps.";
+        html = apex_markdown_to_html(conc_doc, strlen(conc_doc), &opts_conc);
+        assert_contains(html, "gadget <a class=\"index-return\"",
+                        "Concordance maps widget to gadget heading");
+        assert_contains(html, "Apple laptop <a class=\"index-return\"",
+                        "Concordance case-sensitive MacBook uses quoted heading");
+        assert_contains(html, "See", "Concordance see-ref from column 2 is rendered");
+        assert_contains(html, "firmware", "Concordance see target firmware appears");
+        /* Existing marks must not be rematched */
+        const char *conc_existing = "Already marked widget{^custom}.";
+        apex_free_string(html);
+        html = apex_markdown_to_html(conc_existing, strlen(conc_existing), &opts_conc);
+        assert_contains(html, "custom <a class=\"index-return\"",
+                        "Concordance skips text already inside an index mark");
+        assert_not_contains(html, "gadget <a class=\"index-return\"",
+                            "Concordance does not rematch marked widget as gadget");
+        apex_free_string(html);
+    }
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Index Tests", had_failures, false);

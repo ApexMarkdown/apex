@@ -243,6 +243,7 @@ typedef struct apex_options {
     bool enable_leanpub_index_syntax;  /* Enable Leanpub {i: "term"} syntax */
     bool suppress_index;  /* Suppress index output */
     bool group_index_by_letter;  /* Group index entries by first letter */
+    char **concordance_files;  /* NULL-terminated TextIndex concordance TSV paths */
 
     /* Wiki link options */
     int wikilink_space;  /* Space replacement: 0=dash, 1=none, 2=underscore, 3=space */

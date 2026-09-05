@@ -25,6 +25,8 @@ static int apex_idx_size_to_int(size_t v) {
 /* Index placeholder prefix - we'll use a unique marker */
 #define INDEX_PLACEHOLDER_PREFIX "<!--IDX:"
 #define INDEX_PLACEHOLDER_SUFFIX "-->"
+/* Protects literal {^...} marks in {^-} regions from later superscript */
+#define TEXTINDEX_CARET_PLACEHOLDER "APEXTICARET"
 
 /**
  * Check if character is valid in index term
@@ -1396,11 +1398,84 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
     const char *read = text;
     char *write = output;
     size_t remaining = capacity;
+    bool textindex_processing = true;  /* {^-} / {^+} toggles */
 
     while (*read) {
         apex_index_entry *entry = NULL;
         int consumed = 0;
         int bracketed_prefix = 0;
+
+        /* TextIndex processing toggles: {^-} disables, {^+} enables.
+         * Effective toggles are removed; redundant ones are left untouched. */
+        if (options->enable_textindex_syntax &&
+            read[0] == '{' && read[1] == '^' &&
+            (read[2] == '-' || read[2] == '+') && read[3] == '}') {
+            if (read[2] == '-' && textindex_processing) {
+                textindex_processing = false;
+                read += 4;
+                continue;
+            }
+            if (read[2] == '+' && !textindex_processing) {
+                textindex_processing = true;
+                read += 4;
+                continue;
+            }
+            /* Redundant toggle: emit with caret placeholder (survives superscript) */
+            const char *lit = (read[2] == '-') ? "{APEXTICARET-}" : "{APEXTICARET+}";
+            size_t lit_len = strlen(lit);
+            if (remaining < lit_len + 1) {
+                size_t used = write - output;
+                capacity = (used + lit_len + 1) * 2;
+                char *new_output = realloc(output, capacity);
+                if (!new_output) {
+                    free(output);
+                    return NULL;
+                }
+                output = new_output;
+                write = output + used;
+                remaining = capacity - used;
+            }
+            memcpy(write, lit, lit_len);
+            write += lit_len;
+            remaining -= lit_len;
+            read += 4;
+            continue;
+        }
+
+        /* While disabled, leave TextIndex marks literal (protect ^ from superscript) */
+        if (options->enable_textindex_syntax && !textindex_processing &&
+            read[0] == '{' && read[1] == '^') {
+            const char *end = read + 2;
+            while (*end && *end != '}' && *end != '\n') end++;
+            if (*end == '}') {
+                size_t inner_len = (size_t)(end - (read + 2));
+                size_t ph_len = strlen(TEXTINDEX_CARET_PLACEHOLDER);
+                size_t lit_len = 1 + ph_len + inner_len + 1; /* { PLACEHOLDER inner } */
+                if (remaining < lit_len + 1) {
+                    size_t used = write - output;
+                    capacity = (used + lit_len + 1) * 2;
+                    char *new_output = realloc(output, capacity);
+                    if (!new_output) {
+                        free(output);
+                        return NULL;
+                    }
+                    output = new_output;
+                    write = output + used;
+                    remaining = capacity - used;
+                }
+                *write++ = '{';
+                memcpy(write, TEXTINDEX_CARET_PLACEHOLDER, ph_len);
+                write += ph_len;
+                if (inner_len > 0) {
+                    memcpy(write, read + 2, inner_len);
+                    write += inner_len;
+                }
+                *write++ = '}';
+                remaining -= lit_len;
+                read = end + 1;
+                continue;
+            }
+        }
 
         /* Try mmark syntax first if enabled */
         if (options->enable_mmark_index_syntax) {
@@ -1408,8 +1483,8 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
         }
 
         /* Try TextIndex syntax if mmark didn't match and TextIndex is enabled */
-        /* TextIndex uses {^} which we need to scan forward for */
-        if (!entry && options->enable_textindex_syntax && *read == '{' && read + 1 < text + text_len && read[1] == '^') {
+        if (!entry && options->enable_textindex_syntax && textindex_processing &&
+            *read == '{' && read + 1 < text + text_len && read[1] == '^') {
             consumed = parse_textindex(text, apex_idx_ptrdiff_to_int(read - text), apex_idx_size_to_int(text_len), &entry, &bracketed_prefix, registry);
         }
 
@@ -1564,19 +1639,59 @@ char *apex_process_index_entries(const char *text, apex_index_registry *registry
 }
 
 /**
- * Render index markers in HTML output
+ * Restore TextIndex caret placeholders left for literal marks in {^-} regions.
  */
-char *apex_render_index_markers(const char *html, apex_index_registry *registry, const apex_options *options) {
-    if (!html || !registry || registry->count == 0 || !options->enable_indices) {
+static char *apex_restore_textindex_carets(const char *html) {
+    if (!html || !strstr(html, TEXTINDEX_CARET_PLACEHOLDER)) {
         return NULL;
     }
 
     size_t html_len = strlen(html);
-    size_t capacity = html_len * 2;
+    size_t ph_len = strlen(TEXTINDEX_CARET_PLACEHOLDER);
+    size_t capacity = html_len + 1;
     char *output = malloc(capacity);
     if (!output) return NULL;
 
     const char *read = html;
+    char *write = output;
+    while (*read) {
+        if (strncmp(read, TEXTINDEX_CARET_PLACEHOLDER, ph_len) == 0) {
+            *write++ = '^';
+            read += ph_len;
+        } else {
+            *write++ = *read++;
+        }
+    }
+    *write = '\0';
+    return output;
+}
+
+/**
+ * Render index markers in HTML output
+ */
+char *apex_render_index_markers(const char *html, apex_index_registry *registry, const apex_options *options) {
+    if (!html || !options->enable_indices) {
+        return NULL;
+    }
+
+    /* Always restore caret placeholders from {^-} protected literal marks */
+    char *caret_restored = apex_restore_textindex_carets(html);
+    const char *work = caret_restored ? caret_restored : html;
+
+    if (!registry || registry->count == 0) {
+        /* No markers to expand; return caret restore if any */
+        return caret_restored;
+    }
+
+    size_t html_len = strlen(work);
+    size_t capacity = html_len * 2;
+    char *output = malloc(capacity);
+    if (!output) {
+        free(caret_restored);
+        return NULL;
+    }
+
+    const char *read = work;
     char *write = output;
     size_t remaining = capacity;
 
@@ -1606,6 +1721,7 @@ char *apex_render_index_markers(const char *html, apex_index_registry *registry,
                         char *new_output = realloc(output, capacity);
                         if (!new_output) {
                             free(output);
+                            free(caret_restored);
                             return NULL;
                         }
                         output = new_output;
@@ -1630,6 +1746,7 @@ char *apex_render_index_markers(const char *html, apex_index_registry *registry,
             char *new_output = realloc(output, capacity);
             if (!new_output) {
                 free(output);
+                free(caret_restored);
                 return NULL;
             }
             output = new_output;
@@ -1641,6 +1758,7 @@ char *apex_render_index_markers(const char *html, apex_index_registry *registry,
     }
 
     *write = '\0';
+    free(caret_restored);
     return output;
 }
 

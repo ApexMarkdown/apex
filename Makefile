@@ -134,9 +134,9 @@ install: build
 # Empty XDG_CONFIG_HOME avoids user-installed plugins (can break -t man); UTF-8 for JSON in plugins.
 man: build
 	@echo "Generating man pages with apex -t man..."
-	@mkdir -p build/empty-xdg-for-man && LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man man/apex.1.md > man/apex.1 && echo "Man page generated: man/apex.1"
-	@if [ -f man/apex-config.5.md ]; then LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man man/apex-config.5.md > man/apex-config.5 && echo "Man page generated: man/apex-config.5"; fi
-	@if [ -f man/apex-plugins.7.md ]; then LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man man/apex-plugins.7.md > man/apex-plugins.7 && echo "Man page generated: man/apex-plugins.7"; fi
+	@mkdir -p build/empty-xdg-for-man && LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man --no-indices man/apex.1.md > man/apex.1 && echo "Man page generated: man/apex.1"
+	@if [ -f man/apex-config.5.md ]; then LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man --no-indices man/apex-config.5.md > man/apex-config.5 && echo "Man page generated: man/apex-config.5"; fi
+	@if [ -f man/apex-plugins.7.md ]; then LANG=en_US.UTF-8 XDG_CONFIG_HOME="$(CURDIR)/build/empty-xdg-for-man" ./build/apex -t man --no-indices man/apex-plugins.7.md > man/apex-plugins.7 && echo "Man page generated: man/apex-plugins.7"; fi
 
 # Release build targets
 release: clean-release
@@ -160,6 +160,14 @@ release-macos:
 	@cd $(BUILD_DIR) && $(MAKE) -j$$(sysctl -n hw.ncpu) apex_cli
 	@mkdir -p $(RELEASE_DIR)/apex-$(VERSION)-macos-universal
 	@cp $(BUILD_DIR)/apex $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex
+	@for f in apex.1 apex-config.5 apex-plugins.7; do \
+		if [ -f man/$$f ]; then \
+			cp man/$$f $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/; \
+			echo "  Bundled man page: $$f"; \
+		else \
+			echo "  Warning: man/$$f missing; not included in release archive"; \
+		fi; \
+	done
 	@echo "Fixing libyaml library path to use @rpath for portability..."
 	@if otool -L $(RELEASE_DIR)/apex-$(VERSION)-macos-universal/apex | grep -q "libyaml.*dylib"; then \
 		echo "  Adding rpaths for common libyaml locations..."; \
@@ -188,6 +196,14 @@ release-linux:
 	@cd $(BUILD_DIR) && $(MAKE) -j$$(nproc) apex_cli
 	@mkdir -p $(RELEASE_DIR)/apex-$(VERSION)-linux-$(UNAME_M)
 	@cp $(BUILD_DIR)/apex $(RELEASE_DIR)/apex-$(VERSION)-linux-$(UNAME_M)/apex
+	@for f in apex.1 apex-config.5 apex-plugins.7; do \
+		if [ -f man/$$f ]; then \
+			cp man/$$f $(RELEASE_DIR)/apex-$(VERSION)-linux-$(UNAME_M)/; \
+			echo "  Bundled man page: $$f"; \
+		else \
+			echo "  Warning: man/$$f missing; not included in release archive"; \
+		fi; \
+	done
 	@cd $(RELEASE_DIR) && tar -czf apex-$(VERSION)-linux-$(UNAME_M).tar.gz apex-$(VERSION)-linux-$(UNAME_M)/
 	@echo "Linux release built: $(RELEASE_DIR)/apex-$(VERSION)-linux-$(UNAME_M).tar.gz"
 	@echo "SHA256: $$(cd $(RELEASE_DIR) && sha256sum apex-$(VERSION)-linux-$(UNAME_M).tar.gz | cut -d' ' -f1)"
