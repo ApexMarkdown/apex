@@ -1159,6 +1159,162 @@ void test_indices(void) {
     const char *textindex_explicit = "This uses [key combinations]{^}.";
     html = apex_markdown_to_html(textindex_explicit, strlen(textindex_explicit), &opts);
     assert_contains(html, "class=\"index\"", "TextIndex explicit term generates marker");
+    assert_contains(html, "key combinations", "TextIndex explicit term keeps visible text");
+    assert_not_contains(html, "[key combinations]", "TextIndex explicit term strips square brackets");
+    assert_contains(html, "key combinations <a class=\"index-return\"", "TextIndex index lists explicit term");
+    apex_free_string(html);
+
+    /* Bare {^} indexes only the preceding word; [phrase]{^} is for multi-word terms */
+    const char *textindex_word =
+        "Most mechanical keyboard firmware{^} supports the use of [key combinations]{^}.";
+    html = apex_markdown_to_html(textindex_word, strlen(textindex_word), &opts);
+    assert_contains(html, "firmware<span class=\"index\"", "TextIndex bare {^} leaves preceding word");
+    assert_not_contains(html, "Most mechanical keyboard firmware <a", "TextIndex bare {^} indexes word only, not whole phrase");
+    assert_contains(html, "firmware <a class=\"index-return\"", "TextIndex bare {^} index entry is firmware");
+    assert_not_contains(html, "[key combinations]", "TextIndex phrase form strips brackets in sentence");
+    assert_contains(html, "of key combinations<span class=\"index\"", "TextIndex phrase form keeps unbracketed text");
+    apex_free_string(html);
+
+    /* Quoted heading override / standalone mark (TextIndex Fig. 2) */
+    const char *textindex_quoted =
+        "This is a standalone mark: {^\"foo bar\"} and this one has an overridden [heading]{^\"foo baz\"}.";
+    html = apex_markdown_to_html(textindex_quoted, strlen(textindex_quoted), &opts);
+    assert_not_contains(html, "{^", "TextIndex quoted marks are consumed (not left for superscript)");
+    assert_not_contains(html, "{<sup>", "TextIndex quoted marks are not turned into superscript");
+    assert_contains(html, "standalone mark: <span class=\"index\"", "TextIndex standalone quoted mark leaves only index span");
+    assert_contains(html, "overridden heading<span class=\"index\"", "TextIndex override keeps visible heading without brackets");
+    assert_not_contains(html, "[heading]", "TextIndex override strips square brackets");
+    assert_contains(html, "foo bar <a class=\"index-return\"", "TextIndex standalone quoted mark indexes foo bar");
+    assert_contains(html, "foo baz <a class=\"index-return\"", "TextIndex override indexes quoted term not visible heading");
+    assert_not_contains(html, "heading <a class=\"index-return\"", "TextIndex override does not index visible heading text");
+    apex_free_string(html);
+
+    /* TextIndex Fig. 4-5: underscore emphasis and * / ** wildcards */
+    const char *textindex_emph =
+        "This entry will be _emphasised_{^} in the index. "
+        "This expanded entry won't be _emphasised_{^\"* (nope)\"}.";
+    html = apex_markdown_to_html(textindex_emph, strlen(textindex_emph), &opts);
+    assert_contains(html, "<em>emphasised</em><span class=\"index\"",
+                    "TextIndex emphasised heading keeps emphasis in body");
+    assert_contains(html, "<em>emphasised</em> <a class=\"index-return\"",
+                    "TextIndex emphasised heading is emphasised in index");
+    assert_not_contains(html, "_emphasised_",
+                        "TextIndex emphasised heading does not keep raw underscores in index");
+    assert_contains(html, "emphasised (nope) <a class=\"index-return\"",
+                    "TextIndex * wildcard expands preceding without emphasis");
+    assert_not_contains(html, "* (nope)",
+                        "TextIndex * wildcard is not left literal in index");
+    apex_free_string(html);
+
+    const char *textindex_emph_strip = "This entry won't be _emphasised_{^*}.";
+    html = apex_markdown_to_html(textindex_emph_strip, strlen(textindex_emph_strip), &opts);
+    assert_contains(html, "emphasised <a class=\"index-return\"",
+                    "TextIndex {^*} strips emphasis via wildcard");
+    assert_not_contains(html, "<em>emphasised</em> <a class=\"index-return\"",
+                        "TextIndex {^*} index entry is not emphasised");
+    assert_not_contains(html, "_emphasised_",
+                        "TextIndex {^*} does not keep raw underscores in index");
+    apex_free_string(html);
+
+    const char *textindex_emph_lower = "Introducing _Widget_{^\"**\"}.";
+    html = apex_markdown_to_html(textindex_emph_lower, strlen(textindex_emph_lower), &opts);
+    assert_contains(html, "widget <a class=\"index-return\"",
+                    "TextIndex ** wildcard lowercases stripped preceding");
+    apex_free_string(html);
+
+    /* TextIndex Fig. 6: prefix wildcards — same heading merges locators */
+    const char *textindex_prefix =
+        "Sir Winston Leonard Spencer Churchill{^\"*, Sir Winston Leonard Spencer\"} "
+        "was Prime Minister from 1940 to 1945.\n\n"
+        "Churchill{^*^} was born on 30 November 1874.";
+    html = apex_markdown_to_html(textindex_prefix, strlen(textindex_prefix), &opts);
+    assert_not_contains(html, "Churchill^",
+                        "TextIndex *^ is not expanded as a plain * wildcard");
+    assert_contains(html, "href=\"#idxref-0\"", "TextIndex merged entry includes first locator");
+    assert_contains(html, "href=\"#idxref-1\"", "TextIndex merged entry includes second locator");
+    {
+        int heading_hits = 0;
+        for (const char *p = html; (p = strstr(p, "Churchill, Sir Winston Leonard Spencer <a class=\"index-return\"")) != NULL; p++) {
+            heading_hits++;
+        }
+        test_result(heading_hits == 1, "TextIndex *^ merges into one index entry with both locators");
+    }
+    apex_free_string(html);
+
+    /* Duplicate mmark marks also merge locators */
+    const char *mmark_dup = "Alpha (!Alpha) here.\n\nMore about Alpha (!Alpha) there.";
+    html = apex_markdown_to_html(mmark_dup, strlen(mmark_dup), &opts);
+    assert_contains(html, "href=\"#idxref-0\"", "mmark merged entry has first locator");
+    assert_contains(html, "href=\"#idxref-1\"", "mmark merged entry has second locator");
+    {
+        int hits = 0;
+        for (const char *p = html; (p = strstr(p, "Alpha <a class=\"index-return\"")) != NULL; p++) {
+            hits++;
+        }
+        test_result(hits == 1, "mmark duplicate marks merge into one entry");
+    }
+    apex_free_string(html);
+
+    /* TextIndex Fig. 11-12: see / see-also cross-references */
+    const char *textindex_see =
+        "This function can be [dangerous]{^\"destructive operation\"|safety>\"of functions\"}.";
+    html = apex_markdown_to_html(textindex_see, strlen(textindex_see), &opts);
+    assert_contains(html, "be dangerous", "TextIndex see-type keeps visible bracketed text");
+    assert_not_contains(html, "[dangerous]", "TextIndex see-type strips brackets");
+    assert_contains(html, "destructive operation", "TextIndex see-type indexes overridden heading");
+    assert_contains(html, "<em>See</em>", "TextIndex see-type renders See in italics");
+    assert_contains(html, "safety: of functions", "TextIndex see-type shows hierarchical path with colon");
+    assert_not_contains(html, "href=\"#idxref-", "TextIndex see-type does not record a locator");
+    apex_free_string(html);
+
+    const char *textindex_see_also =
+        "Even typing on a keyboard can be surprisingly risky{^\"risk\"|ergonomics;+safety}.";
+    html = apex_markdown_to_html(textindex_see_also, strlen(textindex_see_also), &opts);
+    assert_contains(html, "<em>See</em>", "TextIndex mixed xref renders See");
+    assert_contains(html, "ergonomics", "TextIndex mixed xref includes see target");
+    assert_contains(html, "<em>See also</em>", "TextIndex mixed xref renders See also");
+    assert_contains(html, "safety", "TextIndex mixed xref includes also target");
+    assert_not_contains(html, "href=\"#idxref-", "TextIndex see-type in mark suppresses locator");
+    apex_free_string(html);
+
+    const char *textindex_also_only =
+        "A mention of risk{^\"risk\"|+safety} alone.";
+    html = apex_markdown_to_html(textindex_also_only, strlen(textindex_also_only), &opts);
+    assert_contains(html, "<em>See also</em>", "TextIndex also-only renders See also");
+    assert_contains(html, "href=\"#idxref-", "TextIndex also-only keeps locator");
+    assert_not_contains(html, "<em>See</em> safety", "TextIndex also-only is not a see-type");
+    apex_free_string(html);
+
+    /* TextIndex Fig. 13: aliases */
+    const char *textindex_alias =
+        "The various [operating systems]{^\"Apple (company)\">\"OS platforms\"#apple} "
+        "on Apple devices share a common heritage.\n\n"
+        "The majority of Apple devices are iPhones{^\"iPhone\"|+#apple}, by a large margin.";
+    html = apex_markdown_to_html(textindex_alias, strlen(textindex_alias), &opts);
+    assert_contains(html, "operating systems<span class=\"index\"",
+                    "TextIndex alias definition keeps visible text");
+    assert_contains(html, "Apple (company)", "TextIndex alias definition indexes parent heading");
+    assert_contains(html, "OS platforms", "TextIndex alias definition indexes nested heading");
+    assert_contains(html, "iPhone", "TextIndex alias use indexes iPhone");
+    assert_contains(html, "<em>See also</em>", "TextIndex alias use expands as see-also");
+    assert_contains(html, "Apple (company): OS platforms",
+                    "TextIndex #apple expands to full path in see-also");
+    assert_not_contains(html, "#apple", "TextIndex alias name is not left literal");
+    apex_free_string(html);
+
+    /* TextIndex Fig. 14: unreferenced aliases */
+    const char *textindex_unref_alias =
+        "{^\"indeterminacy principle (Heisenberg, Werner Karl)\"##q-uncert} "
+        "A key component of the Enterprise's transporter system is the "
+        "Heisenberg compensator{^|#q-uncert}.";
+    html = apex_markdown_to_html(textindex_unref_alias, strlen(textindex_unref_alias), &opts);
+    assert_contains(html, "compensator", "TextIndex unref alias use keeps preceding word");
+    assert_contains(html, "<em>See</em>", "TextIndex unref alias used as see-reference");
+    assert_contains(html, "indeterminacy principle (Heisenberg, Werner Karl)",
+                    "TextIndex ## alias expands in see target");
+    assert_not_contains(html, "#q-uncert", "TextIndex ## alias name is not left literal");
+    assert_not_contains(html, "indeterminacy principle (Heisenberg, Werner Karl) <a class=\"index-return\"",
+                        "TextIndex ## alias does not create a locator for the definition");
     apex_free_string(html);
 
     /* Test Leanpub index syntax */

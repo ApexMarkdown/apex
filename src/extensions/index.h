@@ -25,20 +25,41 @@ typedef enum {
     APEX_INDEX_LEANPUB = 2
 } apex_index_syntax_t;
 
+/* TextIndex cross-reference (see / see also) */
+typedef struct apex_index_xref {
+    char *target;                  /* Display path, e.g. "safety: of functions" */
+    bool also;                     /* true = see also; false = see */
+    bool inbound;                  /* @ / @+ inbound (applied to target entry) */
+    struct apex_index_xref *next;
+} apex_index_xref;
+
+/* TextIndex alias (#name / ##name) */
+typedef struct apex_index_alias {
+    char *name;                    /* alias id without '#' */
+    char *path;                    /* raw path, e.g. Apple (company)>"OS platforms" */
+    char *item;                    /* top-level heading (HTML) */
+    char *subitem;                 /* nested heading (HTML), optional */
+    char *display;                 /* "item: subitem" display form */
+    struct apex_index_alias *next;
+} apex_index_alias;
+
 /* Index entry structure */
 typedef struct apex_index_entry {
     char *item;                    /* Main index term */
     char *subitem;                 /* Sub-item (optional) */
     bool primary;                  /* Primary entry flag (mmark) */
+    bool suppress_locator;         /* TextIndex see-type mark: no locator */
     int position;                  /* Position in document */
     char *anchor_id;               /* Generated anchor ID (e.g., "idxref-0") */
     apex_index_syntax_t syntax_type;  /* MMARK or TEXTINDEX */
+    apex_index_xref *xrefs;        /* TextIndex see / see-also refs */
     struct apex_index_entry *next;  /* Linked list */
 } apex_index_entry;
 
 /* Index registry */
 typedef struct {
     apex_index_entry *entries;     /* Linked list of index entries */
+    apex_index_alias *aliases;     /* TextIndex aliases */
     size_t count;                  /* Number of entries */
     int next_ref_id;               /* Next reference ID for anchors */
 } apex_index_registry;
