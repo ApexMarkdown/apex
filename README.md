@@ -1,5 +1,5 @@
 
-[![Version: 1.1.16](https://img.shields.io/badge/Version-1.1.16-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/1926](https://img.shields.io/badge/Tests-0/1926-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.17](https://img.shields.io/badge/Version-1.1.17-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/2003](https://img.shields.io/badge/Tests-0/2003-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -338,7 +338,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.16
+Apex Markdown Processor v1.1.17
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
@@ -362,6 +362,7 @@ Options:
   --combine              Concatenate Markdown files (expanding includes) into a single Markdown stream
                          When a SUMMARY.md file is provided, treat it as a GitBook index and combine
                          the linked files in order. Output is raw Markdown suitable for piping back into Apex.
+  --concordance FILE      TextIndex concordance TSV file (can be used multiple times; enables indices)
   --csl FILE              Citation style file (CSL format)
   --css FILE, --style FILE  Link to CSS file(s) in document head. With HTML: requires -s/--standalone.
                          With -t man-html -s: include custom CSS in the man page. Can be used multiple times or comma-separated (e.g., --css style.css)

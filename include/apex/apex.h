@@ -21,8 +21,8 @@ typedef struct cmark_node cmark_node;
 
 #define APEX_VERSION_MAJOR 1
 #define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 17
-#define APEX_VERSION_STRING "1.1.17"
+#define APEX_VERSION_PATCH 18
+#define APEX_VERSION_STRING "1.1.18"
 
 /**
  * Processor compatibility modes

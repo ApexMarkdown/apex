@@ -2,7 +2,49 @@
 
 All notable changes to Apex will be documented in this file.
 
-## [1.1.17] - 2026-08-14
+## [1.1.18] - 2026-09-05
+
+### New
+
+- **Quoted heading overrides** (`{^"term"}` and `[visible]{^"override"}`) so standalone marks and custom index headings work without falling through to superscript
+- **Underscore emphasis in TextIndex headings** renders as `<em>` in the index and sorts as plain text
+- *** and ** wildcards** expand the preceding heading (stripping emphasis; `**` also lowercases)
+- **Prefix wildcards** (`*^` / `*^-`) reuse an earlier matching heading path
+- **See and see-also cross-references** (`|target`, `|+target`, hierarchical `parent>"child"`) with see-type marks omitting locators
+- **Inbound cross-references** (`@` / `@+`) attach see/see-also refs onto the target entry
+- **Aliases** (`#name` after a path, usable in headings and cross-refs) plus **unreferenced aliases** (`##name`) that define without a locator
+- **Hierarchical TextIndex paths** (`"Parent">"Child"`) as nested index entries
+- **`--concordance FILE`** loads TextIndex concordance TSV files and auto-inserts `[match]{^...}` marks before index processing (enables indices; repeatable)
+- **Processing toggles** (`{^-}` / `{^+}`) to leave TextIndex marks literal in selected regions
+
+### Improved
+
+- **Duplicate headings merge into one entry** with multiple locators (TextIndex and mmark)
+- **Homebrew installs man pages** (`apex.1`, `apex-config.5`, `apex-plugins.7`) from the release archive
+
+### Fixed
+
+- **`[phrase]{^}` strips square brackets** from visible text while indexing the phrase
+- **Bare `word{^}` indexes only the adjacent word**, not a multi-word run of preceding text
+
+## [1.1.17] - 2026-09-05
+
+### New
+
+- **Quoted heading overrides** (`{^"term"}` and `[visible]{^"override"}`) so standalone marks and custom index headings work without falling through to superscript
+- **Underscore emphasis in TextIndex headings** renders as `<em>` in the index and sorts as plain text
+- *** and ** wildcards** expand the preceding heading (stripping emphasis; `**` also lowercases)
+- **Prefix wildcards** (`*^` / `*^-`) reuse an earlier matching heading path
+- **See and see-also cross-references** (`|target`, `|+target`, hierarchical `parent>"child"`) with see-type marks omitting locators
+- **Inbound cross-references** (`@` / `@+`) attach see/see-also refs onto the target entry
+- **Aliases** (`#name` after a path, usable in headings and cross-refs) plus **unreferenced aliases** (`##name`) that define without a locator
+- **Hierarchical TextIndex paths** (`"Parent">"Child"`) as nested index entries
+- **`--concordance FILE`** loads TextIndex concordance TSV files and auto-inserts `[match]{^...}` marks before index processing (enables indices; repeatable)
+- **Processing toggles** (`{^-}` / `{^+}`) to leave TextIndex marks literal in selected regions
+- **Duplicate headings merge into one entry** with multiple locators (TextIndex and mmark)
+- **Homebrew installs man pages** (`apex.1`, `apex-config.5`, `apex-plugins.7`) from the release archive
+- **`[phrase]{^}` strips square brackets** from visible text while indexing the phrase
+- **Bare `word{^}` indexes only the adjacent word**, not a multi-word run of preceding text
 
 ### Fixed
 
@@ -3157,6 +3199,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.18]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.18
 [1.1.17]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.17
 [1.1.16]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.16
 [1.1.15]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.15
