@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.19] - 2026-09-05
+
+### New
+
+- **Metadata file API** lets embedding hosts load and apply CLI-compatible YAML, Pandoc, or MultiMarkdown metadata files to `apex_options`
+
 ## [1.1.18] - 2026-09-05
 
 ### New
@@ -3199,6 +3205,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.19]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.19
 [1.1.18]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.18
 [1.1.17]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.17
 [1.1.16]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.16

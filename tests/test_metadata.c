@@ -799,6 +799,29 @@ void test_metadata_control_options(void) {
 
     apex_free_metadata(metadata);
 
+    /* Test public API for loading and applying metadata from a file */
+#ifdef TEST_FIXTURES_DIR
+    opts = apex_options_default();
+    opts.enable_indices = true;
+    char public_metadata_file_path[512];
+    snprintf(public_metadata_file_path, sizeof(public_metadata_file_path), "%s/metadata_options.yml", TEST_FIXTURES_DIR);
+
+    assert_option_bool(apex_options_apply_meta_file(NULL, public_metadata_file_path), false,
+                       "metadata file API rejects NULL options");
+    assert_option_bool(apex_options_apply_meta_file(&opts, NULL), false,
+                       "metadata file API rejects NULL path");
+    assert_option_bool(apex_options_apply_meta_file(&opts, ""), false,
+                       "metadata file API rejects empty path");
+    assert_option_bool(apex_options_apply_meta_file(&opts, "/no/such/apex-metadata-file.yml"), false,
+                       "metadata file API rejects missing file");
+    assert_option_bool(opts.enable_indices, true,
+                       "metadata file API leaves options unchanged on failure");
+    assert_option_bool(apex_options_apply_meta_file(&opts, public_metadata_file_path), true,
+                       "metadata file API loads a valid file");
+    assert_option_bool(opts.enable_indices, false,
+                       "metadata file API applies boolean options");
+#endif
+
     /* Test loading metadata from file */
 #ifdef TEST_FIXTURES_DIR
     opts = apex_options_default();

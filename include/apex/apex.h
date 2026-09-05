@@ -21,8 +21,8 @@ typedef struct cmark_node cmark_node;
 
 #define APEX_VERSION_MAJOR 1
 #define APEX_VERSION_MINOR 1
-#define APEX_VERSION_PATCH 18
-#define APEX_VERSION_STRING "1.1.18"
+#define APEX_VERSION_PATCH 19
+#define APEX_VERSION_STRING "1.1.19"
 
 /**
  * Processor compatibility modes
@@ -347,6 +347,14 @@ char *apex_cmark_to_rtf(cmark_node *document, const struct apex_options *options
  */
 apex_options apex_options_default(void);
 apex_options apex_options_for_mode(apex_mode_t mode);
+
+/**
+ * Load metadata from an external file and apply it to options.
+ * Supports the same YAML, Pandoc, and MultiMarkdown formats as the CLI.
+ * @return true on success; false if options or path is NULL, path is empty,
+ *         or the file cannot be loaded.
+ */
+bool apex_options_apply_meta_file(apex_options *options, const char *path);
 
 /**
  * Main conversion function: Markdown to HTML

@@ -3298,6 +3298,21 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
     return opts;
 }
 
+bool apex_options_apply_meta_file(apex_options *options, const char *path) {
+    if (!options || !path || !path[0]) {
+        return false;
+    }
+
+    apex_metadata_item *metadata = apex_load_metadata_from_file(path);
+    if (!metadata) {
+        return false;
+    }
+
+    apex_apply_metadata_to_options(metadata, options);
+    apex_free_metadata(metadata);
+    return true;
+}
+
 static bool apex_quarto_feature(const apex_options *options, bool feature_enabled) {
     return feature_enabled &&
            (options->enable_quarto_extensions || options->mode == APEX_MODE_QUARTO);
