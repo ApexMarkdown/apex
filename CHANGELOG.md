@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.21] - 2026-09-07
+
+### Changed
+
+- **Apex version** Release this fix as 1.1.20.
+
+### Improved
+
+- **Block starters** (`>`, headings, lists, tables, HTML) are not buffered as potential definition terms
+
+### Fixed
+
+- **Metadata file options** Keep copied string and stylesheet values valid after metadata cleanup.
+- **Fenced code after a definition list** parses as a real `<pre><code>` block instead of raw backticks (CommonMark no longer treats the fence as part of the `</dl>` HTML block)
+- **Blank lines after a buffered non-term** are preserved so following callouts/blockquotes do not swallow later paragraphs
+
 ## [1.1.20] - 2026-09-05
 
 ### Fixed
@@ -3211,6 +3227,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.21]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.21
 [1.1.20]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.20
 [1.1.19]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.19
 [1.1.18]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.18

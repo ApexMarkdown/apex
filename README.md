@@ -1,5 +1,5 @@
 
-[![Version: 1.1.17](https://img.shields.io/badge/Version-1.1.17-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/2003](https://img.shields.io/badge/Tests-0/2003-f97373)<!--END TESTS_BADGE-->
+[![Version: 1.1.20](https://img.shields.io/badge/Version-1.1.20-528c9e)](https://github.com/ApexMarkdown/apex/releases/latest) ![](https://img.shields.io/badge/CMake-064F8C?style=for-the-badge&logo=cmake&logoColor=white) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!--TESTS_BADGE-->![Tests passing 0/2025](https://img.shields.io/badge/Tests-0/2025-f97373)<!--END TESTS_BADGE-->
 
 
 # Apex
@@ -191,6 +191,7 @@ See the [Installation](https://github.com/ApexMarkdown/apex/wiki/Installation) w
 ### Homebrew (macOS/Linux)
 
 ```bash
+brew trust ttscoff/thelab
 brew tap ttscoff/thelab
 brew install ttscoff/thelab/apex
 
@@ -338,7 +339,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.17
+Apex Markdown Processor v1.1.20
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
