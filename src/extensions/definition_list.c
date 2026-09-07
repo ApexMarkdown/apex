@@ -193,6 +193,40 @@ static bool is_code_fence_line(const char *line, size_t len) {
     if (p + 3 <= line + len && p[0] == '`' && p[1] == '`' && p[2] == '`') {
         return true;
     }
+    if (p + 3 <= line + len && p[0] == '~' && p[1] == '~' && p[2] == '~') {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Lines that clearly start a new Markdown block should not be buffered as
+ * potential definition-list terms (avoids eating blanks / mis-ordering fences).
+ */
+static bool is_block_start_line(const char *line, size_t len) {
+    const char *p = line;
+    const char *end = line + len;
+    while (p < end && (*p == ' ' || *p == '\t')) p++;
+    if (p >= end) return false;
+
+    if (*p == '>' || *p == '#' || *p == '|' || *p == '<') return true;
+
+    /* Unordered list markers */
+    if ((*p == '-' || *p == '*' || *p == '+') &&
+        (p + 1 >= end || p[1] == ' ' || p[1] == '\t')) {
+        return true;
+    }
+
+    /* Ordered list markers: 1. / 1) */
+    if (isdigit((unsigned char)*p)) {
+        const char *q = p;
+        while (q < end && isdigit((unsigned char)*q)) q++;
+        if (q < end && (*q == '.' || *q == ')') &&
+            (q + 1 >= end || q[1] == ' ' || q[1] == '\t')) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -312,6 +346,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
     bool in_inline_code_span = false;
     char term_buffer[4096];
     int term_len = 0;
+    int blanks_after_term = 0;  /* blanks skipped while a potential term is buffered */
     bool dd_open = false;  /* True when we output <dd> but not yet </dd> (for Kramdown continuation) */
     bool prev_line_was_table_row = false;
 
@@ -339,7 +374,9 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         if (is_code_fence_line(line_start, line_length)) {
             in_code_block = !in_code_block;
             if (in_code_block) {
-                /* Entering fenced code block: flush buffered term before fence */
+                /* Entering fenced code: close DL cleanly and flush buffered prose
+                 * before the fence. Extra blank after </dl> so CommonMark does not
+                 * treat the fence as part of an HTML block. */
                 if (dd_open) {
                     ENSURE_SPACE(10);
                     memcpy(write, "</dd>\n", 6);
@@ -349,19 +386,24 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 }
                 if (in_def_list) {
                     ENSURE_SPACE(10);
-                    memcpy(write, "</dl>\n", 6);
-                    write += 6;
-                    remaining -= 6;
+                    memcpy(write, "</dl>\n\n", 7);
+                    write += 7;
+                    remaining -= 7;
                     in_def_list = false;
                 }
                 if (term_len > 0) {
-                    ENSURE_SPACE((size_t)term_len + 2);
+                    ENSURE_SPACE((size_t)term_len + 2 + (size_t)blanks_after_term);
                     memcpy(write, term_buffer, (size_t)term_len);
                     write += term_len;
                     remaining -= (size_t)term_len;
                     *write++ = '\n';
                     remaining--;
+                    for (int bi = 0; bi < blanks_after_term; bi++) {
+                        *write++ = '\n';
+                        remaining--;
+                    }
                     term_len = 0;
+                    blanks_after_term = 0;
                 }
             }
             ENSURE_SPACE(line_length + 2);
@@ -388,13 +430,18 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         /* Skip definition processing inside indented code blocks */
         if (in_indented_code_block) {
             if (term_len > 0) {
-                ENSURE_SPACE((size_t)term_len + 2);
+                ENSURE_SPACE((size_t)term_len + 2 + (size_t)blanks_after_term);
                 memcpy(write, term_buffer, (size_t)term_len);
                 write += term_len;
                 remaining -= (size_t)term_len;
                 *write++ = '\n';
                 remaining--;
+                for (int bi = 0; bi < blanks_after_term; bi++) {
+                    *write++ = '\n';
+                    remaining--;
+                }
                 term_len = 0;
+                blanks_after_term = 0;
             }
             ENSURE_SPACE(line_length + 2);
             memcpy(write, line_start, line_length);
@@ -473,6 +520,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 write += 6;
                 remaining -= 6;
                 term_len = 0;
+                blanks_after_term = 0;  /* blanks between term and : are normal DL spacing */
             } else if (in_def_list) {
                 /* Another : definition for same term */
                 if (dd_open) {
@@ -525,13 +573,18 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                 in_def_list = false;
             }
             if (term_len > 0) {
-                ENSURE_SPACE((size_t)term_len + 2);
+                ENSURE_SPACE((size_t)term_len + 2 + (size_t)blanks_after_term);
                 memcpy(write, term_buffer, (size_t)term_len);
                 write += term_len;
                 remaining -= (size_t)term_len;
                 *write++ = '\n';
                 remaining--;
+                for (int bi = 0; bi < blanks_after_term; bi++) {
+                    *write++ = '\n';
+                    remaining--;
+                }
                 term_len = 0;
+                blanks_after_term = 0;
             }
             /* Extract term (before ::) and definition (after ::) */
             const char *term_start = line_start;
@@ -613,7 +666,8 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
             if (is_blank) {
                 /* Blank line: keep def list open (next line might be : definition for same term) */
                 if (term_len > 0) {
-                    /* Skip blank, keep term buffered */
+                    /* Remember blanks; restore them if this was not actually a term */
+                    blanks_after_term++;
                 } else if (!in_def_list) {
                     ENSURE_SPACE(2);
                     *write++ = '\n';
@@ -628,18 +682,24 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     in_def_list = false;
                 }
                 if (term_len > 0) {
-                    ENSURE_SPACE((size_t)term_len + 2);
+                    ENSURE_SPACE((size_t)term_len + 2 + (size_t)blanks_after_term);
                     memcpy(write, term_buffer, (size_t)term_len);
                     write += term_len;
                     remaining -= (size_t)term_len;
                     *write++ = '\n';
                     remaining--;
+                    for (int bi = 0; bi < blanks_after_term; bi++) {
+                        *write++ = '\n';
+                        remaining--;
+                    }
                     term_len = 0;
+                    blanks_after_term = 0;
                 }
                 const char *p = line_start;
                 while (p < line_end && (*p == ' ' || *p == '\t')) p++;
                 bool is_ref_def = (p < line_end && *p == '[' && memchr(p, ':', (size_t)(line_end - p)) != NULL);
                 if (is_ref_def || is_atx_heading_line(line_start, line_length) ||
+                    is_block_start_line(line_start, line_length) ||
                     line_length >= sizeof(term_buffer) - 1) {
                     ENSURE_SPACE(line_length + 2);
                     memcpy(write, line_start, line_length);
@@ -651,6 +711,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     memcpy(term_buffer, line_start, line_length);
                     term_len = (int)line_length;
                     term_buffer[term_len] = '\0';
+                    blanks_after_term = 0;
                 }
             }
             }
@@ -675,14 +736,17 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
         write += 6;
     }
     if (in_def_list) {
-        memcpy(write, "</dl>\n", 6);
-        write += 6;
+        memcpy(write, "</dl>\n\n", 7);
+        write += 7;
     }
     if (term_len > 0) {
-        ENSURE_SPACE((size_t)term_len + 2);
+        ENSURE_SPACE((size_t)term_len + 2 + (size_t)blanks_after_term);
         memcpy(write, term_buffer, (size_t)term_len);
         write += term_len;
         *write++ = '\n';
+        for (int bi = 0; bi < blanks_after_term; bi++) {
+            *write++ = '\n';
+        }
     }
 
     *write = '\0';

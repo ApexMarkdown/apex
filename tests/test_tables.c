@@ -550,6 +550,26 @@ void test_relaxed_tables(void) {
     }
     apex_free_string(html);
 
+    /* Mermaid edge labels |Yes| / |No| must not get a GFM separator injected */
+    {
+        apex_options unified = apex_options_default();
+        unified.mode = APEX_MODE_UNIFIED;
+        unified.relaxed_tables = true;
+        unified.enable_tables = true;
+        const char *mermaid_pipes =
+            "```mermaid\n"
+            "graph TD\n"
+            "  A -->|Yes| B\n"
+            "  A -->|No| C\n"
+            "```\n";
+        html = apex_markdown_to_html(mermaid_pipes, strlen(mermaid_pipes), &unified);
+        assert_contains(html, "lang=\"mermaid\"", "Mermaid fence keeps language");
+        assert_contains(html, "|Yes|", "Mermaid Yes edge label preserved");
+        assert_contains(html, "|No|", "Mermaid No edge label preserved");
+        assert_not_contains(html, "---|---|---", "No relaxed-table separator inside Mermaid fence");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Relaxed Tables Tests", had_failures, false);
 }

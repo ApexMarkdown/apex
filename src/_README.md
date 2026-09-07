@@ -191,6 +191,7 @@ See the [Installation](https://github.com/ApexMarkdown/apex/wiki/Installation) w
 ### Homebrew (macOS/Linux)
 
 ```bash
+brew trust ttscoff/thelab
 brew tap ttscoff/thelab
 brew install ttscoff/thelab/apex
 

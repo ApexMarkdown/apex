@@ -1501,6 +1501,75 @@ void test_definition_lists(void) {
     }
     apex_free_string(html);
 
+    /* Fence immediately after definition list must become a real code block */
+    {
+        const char *dl_then_fence =
+            "Term\n"
+            ": Def\n"
+            "\n"
+            "```\n"
+            "code\n"
+            "```\n";
+        html = apex_markdown_to_html(dl_then_fence, strlen(dl_then_fence), &opts);
+        assert_contains(html, "<dl>", "DL before bare fence still renders");
+        assert_contains(html, "<pre", "Bare fence after DL becomes pre/code");
+        assert_contains(html, "<code", "Bare fence after DL contains code element");
+        assert_not_contains(html, "</dl>\n```", "Fence after DL is not left as raw backticks");
+        apex_free_string(html);
+    }
+
+    /* Paragraph between DL and fence stays before the fence */
+    {
+        const char *dl_para_fence =
+            "Term\n"
+            ": Def\n"
+            "\n"
+            "This should stay before the diagram\n"
+            "\n"
+            "```mermaid\n"
+            "graph TD\n"
+            "  A --> B\n"
+            "```\n";
+        html = apex_markdown_to_html(dl_para_fence, strlen(dl_para_fence), &opts);
+        const char *para = strstr(html, "This should stay before the diagram");
+        const char *pre = strstr(html, "<pre");
+        test_result(para && pre && para < pre,
+                    "Paragraph between DL and fence stays before pre");
+        apex_free_string(html);
+    }
+
+    /* DL + callout + following paragraph: blanks must not be eaten */
+    {
+        apex_options callout_opts = apex_options_default();
+        callout_opts.mode = APEX_MODE_UNIFIED;
+        callout_opts.enable_callouts = true;
+        callout_opts.enable_definition_lists = true;
+        const char *dl_callout =
+            "Term\n"
+            ": Def\n"
+            "\n"
+            "> [!Note]\n"
+            "> note body\n"
+            "\n"
+            "After callout\n";
+        html = apex_markdown_to_html(dl_callout, strlen(dl_callout), &callout_opts);
+        assert_contains(html, "callout", "Callout after DL still renders");
+        assert_contains(html, "After callout", "Paragraph after callout preserved");
+        /* "After callout" must not sit inside the callout content blockquote */
+        const char *after = strstr(html, "After callout");
+        const char *callout_end = strstr(html, "</div>\n</div>");
+        if (!callout_end) callout_end = strstr(html, "callout-content");
+        test_result(after != NULL, "After callout text present in output");
+        if (after && strstr(html, "callout-content")) {
+            /* Find the callout-content section and ensure After is outside it */
+            const char *content = strstr(html, "callout-content");
+            const char *content_close = content ? strstr(content, "</div>") : NULL;
+            test_result(content_close && after > content_close,
+                        "After callout is outside callout-content");
+        }
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }
