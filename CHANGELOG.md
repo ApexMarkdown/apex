@@ -2,6 +2,21 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.22] - 2026-09-21
+
+### Changed
+
+- **Homebrew formula** bump to 1.1.21 and refresh the macOS universal checksum
+
+### Improved
+
+- **Header ID injection buffer** grows with realloc on demand instead of silently dropping input once capacity is exhausted
+
+### Fixed
+
+- **Homebrew formula** include Linux x86_64 and aarch64 tarball URLs so brew tap no longer fails Linux validation
+- **Header permalink anchors** no longer truncate the rest of the HTML when many headings make injected `<a href="#..." id="...">` tags exceed the old fixed buffer budget
+
 ## [1.1.21] - 2026-09-07
 
 ### Changed
@@ -3227,6 +3242,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.22]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.22
 [1.1.21]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.21
 [1.1.20]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.20
 [1.1.19]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.19
