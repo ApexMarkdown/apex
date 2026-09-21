@@ -145,6 +145,19 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
         p++;
         int key_len = extract_citation_key(text, apex_ptrdiff_to_int(p - text), len, &key);
         if (key_len > 0 && key) {
+            /* `@Name: …` in prose (iA Writer Annotations dumps) must not swallow
+             * the trailing colon into the key — that yields <!--CITE:Name:--> which
+             * emoji then corrupts, and leaves the rest of the line as orphan text. */
+            size_t key_strlen = strlen(key);
+            if (key_strlen > 0 && key[key_strlen - 1] == ':') {
+                const char *after_colon_key = p + key_len;
+                if (after_colon_key >= text + len ||
+                    isspace((unsigned char)*after_colon_key) ||
+                    isdigit((unsigned char)*after_colon_key)) {
+                    key[key_strlen - 1] = '\0';
+                    key_len--;
+                }
+            }
             if (options && options->enable_quarto_xrefs && apex_citation_key_is_quarto_xref(key)) {
                 free(key);
                 return 0;

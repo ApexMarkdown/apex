@@ -286,6 +286,23 @@ char *apex_replace_emoji(const char *html) {
             continue;
         }
 
+        /* Skip emoji inside HTML comments (citation placeholders are
+         * <!--CITE:key-->; a key like "Wayne:" contains ":Wayne:" and would
+         * otherwise fuzzy-match to :wave: → <!--CITE👋-->). */
+        if (read[0] == '<' && read[1] == '!' && read[2] == '-' && read[3] == '-') {
+            const char *comment_end = strstr(read + 4, "-->");
+            if (comment_end) {
+                size_t comment_len = (size_t)(comment_end + 3 - read);
+                if (comment_len <= remaining) {
+                    memcpy(write, read, comment_len);
+                    write += comment_len;
+                    remaining -= comment_len;
+                    read = comment_end + 3;
+                    continue;
+                }
+            }
+        }
+
         /* Check if we're inside an index placeholder <!--IDX:...--> - if so, skip emoji processing */
         if (read >= html + 7 && strncmp(read - 7, "<!--IDX:", 8) == 0) {
             /* Find the end of the placeholder */

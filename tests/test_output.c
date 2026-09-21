@@ -1595,6 +1595,17 @@ void test_citations(void) {
     assert_contains(html, "smith04", "Author-in-text citation includes key");
     apex_free_string(html);
 
+    /* iA Writer Annotations dumps use `@Name: 1,2 3,4` — trailing colon is not
+     * part of a cite key, and the range dump must stay in the paragraph. */
+    const char *ia_ann_prose =
+        "Body.\n\n@Wayne: 2,7 10,8 19,5\n";
+    html = apex_markdown_to_html(ia_ann_prose, strlen(ia_ann_prose), &opts);
+    assert_contains(html, "2,7 10,8 19,5",
+                    "@Name: annotations dump keeps range text in output");
+    assert_not_contains(html, "CITE👋",
+                        "@Name: annotations dump is not emoji-corrupted in CITE");
+    apex_free_string(html);
+
     /* Test MultiMarkdown citation syntax */
     opts.mode = APEX_MODE_MULTIMARKDOWN;
     const char *mmd_cite = "This is a statement[#Doe:2006].";
