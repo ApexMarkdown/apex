@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.24] - 2026-09-21
+
+### Changed
+
+- **Homebrew formula** updated to 1.1.23 with macOS and Linux release checksums
+
+### Fixed
+
+- **Author-in-text citations** no longer treat a trailing colon as part of the key when `@Name:` is followed by a space or digit (iA Writer Annotations dumps like `@Wayne: 2,7 10,8`)
+- **Emoji replacement** skips HTML comments so `<!--CITE:key-->` placeholders are not corrupted when a key contains colon-delimited shortcodes (for example `:Wayne:` matching `:wave:`)
+
 ## [1.1.23] - 2026-09-21
 
 ## [1.1.22] - 2026-09-21
@@ -3244,6 +3255,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.24]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.24
 [1.1.23]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.23
 [1.1.22]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.22
 [1.1.21]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.21
