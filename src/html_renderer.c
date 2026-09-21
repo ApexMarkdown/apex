@@ -1291,10 +1291,14 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
     }
     header_map = reversed;
 
-    /* Process HTML to inject IDs */
+    /* Process HTML to inject IDs / optional permalink anchors.
+     * Anchor tags are much larger than id="" attributes; under-estimating
+     * capacity used to silently drop the HTML tail (For_Brett: lost items
+     * 144–145 when header_anchors was on and the Annotations pad was stripped). */
     size_t html_len = strlen(html);
-    size_t capacity = html_len + header_count * 100;  /* Extra space for IDs */
-    char *output = malloc(capacity + 1);  /* +1 for null terminator */
+    size_t per_header = use_anchors ? 220 : 100;
+    size_t capacity = html_len + header_count * per_header + 64;
+    char *output = malloc(capacity);
     if (!output) {
         /* Clean up */
         while (header_map) {
@@ -1309,7 +1313,27 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
 
     const char *read = html;
     char *write = output;
-    size_t remaining = capacity;  /* Reserve 1 byte for null terminator */
+    size_t remaining = capacity;
+
+    #define APEX_HEADER_ID_ENSURE(needed) do { \
+        size_t _need = (size_t)(needed); \
+        if (remaining < _need + 1) { \
+            size_t _used = (size_t)(write - output); \
+            size_t _new_cap = (_used + _need + 1) * 2; \
+            if (_new_cap < _used + _need + 64) { \
+                _new_cap = _used + _need + 64; \
+            } \
+            char *_new_out = realloc(output, _new_cap); \
+            if (!_new_out) { \
+                *write = '\0'; \
+                goto apex_inject_header_ids_done; \
+            } \
+            output = _new_out; \
+            write = output + _used; \
+            remaining = _new_cap - _used; \
+            capacity = _new_cap; \
+        } \
+    } while (0)
 
     while (*read) {
         /* Look for header opening tags: <h1>, <h2>, etc. */
@@ -1323,12 +1347,9 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
             while (*tag_end && *tag_end != '>') tag_end++;
             if (*tag_end != '>') {
                 /* Malformed tag, just copy */
-                if (remaining > 0) {
-                    *write++ = *read++;
-                    remaining--;
-                } else {
-                    read++;
-                }
+                APEX_HEADER_ID_ENSURE(1);
+                *write++ = *read++;
+                remaining--;
                 continue;
             }
 
@@ -1404,11 +1425,10 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
             if (use_anchors && header && header->id) {
                 /* For anchor tags: copy the entire header tag, then inject anchor after '>' */
                 size_t tag_len = tag_end - tag_start + 1;  /* Include '>' */
-                if (tag_len <= remaining) {
-                    memcpy(write, tag_start, tag_len);
-                    write += tag_len;
-                    remaining -= tag_len;
-                }
+                APEX_HEADER_ID_ENSURE(tag_len);
+                memcpy(write, tag_start, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
                 read = tag_end + 1;
 
                 /* Inject anchor tag after the header tag */
@@ -1417,21 +1437,19 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                         "<a href=\"#%s\" aria-hidden=\"true\" class=\"anchor\" id=\"%s\"></a>",
                         header->id, header->id);
                 size_t anchor_len = strlen(anchor_tag);
-                if (anchor_len <= remaining) {
-                    memcpy(write, anchor_tag, anchor_len);
-                    write += anchor_len;
-                    remaining -= anchor_len;
-                }
+                APEX_HEADER_ID_ENSURE(anchor_len);
+                memcpy(write, anchor_tag, anchor_len);
+                write += anchor_len;
+                remaining -= anchor_len;
             } else if (!use_anchors && header && header->id) {
                 /* For header IDs: replace existing ID or inject new one */
                 if (has_id && id_attr) {
                     /* Replace existing ID: copy up to id=, skip old ID value, inject new ID, copy rest */
                     size_t before_id_len = id_attr - tag_start;
-                    if (before_id_len <= remaining) {
-                        memcpy(write, tag_start, before_id_len);
-                        write += before_id_len;
-                        remaining -= before_id_len;
-                    }
+                    APEX_HEADER_ID_ENSURE(before_id_len);
+                    memcpy(write, tag_start, before_id_len);
+                    write += before_id_len;
+                    remaining -= before_id_len;
 
                     /* Find the end of the old ID attribute value */
                     const char *old_id_end = id_attr + 3; /* After 'id=' */
@@ -1452,33 +1470,26 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                     char id_attr_str[512];
                     snprintf(id_attr_str, sizeof(id_attr_str), "id=\"%s\"", header->id);
                     size_t id_len = strlen(id_attr_str);
-                    if (id_len <= remaining) {
-                        memcpy(write, id_attr_str, id_len);
-                        write += id_len;
-                        remaining -= id_len;
-                    }
+                    APEX_HEADER_ID_ENSURE(id_len);
+                    memcpy(write, id_attr_str, id_len);
+                    write += id_len;
+                    remaining -= id_len;
 
                     /* Copy rest of tag from after old ID until '>' */
                     read = old_id_end;
                     while (read < tag_end && *read != '>') {
-                        if (remaining > 0) {
-                            *write++ = *read++;
-                            remaining--;
-                        } else {
-                            read++;
-                        }
+                        APEX_HEADER_ID_ENSURE(1);
+                        *write++ = *read++;
+                        remaining--;
                     }
 
                     /* Copy closing '>' */
                     if (read < tag_end && *read == '>') {
-                        if (remaining > 0) {
-                            *write++ = *read++;
-                            remaining--;
-                        } else {
-                    read++;
+                        APEX_HEADER_ID_ENSURE(1);
+                        *write++ = *read++;
+                        remaining--;
                     }
-                }
-            } else {
+                } else {
                     /* No existing ID: copy tag up to '>', inject id attribute, then copy '>' */
                     const char *after_tag_name = tag_start + 3;
                     while (*after_tag_name && *after_tag_name != '>' && !isspace((unsigned char)*after_tag_name)) {
@@ -1487,11 +1498,10 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
 
                     /* Copy '<hN' */
                     size_t tag_prefix_len = after_tag_name - tag_start;
-                    if (tag_prefix_len <= remaining) {
-                        memcpy(write, tag_start, tag_prefix_len);
-                        write += tag_prefix_len;
-                        remaining -= tag_prefix_len;
-                    }
+                    APEX_HEADER_ID_ENSURE(tag_prefix_len);
+                    memcpy(write, tag_start, tag_prefix_len);
+                    write += tag_prefix_len;
+                    remaining -= tag_prefix_len;
                     read = after_tag_name;
 
                     /* Copy any existing attributes before injecting id */
@@ -1503,15 +1513,15 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                     /* If there are existing attributes, copy them */
                     if (read > attr_start) {
                         size_t attr_len = read - attr_start;
-                        if (attr_len <= remaining) {
-                            memcpy(write, attr_start, attr_len);
-                            write += attr_len;
-                            remaining -= attr_len;
-                        }
+                        APEX_HEADER_ID_ENSURE(attr_len);
+                        memcpy(write, attr_start, attr_len);
+                        write += attr_len;
+                        remaining -= attr_len;
                     }
 
                     /* Add space before id attribute if needed */
-                    if ((read > attr_start || *read == '>') && remaining > 0) {
+                    if (read > attr_start || *read == '>') {
+                        APEX_HEADER_ID_ENSURE(1);
                         *write++ = ' ';
                         remaining--;
                     }
@@ -1520,55 +1530,40 @@ char *apex_inject_header_ids(const char *html, cmark_node *document, bool genera
                     char id_attr_str[512];
                     snprintf(id_attr_str, sizeof(id_attr_str), "id=\"%s\"", header->id);
                     size_t id_len = strlen(id_attr_str);
-                    if (id_len <= remaining) {
-                        memcpy(write, id_attr_str, id_len);
-                        write += id_len;
-                        remaining -= id_len;
-                    }
+                    APEX_HEADER_ID_ENSURE(id_len);
+                    memcpy(write, id_attr_str, id_len);
+                    write += id_len;
+                    remaining -= id_len;
 
                     /* Copy closing '>' */
                     if (*read == '>') {
-                        if (remaining > 0) {
-                            *write++ = *read++;
-                            remaining--;
-                        } else {
-                            read++;
-                        }
+                        APEX_HEADER_ID_ENSURE(1);
+                        *write++ = *read++;
+                        remaining--;
                     }
                 }
             } else {
                 /* No ID to inject, just copy the tag */
                 size_t tag_len = tag_end - tag_start + 1;
-                if (tag_len <= remaining) {
-                    memcpy(write, tag_start, tag_len);
-                    write += tag_len;
-                    remaining -= tag_len;
-                }
+                APEX_HEADER_ID_ENSURE(tag_len);
+                memcpy(write, tag_start, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
                 read = tag_end + 1;
             }
         } else {
             /* Copy character */
-            if (remaining > 0) {
-                *write++ = *read++;
-                remaining--;
-            } else {
-                read++;
-            }
+            APEX_HEADER_ID_ENSURE(1);
+            *write++ = *read++;
+            remaining--;
         }
     }
 
-    /* Ensure we have space for null terminator */
-    if (remaining < 1) {
-        size_t used = write - output;
-        size_t new_capacity = (used + 1) * 2;
-        char *new_output = realloc(output, new_capacity + 1);
-        if (new_output) {
-            output = new_output;
-            write = output + used;
-            remaining = new_capacity - used;
-        }
-    }
+    APEX_HEADER_ID_ENSURE(1);
     *write = '\0';
+
+apex_inject_header_ids_done:
+    #undef APEX_HEADER_ID_ENSURE
 
     /* Clean up */
     while (header_map) {

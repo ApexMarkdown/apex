@@ -1071,6 +1071,42 @@ void test_header_ids(void) {
     }
     apex_free_string(html);
 
+    /* Regression: permalink anchors used to under-size the inject buffer and
+     * silently drop the HTML tail once remaining hit 0. Build many long
+     * headings plus a unique trailer after the last heading. */
+    {
+        apex_options trunc_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        trunc_opts.header_anchors = true;
+        const char *trailer = "APEX_HEADER_ANCHOR_TRAILER_UNIQUE_xyzzy";
+        char md_buf[16384];
+        size_t pos = 0;
+        for (int i = 0; i < 24; i++) {
+            int n = snprintf(md_buf + pos, sizeof(md_buf) - pos,
+                "## Section %02d With A Fairly Long Heading Title To Stretch Ids And Anchors\n\n"
+                "Body paragraph %02d with enough prose that the inject pass has real work "
+                "after each heading tag.\n\n",
+                i, i);
+            if (n < 0 || (size_t)n >= sizeof(md_buf) - pos) break;
+            pos += (size_t)n;
+        }
+        int n = snprintf(md_buf + pos, sizeof(md_buf) - pos,
+            "\n\n%s\n", trailer);
+        if (n > 0) pos += (size_t)n;
+
+        html = apex_markdown_to_html(md_buf, pos, &trunc_opts);
+        assert_contains(html, trailer,
+            "header_anchors: trailer after many long headings is not truncated");
+        assert_contains(html, "class=\"anchor\"",
+            "header_anchors: stress fixture still injects anchor tags");
+        apex_free_string(html);
+
+        trunc_opts.header_anchors = false;
+        html = apex_markdown_to_html(md_buf, pos, &trunc_opts);
+        assert_contains(html, trailer,
+            "header ids: trailer after many long headings is not truncated");
+        apex_free_string(html);
+    }
+
     /* MMD heading [id] edge case: when [id] matches link ref but is last in heading
      * with other content, treat as heading ID not link */
     const char *mmd_id_conflict = "# Heading [mermaid]\n\n[mermaid]: https://example.com\n";
