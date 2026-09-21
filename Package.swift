@@ -90,6 +90,8 @@ let package = Package(
                 .define("YAML_VERSION_MINOR", to: "2"),
                 .define("YAML_VERSION_PATCH", to: "5"),
                 .define("YAML_VERSION_STRING", to: "\"0.2.5\""),
+                // Upstream libyaml uses int for node indices/lengths on 64-bit; silence noise.
+                .unsafeFlags(["-Wno-shorten-64-to-32"]),
             ]
         ),
         // Apex C library

@@ -83,10 +83,10 @@ static int extract_citation_key(const char *text, int pos, int len, char **key_o
 
     /* If we started with {, skip past it */
     if (text[pos] == '{') {
-        return (p - text) - pos + 1;  /* +1 for closing } */
+        return apex_ptrdiff_to_int((p - text) - pos + 1);  /* +1 for closing } */
     }
 
-    return p - start;
+    return apex_ptrdiff_to_int(p - start);
 }
 
 /**
