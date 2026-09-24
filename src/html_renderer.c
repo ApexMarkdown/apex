@@ -1764,6 +1764,9 @@ char *apex_convert_relaxed_table_headers(const char *html) {
     const char *read = html;
     char *write = output;
     size_t remaining = len * 2;
+    bool demote_next_thead = false;
+    static const char marker[] = "<!--apex-relaxed-table-->";
+    static const size_t marker_len = sizeof(marker) - 1;
 
     while (*read) {
         /* Expand buffer if needed */
@@ -1786,11 +1789,18 @@ char *apex_convert_relaxed_table_headers(const char *html) {
             remaining = new_capacity - written;
         }
 
+        /* Marker from relaxed-table preprocess: demote the following thead */
+        if (strncmp(read, marker, marker_len) == 0) {
+            demote_next_thead = true;
+            read += marker_len;
+            if (*read == '\n') read++;
+            continue;
+        }
+
         /* Check for <thead> */
         if (strncmp(read, "<thead>", 7) == 0) {
             const char *after_thead = read + 7;
             const char *thead_end = strstr(after_thead, "</thead>");
-            const char *tbody_start = strstr(after_thead, "<tbody>");
 
             if (thead_end) {
                 /* Check if thead contains only empty cells (dummy headers from headerless tables) */
@@ -1859,81 +1869,19 @@ char *apex_convert_relaxed_table_headers(const char *html) {
 
                 /* If we found th cells and they're all empty, remove the entire thead */
                 if (found_any_th && all_cells_empty) {
+                    demote_next_thead = false;
                     read = thead_end + 8; /* Skip <thead>...</thead> */
                     continue;
                 }
-            }
 
-            if (thead_end && tbody_start && thead_end < tbody_start) {
-                /* Check if tbody contains a separator row (row with only em dashes) */
-                bool has_separator_row = false;
-                const char *tbody_end = strstr(tbody_start, "</tbody>");
-                const char *table_end = strstr(tbody_start, "</table>");
-
-                if (tbody_end && (!table_end || tbody_end < table_end)) {
-                    /* Look for rows with only em dashes in tbody */
-                    const char *search = tbody_start;
-                    while (search < tbody_end) {
-                        if (strncmp(search, "<tr>", 4) == 0) {
-                            const char *tr_end = strstr(search, "</tr>");
-                            if (tr_end && tr_end < tbody_end) {
-                                /* Check if this row contains only em dashes */
-                                bool row_is_separator = true;
-                                const char *cell_start = search + 4;
-                                while (cell_start < tr_end) {
-                                    if (strncmp(cell_start, "<td", 3) == 0 || strncmp(cell_start, "<th", 3) == 0) {
-                                        const char *tag_end = strstr(cell_start, ">");
-                                        if (!tag_end) break;
-                                        tag_end++;
-
-                                        const char *cell_end = NULL;
-                                        if (strncmp(cell_start, "<td", 3) == 0) {
-                                            cell_end = strstr(tag_end, "</td>");
-                                            if (cell_end) cell_end += 5;
-                                        } else {
-                                            cell_end = strstr(tag_end, "</th>");
-                                            if (cell_end) cell_end += 5;
-                                        }
-
-                                        if (cell_end && cell_end <= tr_end) {
-                                            if (!cell_contains_only_dashes(tag_end, cell_end - 5)) {
-                                                row_is_separator = false;
-                                                break;
-                                            }
-                                            cell_start = cell_end;
-                                        } else {
-                                            break;
-                                        }
-                                    } else {
-                                        cell_start++;
-                                    }
-                                }
-
-                                if (row_is_separator) {
-                                    has_separator_row = true;
-                                    break;
-                                }
-
-                                search = tr_end + 5;
-                            } else {
-                                break;
-                            }
-                        } else {
-                            search++;
-                        }
-                    }
-                }
-
-                /* If there's a separator row, it's a regular table - keep thead */
-                /* If there's no separator row, it's a relaxed table - convert thead to tbody */
-                if (!has_separator_row) {
-                    /* Convert thead to tbody */
+                /* Relaxed tables (marked during preprocess): demote thead to tbody */
+                if (demote_next_thead) {
+                    demote_next_thead = false;
                     memcpy(write, "<tbody>", 7);
                     write += 7;
                     remaining -= 7;
                     read += 7;  /* Skip <thead> */
 
-                    /* Convert <th> to <td> and skip </thead> */
                     while (read < thead_end + 8) {
                         if (strncmp(read, "<th>", 4) == 0) {
                             memcpy(write, "<td>", 4);
@@ -1950,7 +1898,6 @@ char *apex_convert_relaxed_table_headers(const char *html) {
                             write += 3;
                             remaining -= 3;
                             read += 3;
-                            /* Copy attributes until > */
                             while (*read && *read != '>') {
                                 *write++ = *read++;
                                 remaining--;
@@ -1960,9 +1907,7 @@ char *apex_convert_relaxed_table_headers(const char *html) {
                                 remaining--;
                             }
                         } else if (strncmp(read, "</thead>", 8) == 0) {
-                            /* Skip </thead> - we'll close tbody later if needed */
                             read += 8;
-                            /* Check if next is <tbody> - if so, skip opening tbody */
                             const char *next = read;
                             while (*next && (*next == ' ' || *next == '\n' || *next == '\t')) next++;
                             if (strncmp(next, "<tbody>", 7) == 0) {
@@ -1976,6 +1921,8 @@ char *apex_convert_relaxed_table_headers(const char *html) {
                     }
                     continue;
                 }
+
+                demote_next_thead = false;
             }
         }
 

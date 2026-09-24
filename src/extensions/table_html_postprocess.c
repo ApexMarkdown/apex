@@ -1198,9 +1198,9 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
             /* Check if this row should be in tfoot.
              * tfoot_rows are stored with AST row indices, so we need to check ast_row_idx.
              *
-             * CRITICAL: A row should only be in tfoot if it comes AFTER the === row in HTML.
-             * Even if a row is marked as tfoot in the AST, if it appears before the === row
-             * in the HTML output (because the === row is skipped), it must be in tbody. */
+             * A row is in tfoot only when the AST marked it and it comes AFTER the ===
+             * marker row. Do not use HTML-position fudge factors — those incorrectly
+             * forced the first footer row into tbody for normal GFM tables. */
             current_row_is_tfoot = false;
 
             /* First, find the === row's AST index */
@@ -1215,8 +1215,29 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                     }
                 }
                 if (eq_total > 0 && eq_total == eq_removed) {
-                    min_equals_row_idx = r;
-                    break; /* Found the first === row */
+                    /* Prefer rows that look like === markers when attrs are available */
+                    bool looks_like_equals = false;
+                    if (attrs) {
+                        for (cell_attr *a = attrs; a; a = a->next) {
+                            if (a->table_index != table_idx || a->row_index != r || !a->cell_text)
+                                continue;
+                            const char *text = a->cell_text;
+                            while (*text && isspace((unsigned char)*text)) text++;
+                            if (text[0] == '=' && text[1] == '=' && text[2] == '=') {
+                                looks_like_equals = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (looks_like_equals || !attrs) {
+                        min_equals_row_idx = r;
+                        break;
+                    }
+                    /* Fully-removed non-equals row (e.g. em-dash helper): keep looking */
+                    if (min_equals_row_idx < 0) {
+                        /* fall through and continue search for a real === row */
+                    }
+                    continue;
                 }
             }
 
@@ -1229,113 +1250,13 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                 }
             }
 
-            /* CRITICAL: Before checking tfoot marking, verify HTML position.
-             * If this row appears before the === row in HTML, it MUST be in tbody,
-             * regardless of AST marking. This check runs even if the row is not marked as tfoot,
-             * to handle cases where the row might be incorrectly processed. */
-            if (min_equals_row_idx >= 0) {
-                /* Calculate how many HTML rows appear before the === row */
-                int html_rows_before_equals = -1;  /* Start at -1, will be 0 for header */
-                for (int r = 0; r < 100 && r <= min_equals_row_idx; r++) {
-                    bool has_non_removed = false;
-                    for (all_cell *c = all_cells; c; c = c->next) {
-                        if (c->table_index == table_idx &&
-                            c->row_index == r &&
-                            !c->is_removed) {
-                            has_non_removed = true;
-                            break;
-                        }
-                    }
-                    if (has_non_removed) {
-                        html_rows_before_equals++;
-                    }
-                }
-
-                /* If this row's HTML position is before the === row, force it to tbody.
-                 * Since the === row is skipped, rows with row_idx <= html_rows_before_equals + 1
-                 * appear before the === row in HTML.
-                 *
-                 * CRITICAL: We must set current_row_is_tfoot = false BEFORE the skip check,
-                 * so that rows forced to tbody are not skipped. */
-                if (html_rows_before_equals >= 0 && row_idx <= html_rows_before_equals + 1) {
-                    current_row_is_tfoot = false;
-                } else if (ast_row_idx >= 0 && ast_row_idx <= min_equals_row_idx) {
-                    /* Also check AST position as a fallback */
-                    current_row_is_tfoot = false;
-                }
-            }
-
-            /* If marked as tfoot, verify it actually comes after === in HTML */
-            if (is_marked_tfoot && min_equals_row_idx >= 0) {
-                /* Calculate how many HTML rows appear before the === row.
-                 * Count non-removed AST rows up to min_equals_row_idx.
-                 * This gives us the HTML row index of the last row that appears BEFORE the === row. */
-                int html_rows_before_equals = -1;  /* Start at -1, will be 0 for header */
-                for (int r = 0; r < 100 && r <= min_equals_row_idx; r++) {
-                    bool has_non_removed = false;
-                    for (all_cell *c = all_cells; c; c = c->next) {
-                        if (c->table_index == table_idx &&
-                            c->row_index == r &&
-                            !c->is_removed) {
-                            has_non_removed = true;
-                            break;
-                        }
-                    }
-                    if (has_non_removed) {
-                        html_rows_before_equals++;
-                    }
-                }
-
-                /* CRITICAL: The issue is that rows with AST index > min_equals_row_idx can still
-                 * appear in HTML before the === row (since === is skipped). So we need to check
-                 * if this row's HTML position (row_idx) is <= html_rows_before_equals.
-                 *
-                 * The key insight: html_rows_before_equals is the HTML row index of the last row
-                 * that appears BEFORE the === row. So if row_idx <= html_rows_before_equals,
-                 * this row appears before === in HTML, so it must be in tbody.
-                 *
-                 * But we also need to check AST position as a fallback, because the HTML position
-                 * calculation might be off if the row mapping is wrong. */
-                bool force_to_tbody = false;
-
-                /* First check: AST position */
-                if (ast_row_idx <= min_equals_row_idx) {
-                    /* AST says it's before or at ===, so it must be in tbody */
-                    force_to_tbody = true;
-                }
-
-                /* Second check: HTML position
-                 * Since the === row is skipped in HTML, rows with row_idx <= html_rows_before_equals + 2
-                 * appear before the === row in HTML. The +2 accounts for:
-                 * - html_rows_before_equals is the count of rows before === (including header)
-                 * - row_idx is 1-based (1=header, 2=first data, 3=second data, 4===, 5=footer)
-                 * - So row_idx <= html_rows_before_equals + 2 covers the first two data rows. */
-                if (html_rows_before_equals >= 0 && row_idx <= html_rows_before_equals + 2) {
-                    /* HTML position says it's before ===, so it must be in tbody */
-                    force_to_tbody = true;
-                }
-
-                /* Third check: If row_idx <= 3, it's definitely in tbody (header + first two data rows) */
-                if (row_idx <= 3) {
-                    force_to_tbody = true;
-                }
-
-                if (force_to_tbody) {
-                    current_row_is_tfoot = false;
+            if (is_marked_tfoot) {
+                if (min_equals_row_idx >= 0) {
+                    /* Footer content is strictly after the === marker row */
+                    current_row_is_tfoot = (ast_row_idx > min_equals_row_idx);
                 } else {
-                    /* AST and HTML both say it's after ===, so mark as tfoot */
-                    current_row_is_tfoot = true;
-                }
-            } else if (is_marked_tfoot) {
-                /* No === row found, but row is marked as tfoot - use AST marking */
-                /* BUT: Even if no === row is found, if this row's HTML position suggests
-                 * it should be in tbody (e.g., it's one of the first few rows), don't mark as tfoot.
-                 * This handles edge cases where the === row might not be detected correctly. */
-                if (row_idx <= 2) {
-                    /* If this is one of the first few rows, it's probably in tbody */
-                    current_row_is_tfoot = false;
-                } else {
-                    current_row_is_tfoot = true;
+                    /* === row not found as fully-removed; trust AST except header */
+                    current_row_is_tfoot = (ast_row_idx > 0);
                 }
             }
 
@@ -1420,25 +1341,13 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                 }
             }
 
-            /* CRITICAL SAFEGUARD: If this is one of the first few rows (row_idx <= 3), it's
-             * almost certainly in tbody, not tfoot. Do not skip via tfoot/=== heuristics.
-             * Fully-removed rows stay skipped (row_fully_removed).
-             * Note: row_idx is incremented before this check (line 894), so:
-             * - row_idx 1 = header
-             * - row_idx 2 = first data row
-             * - row_idx 3 = second data row (this is the one we were missing!)
-             * - row_idx 4 = === row (should be skipped)
-             * - row_idx 5 = footer
-             *
-             * This check must run FIRST, before any other skip logic, to ensure these rows
-             * are always rendered. */
+            /* Keep early data rows from being skipped by removal heuristics.
+             * Do not override tfoot classification here — a short table can have
+             * its footer at a low HTML row index once the === marker is omitted. */
             bool force_keep_row = false;
-            if (!row_fully_removed && row_idx <= 3) {
-                /* First few rows (header + first two data rows) are always in tbody - never skip them */
+            if (!row_fully_removed && row_idx <= 3 && !current_row_is_tfoot) {
                 force_keep_row = true;
                 should_skip_row = false;
-                /* Always set current_row_is_tfoot = false for these rows - they're definitely in tbody */
-                current_row_is_tfoot = false;
             }
 
             /* CRITICAL: Only check if row should be skipped if we haven't already determined

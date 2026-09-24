@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.26] - 2026-09-24
+
+### Fixed
+
+- **Relaxed table preprocessing** no longer inserts a second separator after the first body row of an already-separated GFM table, which previously corrupted the table and caused following tables (including `||` colspan rows) to leak as paragraphs
+
 ## [1.1.25] - 2026-09-24
 
 ### Changed
@@ -3266,6 +3272,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.26]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.26
 [1.1.25]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.25
 [1.1.24]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.24
 [1.1.23]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.23

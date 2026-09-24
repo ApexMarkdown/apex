@@ -54,6 +54,21 @@ static bool apex_relaxed_write_line(char **output, char **write, size_t *remaini
     return true;
 }
 
+/* Append a NUL-terminated string that already includes its trailing newline. */
+static bool apex_relaxed_write_cstr(char **output, char **write, size_t *remaining,
+                                    size_t *output_capacity, size_t *output_len,
+                                    const char *s) {
+    size_t len = strlen(s);
+    if (!apex_relaxed_ensure(output, write, remaining, output_capacity, output_len, len)) {
+        return false;
+    }
+    memcpy(*write, s, len);
+    *write += len;
+    *remaining -= len;
+    *output_len += len;
+    return true;
+}
+
 /**
  * Count the number of columns in a table row (by counting pipes)
  * Returns -1 if the line doesn't contain a pipe
@@ -364,6 +379,49 @@ static char *generate_dummy_header_row(int num_columns, bool starts_with_pipe) {
     return header;
 }
 
+#define APEX_RELAXED_TABLE_MARKER "<!--apex-relaxed-table-->\n"
+
+/*
+ * Write a relaxed table that had no separator: marker + first row + separator + rest.
+ * The marker tells HTML post-processing to demote thead->tbody (no real GFM header).
+ */
+typedef struct {
+    const char *start;
+    size_t len;
+    int columns;
+    bool starts_with_pipe;
+} apex_relaxed_table_row;
+
+static bool apex_relaxed_flush_injected_table(char **output, char **write, size_t *remaining,
+                                             size_t *output_capacity, size_t *output_len,
+                                             const apex_relaxed_table_row *rows, size_t rows_count,
+                                             bool row_newlines) {
+    if (rows_count < 2) return true;
+
+    char *sep = generate_separator_row(rows[0].columns, rows[0].starts_with_pipe);
+    if (!sep) return false;
+
+    bool ok = apex_relaxed_write_cstr(output, write, remaining, output_capacity, output_len,
+                                      APEX_RELAXED_TABLE_MARKER);
+    if (ok) {
+        ok = apex_relaxed_write_line(output, write, remaining, output_capacity, output_len,
+                                     rows[0].start, rows[0].len, true);
+    }
+    if (ok) {
+        ok = apex_relaxed_write_cstr(output, write, remaining, output_capacity, output_len, sep);
+    }
+    free(sep);
+    if (!ok) return false;
+
+    for (size_t i = 1; i < rows_count; i++) {
+        if (!apex_relaxed_write_line(output, write, remaining, output_capacity, output_len,
+                                     rows[i].start, rows[i].len, row_newlines)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /**
  * Process relaxed tables - detect tables without separator rows and insert them
  */
@@ -483,82 +541,14 @@ static char *apex_process_relaxed_tables_impl(const char *text,
             after_real_separator = false;
             /* Blank line: if we have accumulated table rows, process them */
             if (rows_count >= 2) {
-                /* We have a relaxed table - insert separator after first row */
-                /* First, write all rows except the last one */
-                for (size_t i = 0; i < rows_count; i++) {
-                    /* Write the row */
-                    if (rows[i].len < remaining) {
-                        memcpy(write, rows[i].start, rows[i].len);
-                        write += rows[i].len;
-                        remaining -= rows[i].len;
-                        output_len += rows[i].len;
-
-                        /* Write newline */
-                        if (has_newline && remaining > 0) {
-                            *write++ = '\n';
-                            remaining--;
-                            output_len++;
-                        }
-                    } else {
-                        /* Need to grow buffer */
-                        size_t new_capacity = output_capacity * 2;
-                        char *new_output = realloc(output, new_capacity);
-                        if (!new_output) {
-                            free(output);
-                            free(rows);
-                            return NULL;
-                        }
-                        write = new_output + output_len;
-                        output = new_output;
-                        remaining = new_capacity - output_len;
-                        output_capacity = new_capacity;
-
-                        memcpy(write, rows[i].start, rows[i].len);
-                        write += rows[i].len;
-                        remaining -= rows[i].len;
-                        output_len += rows[i].len;
-
-                        if (has_newline && remaining > 0) {
-                            *write++ = '\n';
-                            remaining--;
-                            output_len++;
-                        }
-                    }
-
-                    /* After first row, insert separator */
-                    if (i == 0) {
-                        made_changes = true;  /* We're inserting a separator, so output will differ */
-                        char *sep = generate_separator_row(rows[0].columns, rows[0].starts_with_pipe);
-                        if (sep) {
-                            size_t sep_len = strlen(sep);
-                            if (sep_len < remaining) {
-                                memcpy(write, sep, sep_len);
-                                write += sep_len;
-                                remaining -= sep_len;
-                                output_len += sep_len;
-                            } else {
-                                /* Need to grow buffer */
-                                size_t new_capacity = output_capacity * 2;
-                                char *new_output = realloc(output, new_capacity);
-                                if (!new_output) {
-                                    free(sep);
-                                    free(output);
-                                    free(rows);
-                                    return NULL;
-                                }
-                                write = new_output + output_len;
-                                output = new_output;
-                                remaining = new_capacity - output_len;
-                                output_capacity = new_capacity;
-
-                                memcpy(write, sep, sep_len);
-                                write += sep_len;
-                                remaining -= sep_len;
-                                output_len += sep_len;
-                            }
-                            free(sep);
-                        }
-                    }
+                /* Relaxed table: marker + first row + separator + remaining rows */
+                made_changes = true;
+                if (!apex_relaxed_flush_injected_table(&output, &write, &remaining, &output_capacity,
+                                                      &output_len, (const apex_relaxed_table_row *)rows,
+                                                      rows_count, true)) {
+                    free(output);
+                    free(rows);
+                    return NULL;
                 }
 
                 /* Reset rows */
@@ -954,79 +944,13 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         /* Not a table row - if we have accumulated rows, write them first */
         after_real_separator = false;
         if (rows_count >= 2) {
-            /* We have a relaxed table - insert separator after first row */
-            for (size_t i = 0; i < rows_count; i++) {
-                if (rows[i].len < remaining) {
-                    memcpy(write, rows[i].start, rows[i].len);
-                    write += rows[i].len;
-                    remaining -= rows[i].len;
-                    output_len += rows[i].len;
-
-                    if (has_newline && remaining > 0) {
-                        *write++ = '\n';
-                        remaining--;
-                        output_len++;
-                    }
-                } else {
-                    /* Need to grow buffer */
-                    size_t new_capacity = output_capacity * 2;
-                    char *new_output = realloc(output, new_capacity);
-                    if (!new_output) {
-                        free(output);
-                        free(rows);
-                        return NULL;
-                    }
-                    write = new_output + output_len;
-                    output = new_output;
-                    remaining = new_capacity - output_len;
-                    output_capacity = new_capacity;
-
-                    memcpy(write, rows[i].start, rows[i].len);
-                    write += rows[i].len;
-                    remaining -= rows[i].len;
-                    output_len += rows[i].len;
-
-                    if (has_newline && remaining > 0) {
-                        *write++ = '\n';
-                        remaining--;
-                        output_len++;
-                    }
-                }
-
-                /* After first row, insert separator */
-                if (i == 0) {
-                    made_changes = true;  /* We're inserting a separator, so output will differ */
-                    char *sep = generate_separator_row(rows[0].columns, rows[0].starts_with_pipe);
-                    if (sep) {
-                        size_t sep_len = strlen(sep);
-                        if (sep_len < remaining) {
-                            memcpy(write, sep, sep_len);
-                            write += sep_len;
-                            remaining -= sep_len;
-                            output_len += sep_len;
-                        } else {
-                            /* Need to grow buffer */
-                            size_t new_capacity = output_capacity * 2;
-                            char *new_output = realloc(output, new_capacity);
-                            if (!new_output) {
-                                free(sep);
-                                free(output);
-                                free(rows);
-                                return NULL;
-                            }
-                            write = new_output + output_len;
-                            output = new_output;
-                            remaining = new_capacity - output_len;
-                            output_capacity = new_capacity;
-
-                            memcpy(write, sep, sep_len);
-                            write += sep_len;
-                            remaining -= sep_len;
-                            output_len += sep_len;
-                        }
-                        free(sep);
-                    }
-                }
+            made_changes = true;
+            if (!apex_relaxed_flush_injected_table(&output, &write, &remaining, &output_capacity,
+                                                  &output_len, (const apex_relaxed_table_row *)rows,
+                                                  rows_count, true)) {
+                free(output);
+                free(rows);
+                return NULL;
             }
             rows_count = 0;
         } else if (rows_count > 0) {
@@ -1114,74 +1038,13 @@ static char *apex_process_relaxed_tables_impl(const char *text,
 
     /* Handle any remaining accumulated rows at end of file */
     if (rows_count >= 2) {
-        /* We have a relaxed table - insert separator after first row */
-        for (size_t i = 0; i < rows_count; i++) {
-            if (rows[i].len < remaining) {
-                memcpy(write, rows[i].start, rows[i].len);
-                write += rows[i].len;
-                remaining -= rows[i].len;
-                output_len += rows[i].len;
-
-                *write++ = '\n';
-                remaining--;
-                output_len++;
-            } else {
-                /* Need to grow buffer */
-                size_t new_capacity = output_capacity * 2;
-                char *new_output = realloc(output, new_capacity);
-                if (!new_output) {
-                    free(output);
-                    free(rows);
-                    return NULL;
-                }
-                write = new_output + output_len;
-                output = new_output;
-                remaining = new_capacity - output_len;
-                output_capacity = new_capacity;
-
-                memcpy(write, rows[i].start, rows[i].len);
-                write += rows[i].len;
-                remaining -= rows[i].len;
-                output_len += rows[i].len;
-
-                *write++ = '\n';
-                remaining--;
-                output_len++;
-            }
-
-            /* After first row, insert separator */
-            if (i == 0) {
-                char *sep = generate_separator_row(rows[0].columns, rows[0].starts_with_pipe);
-                if (sep) {
-                    size_t sep_len = strlen(sep);
-                    if (sep_len < remaining) {
-                        memcpy(write, sep, sep_len);
-                        write += sep_len;
-                        remaining -= sep_len;
-                        output_len += sep_len;
-                    } else {
-                        /* Need to grow buffer */
-                        size_t new_capacity = output_capacity * 2;
-                        char *new_output = realloc(output, new_capacity);
-                        if (!new_output) {
-                            free(sep);
-                            free(output);
-                            free(rows);
-                            return NULL;
-                        }
-                        write = new_output + output_len;
-                        output = new_output;
-                        remaining = new_capacity - output_len;
-                        output_capacity = new_capacity;
-
-                        memcpy(write, sep, sep_len);
-                        write += sep_len;
-                        remaining -= sep_len;
-                        output_len += sep_len;
-                    }
-                    free(sep);
-                }
-            }
+        made_changes = true;
+        if (!apex_relaxed_flush_injected_table(&output, &write, &remaining, &output_capacity,
+                                              &output_len, (const apex_relaxed_table_row *)rows,
+                                              rows_count, true)) {
+            free(output);
+            free(rows);
+            return NULL;
         }
     } else if (rows_count == 1) {
         /* Only one row - not a table, write it as-is */
