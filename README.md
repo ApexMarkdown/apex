@@ -419,6 +419,7 @@ Options:
   --no-transforms        Disable metadata variable transforms
   --no-unsafe            Disable raw HTML in output
   --no-wikilinks         Disable wiki link syntax
+  --[no-]emoji           Enable/disable :name: emoji replacement (enabled by default in gfm/unified)
   --[no-]emoji-autocorrect  Enable/disable emoji name autocorrect (enabled by default in unified mode)
   --obfuscate-emails     Obfuscate email links/text using HTML entities
   -o, --output FILE      Write output to FILE instead of stdout

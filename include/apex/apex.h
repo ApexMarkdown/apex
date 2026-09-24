@@ -271,6 +271,7 @@ typedef struct apex_options {
     bool enable_aria;  /* Add ARIA labels and accessibility attributes to HTML output */
 
     /* Emoji options */
+    bool enable_emoji;  /* Replace :name: with Unicode/image emoji (GFM/unified family by default) */
     bool enable_emoji_autocorrect;  /* Enable emoji name autocorrect (enabled by default in unified mode) */
 
     /* Syntax highlighting options */
@@ -358,6 +359,14 @@ apex_options apex_options_for_mode(apex_mode_t mode);
  *         the file cannot be loaded, or ownership copies cannot be allocated.
  */
 bool apex_options_apply_meta_file(apex_options *options, const char *path);
+
+/**
+ * Register cmark-gfm's core extensions once.
+ * cmark_gfm_core_extensions_ensure_registered() is not thread-safe: a second
+ * overlapping call aborts in cmark_register_node_flag. Marked converts on a
+ * concurrent queue, so every cmark entry point must go through this.
+ */
+void apex_ensure_cmark_extensions(void);
 
 /**
  * Main conversion function: Markdown to HTML

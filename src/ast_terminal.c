@@ -1704,12 +1704,10 @@ static void serialize_inline(terminal_buffer *buf,
                 }
 
                 /* Optionally replace :emoji: with Unicode for terminal output
-                 * when in GFM or unified mode, matching HTML behavior. */
+                 * when enable_emoji is set (default on in GFM / unified). */
                 const char *text_src = literal;
                 char *emoji_replaced = NULL;
-                if (options &&
-                    (options->mode == APEX_MODE_GFM ||
-                     apex_mode_is_unified_family(options->mode))) {
+                if (options && options->enable_emoji) {
                     emoji_replaced = apex_replace_emoji_text(literal);
                     if (emoji_replaced) {
                         text_src = emoji_replaced;

@@ -69,6 +69,7 @@ typedef struct apex_cli_option_mask {
     bool obfuscate_emails;
     bool enable_aria;
     bool enable_wiki_links;
+    bool enable_emoji;
     bool enable_emoji_autocorrect;
     bool enable_widont;
     bool code_is_poetry;
@@ -169,6 +170,7 @@ static void apex_cli_restore_argv_options(apex_options *opts,
     if (m->obfuscate_emails) opts->obfuscate_emails = snap->obfuscate_emails;
     if (m->enable_aria) opts->enable_aria = snap->enable_aria;
     if (m->enable_wiki_links) opts->enable_wiki_links = snap->enable_wiki_links;
+    if (m->enable_emoji) opts->enable_emoji = snap->enable_emoji;
     if (m->enable_emoji_autocorrect) opts->enable_emoji_autocorrect = snap->enable_emoji_autocorrect;
     if (m->enable_widont) opts->enable_widont = snap->enable_widont;
     if (m->code_is_poetry) {
@@ -1056,6 +1058,7 @@ static void print_usage(const char *program_name) {
     fprintf(stderr, "  --no-transforms        Disable metadata variable transforms\n");
     fprintf(stderr, "  --no-unsafe            Disable raw HTML in output\n");
     fprintf(stderr, "  --no-wikilinks         Disable wiki link syntax\n");
+    fprintf(stderr, "  --[no-]emoji            Enable/disable :name: emoji replacement (enabled by default in gfm/unified)\n");
     fprintf(stderr, "  --[no-]emoji-autocorrect  Enable/disable emoji name autocorrect (enabled by default in unified mode)\n");
     fprintf(stderr, "  --obfuscate-emails     Obfuscate email links/text using HTML entities\n");
     fprintf(stderr, "  -o, --output FILE      Write output to FILE instead of stdout\n");
@@ -2706,6 +2709,12 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(argv[i], "--no-wikilinks") == 0) {
             cli_opt_mask.enable_wiki_links = true;
             options.enable_wiki_links = false;
+        } else if (strcmp(argv[i], "--emoji") == 0) {
+            cli_opt_mask.enable_emoji = true;
+            options.enable_emoji = true;
+        } else if (strcmp(argv[i], "--no-emoji") == 0) {
+            cli_opt_mask.enable_emoji = true;
+            options.enable_emoji = false;
         } else if (strcmp(argv[i], "--emoji-autocorrect") == 0) {
             cli_opt_mask.enable_emoji_autocorrect = true;
             options.enable_emoji_autocorrect = true;

@@ -2645,6 +2645,18 @@ void apex_apply_metadata_to_options(apex_metadata_item *metadata, apex_options *
             } else if (is_false_value(value)) {
                 options->enable_strikethrough = false;
             }
+        } else if (strcasecmp(key, "emoji") == 0 || strcasecmp(key, "enable-emoji") == 0 || strcasecmp(key, "enable_emoji") == 0) {
+            if (is_true_value(value)) {
+                options->enable_emoji = true;
+            } else if (is_false_value(value)) {
+                options->enable_emoji = false;
+            }
+        } else if (strcasecmp(key, "emoji-autocorrect") == 0 || strcasecmp(key, "emoji_autocorrect") == 0) {
+            if (is_true_value(value)) {
+                options->enable_emoji_autocorrect = true;
+            } else if (is_false_value(value)) {
+                options->enable_emoji_autocorrect = false;
+            }
         } else if (strcasecmp(key, "transforms") == 0 || strcasecmp(key, "metadata-transforms") == 0) {
             if (is_true_value(value)) {
                 options->enable_metadata_transforms = true;

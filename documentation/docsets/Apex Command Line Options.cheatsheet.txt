@@ -322,6 +322,12 @@ END
 			notes %(Control Pandoc-style bracketed spans)
 		end
 		entry do
+			name 'Emoji'
+			command '--[no-]emoji'
+
+			notes %(Enable or disable :name: emoji replacement)
+		end
+		entry do
 			name 'Emoji Autocorrect'
 			command '--[no-]emoji-autocorrect'
 

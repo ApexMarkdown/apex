@@ -137,6 +137,7 @@ def generate_single_page_docset
     | Sup Sub | --[no-]sup-sub | Control MultiMarkdown-style superscript and subscript |
     | Divs | --[no-]divs | Control Pandoc fenced divs syntax |
     | Spans | --[no-]spans | Control Pandoc-style bracketed spans |
+    | Emoji | --[no-]emoji | Enable/disable :name: emoji replacement |
     | Emoji Autocorrect | --[no-]emoji-autocorrect | Control emoji name autocorrect |
     | Unsafe | --[no-]unsafe | Control whether raw HTML is allowed |
     | Wikilinks | --[no-]wikilinks | Control wiki link syntax |

@@ -407,8 +407,11 @@ Default: disabled.
 **--image-captions**, **--no-image-captions**
 :   Wrap images with title or alt text in `<figure>` elements with `<figcaption>`. Default: enabled in unified and MultiMarkdown modes; disabled in commonmark, gfm, and kramdown modes.
 
+**--emoji**, **--no-emoji**
+:   Replace GitHub-style `:name:` codes with Unicode (or image) emoji in HTML and terminal output. Default: enabled in gfm and unified (including quarto); disabled in commonmark, multimarkdown, and kramdown. Does not control emoji-name autocorrect (see below).
+
 **--emoji-autocorrect**, **--no-emoji-autocorrect**
-:   Convert emoji names (e.g., `:rocket:`) to Unicode emoji characters. Default: enabled in unified mode; disabled in other modes.
+:   Autocorrect mistyped or oddly formatted emoji names (e.g. `:rocket` / `:ROCKET:`) before parsing. Default: enabled in unified mode; disabled in other modes. Independent of **--emoji** replacement.
 
 ## Path Resolution
 
@@ -679,7 +682,7 @@ command-line invocations.
 directly.
 
 **Supported boolean options:**
-`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `strikethrough`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `callouts`, `py-callouts`, `quarto-callouts`, `divs`, `spans`, `ids`, `header-anchors`, `embed-images`, `image-captions`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`, `plugins`, `emoji-autocorrect`, `code-line-numbers`, `highlight-language-only`, `markdown-in-html`
+`indices`, `wikilinks`, `wikilink-sanitize`, `includes`, `relaxed-tables`, `per-cell-alignment`, `alpha-lists`, `mixed-lists`, `sup-sub`, `strikethrough`, `autolink`, `transforms`, `unsafe`, `tables`, `footnotes`, `smart`, `math`, `callouts`, `py-callouts`, `quarto-callouts`, `divs`, `spans`, `ids`, `header-anchors`, `embed-images`, `image-captions`, `link-citations`, `show-tooltips`, `suppress-bibliography`, `suppress-index`, `group-index-by-letter`, `obfuscate-emails`, `pretty`, `standalone`, `hardbreaks`, `plugins`, `emoji`, `emoji-autocorrect`, `code-line-numbers`, `highlight-language-only`, `markdown-in-html`
 
 **Supported string options:**
 `bibliography`, `csl`, `title`, `style` (or `css`),

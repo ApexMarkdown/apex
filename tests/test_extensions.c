@@ -2433,6 +2433,22 @@ void test_emoji(void) {
     assert_contains(html, ":notarealemojicode:", "Unknown emoji preserved");
     apex_free_string(html);
 
+    /* --no-emoji / enable_emoji=false leaves :name: literal */
+    opts.enable_emoji = false;
+    html = apex_markdown_to_html("Hello :smile: world", 19, &opts);
+    assert_contains(html, ":smile:", "enable_emoji=false preserves :smile:");
+    assert_not_contains(html, "😄", "enable_emoji=false does not convert smile");
+    apex_free_string(html);
+
+    apex_options unified_no_emoji = apex_options_for_mode(APEX_MODE_UNIFIED);
+    unified_no_emoji.enable_emoji = false;
+    html = apex_markdown_to_html("Go :rocket:", 11, &unified_no_emoji);
+    assert_contains(html, ":rocket:", "unified + enable_emoji=false preserves :rocket:");
+    assert_not_contains(html, "🚀", "unified + enable_emoji=false does not convert rocket");
+    apex_free_string(html);
+
+    opts.enable_emoji = true;
+
     /* Test emoji variations */
     html = apex_markdown_to_html(":star: :warning: :+1:", 21, &opts);
     assert_contains(html, "⭐", "Star emoji");

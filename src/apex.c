@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/time.h>
+#include <pthread.h>
 
 /* cmark-gfm headers */
 #include "cmark-gfm.h"
@@ -3039,6 +3040,7 @@ apex_options apex_options_default(void) {
     opts.enable_aria = false;
 
     /* Emoji options */
+    opts.enable_emoji = true;  /* :name: replacement on by default (unified); modes may turn off */
     opts.enable_emoji_autocorrect = true;  /* Enabled by default in unified mode */
 
     /* Syntax highlighting options */
@@ -3127,6 +3129,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_autolink = false;  /* CommonMark: no autolinks */
             opts.enable_image_captions = false; /* CommonMark: no automatic image figure captions */
             opts.enable_citations = false;  /* CommonMark: no citations */
+            opts.enable_emoji = false;  /* CommonMark: no :name: emoji replacement */
             opts.enable_emoji_autocorrect = false;  /* CommonMark: no emoji autocorrect */
             /* Disable HTML markdown processing in strict CommonMark */
             opts.enable_markdown_in_html = false;
@@ -3164,6 +3167,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_autolink = true;  /* GFM: autolinks enabled */
             opts.enable_image_captions = false; /* GFM: no automatic image figure captions */
             opts.enable_citations = false;  /* GFM: no citations */
+            opts.enable_emoji = true;  /* GFM: :name: emoji replacement enabled */
             opts.enable_emoji_autocorrect = false;  /* GFM: no emoji autocorrect by default */
             /* Disable HTML markdown processing in GFM mode */
             opts.enable_markdown_in_html = false;
@@ -3203,6 +3207,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_mmark_index_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_textindex_syntax = false;  /* Disabled by default - use --indices to enable */
             opts.enable_leanpub_index_syntax = false;  /* Disabled by default - use --indices to enable */
+            opts.enable_emoji = false;  /* MMD: no :name: emoji replacement by default */
             opts.enable_emoji_autocorrect = false;  /* MMD: no emoji autocorrect by default */
             opts.enable_image_captions = true; /* MultiMarkdown: image captions enabled by default */
             break;
@@ -3240,6 +3245,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_strikethrough = false;  /* Kramdown: no strikethrough by default */
             opts.enable_autolink = true;  /* Kramdown: autolinks enabled */
             opts.enable_citations = false;  /* Kramdown: no citations (different system) */
+            opts.enable_emoji = false;  /* Kramdown: no :name: emoji replacement by default */
             opts.enable_emoji_autocorrect = false;  /* Kramdown: no emoji autocorrect by default */
             opts.enable_image_captions = false; /* Kramdown: no automatic image figure captions */
             break;
@@ -3266,6 +3272,7 @@ apex_options apex_options_for_mode(apex_mode_t mode) {
             opts.enable_quarto_callouts = false;  /* Unified default: off unless explicitly enabled */
             opts.enable_divs = true;  /* Unified: Pandoc fenced divs enabled */
             opts.enable_spans = true;  /* Unified: bracketed spans enabled */
+            opts.enable_emoji = true;  /* Unified: :name: emoji replacement enabled */
             opts.enable_emoji_autocorrect = true;  /* Unified: emoji autocorrect enabled */
             opts.enable_image_captions = true;     /* Unified: image captions enabled by default */
             break;
@@ -3443,12 +3450,18 @@ static int apex_to_cmark_options(const apex_options *options) {
     return cmark_opts;
 }
 
+/* One-time cmark-gfm core extension registration. Not thread-safe on its own. */
+void apex_ensure_cmark_extensions(void) {
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
+    pthread_once(&once, cmark_gfm_core_extensions_ensure_registered);
+}
+
 /**
  * Register cmark-gfm extensions based on Apex options
  */
 static void apex_register_extensions(cmark_parser *parser, const apex_options *options) {
     /* Ensure core extensions are registered */
-    cmark_gfm_core_extensions_ensure_registered();
+    apex_ensure_cmark_extensions();
 
     /* Note: Metadata is handled via preprocessing, not as an extension */
 
@@ -6594,8 +6607,8 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
     }
 
-    /* Replace GitHub emoji if in GFM or Unified mode */
-    if ((options->mode == APEX_MODE_GFM || apex_mode_is_unified_family(options->mode)) && html) {
+    /* Replace GitHub emoji if enabled (default on in GFM / unified family) */
+    if (options->enable_emoji && html) {
         PROFILE_START(emoji);
         char *with_emoji = apex_replace_emoji(html);
         PROFILE_END(emoji);
