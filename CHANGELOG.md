@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.25] - 2026-09-24
+
+### Changed
+
+- **Emoji autocorrect docs** clarify that autocorrect is separate from `:name:` replacement
+
+### New
+
+- **`--[no-]emoji`** enables or disables GitHub-style `:name:` emoji replacement in HTML and terminal output (on by default in gfm and unified; off in commonmark, multimarkdown, and kramdown)
+- **`emoji` config/metadata** boolean mirrors the CLI flag
+
 ## [1.1.24] - 2026-09-21
 
 ### Changed
@@ -3255,6 +3266,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.25]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.25
 [1.1.24]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.24
 [1.1.23]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.23
 [1.1.22]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.22
