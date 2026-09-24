@@ -12,6 +12,48 @@
 #include <stdbool.h>
 #include <ctype.h>
 
+/* Grow output buffer if needed; returns false on OOM. */
+static bool apex_relaxed_ensure(char **output, char **write, size_t *remaining,
+                                size_t *output_capacity, size_t *output_len,
+                                size_t needed) {
+    if (*remaining >= needed) {
+        return true;
+    }
+    size_t new_capacity = *output_capacity * 2;
+    while (new_capacity < *output_len + needed) {
+        new_capacity *= 2;
+    }
+    char *new_output = realloc(*output, new_capacity);
+    if (!new_output) {
+        return false;
+    }
+    *write = new_output + *output_len;
+    *output = new_output;
+    *remaining = new_capacity - *output_len;
+    *output_capacity = new_capacity;
+    return true;
+}
+
+/* Append a line (and optional newline) to the relaxed-tables output buffer. */
+static bool apex_relaxed_write_line(char **output, char **write, size_t *remaining,
+                                    size_t *output_capacity, size_t *output_len,
+                                    const char *line, size_t line_len, bool has_newline) {
+    size_t needed = line_len + (has_newline ? 1 : 0);
+    if (!apex_relaxed_ensure(output, write, remaining, output_capacity, output_len, needed)) {
+        return false;
+    }
+    memcpy(*write, line, line_len);
+    *write += line_len;
+    *remaining -= line_len;
+    *output_len += line_len;
+    if (has_newline) {
+        *(*write)++ = '\n';
+        (*remaining)--;
+        (*output_len)++;
+    }
+    return true;
+}
+
 /**
  * Count the number of columns in a table row (by counting pipes)
  * Returns -1 if the line doesn't contain a pipe
@@ -364,6 +406,11 @@ static char *apex_process_relaxed_tables_impl(const char *text,
     size_t rows_capacity = 0;
     size_t rows_count = 0;
 
+    /* After a real separator row, subsequent pipe rows are table body —
+     * write them through. Do not re-accumulate and insert another separator
+     * (that used to split multi-row GFM tables and break following tables). */
+    bool after_real_separator = false;
+
     /* Track if we made any changes to avoid expensive strcmp */
     bool made_changes = false;
 
@@ -433,6 +480,7 @@ static char *apex_process_relaxed_tables_impl(const char *text,
 
         /* Check if this is a blank line */
         if (is_blank_line(line_start, line_len)) {
+            after_real_separator = false;
             /* Blank line: if we have accumulated table rows, process them */
             if (rows_count >= 2) {
                 /* We have a relaxed table - insert separator after first row */
@@ -614,42 +662,13 @@ static char *apex_process_relaxed_tables_impl(const char *text,
             }
 
             /* Write the separator row */
-            if (line_len < remaining) {
-                memcpy(write, line_start, line_len);
-                write += line_len;
-                remaining -= line_len;
-                output_len += line_len;
-
-                if (has_newline && remaining > 0) {
-                    *write++ = '\n';
-                    remaining--;
-                    output_len++;
-                }
-            } else {
-                /* Need to grow buffer */
-                size_t new_capacity = output_capacity * 2;
-                char *new_output = realloc(output, new_capacity);
-                if (!new_output) {
-                    free(output);
-                    free(rows);
-                    return NULL;
-                }
-                write = new_output + output_len;
-                output = new_output;
-                remaining = new_capacity - output_len;
-                output_capacity = new_capacity;
-
-                memcpy(write, line_start, line_len);
-                write += line_len;
-                remaining -= line_len;
-                output_len += line_len;
-
-                if (has_newline && remaining > 0) {
-                    *write++ = '\n';
-                    remaining--;
-                    output_len++;
-                }
+            if (!apex_relaxed_write_line(&output, &write, &remaining, &output_capacity, &output_len,
+                                        line_start, line_len, has_newline)) {
+                free(output);
+                free(rows);
+                return NULL;
             }
+            after_real_separator = true;
 
             read = line_end;
             if (has_newline) read++;
@@ -658,6 +677,7 @@ static char *apex_process_relaxed_tables_impl(const char *text,
 
         /* Check if this is a horizontal rule - skip it entirely */
         if (is_horizontal_rule(line_start, line_len)) {
+            after_real_separator = false;
             /* Write horizontal rule as-is and reset accumulated rows */
             if (rows_count > 0) {
                 /* Write accumulated rows first */
@@ -840,6 +860,19 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         /* Process rows with or without leading pipes - both need separators if missing */
         int columns = in_fenced_code ? -1 : count_columns(line_start, line_len);
         if (columns > 0) {
+            /* Body rows after a real separator: pass through unchanged */
+            if (after_real_separator) {
+                if (!apex_relaxed_write_line(&output, &write, &remaining, &output_capacity, &output_len,
+                                            line_start, line_len, has_newline)) {
+                    free(output);
+                    free(rows);
+                    return NULL;
+                }
+                read = line_end;
+                if (has_newline) read++;
+                continue;
+            }
+
             /* Potential table row - add to accumulator */
             if (rows_count == 0) {
                 /* First row - allocate array */
@@ -919,6 +952,7 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         }
 
         /* Not a table row - if we have accumulated rows, write them first */
+        after_real_separator = false;
         if (rows_count >= 2) {
             /* We have a relaxed table - insert separator after first row */
             for (size_t i = 0; i < rows_count; i++) {

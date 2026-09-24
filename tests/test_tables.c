@@ -4,6 +4,7 @@
 
 #include "test_helpers.h"
 #include "apex/apex.h"
+#include "../src/extensions/relaxed_tables.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -568,6 +569,54 @@ void test_relaxed_tables(void) {
         assert_contains(html, "|No|", "Mermaid No edge label preserved");
         assert_not_contains(html, "---|---|---", "No relaxed-table separator inside Mermaid fence");
         apex_free_string(html);
+    }
+
+    /* Regression: GFM tables with 2+ body rows must not get a second separator
+     * injected after the first body row (that broke following tables, especially
+     * when a later row used || colspan syntax). */
+    {
+        apex_options unified = apex_options_for_mode(APEX_MODE_UNIFIED);
+        unified.enable_plugins = false;
+        const char *multi_table =
+            "| COL1 | COL2 |\n"
+            "| ---- | ---- |\n"
+            "| CELL | CELL |\n"
+            "| BLAH | BLOP |\n"
+            "| CELL | CELL |\n"
+            "| test | test |\n"
+            "[Caption]\n"
+            "\n"
+            "Table 2:\n"
+            "\n"
+            "| COL1 | COL2 | COL3 |\n"
+            "| ---- | ---- | ---- |\n"
+            "| CELL || CELL |\n"
+            "\n"
+            "Table 3:\n"
+            "\n"
+            "| COL1 | COL2 | COL3 | COL4 |\n"
+            "| ---- | ---- | ---- | ---- |\n"
+            "| CELL | CELL | CELL | CELL |\n";
+        html = apex_markdown_to_html(multi_table, strlen(multi_table), &unified);
+        assert_contains(html, "colspan", "Multi-row table then colspan row still merges");
+        assert_contains(html, "<td>CELL</td>", "Table 3 body cells render");
+        assert_not_contains(html, "<p>| CELL", "Following table body rows are not leaked as paragraphs");
+        assert_contains(html, "Caption", "First table caption still present");
+        apex_free_string(html);
+
+        /* Preprocess must not rewrite already-separated GFM tables */
+        const char *gfm_two_body =
+            "| H1 | H2 |\n"
+            "| ---- | ---- |\n"
+            "| A | B |\n"
+            "| C | D |\n";
+        char *pre = apex_process_relaxed_tables(gfm_two_body);
+        if (pre == NULL) {
+            test_result(true, "GFM table with separator is left unchanged by relaxed preprocess");
+        } else {
+            test_result(false, "GFM table with separator was rewritten by relaxed preprocess");
+            free(pre);
+        }
     }
 
     bool had_failures = suite_end(suite_failures);

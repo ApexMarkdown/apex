@@ -7,25 +7,26 @@
 class Apex < Formula
   desc "Unified Markdown processor supporting CommonMark, GFM, MultiMarkdown, and Kramdown"
   homepage "https://github.com/ApexMarkdown/apex"
-  version "1.1.23"
+  version "1.1.25"
   license "MIT"
 
   depends_on "libyaml"
 
   on_macos do
     url "https://github.com/ApexMarkdown/apex/releases/download/v#{version}/apex-#{version}-macos-universal.tar.gz"
-    sha256 "d84c207bc213a10356b760fa2f1486e02da6281b1a573dc3b357ba35d728fc0a"
+    sha256 "bc60a6a1b5265eef100a7c18d766e972f341ab1c193b425640f426cb6f2a16b7"
   end
 
   on_linux do
     if Hardware::CPU.intel?
       url "https://github.com/ApexMarkdown/apex/releases/download/v#{version}/apex-#{version}-linux-x86_64.tar.gz"
-      sha256 "6b95b2c2e732d9d14491857b750e41e49d7805276f2bb7d2e548d5b415a0bb53"
+      sha256 "867f8ce4f9f77c5b907c09e00c07c6f37b1feb7b02ab26c45bda456950560711"
     else
       url "https://github.com/ApexMarkdown/apex/releases/download/v#{version}/apex-#{version}-linux-aarch64.tar.gz"
-      sha256 "e38ebced5ccc574147cd077de670d4c253d4797945859281d0876d1f3cc327d8"
+      sha256 "1bda19bd6831aa250fa0dca8a146839239d30127684e1f9cb7476ec7e9be3a33"
     end
   end
+
 
 
 
