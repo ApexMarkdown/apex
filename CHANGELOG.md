@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.28] - 2026-09-25
+
+### Changed
+
+- **emoji-span example plugin** pattern now uses the same non-alnum boundary rule so it does not wrap timecode segments in spans
+
+### Fixed
+
+- **Emoji shortcodes** now require non-alphanumeric boundaries on both sides, so digit-colon runs like 1:00:55:00 and letter-adjacent forms like foo:smile:bar are no longer treated as :name: candidates
+- **Emoji autocorrect** no longer fuzzy-matches all-digit names (exact :100: / :1234: still work) and scales max Levenshtein distance by name length instead of always allowing distance 4
+
 ## [1.1.27] - 2026-09-25
 
 ## [1.1.26] - 2026-09-24
@@ -3274,6 +3285,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.28]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.28
 [1.1.27]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.27
 [1.1.26]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.26
 [1.1.25]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.25
