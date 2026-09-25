@@ -2476,6 +2476,48 @@ void test_emoji(void) {
     assert_contains(html, ":rocket:", "Second emoji preserved in indented block");
     apex_free_string(html);
 
+    /* Timecodes must not be treated as emoji shortcodes (Unified + autocorrect). */
+    apex_options unified = apex_options_for_mode(APEX_MODE_UNIFIED);
+    unified.enable_plugins = false;
+    html = apex_markdown_to_html("1:00:55:00", 10, &unified);
+    assert_contains(html, "1:00:55:00", "Timecode 1:00:55:00 preserved with emoji+autocorrect");
+    assert_not_contains(html, "💯", "Timecode does not emit 100 emoji");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("at 12:00:00", 11, &unified);
+    assert_contains(html, "12:00:00", "HH:MM:SS timecode preserved");
+    assert_not_contains(html, "💯", "HH:MM:SS does not emit 100 emoji");
+    apex_free_string(html);
+
+    /* Exact numeric shortcode still works when properly bounded */
+    html = apex_markdown_to_html(":100:", 5, &unified);
+    assert_contains(html, "💯", "Exact :100: still converts");
+    apex_free_string(html);
+
+    /* BOL and punctuation-adjacent shortcodes still convert */
+    html = apex_markdown_to_html(":smile:", 7, &unified);
+    assert_contains(html, "😄", "BOL :smile: still converts");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("hello :smile: world", 19, &unified);
+    assert_contains(html, "😄", "Whitespace-bounded :smile: still converts");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("(:smile:)", 9, &unified);
+    assert_contains(html, "😄", "Punctuation-adjacent :smile: still converts");
+    apex_free_string(html);
+
+    /* Letter-adjacent shortcodes are not converted */
+    html = apex_markdown_to_html("foo:smile:bar", 13, &unified);
+    assert_contains(html, "foo:smile:bar", "Letter-adjacent :smile: left literal");
+    assert_not_contains(html, "😄", "Letter-adjacent :smile: does not convert");
+    apex_free_string(html);
+
+    /* Autocorrect still fixes safe typos; all-digit fuzzy must not run */
+    html = apex_markdown_to_html(":smlie:", 7, &unified);
+    assert_contains(html, "😄", "Typo :smlie: still autocorrects to smile");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Emoji Tests", had_failures, false);
 }

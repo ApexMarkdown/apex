@@ -15,6 +15,10 @@
 static void normalize_emoji_name(char *name);
 static int is_table_alignment_pattern(const char *start, const char *end);
 static int is_inside_html_attribute(const char *pos, const char *start);
+static int emoji_shortcode_is_bounded(const char *text_start, const char *open_colon,
+                                      const char *close_colon);
+static int emoji_name_is_all_digits(const char *name, size_t len);
+static int emoji_fuzzy_max_distance(size_t name_len);
 
 /** True if content at p looks like a list marker (- , * , + , or digit+. ) */
 static int looks_like_list_marker(const char *p) {
@@ -38,6 +42,41 @@ static int line_is_indented_code_block(const char *read) {
     const char *content = read + 4;
     while (*content == ' ') content++;
     return *content && !looks_like_list_marker(content);
+}
+
+/**
+ * True if :name: is a bounded shortcode (not inside a word or digit run).
+ * Left of the opening colon and right of the closing colon must not be alphanumeric.
+ */
+static int emoji_shortcode_is_bounded(const char *text_start, const char *open_colon,
+                                      const char *close_colon) {
+    if (!text_start || !open_colon || !close_colon || open_colon < text_start) return 0;
+    if (open_colon > text_start && isalnum((unsigned char)open_colon[-1])) return 0;
+    if (close_colon[1] != '\0' && isalnum((unsigned char)close_colon[1])) return 0;
+    return 1;
+}
+
+/** True if name is non-empty and consists only of ASCII digits. */
+static int emoji_name_is_all_digits(const char *name, size_t len) {
+    if (!name || len == 0) return 0;
+    for (size_t i = 0; i < len; i++) {
+        if (!isdigit((unsigned char)name[i])) return 0;
+    }
+    return 1;
+}
+
+/**
+ * Cap fuzzy Levenshtein distance by name length. Distance 4 on 2-char tokens
+ * (e.g. "00" -> "100") is what corrupted timecodes. Names shorter than 3
+ * characters are exact-match only; longer names allow roughly one edit per
+ * three characters (so :smlie: can still reach :smile: at distance 2).
+ */
+static int emoji_fuzzy_max_distance(size_t name_len) {
+    if (name_len < 3) return 0; /* exact matches only for very short names */
+    int scaled = (int)((name_len + 2) / 3); /* 3-4 -> 1, 5-7 -> 2, ... */
+    if (scaled < 1) scaled = 1;
+    if (scaled > 4) scaled = 4;
+    return scaled;
 }
 
 /**
@@ -381,7 +420,7 @@ char *apex_replace_emoji(const char *html) {
 
             /* Look for closing : */
             const char *end = strchr(read + 1, ':');
-            if (end && (end - read) < 50) {  /* Reasonable emoji name length */
+            if (end && (end - read) < 50 && emoji_shortcode_is_bounded(html, read, end)) {
                 /* Extract emoji name */
                 int name_len = (int)(end - (read + 1));
                 const char *name_start = read + 1;
@@ -557,7 +596,7 @@ char *apex_replace_emoji_text(const char *text) {
         if (*read == ':') {
             /* Look for closing : */
             const char *end = strchr(read + 1, ':');
-            if (end && (end - read) < 50) {  /* Reasonable emoji name length */
+            if (end && (end - read) < 50 && emoji_shortcode_is_bounded(text, read, end)) {
                 /* Extract emoji name */
                 int name_len = (int)(end - (read + 1));
                 const char *name_start = read + 1;
@@ -713,10 +752,19 @@ static const char *find_best_emoji_match(const char *name, size_t name_len, int 
     normalize_emoji_name(normalized);
     size_t normalized_len = strlen(normalized);
 
-    /* Check exact match first */
+    /* Check exact match first (allows :100: / :1234: via exact lookup only) */
     const emoji_entry *exact = find_emoji_entry(normalized, (int)normalized_len);
     if (exact) {
         return exact->name;
+    }
+
+    /* Never fuzzy-match all-digit tokens (e.g. "00" -> "100") */
+    if (emoji_name_is_all_digits(normalized, normalized_len)) {
+        return NULL;
+    }
+
+    if (max_distance <= 0) {
+        return NULL;
     }
 
     /* Find fuzzy matches */
@@ -812,12 +860,12 @@ char *apex_autocorrect_emoji_names(const char *text) {
         if (*read == ':') {
             /* Look for closing : */
             const char *end = strchr(read + 1, ':');
-            if (end && (end - read) < 50) {  /* Reasonable emoji name length */
+            if (end && (end - read) < 50 && emoji_shortcode_is_bounded(text, read, end)) {
                 /* Extract emoji name */
                 int name_len = (int)(end - (read + 1));
                 const char *name_start = read + 1;
 
-                    /* Validate: must have at least one character and no spaces */
+                /* Validate: must have at least one character and no spaces */
                 if (name_len > 0) {
                     /* Check for spaces in the name */
                     int has_space = 0;
@@ -879,8 +927,9 @@ char *apex_autocorrect_emoji_names(const char *text) {
                             read = end + 1;
                             continue;
                         } else {
-                            /* Try fuzzy matching */
-                            const char *best_match = find_best_emoji_match(name_start, (size_t)name_len, 4);
+                            /* Try fuzzy matching with length-scaled distance */
+                            int max_dist = emoji_fuzzy_max_distance(normalized_len);
+                            const char *best_match = find_best_emoji_match(name_start, (size_t)name_len, max_dist);
                             if (best_match) {
                                 /* Replace with corrected name */
                                 size_t match_len = strlen(best_match);
