@@ -247,18 +247,24 @@ static void yaml_node_to_flat_items(yaml_document_t *doc, yaml_node_t *node,
     }
 }
 
-/* Parse YAML using libyaml - returns flat metadata items for backward compatibility */
-static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text_len, size_t *consumed) {
+/* Parse YAML using libyaml - returns flat metadata items for backward compatibility.
+ * On a libyaml parse error, a description is written to errbuf (if non-NULL). */
+static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text_len, size_t *consumed,
+                                                   char *errbuf, size_t errbuf_size) {
     yaml_parser_t parser;
     yaml_document_t document;
     apex_metadata_item *items = NULL;
 
+    if (errbuf && errbuf_size) errbuf[0] = '\0';
+
     /* Skip opening --- if present */
     const char *yaml_start = text;
+    size_t line_offset = 0;
     if (text_len >= 3 && strncmp(text, "---", 3) == 0) {
         const char *newline = strchr(text + 3, '\n');
         if (newline) {
             yaml_start = newline + 1;
+            line_offset = 1;
         } else {
             yaml_start = text + 3;
         }
@@ -293,6 +299,12 @@ static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text
     yaml_parser_set_input_string(&parser, (const unsigned char *)yaml_start, yaml_content_len);
 
     if (!yaml_parser_load(&parser, &document)) {
+        if (errbuf && errbuf_size) {
+            snprintf(errbuf, errbuf_size, "%s (line %lu, column %lu)",
+                     parser.problem ? parser.problem : "parse error",
+                     (unsigned long)(parser.problem_mark.line + line_offset + 1),
+                     (unsigned long)(parser.problem_mark.column + 1));
+        }
         yaml_parser_delete(&parser);
         return NULL;
     }
@@ -324,14 +336,17 @@ static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text
  * Parse YAML front matter
  * Format: --- at start, key: value pairs, --- to close
  * If libyaml is available, attempts to use it for full YAML support (arrays, nested structures)
- * Falls back to simple line-by-line parser for backward compatibility
+ * Falls back to simple line-by-line parser for backward compatibility.
+ * If libyaml rejects the input, its error is written to errbuf (if non-NULL).
  */
-static apex_metadata_item *parse_yaml_metadata(const char *text, size_t *consumed) {
+static apex_metadata_item *parse_yaml_metadata_ex(const char *text, size_t *consumed,
+                                                  char *errbuf, size_t errbuf_size) {
     apex_metadata_item *items = NULL;
+    if (errbuf && errbuf_size) errbuf[0] = '\0';
 #ifdef APEX_HAVE_LIBYAML
     /* Try libyaml first for full YAML support */
     size_t text_len = strlen(text);
-    items = parse_yaml_with_libyaml(text, text_len, consumed);
+    items = parse_yaml_with_libyaml(text, text_len, consumed, errbuf, errbuf_size);
     if (items) {
         return items;
     }
@@ -391,6 +406,10 @@ static apex_metadata_item *parse_yaml_metadata(const char *text, size_t *consume
     }
 
     return items;
+}
+
+static apex_metadata_item *parse_yaml_metadata(const char *text, size_t *consumed) {
+    return parse_yaml_metadata_ex(text, consumed, NULL, 0);
 }
 
 /**
@@ -2268,7 +2287,12 @@ apex_metadata_item *apex_load_metadata_from_file(const char *filepath) {
     /* Auto-detect format */
     if (strncmp(buffer, "---", 3) == 0) {
         /* YAML format */
-        items = parse_yaml_metadata(buffer, &consumed);
+        char yaml_error[256];
+        items = parse_yaml_metadata_ex(buffer, &consumed, yaml_error, sizeof(yaml_error));
+        if (yaml_error[0]) {
+            fprintf(stderr, "Warning: YAML error in '%s': %s; using simple key: value parsing\n",
+                    filepath, yaml_error);
+        }
     } else if (buffer[0] == '%') {
         /* Pandoc format */
         items = parse_pandoc_metadata(buffer, &consumed);
