@@ -2,6 +2,25 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.31] - 2026-09-26
+
+### Changed
+
+- **.yml and .yaml metadata files** (--meta-file, config files, plugin manifests) are now parsed as YAML even without --- markers, instead of as MultiMarkdown metadata, so quoted values like a: "x" are unquoted and a leading # comment no longer discards the whole file
+
+### Improved
+
+- **YAML files that libyaml rejects** (plugin manifests, config files, --meta-file) now print a one-line warning with the file path, libyaml's error, and the line and column before falling back to the simple key: value parser
+
+### Fixed
+
+- **--meta-file** metadata is no longer silently ignored when a global config exists but no project config does
+- **--meta KEY=VALUE** now resolves [%key] in documents that have no front matter and no config files
+- **Fallback YAML parser** (no libyaml, e.g. Apex.framework built with APEX_FRAMEWORK_NO_YAML, or input libyaml rejects) now turns '' into ' in single-quoted values, so title: 'Brett''s Notes' renders as Brett's Notes
+- **Fallback YAML parser** now decodes double-quoted escapes (\t, \n, \", \, \uXXXX, and the rest of the YAML set), so plugin manifest replacements like "<span class=\"emoji\">" no longer keep literal backslashes
+- **Fallback YAML parser** keeps leading and trailing spaces inside quoted values and accepts a # comment after a quoted value, matching libyaml
+- **Fallback YAML parser** skips # comment lines instead of turning them into keys
+
 ## [1.1.30] - 2026-09-26
 
 ### Changed
@@ -3320,6 +3339,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.31]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.31
 [1.1.30]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.30
 [1.1.29]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.29
 [1.1.28]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.28
