@@ -41,6 +41,32 @@ static const char *find_ial_after(const char *text, const char **ial_end) {
 }
 
 /**
+ * If text starts an HTML tag (<name or </name), return a pointer just past its
+ * closing '>' (quote-aware), or NULL. Gives up at a blank line outside quotes
+ * so a stray '<' in prose doesn't swallow the rest of the document.
+ */
+static const char *html_tag_end(const char *text) {
+    if (text[0] != '<') return NULL;
+    const char *p = text + 1;
+    if (*p == '/') p++;
+    if (!isalpha((unsigned char)*p)) return NULL;
+
+    char quote = 0;
+    for (; *p; p++) {
+        if (quote) {
+            if (*p == quote) quote = 0;
+        } else if (*p == '"' || *p == '\'') {
+            quote = *p;
+        } else if (*p == '>') {
+            return p + 1;
+        } else if (*p == '\n' && (p[1] == '\n' || (p[1] == '\r' && p[2] == '\n'))) {
+            return NULL;
+        }
+    }
+    return NULL;
+}
+
+/**
  * Process ++insert++ syntax as preprocessing
  * Converts to <ins>text</ins> before parsing
  * If followed by IAL, converts to <ins markdown="span" ...>text</ins>
@@ -61,6 +87,29 @@ char *apex_process_inserts(const char *text) {
     bool in_inline_code = false;
 
     while (*read) {
+        /* Copy HTML tags verbatim so ++ inside attribute values (e.g. base64
+         * data: URIs) is not converted */
+        if (!in_code_block && !in_inline_code && *read == '<') {
+            const char *tag_end = html_tag_end(read);
+            if (tag_end) {
+                size_t tag_len = (size_t)(tag_end - read);
+                if (tag_len >= remaining) {
+                    size_t written = write - output;
+                    capacity = (written + tag_len + 1) * 2;
+                    char *new_output = realloc(output, capacity);
+                    if (!new_output) goto cleanup;
+                    output = new_output;
+                    write = output + written;
+                    remaining = capacity - written;
+                }
+                memcpy(write, read, tag_len);
+                write += tag_len;
+                remaining -= tag_len;
+                read = tag_end;
+                continue;
+            }
+        }
+
         /* Track code blocks (skip processing inside them) */
         if (*read == '`') {
             if (read[1] == '`' && read[2] == '`') {

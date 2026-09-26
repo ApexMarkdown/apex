@@ -3305,6 +3305,24 @@ void test_insert_syntax(void) {
     assert_not_contains(html, "<ins>code</ins>", "Insert in inline code not converted");
     apex_free_string(html);
 
+    /* Test insert inside HTML attribute values (base64 data URIs) is not processed */
+    {
+        const char *md = "<img src='data:image/png;base64,AAAA++23++BB\nCC++xy++DD'>\n\nText ++ins++ here";
+        html = apex_markdown_to_html(md, strlen(md), &opts);
+        assert_contains(html, "AAAA++23++BB", "Insert in HTML attribute not processed");
+        assert_contains(html, "CC++xy++DD", "Insert in multi-line HTML attribute not processed");
+        assert_contains(html, "<ins>ins</ins>", "Insert after HTML tag still converted");
+        apex_free_string(html);
+    }
+
+    /* Test stray < does not disable inserts */
+    {
+        const char *md = "Stray a <b and ++ins++ here";
+        html = apex_markdown_to_html(md, strlen(md), &opts);
+        assert_contains(html, "<ins>ins</ins>", "Insert after stray < still converted");
+        apex_free_string(html);
+    }
+
     /* Test insert with markdown inside */
     html = apex_markdown_to_html("Text ++*italic*++ here", 23, &opts);
     assert_contains(html, "<ins>", "Insert tag present");
