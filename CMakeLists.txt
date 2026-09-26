@@ -235,10 +235,24 @@ if(APPLE)
             PUBLIC_HEADER include/apex/apex.h
             OUTPUT_NAME Apex
         )
-        if(YAML_FOUND)
-            target_link_libraries(apex_framework libcmark-gfm libcmark-gfm-extensions ${YAML_LIBRARIES})
+        # Link cmark statically so an embedded framework does not depend on
+        # libcmark-gfm*.dylib paths from the build tree.
+        if(TARGET libcmark-gfm_static AND TARGET libcmark-gfm-extensions_static)
+            target_link_libraries(apex_framework libcmark-gfm-extensions_static libcmark-gfm_static)
         else()
             target_link_libraries(apex_framework libcmark-gfm libcmark-gfm-extensions)
+        endif()
+
+        # libyaml resolves to an absolute Homebrew path that does not exist on
+        # end-user machines, so app-embedded builds can opt out of it. YAML
+        # array support is unavailable in the framework when this is ON.
+        option(APEX_FRAMEWORK_NO_YAML "Build Apex.framework without libyaml" OFF)
+        if(YAML_FOUND AND NOT APEX_FRAMEWORK_NO_YAML)
+            target_link_libraries(apex_framework ${YAML_LIBRARIES})
+        elseif(YAML_FOUND)
+            # Sources test #ifdef APEX_HAVE_LIBYAML; compile options follow the
+            # directory-level -D, so -U here removes it for this target only.
+            target_compile_options(apex_framework PRIVATE -UAPEX_HAVE_LIBYAML)
         endif()
 
         # Install framework
