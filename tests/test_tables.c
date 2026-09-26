@@ -469,6 +469,25 @@ void test_relaxed_tables(void) {
     assert_contains(html, "<td>A</td>", "Cell A with leading pipe");
     apex_free_string(html);
 
+    /* Pipes inside [[wiki|links]] are not cell separators */
+    apex_options wiki_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    wiki_opts.relaxed_tables = true;
+    const char *wiki_list = "* A [[Page/Sub|Label]]\n* B [[Other|Label2]]\n\tpara\n";
+    html = apex_markdown_to_html(wiki_list, strlen(wiki_list), &wiki_opts);
+    assert_not_contains(html, "<table>", "Wiki link pipes in list items do not make a table");
+    assert_not_contains(html, "|</li>", "Wiki link pipes do not inject a separator row");
+    apex_free_string(html);
+
+    const char *wiki_lines = "See [[A|B]] here\nAnd [[C|D]] there";
+    html = apex_markdown_to_html(wiki_lines, strlen(wiki_lines), &wiki_opts);
+    assert_not_contains(html, "<table>", "Wiki link pipes in paragraph lines do not make a table");
+    apex_free_string(html);
+
+    const char *wiki_cells = "[[Page]] | two\n[[Other]] | four";
+    html = apex_markdown_to_html(wiki_cells, strlen(wiki_cells), &wiki_opts);
+    assert_contains(html, "<table>", "Relaxed table with wiki links in cells still renders");
+    apex_free_string(html);
+
     /* Test that relaxed tables are disabled by default in GFM mode */
     apex_options gfm_opts = apex_options_for_mode(APEX_MODE_GFM);
     gfm_opts.enable_tables = true;

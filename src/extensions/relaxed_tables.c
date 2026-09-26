@@ -75,6 +75,18 @@ static bool apex_relaxed_write_cstr(char **output, char **write, size_t *remaini
  * Number of columns = number of pipe-separated cells
  * For GFM tables: | one | two | has 2 columns, one | two has 2 columns
  */
+/*
+ * If a [[wiki link]] opens at i and closes on the same line, return the index
+ * of its final ']'; otherwise return i. Pipes inside are target|label, not cells.
+ */
+static size_t skip_wiki_link(const char *line, size_t len, size_t i) {
+    if (i + 1 >= len || line[i] != '[' || line[i + 1] != '[') return i;
+    for (size_t j = i + 2; j + 1 < len; j++) {
+        if (line[j] == ']' && line[j + 1] == ']') return j + 1;
+    }
+    return i;
+}
+
 static int count_columns(const char *line, size_t len) {
     if (!line || len == 0) return -1;
 
@@ -91,6 +103,7 @@ static int count_columns(const char *line, size_t len) {
 
     /* Count pipes */
     for (size_t i = start; i < len; i++) {
+        i = skip_wiki_link(line, len, i);
         if (line[i] == '|') {
             has_pipe = true;
             pipe_count++;
@@ -324,6 +337,12 @@ static bool is_table_row(const char *line, size_t len) {
     bool has_content = false;
 
     for (size_t i = 0; i < len; i++) {
+        size_t link_end = skip_wiki_link(line, len, i);
+        if (link_end != i) {
+            has_content = true;
+            i = link_end;
+            continue;
+        }
         unsigned char c = (unsigned char)line[i];
         if (c == '|') {
             has_pipe = true;
