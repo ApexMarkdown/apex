@@ -410,9 +410,11 @@ static void yaml_node_to_flat_items(yaml_document_t *doc, yaml_node_t *node,
 }
 
 /* Parse YAML using libyaml - returns flat metadata items for backward compatibility.
- * On a libyaml parse error, a description is written to errbuf (if non-NULL). */
+ * On a libyaml parse error, a description is written to errbuf (if non-NULL).
+ * added_lines is the number of leading lines in text that are not in the
+ * source file, so reported line numbers match the file. */
 static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text_len, size_t *consumed,
-                                                   char *errbuf, size_t errbuf_size) {
+                                                   char *errbuf, size_t errbuf_size, size_t added_lines) {
     yaml_parser_t parser;
     yaml_document_t document;
     apex_metadata_item *items = NULL;
@@ -464,7 +466,7 @@ static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text
         if (errbuf && errbuf_size) {
             snprintf(errbuf, errbuf_size, "%s (line %lu, column %lu)",
                      parser.problem ? parser.problem : "parse error",
-                     (unsigned long)(parser.problem_mark.line + line_offset + 1),
+                     (unsigned long)(parser.problem_mark.line + line_offset + 1 - added_lines),
                      (unsigned long)(parser.problem_mark.column + 1));
         }
         yaml_parser_delete(&parser);
@@ -502,17 +504,19 @@ static apex_metadata_item *parse_yaml_with_libyaml(const char *text, size_t text
  * If libyaml rejects the input, its error is written to errbuf (if non-NULL).
  */
 static apex_metadata_item *parse_yaml_metadata_ex(const char *text, size_t *consumed,
-                                                  char *errbuf, size_t errbuf_size) {
+                                                  char *errbuf, size_t errbuf_size, size_t added_lines) {
     apex_metadata_item *items = NULL;
     if (errbuf && errbuf_size) errbuf[0] = '\0';
 #ifdef APEX_HAVE_LIBYAML
     /* Try libyaml first for full YAML support */
     size_t text_len = strlen(text);
-    items = parse_yaml_with_libyaml(text, text_len, consumed, errbuf, errbuf_size);
+    items = parse_yaml_with_libyaml(text, text_len, consumed, errbuf, errbuf_size, added_lines);
     if (items) {
         return items;
     }
     /* Fall through to simple parser if libyaml parsing failed */
+#else
+    (void)added_lines;
 #endif
     const char *line_start = text;
     const char *line_end;
@@ -538,6 +542,11 @@ static apex_metadata_item *parse_yaml_metadata_ex(const char *text, size_t *cons
             return items;
         }
 
+        if (*trimmed == '#') {
+            line_start = line_end + 1;
+            continue;
+        }
+
         /* Parse key: value */
         char *colon = strchr(line, ':');
         if (colon) {
@@ -560,7 +569,7 @@ static apex_metadata_item *parse_yaml_metadata_ex(const char *text, size_t *cons
 }
 
 static apex_metadata_item *parse_yaml_metadata(const char *text, size_t *consumed) {
-    return parse_yaml_metadata_ex(text, consumed, NULL, 0);
+    return parse_yaml_metadata_ex(text, consumed, NULL, 0, 0);
 }
 
 /**
@@ -2402,9 +2411,15 @@ char *apex_metadata_replace_variables(const char *text, apex_metadata_item *meta
     return result;
 }
 
+static bool path_has_yaml_extension(const char *path) {
+    const char *dot = strrchr(path, '.');
+    if (!dot || strchr(dot, '/')) return false;
+    return strcasecmp(dot, ".yml") == 0 || strcasecmp(dot, ".yaml") == 0;
+}
+
 /**
  * Load metadata from a file
- * Auto-detects format based on first characters
+ * Auto-detects format based on first characters; .yml/.yaml files are always YAML
  */
 apex_metadata_item *apex_load_metadata_from_file(const char *filepath) {
     if (!filepath) return NULL;
@@ -2435,11 +2450,28 @@ apex_metadata_item *apex_load_metadata_from_file(const char *filepath) {
     apex_metadata_item *items = NULL;
     size_t consumed = 0;
 
+    /* .yml/.yaml files are YAML even without --- markers; add them so both
+     * libyaml and the fallback parser see a delimited block. */
+    size_t added_lines = 0;
+    if (strncmp(buffer, "---", 3) != 0 && path_has_yaml_extension(filepath)) {
+        bool needs_newline = bytes_read > 0 && buffer[bytes_read - 1] != '\n';
+        size_t wrapped_len = 4 + bytes_read + (needs_newline ? 1 : 0) + 4;
+        char *wrapped = malloc(wrapped_len + 1);
+        if (!wrapped) {
+            free(buffer);
+            return NULL;
+        }
+        snprintf(wrapped, wrapped_len + 1, "---\n%s%s---\n", buffer, needs_newline ? "\n" : "");
+        free(buffer);
+        buffer = wrapped;
+        added_lines = 1;
+    }
+
     /* Auto-detect format */
     if (strncmp(buffer, "---", 3) == 0) {
         /* YAML format */
         char yaml_error[256];
-        items = parse_yaml_metadata_ex(buffer, &consumed, yaml_error, sizeof(yaml_error));
+        items = parse_yaml_metadata_ex(buffer, &consumed, yaml_error, sizeof(yaml_error), added_lines);
         if (yaml_error[0]) {
             fprintf(stderr, "Warning: YAML error in '%s': %s; using simple key: value parsing\n",
                     filepath, yaml_error);

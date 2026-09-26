@@ -238,14 +238,43 @@ static void assert_quoted_scalars(apex_metadata_item *m, const char *label) {
     assert_meta_value(m, "sp", "  padded  ", label);
 }
 
-/* Write contents to a new temp file; returns 0 on success. */
-static int write_temp_file(char *path_template, const char *contents) {
-    int fd = mkstemp(path_template);
+/* Write contents to a new temp file; path_template may end with a suffix of
+ * suffix_len characters after the XXXXXX. Returns 0 on success. */
+static int write_temp_file_suffix(char *path_template, int suffix_len, const char *contents) {
+    int fd = mkstemps(path_template, suffix_len);
     if (fd < 0) return -1;
     size_t len = strlen(contents);
     ssize_t written = write(fd, contents, len);
     close(fd);
     return written == (ssize_t)len ? 0 : -1;
+}
+
+static int write_temp_file(char *path_template, const char *contents) {
+    return write_temp_file_suffix(path_template, 0, contents);
+}
+
+/* Load a metadata file, capturing anything written to stderr into err_buf. */
+static apex_metadata_item *load_metadata_capturing_stderr(const char *path, char *err_buf, size_t err_size) {
+    err_buf[0] = '\0';
+    char err_path[] = "/tmp/apex_test_stderr_XXXXXX";
+    int err_fd = mkstemp(err_path);
+    if (err_fd < 0) return apex_load_metadata_from_file(path);
+    int saved_stderr = dup(STDERR_FILENO);
+    fflush(stderr);
+    dup2(err_fd, STDERR_FILENO);
+
+    apex_metadata_item *m = apex_load_metadata_from_file(path);
+
+    fflush(stderr);
+    dup2(saved_stderr, STDERR_FILENO);
+    close(saved_stderr);
+
+    lseek(err_fd, 0, SEEK_SET);
+    ssize_t n = read(err_fd, err_buf, err_size - 1);
+    err_buf[n > 0 ? n : 0] = '\0';
+    close(err_fd);
+    unlink(err_path);
+    return m;
 }
 
 /**
@@ -306,27 +335,9 @@ void test_metadata_yaml_fallback(void) {
         "pattern: \"(:[0-9]+:)\"\n"
         "replacement: \"<span class=\\\"emoji\\\">$1</span>\"\n"
         "---\n";
+    char err_buf[512];
     if (write_temp_file(manifest_path, manifest) == 0) {
-        /* Capture stderr to check the libyaml warning */
-        char err_path[] = "/tmp/apex_test_stderr_XXXXXX";
-        int err_fd = mkstemp(err_path);
-        int saved_stderr = dup(STDERR_FILENO);
-        fflush(stderr);
-        dup2(err_fd, STDERR_FILENO);
-
-        m = apex_load_metadata_from_file(manifest_path);
-
-        fflush(stderr);
-        dup2(saved_stderr, STDERR_FILENO);
-        close(saved_stderr);
-
-        char err_buf[512] = {0};
-        lseek(err_fd, 0, SEEK_SET);
-        ssize_t n = read(err_fd, err_buf, sizeof(err_buf) - 1);
-        if (n > 0) err_buf[n] = '\0';
-        close(err_fd);
-        unlink(err_path);
-
+        m = load_metadata_capturing_stderr(manifest_path, err_buf, sizeof(err_buf));
         assert_meta_value(m, "replacement", "<span class=\"emoji\">$1</span>", "fallback manifest");
         assert_meta_value(m, "pattern", "(:[0-9]+:)", "fallback manifest");
         assert_contains(err_buf, "Warning: YAML error in", "rejected manifest prints a warning");
@@ -336,6 +347,44 @@ void test_metadata_yaml_fallback(void) {
         unlink(manifest_path);
     } else {
         test_result(false, "fallback manifest: could not write temp file");
+    }
+
+    /* .yml files are YAML even without --- markers */
+    char yml_path[] = "/tmp/apex_test_meta_XXXXXX.yml";
+    if (write_temp_file_suffix(yml_path, 4, "# comment: not a key\na: \"x\"\nb: 'it''s'\n") == 0) {
+        m = load_metadata_capturing_stderr(yml_path, err_buf, sizeof(err_buf));
+        assert_meta_value(m, "a", "x", "undelimited .yml");
+        assert_meta_value(m, "b", "it's", "undelimited .yml");
+        test_result(apex_metadata_get(m, "# comment") == NULL, "undelimited .yml: comment is not a key");
+        test_result(err_buf[0] == '\0', "undelimited valid .yml prints no warning");
+        apex_free_metadata(m);
+        unlink(yml_path);
+    } else {
+        test_result(false, "undelimited .yml: could not write temp file");
+    }
+
+    char yaml_path[] = "/tmp/apex_test_meta_XXXXXX.yaml";
+    if (write_temp_file_suffix(yaml_path, 5,
+                               "# comment: not a key\ndescription: Wrap :emoji: markers\na: \"x\"") == 0) {
+        m = load_metadata_capturing_stderr(yaml_path, err_buf, sizeof(err_buf));
+        assert_meta_value(m, "a", "x", "undelimited .yaml fallback");
+        assert_meta_value(m, "description", "Wrap :emoji: markers", "undelimited .yaml fallback");
+        test_result(apex_metadata_get(m, "# comment") == NULL, "undelimited .yaml fallback: comment is not a key");
+        assert_contains(err_buf, "(line 2,", "undelimited .yaml warning reports the file's line number");
+        apex_free_metadata(m);
+        unlink(yaml_path);
+    } else {
+        test_result(false, "undelimited .yaml: could not write temp file");
+    }
+
+    char txt_path[] = "/tmp/apex_test_meta_XXXXXX.txt";
+    if (write_temp_file_suffix(txt_path, 4, "a: \"x\"\n") == 0) {
+        m = apex_load_metadata_from_file(txt_path);
+        assert_meta_value(m, "a", "\"x\"", "undelimited non-YAML file stays MultiMarkdown");
+        apex_free_metadata(m);
+        unlink(txt_path);
+    } else {
+        test_result(false, "undelimited .txt: could not write temp file");
     }
 
     /* A NULL list in the middle must not stop the merge */
