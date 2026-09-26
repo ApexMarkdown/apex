@@ -29,6 +29,7 @@ void test_basic_markdown(void);
 void test_gfm_features(void);
 void test_metadata(void);
 void test_metadata_yaml_emit(void);
+void test_metadata_yaml_fallback(void);
 void test_mmd_metadata_keys(void);
 void test_metadata_transforms(void);
 void test_metadata_control_options(void);
@@ -106,6 +107,7 @@ static test_suite suites[] = {
     { "gfm",                           test_gfm_features },
     { "metadata",                      test_metadata },
     { "metadata_yaml_emit",            test_metadata_yaml_emit },
+    { "metadata_yaml_fallback",        test_metadata_yaml_fallback },
     { "metadata_transforms",           test_metadata_transforms },
     { "mmd_metadata_keys",             test_mmd_metadata_keys },
     { "metadata_control_options",      test_metadata_control_options },

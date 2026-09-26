@@ -103,6 +103,168 @@ static void add_metadata_item(apex_metadata_item **list, const char *key, const 
     *list = item;
 }
 
+/* Append code point cp as UTF-8 at out[*len], keeping room for the NUL. */
+static void yaml_append_utf8(char *out, size_t out_size, size_t *len, unsigned long cp) {
+    char buf[4];
+    size_t n;
+    if (cp < 0x80) {
+        buf[0] = (char)cp;
+        n = 1;
+    } else if (cp < 0x800) {
+        buf[0] = (char)(0xC0 | (cp >> 6));
+        buf[1] = (char)(0x80 | (cp & 0x3F));
+        n = 2;
+    } else if (cp < 0x10000) {
+        buf[0] = (char)(0xE0 | (cp >> 12));
+        buf[1] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        buf[2] = (char)(0x80 | (cp & 0x3F));
+        n = 3;
+    } else if (cp <= 0x10FFFF) {
+        buf[0] = (char)(0xF0 | (cp >> 18));
+        buf[1] = (char)(0x80 | ((cp >> 12) & 0x3F));
+        buf[2] = (char)(0x80 | ((cp >> 6) & 0x3F));
+        buf[3] = (char)(0x80 | (cp & 0x3F));
+        n = 4;
+    } else {
+        return;
+    }
+    if (*len + n >= out_size) return;
+    memcpy(out + *len, buf, n);
+    *len += n;
+}
+
+/* Parse exactly `digits` hex characters at p into *cp. */
+static bool yaml_parse_hex(const char *p, int digits, unsigned long *cp) {
+    unsigned long v = 0;
+    for (int i = 0; i < digits; i++) {
+        char c = p[i];
+        int d;
+        if (c >= '0' && c <= '9') d = c - '0';
+        else if (c >= 'a' && c <= 'f') d = c - 'a' + 10;
+        else if (c >= 'A' && c <= 'F') d = c - 'A' + 10;
+        else return false;
+        v = (v << 4) | (unsigned long)d;
+    }
+    *cp = v;
+    return true;
+}
+
+/* True if s is empty, whitespace, or a whitespace-led # comment. */
+static bool yaml_rest_is_ignorable(const char *s) {
+    while (*s == ' ' || *s == '\t') s++;
+    return *s == '\0' || *s == '#';
+}
+
+/**
+ * Unquote a single-line YAML scalar for the fallback parser, matching libyaml:
+ * single-quoted '' becomes ', double-quoted backslash escapes are decoded, and
+ * plain scalars are copied unchanged. A quoted scalar may be followed by a
+ * # comment. Output is truncated to fit out_size.
+ */
+static void yaml_unquote_scalar(const char *raw, char *out, size_t out_size) {
+    if (!out || out_size == 0) return;
+    out[0] = '\0';
+    if (!raw) return;
+
+    size_t len = 0;
+    char quote = raw[0];
+
+    if (quote == '\'') {
+        const char *p = raw + 1;
+        while (*p) {
+            if (*p == '\'') {
+                if (p[1] == '\'') {
+                    if (len + 1 < out_size) out[len++] = '\'';
+                    p += 2;
+                    continue;
+                }
+                if (yaml_rest_is_ignorable(p + 1)) {
+                    out[len] = '\0';
+                    return;
+                }
+                break;
+            }
+            if (len + 1 < out_size) out[len++] = *p;
+            p++;
+        }
+    } else if (quote == '"') {
+        const char *p = raw + 1;
+        while (*p) {
+            if (*p == '"') {
+                if (yaml_rest_is_ignorable(p + 1)) {
+                    out[len] = '\0';
+                    return;
+                }
+                break;
+            }
+            if (*p != '\\' || !p[1]) {
+                if (len + 1 < out_size) out[len++] = *p;
+                p++;
+                continue;
+            }
+
+            char esc = p[1];
+            unsigned long cp = 0;
+            int hex_digits = 0;
+            char simple = 0;
+            switch (esc) {
+                case '0': simple = '\0'; break;
+                case 'a': simple = '\a'; break;
+                case 'b': simple = '\b'; break;
+                case 't': case '\t': simple = '\t'; break;
+                case 'n': simple = '\n'; break;
+                case 'v': simple = '\v'; break;
+                case 'f': simple = '\f'; break;
+                case 'r': simple = '\r'; break;
+                case 'e': simple = '\x1B'; break;
+                case ' ': simple = ' '; break;
+                case '"': simple = '"'; break;
+                case '/': simple = '/'; break;
+                case '\\': simple = '\\'; break;
+                case 'N': cp = 0x85; break;
+                case '_': cp = 0xA0; break;
+                case 'L': cp = 0x2028; break;
+                case 'P': cp = 0x2029; break;
+                case 'x': hex_digits = 2; break;
+                case 'u': hex_digits = 4; break;
+                case 'U': hex_digits = 8; break;
+                default:
+                    /* Unknown escape: keep it literally */
+                    if (len + 2 < out_size) {
+                        out[len++] = '\\';
+                        out[len++] = esc;
+                    }
+                    p += 2;
+                    continue;
+            }
+
+            if (hex_digits) {
+                if (!yaml_parse_hex(p + 2, hex_digits, &cp)) {
+                    if (len + 2 < out_size) {
+                        out[len++] = '\\';
+                        out[len++] = esc;
+                    }
+                    p += 2;
+                    continue;
+                }
+                yaml_append_utf8(out, out_size, &len, cp);
+                p += 2 + hex_digits;
+            } else if (cp) {
+                yaml_append_utf8(out, out_size, &len, cp);
+                p += 2;
+            } else {
+                /* \0 would end the C string; drop it rather than truncate */
+                if (simple != '\0' && len + 1 < out_size) out[len++] = simple;
+                p += 2;
+            }
+        }
+    }
+
+    /* Plain scalar, or a quoted one that is unterminated or has trailing text */
+    strncpy(out, raw, out_size - 1);
+    out[out_size - 1] = '\0';
+}
+
 #ifdef APEX_HAVE_LIBYAML
 /* Recursively convert libyaml node to flat metadata items */
 static void yaml_node_to_flat_items(yaml_document_t *doc, yaml_node_t *node,
@@ -383,19 +545,8 @@ static apex_metadata_item *parse_yaml_metadata_ex(const char *text, size_t *cons
             char *key = trim_whitespace(line);
             char *value_ptr = trim_whitespace(colon + 1);
 
-            char final_value[1024] = {0};
-            strncpy(final_value, value_ptr, sizeof(final_value) - 1);
-
-            /* Strip quotes from value if present */
-            size_t value_len = strlen(final_value);
-            if (value_len >= 2 && ((final_value[0] == '"' && final_value[value_len - 1] == '"') ||
-                                   (final_value[0] == '\'' && final_value[value_len - 1] == '\''))) {
-                final_value[value_len - 1] = '\0';
-                memmove(final_value, final_value + 1, value_len - 1);
-                /* Re-trim after removing quotes */
-                trim_whitespace(final_value);
-                value_len = strlen(final_value);
-            }
+            char final_value[1024];
+            yaml_unquote_scalar(value_ptr, final_value, sizeof(final_value));
 
             if (*key) {
                 add_metadata_item(&items, key, final_value);

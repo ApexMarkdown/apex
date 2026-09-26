@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <unistd.h>
 
 void test_metadata(void) {
     int suite_failures = suite_start();
@@ -216,6 +217,140 @@ void test_metadata_yaml_emit(void) {
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Metadata YAML emit Tests", had_failures, false);
+}
+
+static void assert_meta_value(apex_metadata_item *m, const char *key, const char *expected,
+                              const char *label) {
+    const char *v = apex_metadata_get(m, key);
+    test_resultf(v && strcmp(v, expected) == 0, "%s: %s = [%s] (got [%s])",
+                 label, key, expected, v ? v : "(null)");
+}
+
+static void assert_quoted_scalars(apex_metadata_item *m, const char *label) {
+    assert_meta_value(m, "b", "it's", label);
+    assert_meta_value(m, "d", "tab\there", label);
+    assert_meta_value(m, "q", "say \"hi\"", label);
+    assert_meta_value(m, "s", "back\\slash", label);
+    assert_meta_value(m, "n", "line\nbreak", label);
+    assert_meta_value(m, "u", "caf\xC3\xA9", label);
+    assert_meta_value(m, "c", "x", label);
+    assert_meta_value(m, "p", "plain value", label);
+    assert_meta_value(m, "sp", "  padded  ", label);
+}
+
+/* Write contents to a new temp file; returns 0 on success. */
+static int write_temp_file(char *path_template, const char *contents) {
+    int fd = mkstemp(path_template);
+    if (fd < 0) return -1;
+    size_t len = strlen(contents);
+    ssize_t written = write(fd, contents, len);
+    close(fd);
+    return written == (ssize_t)len ? 0 : -1;
+}
+
+/**
+ * The simple parser used without libyaml (or when libyaml rejects the input)
+ * must unquote scalars the same way libyaml does.
+ */
+void test_metadata_yaml_fallback(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Metadata YAML fallback Tests", false, true);
+
+    const char *scalars =
+        "b: 'it''s'\n"
+        "d: \"tab\\there\"\n"
+        "q: \"say \\\"hi\\\"\"\n"
+        "s: \"back\\\\slash\"\n"
+        "n: \"line\\nbreak\"\n"
+        "u: \"caf\\u00e9\"\n"
+        "c: 'x' # comment\n"
+        "p: plain value\n"
+        "sp: \"  padded  \"\n";
+    /* libyaml rejects a plain scalar containing ": ", forcing the fallback */
+    const char *rejected_line = "description: Wrap :emoji: markers\n";
+
+    char doc[1024];
+    char *ptr;
+    apex_metadata_item *m;
+
+    snprintf(doc, sizeof(doc), "---\n%s---\nBody\n", scalars);
+    ptr = doc;
+    m = apex_extract_metadata(&ptr);
+    assert_quoted_scalars(m, "front matter");
+    apex_free_metadata(m);
+
+    snprintf(doc, sizeof(doc), "---\n%s%s---\nBody\n", rejected_line, scalars);
+    ptr = doc;
+    m = apex_extract_metadata(&ptr);
+    assert_quoted_scalars(m, "fallback front matter");
+    assert_meta_value(m, "description", "Wrap :emoji: markers", "fallback front matter");
+    apex_free_metadata(m);
+
+    /* Rendered: the substituted value, not the escaped source */
+    apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    opts.enable_smart_typography = false;
+    const char *render_doc =
+        "---\ndescription: Wrap :emoji: markers\ntitle: 'Brett''s Notes'\n---\n[%title]\n";
+    char *html = apex_markdown_to_html(render_doc, strlen(render_doc), &opts);
+    assert_contains(html, "Brett's Notes", "fallback: '' renders as a single quote");
+    assert_not_contains(html, "Brett''s", "fallback: '' is not left doubled");
+    apex_free_string(html);
+
+    /* Plugin manifests load through the same fallback; \" must not survive */
+    char manifest_path[] = "/tmp/apex_test_manifest_XXXXXX";
+    const char *manifest =
+        "---\n"
+        "id: test\n"
+        "description: Wrap :emoji: markers\n"
+        "phase: post_render\n"
+        "pattern: \"(:[0-9]+:)\"\n"
+        "replacement: \"<span class=\\\"emoji\\\">$1</span>\"\n"
+        "---\n";
+    if (write_temp_file(manifest_path, manifest) == 0) {
+        /* Capture stderr to check the libyaml warning */
+        char err_path[] = "/tmp/apex_test_stderr_XXXXXX";
+        int err_fd = mkstemp(err_path);
+        int saved_stderr = dup(STDERR_FILENO);
+        fflush(stderr);
+        dup2(err_fd, STDERR_FILENO);
+
+        m = apex_load_metadata_from_file(manifest_path);
+
+        fflush(stderr);
+        dup2(saved_stderr, STDERR_FILENO);
+        close(saved_stderr);
+
+        char err_buf[512] = {0};
+        lseek(err_fd, 0, SEEK_SET);
+        ssize_t n = read(err_fd, err_buf, sizeof(err_buf) - 1);
+        if (n > 0) err_buf[n] = '\0';
+        close(err_fd);
+        unlink(err_path);
+
+        assert_meta_value(m, "replacement", "<span class=\"emoji\">$1</span>", "fallback manifest");
+        assert_meta_value(m, "pattern", "(:[0-9]+:)", "fallback manifest");
+        assert_contains(err_buf, "Warning: YAML error in", "rejected manifest prints a warning");
+        assert_contains(err_buf, manifest_path, "warning names the manifest file");
+        assert_contains(err_buf, "mapping values are not allowed", "warning includes libyaml's problem");
+        apex_free_metadata(m);
+        unlink(manifest_path);
+    } else {
+        test_result(false, "fallback manifest: could not write temp file");
+    }
+
+    /* A NULL list in the middle must not stop the merge */
+    apex_metadata_item *global = apex_parse_command_metadata("a=global,keep=1");
+    apex_metadata_item *file = apex_parse_command_metadata("a=file");
+    apex_metadata_item *lists[] = { global, NULL, file };
+    apex_metadata_item *merged = apex_merge_metadata_lists(lists, 3);
+    assert_meta_value(merged, "a", "file", "merge lists past NULL");
+    assert_meta_value(merged, "keep", "1", "merge lists past NULL");
+    apex_free_metadata(merged);
+    apex_free_metadata(global);
+    apex_free_metadata(file);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Metadata YAML fallback Tests", had_failures, false);
 }
 
 /**
