@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.29] - 2026-09-26
+
+### New
+
+- **APEX_FRAMEWORK_NO_YAML CMake option** builds Apex.framework without libyaml for app embedding (YAML array support is unavailable in that build)
+
+### Improved
+
+- **Apex.framework** now links cmark-gfm statically so embedded frameworks do not depend on libcmark-gfm dylib paths from the build tree
+
+### Fixed
+
+- **++insert++ syntax** no longer converts ++ runs inside HTML tag attributes, so base64 data: URIs in inline images (e.g. from Bear) are no longer corrupted with <ins> tags
+- **Relaxed tables** no longer treat pipes inside [[wiki|label]] links as cell separators, so consecutive list items or lines with labelled wiki links no longer become a table with an injected ---|---| separator row
+- **markdown="1" blocks** now apply enabled GFM extensions (pipe tables, task lists, strikethrough, extended autolinks), including in nested blocks such as Obsidian callouts
+
 ## [1.1.28] - 2026-09-25
 
 ### Changed
@@ -3285,6 +3301,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.29]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.29
 [1.1.28]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.28
 [1.1.27]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.27
 [1.1.26]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.26
