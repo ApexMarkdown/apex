@@ -7,6 +7,7 @@
 #include "ial.h"
 #include "../html_renderer.h"
 #include "cmark-gfm.h"
+#include "cmark-gfm-extension_api.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -672,7 +673,26 @@ static const char *find_closing_tag(const char *text, const char *tag_name) {
  * If img_attrs is non-NULL, image attributes (e.g. width/height from ref defs) are applied to images in markdown="1" regions.
  * full_doc is the original document used to resolve reference-style link definitions.
  */
-static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, const char *full_doc) {
+static void attach_gfm_extensions(cmark_parser *parser, const apex_options *options) {
+    if (!parser || !options) return;
+    apex_ensure_cmark_extensions();
+    const char *names[4];
+    int count = 0;
+    if (options->enable_tables) names[count++] = "table";
+    if (options->enable_task_lists) names[count++] = "tasklist";
+    if (options->enable_strikethrough) names[count++] = "strikethrough";
+    if (options->enable_autolink &&
+        (options->mode == APEX_MODE_GFM || apex_mode_is_unified_family(options->mode))) {
+        names[count++] = "autolink";
+    }
+    for (int i = 0; i < count; i++) {
+        cmark_syntax_extension *ext = cmark_find_syntax_extension(names[i]);
+        if (ext) cmark_parser_attach_syntax_extension(parser, ext);
+    }
+}
+
+static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, const char *full_doc,
+                                             const apex_options *options) {
     if (!text) return NULL;
     if (!full_doc) full_doc = text;
 
@@ -782,7 +802,7 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
 
                 /* Recursively process nested divs with markdown="1" BEFORE parsing */
                 /* This ensures nested divs are processed before cmark-gfm sees them */
-                char *processed_content = apex_process_html_markdown_impl(content, img_attrs, full_doc);
+                char *processed_content = apex_process_html_markdown_impl(content, img_attrs, full_doc, options);
                 if (processed_content) {
                     free(content);
                     content = processed_content;
@@ -801,6 +821,7 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
                 int cmark_opts = CMARK_OPT_DEFAULT | CMARK_OPT_UNSAFE | CMARK_OPT_FOOTNOTES;
                 cmark_parser *parser = cmark_parser_new(cmark_opts);
                 if (parser) {
+                    attach_gfm_extensions(parser, options);
                     cmark_parser_feed(parser, content, content_len);
                     cmark_node *doc = cmark_parser_finish(parser);
 
@@ -955,7 +976,7 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
     return output;
 }
 
-char *apex_process_html_markdown(const char *text, void *img_attrs) {
-    return apex_process_html_markdown_impl(text, img_attrs, text);
+char *apex_process_html_markdown(const char *text, void *img_attrs, const apex_options *options) {
+    return apex_process_html_markdown_impl(text, img_attrs, text, options);
 }
 

@@ -1819,6 +1819,31 @@ void test_html_markdown_attributes(void) {
     assert_contains(html, "<li>List item</li>", "markdown=\"block\" parses lists");
     apex_free_string(html);
 
+    /* GFM extensions enabled on the document apply inside markdown="1" */
+    apex_options gfm_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    gfm_opts.relaxed_tables = false;
+    const char *table_block = "<div markdown=\"1\">\n| A | B |\n| --- | --- |\n| 1 | 2 |\n</div>";
+    html = apex_markdown_to_html(table_block, strlen(table_block), &gfm_opts);
+    assert_contains(html, "<table>", "markdown=\"1\" parses pipe tables");
+    assert_contains(html, "<td>1</td>", "markdown=\"1\" table has body cells");
+    apex_free_string(html);
+
+    const char *nested_table = "<div markdown=\"1\">\n<div markdown=\"1\">\n| A | B |\n| --- | --- |\n| 1 | 2 |\n</div>\n</div>";
+    html = apex_markdown_to_html(nested_table, strlen(nested_table), &gfm_opts);
+    assert_contains(html, "<table>", "Nested markdown=\"1\" parses pipe tables");
+    apex_free_string(html);
+
+    const char *strike_block = "<div markdown=\"1\">\n~~gone~~\n</div>";
+    html = apex_markdown_to_html(strike_block, strlen(strike_block), &gfm_opts);
+    assert_contains(html, "<del>gone</del>", "markdown=\"1\" parses strikethrough");
+    apex_free_string(html);
+
+    apex_options no_tables_opts = gfm_opts;
+    no_tables_opts.enable_tables = false;
+    html = apex_markdown_to_html(table_block, strlen(table_block), &no_tables_opts);
+    assert_not_contains(html, "<table>", "markdown=\"1\" respects disabled tables");
+    apex_free_string(html);
+
     /* Test markdown="span" (parse as inline markdown) */
     const char *span = "<div markdown=\"span\">**bold** and *italic*</div>";
     html = apex_markdown_to_html(span, strlen(span), &opts);
