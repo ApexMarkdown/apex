@@ -107,8 +107,17 @@ void apex_metadata_fprint_yaml_document(FILE *fp, const apex_metadata_item *meta
  * Merge multiple metadata lists with precedence
  * Later lists take precedence over earlier ones
  * Returns a new merged list (caller must free with apex_free_metadata)
+ * The argument list is NULL-terminated, so an empty (NULL) list after the
+ * first ends the merge early; use apex_merge_metadata_lists when any list
+ * may be NULL.
  */
 apex_metadata_item *apex_merge_metadata(apex_metadata_item *first, ...);
+
+/**
+ * Merge count metadata lists in order (later lists win). NULL entries are
+ * skipped. Returns a new list (caller must free with apex_free_metadata).
+ */
+apex_metadata_item *apex_merge_metadata_lists(apex_metadata_item *const *lists, size_t count);
 
 /**
  * Apply metadata values to apex_options structure

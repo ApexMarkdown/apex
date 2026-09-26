@@ -744,12 +744,10 @@ static void apex_cli_print_info(FILE *out,
 
     apex_metadata_item *merged_config = NULL;
     if (global_config_meta || project_config_meta || explicit_file_meta || cmdline_metadata) {
-        merged_config = apex_merge_metadata(
-            global_config_meta,
-            project_config_meta,
-            explicit_file_meta,
-            cmdline_metadata,
-            NULL);
+        apex_metadata_item *lists[] = {
+            global_config_meta, project_config_meta, explicit_file_meta, cmdline_metadata
+        };
+        merged_config = apex_merge_metadata_lists(lists, sizeof(lists) / sizeof(lists[0]));
     }
 
     if (global_config_meta) apex_free_metadata(global_config_meta);
@@ -4014,12 +4012,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (global_config_meta || project_config_meta || explicit_file_meta) {
-        file_metadata = apex_merge_metadata(
-            global_config_meta,
-            project_config_meta,
-            explicit_file_meta,
-            NULL
-        );
+        apex_metadata_item *lists[] = { global_config_meta, project_config_meta, explicit_file_meta };
+        file_metadata = apex_merge_metadata_lists(lists, sizeof(lists) / sizeof(lists[0]));
     }
 
     if (global_config_meta) apex_free_metadata(global_config_meta);
@@ -4059,12 +4053,8 @@ int main(int argc, char *argv[]) {
     PROFILE_START(metadata_merge);
     apex_metadata_item *merged_metadata = NULL;
     if (file_metadata || doc_metadata || cmdline_metadata) {
-        merged_metadata = apex_merge_metadata(
-            file_metadata,
-            doc_metadata,
-            cmdline_metadata,
-            NULL
-        );
+        apex_metadata_item *lists[] = { file_metadata, doc_metadata, cmdline_metadata };
+        merged_metadata = apex_merge_metadata_lists(lists, sizeof(lists) / sizeof(lists[0]));
     }
     PROFILE_END(metadata_merge);
 

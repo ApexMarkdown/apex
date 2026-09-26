@@ -2436,17 +2436,36 @@ apex_metadata_item *apex_parse_command_metadata(const char *arg) {
  * Merge multiple metadata lists with precedence
  * Later lists take precedence over earlier ones
  */
+/* Add or replace each item of src in *result (case-insensitive keys). */
+static void merge_metadata_into(apex_metadata_item **result, const apex_metadata_item *src) {
+    for (; src; src = src->next) {
+        apex_metadata_item *prev = NULL;
+        apex_metadata_item *curr = *result;
+        while (curr) {
+            if (strcasecmp(curr->key, src->key) == 0) {
+                if (prev) {
+                    prev->next = curr->next;
+                } else {
+                    *result = curr->next;
+                }
+                free(curr->key);
+                free(curr->value);
+                free(curr);
+                break;
+            }
+            prev = curr;
+            curr = curr->next;
+        }
+        add_metadata_item(result, src->key, src->value);
+    }
+}
+
 apex_metadata_item *apex_merge_metadata(apex_metadata_item *first, ...) {
     apex_metadata_item *result = NULL;
 
     /* Start with a copy of the first list (if any) */
-    apex_metadata_item *src;
-    if (first) {
-        src = first;
-        while (src) {
-            add_metadata_item(&result, src->key, src->value);
-            src = src->next;
-        }
+    for (apex_metadata_item *src = first; src; src = src->next) {
+        add_metadata_item(&result, src->key, src->value);
     }
 
     /* Merge remaining lists */
@@ -2455,37 +2474,19 @@ apex_metadata_item *apex_merge_metadata(apex_metadata_item *first, ...) {
 
     apex_metadata_item *next_list;
     while ((next_list = va_arg(args, apex_metadata_item*)) != NULL) {
-        /* For each item in next_list, add or replace in result */
-        src = next_list;
-        while (src) {
-            /* Remove existing item with same key (case-insensitive) */
-            apex_metadata_item *prev = NULL;
-            apex_metadata_item *curr = result;
-            while (curr) {
-                if (strcasecmp(curr->key, src->key) == 0) {
-                    /* Remove this item */
-                    if (prev) {
-                        prev->next = curr->next;
-                    } else {
-                        result = curr->next;
-                    }
-                    free(curr->key);
-                    free(curr->value);
-                    apex_metadata_item *to_free = curr;
-                    curr = curr->next;
-                    free(to_free);
-                    break;
-                }
-                prev = curr;
-                curr = curr->next;
-            }
-            /* Add new item */
-            add_metadata_item(&result, src->key, src->value);
-            src = src->next;
-        }
+        merge_metadata_into(&result, next_list);
     }
 
     va_end(args);
+    return result;
+}
+
+apex_metadata_item *apex_merge_metadata_lists(apex_metadata_item *const *lists, size_t count) {
+    apex_metadata_item *result = NULL;
+    if (!lists) return NULL;
+    for (size_t i = 0; i < count; i++) {
+        if (lists[i]) merge_metadata_into(&result, lists[i]);
+    }
     return result;
 }
 
