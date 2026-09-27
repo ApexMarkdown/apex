@@ -116,4 +116,35 @@ grep -q '^title: A YAML test$' "$COMBINED" || {
 echo "--combine --extract-meta: later file overrides title as expected."
 
 echo
+echo "== Testing global config metadata in modes without front matter =="
+
+mkdir -p "$WORK/xdg/apex"
+printf 'title: Config Title\n' >"$WORK/xdg/apex/config.yml"
+for mode in gfm commonmark; do
+	OUT="$(printf 'Hello world\n' | XDG_CONFIG_HOME="$WORK/xdg" "$APEX_BIN" --no-plugins -m "$mode")"
+	if grep -qE 'Config Title|<hr' <<<"$OUT" || ! grep -q '<p>Hello world</p>' <<<"$OUT"; then
+		echo "metadata_cli_test: -m $mode rendered config metadata as document text:" >&2
+		echo "$OUT" >&2
+		exit 1
+	fi
+done
+
+printf 'title: Config Title\nmode: gfm\n' >"$WORK/xdg/apex/config.yml"
+OUT="$(printf 'Hello world\n' | XDG_CONFIG_HOME="$WORK/xdg" "$APEX_BIN" --no-plugins)"
+if grep -qE 'Config Title|<hr' <<<"$OUT"; then
+	echo "metadata_cli_test: config 'mode: gfm' rendered config metadata as document text:" >&2
+	echo "$OUT" >&2
+	exit 1
+fi
+
+printf 'title: Config Title\n' >"$WORK/xdg/apex/config.yml"
+OUT="$(printf 'Hello [%%title]\n' | XDG_CONFIG_HOME="$WORK/xdg" "$APEX_BIN" --no-plugins -m unified)"
+grep -q 'Hello Config Title' <<<"$OUT" || {
+	echo "metadata_cli_test: unified mode should still expose config metadata to the document:" >&2
+	echo "$OUT" >&2
+	exit 1
+}
+echo "Config metadata is not injected as text in gfm/commonmark and still reaches unified documents."
+
+echo
 echo "All metadata CLI tests passed."

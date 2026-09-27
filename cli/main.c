@@ -4058,12 +4058,61 @@ int main(int argc, char *argv[]) {
     }
     PROFILE_END(metadata_merge);
 
-    /* Build enhanced markdown with merged metadata as YAML front matter */
+    /* Set bibliography files in options (NULL-terminated array) */
+    if (bibliography_count > 0) {
+        bibliography_files = realloc(bibliography_files, (bibliography_count + 1) * sizeof(char*));
+        if (bibliography_files) {
+            bibliography_files[bibliography_count] = NULL;  /* NULL terminator */
+            options.bibliography_files = bibliography_files;
+        }
+    }
+
+    /* Set concordance files in options (NULL-terminated array) */
+    if (concordance_count > 0) {
+        concordance_files = realloc(concordance_files, (concordance_count + 1) * sizeof(char*));
+        if (concordance_files) {
+            concordance_files[concordance_count] = NULL;
+            options.concordance_files = concordance_files;
+            options.enable_indices = true;
+            options.enable_textindex_syntax = true;
+        }
+    }
+
+    /* Set stylesheet files in options (NULL-terminated array) */
+    if (stylesheet_count > 0) {
+        stylesheet_files = realloc(stylesheet_files, (stylesheet_count + 1) * sizeof(char*));
+        if (stylesheet_files) {
+            stylesheet_files[stylesheet_count] = NULL;  /* NULL terminator */
+            options.stylesheet_paths = (const char **)stylesheet_files;
+            options.stylesheet_count = stylesheet_count;
+        }
+    }
+
+    /* Apply metadata to options - allows per-document control of command-line options */
+    /* Note: Bibliography file loading from metadata will be handled in citations extension */
+    if (merged_metadata) {
+        /* Snapshot argv-resolved options after wiring bibliography/stylesheet; merged metadata must not override explicit CLI flags. */
+        cli_options_snapshot = options;
+        apex_apply_metadata_to_options(merged_metadata, &options);
+        apex_cli_restore_argv_options(&options, &cli_options_snapshot, &cli_opt_mask);
+    }
+
+    /* Re-apply explicit CLI override for plugins so it wins over metadata. */
+    if (plugins_cli_override) {
+        options.enable_plugins = plugins_cli_value;
+    }
+
+    /* Build enhanced markdown with merged metadata as YAML front matter.
+     * CommonMark and GFM never strip front matter, so injecting it there
+     * would render the metadata as document text. Decide after metadata
+     * has been applied, since it can change the mode. */
+    bool mode_reads_front_matter = options.mode == APEX_MODE_MULTIMARKDOWN ||
+                                   apex_mode_is_kramdown_or_unified_family(options.mode);
     PROFILE_START(metadata_yaml_build);
     char *enhanced_markdown = NULL;
     size_t enhanced_len = input_len;
 
-    if (merged_metadata) {
+    if (merged_metadata && mode_reads_front_matter) {
         bool has_existing_metadata = (doc_metadata_end > 0);
         size_t metadata_start_pos = 0;
         size_t metadata_end_pos = doc_metadata_end;
@@ -4111,50 +4160,6 @@ int main(int argc, char *argv[]) {
         }
     }
     PROFILE_END(metadata_yaml_build);
-
-    /* Set bibliography files in options (NULL-terminated array) */
-    if (bibliography_count > 0) {
-        bibliography_files = realloc(bibliography_files, (bibliography_count + 1) * sizeof(char*));
-        if (bibliography_files) {
-            bibliography_files[bibliography_count] = NULL;  /* NULL terminator */
-            options.bibliography_files = bibliography_files;
-        }
-    }
-
-    /* Set concordance files in options (NULL-terminated array) */
-    if (concordance_count > 0) {
-        concordance_files = realloc(concordance_files, (concordance_count + 1) * sizeof(char*));
-        if (concordance_files) {
-            concordance_files[concordance_count] = NULL;
-            options.concordance_files = concordance_files;
-            options.enable_indices = true;
-            options.enable_textindex_syntax = true;
-        }
-    }
-
-    /* Set stylesheet files in options (NULL-terminated array) */
-    if (stylesheet_count > 0) {
-        stylesheet_files = realloc(stylesheet_files, (stylesheet_count + 1) * sizeof(char*));
-        if (stylesheet_files) {
-            stylesheet_files[stylesheet_count] = NULL;  /* NULL terminator */
-            options.stylesheet_paths = (const char **)stylesheet_files;
-            options.stylesheet_count = stylesheet_count;
-        }
-    }
-
-    /* Apply metadata to options - allows per-document control of command-line options */
-    /* Note: Bibliography file loading from metadata will be handled in citations extension */
-    if (merged_metadata) {
-        /* Snapshot argv-resolved options after wiring bibliography/stylesheet; merged metadata must not override explicit CLI flags. */
-        cli_options_snapshot = options;
-        apex_apply_metadata_to_options(merged_metadata, &options);
-        apex_cli_restore_argv_options(&options, &cli_options_snapshot, &cli_opt_mask);
-    }
-
-    /* Re-apply explicit CLI override for plugins so it wins over metadata. */
-    if (plugins_cli_override) {
-        options.enable_plugins = plugins_cli_value;
-    }
 
     /* Resolve AST filters configured from CLI into absolute command paths.
      * Filters live in $XDG_CONFIG_HOME/apex/filters or ~/.config/apex/filters.
