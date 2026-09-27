@@ -1757,9 +1757,16 @@ void test_blockquote_lists(void) {
     const char *task_list = "> Tasks:\n>\n> - [ ] Todo\n> - [x] Done\n> - [ ] Another";
     html = apex_markdown_to_html(task_list, strlen(task_list), &gfm_opts);
     assert_contains(html, "<blockquote>", "Blockquote with task list");
-    /* Task lists in blockquotes may not render checkboxes - verify content is present */
-    assert_contains(html, "Todo", "Todo item");
-    assert_contains(html, "Done", "Done item");
+    assert_contains(html, "<li><input type=\"checkbox\" disabled=\"\" /> Todo</li>", "Unchecked task in blockquote");
+    assert_contains(html, "<li><input type=\"checkbox\" checked=\"\" disabled=\"\" /> Done</li>", "Checked task in blockquote");
+    assert_not_contains(html, "[ ]", "No literal task marker in blockquote");
+    apex_free_string(html);
+
+    const char *nested_task = "> > - [X] Deep\n> > - [ ]\n> > - [ ]not a task";
+    html = apex_markdown_to_html(nested_task, strlen(nested_task), &gfm_opts);
+    assert_contains(html, "checked=\"\" disabled=\"\" /> Deep</li>", "Uppercase X task in nested blockquote");
+    assert_contains(html, "<li><input type=\"checkbox\" disabled=\"\" /> </li>", "Empty task item in blockquote");
+    assert_contains(html, "<li>[ ]not a task</li>", "Marker without trailing space stays literal");
     apex_free_string(html);
 
     /* Relaxed tables must not inject unprefixed separator rows into blockquoted tables */

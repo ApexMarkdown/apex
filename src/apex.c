@@ -2511,6 +2511,48 @@ static char *apex_preprocess_nested_ordered_sublists(const char *text,
     return output;
 }
 
+/* cmark-gfm's tasklist scanner matches from the start of the physical line,
+ * so "> - [ ] item" (including callout bodies) is never recognized. Convert
+ * those items after parsing. */
+static void apex_fix_blockquote_tasklists(cmark_node *node, cmark_syntax_extension *tasklist_ext,
+                                          int blockquote_depth) {
+    if (!node || !tasklist_ext) return;
+
+    cmark_node_type type = cmark_node_get_type(node);
+    if (type == CMARK_NODE_BLOCK_QUOTE) {
+        blockquote_depth++;
+    } else if (type == CMARK_NODE_ITEM && blockquote_depth > 0 &&
+               cmark_node_get_syntax_extension(node) != tasklist_ext) {
+        cmark_node *para = cmark_node_first_child(node);
+        cmark_node *text = para && cmark_node_get_type(para) == CMARK_NODE_PARAGRAPH
+                               ? cmark_node_first_child(para) : NULL;
+        const char *lit = text && cmark_node_get_type(text) == CMARK_NODE_TEXT
+                              ? cmark_node_get_literal(text) : NULL;
+        if (lit && lit[0] == '[' && (lit[1] == ' ' || lit[1] == 'x' || lit[1] == 'X') &&
+            lit[2] == ']' && (lit[3] == ' ' || lit[3] == '\t' ||
+                              (lit[3] == '\0' && !cmark_node_next(text)))) {
+            bool checked = lit[1] != ' ';
+            const char *rest = lit + 3;
+            while (*rest == ' ' || *rest == '\t') rest++;
+            if (*rest) {
+                char *copy = strdup(rest);
+                if (copy) {
+                    cmark_node_set_literal(text, copy);
+                    free(copy);
+                }
+            } else {
+                cmark_node_free(text);
+            }
+            cmark_node_set_syntax_extension(node, tasklist_ext);
+            cmark_gfm_extensions_set_tasklist_item_checked(node, checked);
+        }
+    }
+
+    for (cmark_node *child = cmark_node_first_child(node); child; child = cmark_node_next(child)) {
+        apex_fix_blockquote_tasklists(child, tasklist_ext, blockquote_depth);
+    }
+}
+
 /* Force tight rendering for lists synthesized from nested ordered sublist fixes. */
 static void apex_tighten_nested_ordered_list_items(cmark_node *node) {
     if (!node) return;
@@ -6043,6 +6085,10 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         free(working_text);
         apex_free_metadata(metadata);
         return NULL;
+    }
+
+    if (options->enable_task_lists) {
+        apex_fix_blockquote_tasklists(document, cmark_find_syntax_extension("tasklist"), 0);
     }
 
     /* If output format is JSON, emit JSON right after parsing (before AST filters) */
