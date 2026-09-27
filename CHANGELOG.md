@@ -2,6 +2,22 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.32] - 2026-09-27
+
+### Improved
+
+- **Callout title escaping**: plain-text titles are now HTML-escaped and are no longer truncated at 1KB
+
+### Fixed
+
+- **Relaxed tables in blockquotes**: GFM pipe tables inside `>` blockquotes (including nested callouts) no longer get an unprefixed separator row injected, which split the table out of the blockquote and rendered it as pipe and dash text
+- **Task lists in blockquotes**: `> - [ ] item` and `> - [x] item`, including task lists in callout bodies, now render checkboxes instead of literal `[ ]` text
+- **Callout titles with inline markup**: titles like `> [!info]+ **Bold**`, emoji plus bold, code, links, and emphasis now render inside `<summary>` or `.callout-title` instead of falling back to the type name and leaving the markup in the body
+- **Nested callouts**: `> > [!TYPE]` callouts inside another callout are now converted instead of rendering literal `[!TYPE]` text
+- **Callout body spacing**: callout bodies no longer start with a stray line break, and a marker-only first line no longer leaves an empty paragraph
+- **Config metadata in GFM/CommonMark output**: with a global or project config.yml (or --meta-file), `-m gfm` and `-m commonmark` no longer render the merged metadata as a horizontal rule and heading at the top of the document
+- **Release builds missing parser fixes**: release binaries, Homebrew, SwiftPM, apex-node, and other builds from a clean checkout now include Apex's cmark-gfm patches (pipes in table code spans, escaped << in table cells, autolink fixes for @ in HTML tags and @2x image names, lists and definition lines interrupting paragraphs, and images not lazy-continuing blockquotes)
+
 ## [1.1.31] - 2026-09-26
 
 ### Changed
@@ -3339,6 +3355,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.32]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.32
 [1.1.31]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.31
 [1.1.30]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.30
 [1.1.29]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.29
