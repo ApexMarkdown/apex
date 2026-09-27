@@ -1762,6 +1762,15 @@ void test_blockquote_lists(void) {
     assert_contains(html, "Done", "Done item");
     apex_free_string(html);
 
+    /* Relaxed tables must not inject unprefixed separator rows into blockquoted tables */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *quoted_table = "> > | A | B |\n> > | --- | --- |\n> > | 1 | 2 |\n";
+    html = apex_markdown_to_html(quoted_table, strlen(quoted_table), &unified_opts);
+    assert_contains(html, "<blockquote>\n<blockquote>\n<table>", "GFM table stays inside nested blockquote");
+    assert_contains(html, "<td>1</td>", "Blockquoted table body row rendered");
+    assert_not_contains(html, "|", "No pipe text leaked from blockquoted table");
+    apex_free_string(html);
+
     /* Test definition list in blockquote (MMD mode) */
     html = apex_markdown_to_html("> Terms:\n>\n> Term 1\n> : Definition 1\n>\n> Term 2\n> : Definition 2", 60, &opts);
     assert_contains(html, "<blockquote>", "Blockquote with definition list");

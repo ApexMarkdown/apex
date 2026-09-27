@@ -516,13 +516,15 @@ static char *apex_process_relaxed_tables_impl(const char *text,
         }
 
         /* Skip grid tables (lines starting with +) so relaxed table detection
-         * does not treat grid borders as pipe table rows. */
+         * does not treat grid borders as pipe table rows. Skip blockquote
+         * lines too: an injected separator row would lack the > prefix and
+         * split the table out of the blockquote. */
         if (!in_fenced_code) {
             const char *line_check = line_start;
             while (line_check < line_end && (*line_check == ' ' || *line_check == '\t')) {
                 line_check++;
             }
-            if (line_check < line_end && *line_check == '+') {
+            if (line_check < line_end && (*line_check == '+' || *line_check == '>')) {
                 if (rows_count > 0) {
                     for (size_t i = 0; i < rows_count; i++) {
                         if (rows[i].len < remaining) {
