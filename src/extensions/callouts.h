@@ -38,9 +38,10 @@ typedef enum {
 } callout_type_t;
 
 /**
- * Process callouts in AST (postprocessing)
+ * Process callouts in AST (postprocessing). render_options are the cmark
+ * options used to render inline markup in callout titles.
  */
-void apex_process_callouts_in_tree(cmark_node *document, bool enable_py_callouts);
+void apex_process_callouts_in_tree(cmark_node *document, bool enable_py_callouts, int render_options);
 
 /**
  * Preprocess Python-Markdown callouts into Obsidian-style blockquotes.

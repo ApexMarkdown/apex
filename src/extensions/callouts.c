@@ -66,9 +66,13 @@ static const char *callout_type_name(callout_type_t type) {
 /**
  * Check if a blockquote is a Bear/Obsidian style callout
  * Pattern: > [!TYPE] Title or > [!TYPE]+ Title or > [!TYPE]- Title
+ *
+ * On success, *marker_len is the number of bytes at the start of the first
+ * text node taken up by the marker and the whitespace after it. Everything
+ * else on the marker line (including inline markup) is the title.
  */
 static bool is_bear_callout(cmark_node *blockquote, bool enable_py_callouts, callout_type_t *type,
-                            char **title, bool *collapsible, bool *default_open) {
+                            size_t *marker_len, bool *collapsible, bool *default_open) {
     if (cmark_node_get_type(blockquote) != CMARK_NODE_BLOCK_QUOTE) return false;
 
     /* Get first child (should be paragraph) */
@@ -96,14 +100,7 @@ static bool is_bear_callout(cmark_node *blockquote, bool enable_py_callouts, cal
                     *default_open = false;
                     const char *title_start = p + 1;
                     while (*title_start == ' ' || *title_start == '\t') title_start++;
-                    if (*title_start) {
-                        const char *title_end = strchr(title_start, '\n');
-                        if (title_end) {
-                            *title = strndup(title_start, title_end - title_start);
-                        } else {
-                            *title = strdup(title_start);
-                        }
-                    }
+                    *marker_len = (size_t)(title_start - text);
                     return true;
                 }
             }
@@ -138,106 +135,149 @@ static bool is_bear_callout(cmark_node *blockquote, bool enable_py_callouts, cal
         type_end++;
     }
 
-    /* Extract title (rest of the line after ] or +/-) */
     const char *title_start = type_end + 1;
     while (*title_start == ' ' || *title_start == '\t') title_start++;
+    *marker_len = (size_t)(title_start - text);
 
-    if (*title_start) {
-        /* Find end of line */
-        const char *title_end = strchr(title_start, '\n');
-        if (title_end) {
-            *title = strndup(title_start, title_end - title_start);
-        } else {
-            *title = strdup(title_start);
+    return true;
+}
+
+static bool is_line_break(cmark_node *node) {
+    cmark_node_type t = cmark_node_get_type(node);
+    return t == CMARK_NODE_SOFTBREAK || t == CMARK_NODE_LINEBREAK;
+}
+
+/**
+ * Move the inlines on the marker line out of the first paragraph and render
+ * them as the title HTML. Returns NULL when the marker line has no title.
+ */
+static char *extract_callout_title_html(cmark_node *para, int render_options) {
+    /* The HTML renderer dereferences a paragraph's parent, so render from a document */
+    cmark_node *title_doc = cmark_node_new(CMARK_NODE_DOCUMENT);
+    cmark_node *title_para = cmark_node_new(CMARK_NODE_PARAGRAPH);
+    if (!title_doc || !title_para || !cmark_node_append_child(title_doc, title_para)) {
+        if (title_para) cmark_node_free(title_para);
+        if (title_doc) cmark_node_free(title_doc);
+        return NULL;
+    }
+
+    cmark_node *child = cmark_node_first_child(para);
+    while (child && !is_line_break(child)) {
+        cmark_node *next = cmark_node_next(child);
+        cmark_node_append_child(title_para, child);
+        child = next;
+    }
+    if (child) {
+        cmark_node_free(child);
+    }
+
+    char *title = NULL;
+    if (cmark_node_first_child(title_para)) {
+        char *html = cmark_render_html(title_doc, render_options & ~CMARK_OPT_SOURCEPOS, NULL);
+        if (html) {
+            const char *start = html;
+            if (strncmp(start, "<p>", 3) == 0) start += 3;
+            const char *end = start + strlen(start);
+            while (end > start && isspace((unsigned char)end[-1])) end--;
+            if (end - start >= 4 && strncmp(end - 4, "</p>", 4) == 0) end -= 4;
+            while (end > start && isspace((unsigned char)end[-1])) end--;
+            while (start < end && isspace((unsigned char)*start)) start++;
+            if (end > start) {
+                title = strndup(start, (size_t)(end - start));
+            }
+            free(html);
         }
     }
 
-    return true;
+    cmark_node_free(title_doc);
+    return title;
 }
 
 /**
  * Convert blockquote to callout HTML
  */
 static void convert_blockquote_to_callout(cmark_node *blockquote, callout_type_t type,
-                                         const char *title, bool collapsible, bool default_open) {
+                                         size_t marker_len, bool collapsible, bool default_open,
+                                         int render_options) {
     const char *type_name = callout_type_name(type);
 
-    /* Build callout HTML */
-    char html_start[1024];
-    char html_end[256];
+    /* Strip the marker from the first text node, then lift the rest of the
+     * marker line into the title */
+    cmark_node *first_para = cmark_node_first_child(blockquote);
+    cmark_node *first_text = cmark_node_first_child(first_para);
+    const char *text = cmark_node_get_literal(first_text);
+    if (text && strlen(text) > marker_len) {
+        char *rest = strdup(text + marker_len);
+        if (rest) {
+            cmark_node_set_literal(first_text, rest);
+            free(rest);
+        }
+    } else {
+        cmark_node_free(first_text);
+    }
+
+    char *title = extract_callout_title_html(first_para, render_options);
+    if (!cmark_node_first_child(first_para)) {
+        cmark_node_free(first_para);
+    }
+
+    const char *title_html = title ? title : type_name;
+    size_t start_size = strlen(title_html) + 256;
+    char *html_start = malloc(start_size);
+    if (!html_start) {
+        free(title);
+        return;
+    }
+    const char *html_end;
 
     if (collapsible) {
-        snprintf(html_start, sizeof(html_start),
+        snprintf(html_start, start_size,
                 "<details class=\"callout callout-%s\"%s>\n<summary>%s</summary>\n<div class=\"callout-content\">\n",
-                type_name, default_open ? " open" : "", title ? title : type_name);
-        strcpy(html_end, "\n</div>\n</details>");
+                type_name, default_open ? " open" : "", title_html);
+        html_end = "\n</div>\n</details>";
     } else {
-        snprintf(html_start, sizeof(html_start),
+        snprintf(html_start, start_size,
                 "<div class=\"callout callout-%s\">\n<div class=\"callout-title\">%s</div>\n<div class=\"callout-content\">\n",
-                type_name, title ? title : type_name);
-        strcpy(html_end, "\n</div>\n</div>");
+                type_name, title_html);
+        html_end = "\n</div>\n</div>";
     }
+    free(title);
 
-    /* Get blockquote content (skip first paragraph with [!TYPE]) */
-    cmark_node *first_para = cmark_node_first_child(blockquote);
-    if (first_para) {
-        /* Remove the [!TYPE] line from first paragraph */
-        cmark_node *first_text = cmark_node_first_child(first_para);
-        if (first_text && cmark_node_get_type(first_text) == CMARK_NODE_TEXT) {
-            const char *text = cmark_node_get_literal(first_text);
-            if (text) {
-                /* Skip to content after the title line */
-                const char *newline = strchr(text, '\n');
-                if (newline && *(newline + 1)) {
-                    cmark_node_set_literal(first_text, newline + 1);
-                } else {
-                    /* Remove the text node entirely if it's just the [!TYPE] line */
-                    cmark_node_unlink(first_text);
-                    cmark_node_free(first_text);
-                }
-            }
-        }
-    }
-
-    /* Create HTML wrapper */
+    /* Wrap the blockquote; its content renders normally inside the wrapper */
     cmark_node *html_before = cmark_node_new(CMARK_NODE_HTML_BLOCK);
     cmark_node_set_literal(html_before, html_start);
+    free(html_start);
 
     cmark_node *html_after = cmark_node_new(CMARK_NODE_HTML_BLOCK);
     cmark_node_set_literal(html_after, html_end);
 
-    /* Insert HTML nodes */
     cmark_node_insert_before(blockquote, html_before);
     cmark_node_insert_after(blockquote, html_after);
-
-    /* Convert blockquote to div (we'll let the content render normally) */
-    /* Actually, we can just keep it as blockquote and wrap it */
 }
 
 /**
  * Process callouts in AST
  */
-void apex_process_callouts_in_tree(cmark_node *node, bool enable_py_callouts) {
+void apex_process_callouts_in_tree(cmark_node *node, bool enable_py_callouts, int render_options) {
     if (!node) return;
 
-    /* Check if current node is a blockquote callout */
     if (cmark_node_get_type(node) == CMARK_NODE_BLOCK_QUOTE) {
         callout_type_t type;
-        char *title = NULL;
+        size_t marker_len = 0;
         bool collapsible, default_open;
 
-        if (is_bear_callout(node, enable_py_callouts, &type, &title, &collapsible, &default_open)) {
-            convert_blockquote_to_callout(node, type, title, collapsible, default_open);
-            free(title);
-            return;  /* Don't recurse into modified node */
+        if (is_bear_callout(node, enable_py_callouts, &type, &marker_len, &collapsible, &default_open)) {
+            convert_blockquote_to_callout(node, type, marker_len, collapsible, default_open,
+                                          render_options);
         }
     }
 
-    /* Recursively process children */
+    /* Recurse into children, including converted callouts, so nested
+     * callouts (> > [!TYPE]) are converted too */
     cmark_node *child = cmark_node_first_child(node);
     while (child) {
         cmark_node *next = cmark_node_next(child);
-        apex_process_callouts_in_tree(child, enable_py_callouts);
+        apex_process_callouts_in_tree(child, enable_py_callouts, render_options);
         child = next;
     }
 }

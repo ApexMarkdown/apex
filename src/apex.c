@@ -6157,7 +6157,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
 
     /* Postprocess callouts if enabled */
     if (options->enable_callouts) {
-        apex_process_callouts_in_tree(document, options->enable_py_callouts);
+        apex_process_callouts_in_tree(document, options->enable_py_callouts, cmark_opts);
     }
 
     /* Process IAL (Inline Attribute Lists) BEFORE manual header IDs.

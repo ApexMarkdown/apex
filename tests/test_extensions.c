@@ -1578,6 +1578,15 @@ void test_definition_lists(void) {
  * Test advanced tables
  */
 
+static int count_occurrences(const char *haystack, const char *needle) {
+    if (!haystack || !needle || !*needle) return 0;
+    int count = 0;
+    for (const char *p = strstr(haystack, needle); p; p = strstr(p + strlen(needle), needle)) {
+        count++;
+    }
+    return count;
+}
+
 void test_callouts(void) {
     int suite_failures = suite_start();
     print_suite_title("Callouts Tests", false, true);
@@ -1626,6 +1635,86 @@ void test_callouts(void) {
     const char *multi = "> [!NOTE] Title\n> Para 1\n>\n> Para 2";
     html = apex_markdown_to_html(multi, strlen(multi), &opts);
     assert_contains(html, "callout", "Multi-paragraph callout");
+    apex_free_string(html);
+
+    /* Wrapper structure for +, -, and no marker */
+    html = apex_markdown_to_html("> [!INFO]+ Open\n> Body", 22, &opts);
+    assert_contains(html, "<details class=\"callout callout-info\" open>\n<summary>Open</summary>",
+                    "+ callout renders open details with summary");
+    assert_contains(html, "<p>Body</p>", "Callout body has no leading line break");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("> [!NOTE]- Closed\n> Body", 24, &opts);
+    assert_contains(html, "<details class=\"callout callout-note\">\n<summary>Closed</summary>",
+                    "- callout renders closed details");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("> [!TIP] Plain\n> Body", 21, &opts);
+    assert_contains(html, "<div class=\"callout callout-tip\">\n<div class=\"callout-title\">Plain</div>",
+                    "Callout without marker renders div with callout-title");
+    apex_free_string(html);
+
+    /* Inline markup in titles belongs in the title element */
+    const char *bold_title = "> [!info]+ **IN-FLIGHT STATUS**\n> Body text";
+    html = apex_markdown_to_html(bold_title, strlen(bold_title), &opts);
+    assert_contains(html, "<summary><strong>IN-FLIGHT STATUS</strong></summary>",
+                    "Bold callout title rendered in summary");
+    assert_not_contains(html, "<summary>info</summary>", "Bold title does not fall back to type name");
+    assert_not_contains(html, "<p><strong>IN-FLIGHT STATUS", "Bold title not left in callout body");
+    apex_free_string(html);
+
+    const char *emoji_title = "> [!info]+ \xE2\x9A\xA1 **NEXT ACTIONS**\n> Body text";
+    html = apex_markdown_to_html(emoji_title, strlen(emoji_title), &opts);
+    assert_contains(html, "<summary>\xE2\x9A\xA1 <strong>NEXT ACTIONS</strong></summary>",
+                    "Emoji plus bold title rendered in summary");
+    apex_free_string(html);
+
+    const char *mixed_title = "> [!note] Use `code` & *care*\n> Body text";
+    html = apex_markdown_to_html(mixed_title, strlen(mixed_title), &opts);
+    assert_contains(html, "<div class=\"callout-title\">Use <code>code</code> &amp; <em>care</em></div>",
+                    "Inline code, emphasis, and escaping in callout-title");
+    apex_free_string(html);
+
+    /* Nested callouts */
+    const char *nested = "> [!note]+ Outer\n> > [!tip]- Inner\n> > Inner body\n";
+    html = apex_markdown_to_html(nested, strlen(nested), &opts);
+    test_result(count_occurrences(html, "class=\"callout ") == 2, "Nested callout produces two .callout elements");
+    assert_contains(html, "<details class=\"callout callout-tip\">\n<summary>Inner</summary>",
+                    "Inner callout converted");
+    assert_not_contains(html, "[!tip]", "No literal inner callout marker");
+    apex_free_string(html);
+
+    /* Full nested sample with tables and task lists (unified defaults) */
+    apex_options unified_opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    const char *agenda =
+        "## AGENDA\n"
+        "\n"
+        "> [!info]+ OVERVIEW\n"
+        "> Overview text.\n"
+        "\n"
+        "> [!info]+ **IN-FLIGHT STATUS**\n"
+        "> > [!info]+ **PROMISES (waiting on me)**\n"
+        "> > | Who | Date | Waiting for |\n"
+        "> > | --- | ---- | ----------- |\n"
+        "> > | WHO | 26-09-03 | THE THING |\n"
+        ">\n"
+        "> > [!info]+ **WAITING FOR**\n"
+        "> > | Who | Date | Waiting for |\n"
+        "> > | --- | ---- | ----------- |\n"
+        "> > | WHO | 26-09-03 | THE THING |\n"
+        ">\n"
+        "> > [!info]+ \xE2\x9A\xA1 **NEXT ACTIONS**\n"
+        "> > - [ ] ACTION\n";
+    html = apex_markdown_to_html(agenda, strlen(agenda), &unified_opts);
+    test_result(count_occurrences(html, "<details class=\"callout callout-info\" open>") == 5,
+                "Agenda sample converts all five callouts");
+    const char *in_flight = html ? strstr(html, "<summary><strong>IN-FLIGHT STATUS</strong></summary>") : NULL;
+    test_result(in_flight != NULL && count_occurrences(in_flight, "<details class=\"callout") == 3,
+                "Three nested callouts under IN-FLIGHT STATUS");
+    test_result(count_occurrences(html, "<table>") == 2, "Two tables inside nested callouts");
+    assert_contains(html, "<input type=\"checkbox\" disabled=\"\" /> ACTION", "Task list checkbox in nested callout");
+    assert_not_contains(html, "[!info]", "No literal [!info] markers left");
+    assert_not_contains(html, "[ ] ACTION", "No literal task marker left");
     apex_free_string(html);
 
     /* Test regular blockquote (not a callout) */
