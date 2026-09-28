@@ -2,6 +2,8 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.34] - 2026-09-28
+
 ## [1.1.33] - 2026-09-28
 
 ## [1.1.32] - 2026-09-27
@@ -3357,6 +3359,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.34]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.34
 [1.1.33]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.33
 [1.1.32]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.32
 [1.1.31]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.31
