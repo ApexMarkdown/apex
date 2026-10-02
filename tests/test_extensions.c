@@ -997,6 +997,98 @@ void test_multimarkdown_image_attributes(void) {
 }
 
 /**
+ * Reference definition URL encoding must leave code untouched
+ */
+
+void test_reference_definitions(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Reference Definition Tests", false, true);
+
+    apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    char *html;
+
+    const char *inline_code_md =
+        "With the cursor inside the id of a link, `[the spec][|]`, the list is "
+        "every `[id]: url` definition in the note. The same list opens for an "
+        "image, `![diagram][|]`. Typing narrows it.\n";
+    html = apex_markdown_to_html(inline_code_md, strlen(inline_code_md), &opts);
+    assert_contains(html, "<code>[the spec][|]</code>",
+        "Reference defs: first code span untouched");
+    assert_contains(html, "<code>[id]: url</code>",
+        "Reference defs: [id]: url in code span untouched");
+    assert_contains(html, "<code>![diagram][|]</code>",
+        "Reference defs: ![diagram][|] in code span untouched");
+    assert_contains(html, " definition in the note. The same list opens for an image, ",
+        "Reference defs: prose after code span not encoded");
+    assert_not_contains(html, "%60", "Reference defs: no encoded backticks");
+    assert_not_contains(html, "%20", "Reference defs: no encoded spaces");
+    apex_free_string(html);
+
+    const char *code_line_md = "`[ref]: a b c`\n";
+    html = apex_markdown_to_html(code_line_md, strlen(code_line_md), &opts);
+    assert_contains(html, "<code>[ref]: a b c</code>",
+        "Reference defs: definition-shaped code span at line start untouched");
+    apex_free_string(html);
+
+    const char *double_tick_md = "Use ``[x]: `y` z`` here.\n";
+    html = apex_markdown_to_html(double_tick_md, strlen(double_tick_md), &opts);
+    assert_contains(html, "<code>[x]: `y` z</code>",
+        "Reference defs: double-backtick code span untouched");
+    apex_free_string(html);
+
+    const char *mid_para_md = "Some text [label]: a b c and more.\n";
+    html = apex_markdown_to_html(mid_para_md, strlen(mid_para_md), &opts);
+    assert_contains(html, "Some text [label]: a b c and more.",
+        "Reference defs: mid-paragraph [label]: is plain text");
+    apex_free_string(html);
+
+    const char *def_md = "See [the spec][spec].\n\n[spec]: https://example.com/caf\xc3\xa9\n";
+    html = apex_markdown_to_html(def_md, strlen(def_md), &opts);
+    assert_contains(html, "<a href=\"https://example.com/caf%C3%A9\">the spec</a>",
+        "Reference defs: definition on its own line still encoded");
+    apex_free_string(html);
+
+    const char *indented_def_md = "See [the spec][spec].\n\n   [spec]: https://example.com/caf\xc3\xa9\n";
+    html = apex_markdown_to_html(indented_def_md, strlen(indented_def_md), &opts);
+    assert_contains(html, "<a href=\"https://example.com/caf%C3%A9\">the spec</a>",
+        "Reference defs: definition indented 3 spaces still encoded");
+    apex_free_string(html);
+
+    const char *fenced_md =
+        "```\n[spec]: https://example.com/caf\xc3\xa9 x\n![x](a b.png)\n```\n\n"
+        "~~~~ markdown\n[spec]: https://example.com/caf\xc3\xa9 x\n```\nstill code\n~~~~\n";
+    html = apex_markdown_to_html(fenced_md, strlen(fenced_md), &opts);
+    assert_contains(html, "[spec]: https://example.com/caf\xc3\xa9 x\n![x](a b.png)\n</code>",
+        "Reference defs: backtick fence untouched");
+    assert_contains(html, "[spec]: https://example.com/caf\xc3\xa9 x\n```\nstill code\n</code>",
+        "Reference defs: tilde fence with inner backticks untouched");
+    assert_not_contains(html, "%C3", "Reference defs: nothing encoded inside fences");
+    apex_free_string(html);
+
+    const char *after_fence_md =
+        "```\ncode\n```\n\nSee [the spec][spec].\n\n[spec]: https://example.com/caf\xc3\xa9\n";
+    html = apex_markdown_to_html(after_fence_md, strlen(after_fence_md), &opts);
+    assert_contains(html, "<a href=\"https://example.com/caf%C3%A9\">the spec</a>",
+        "Reference defs: definition after a fence still encoded");
+    apex_free_string(html);
+
+    const char *inline_img_code_md = "Write `![x](a b.png)` for images.\n";
+    html = apex_markdown_to_html(inline_img_code_md, strlen(inline_img_code_md), &opts);
+    assert_contains(html, "<code>![x](a b.png)</code>",
+        "Reference defs: inline image syntax in code span untouched");
+    apex_free_string(html);
+
+    const char *unmatched_md = "A lone ` tick then [x](a b) link.\n";
+    html = apex_markdown_to_html(unmatched_md, strlen(unmatched_md), &opts);
+    assert_contains(html, "<a href=\"a%20b\">x</a>",
+        "Reference defs: unmatched backtick does not disable link encoding");
+    apex_free_string(html);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Reference Definition Tests", had_failures, false);
+}
+
+/**
  * Test file includes
  */
 

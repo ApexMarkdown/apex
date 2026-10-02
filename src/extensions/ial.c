@@ -2781,6 +2781,130 @@ static bool looks_like_attr_key_equals(const char *p, const char *end) {
     return (p > key_start && p < end && *p == '=');
 }
 
+static const char *ial_next_line(const char *p) {
+    while (*p && *p != '\n' && *p != '\r') p++;
+    if (*p == '\r' && p[1] == '\n') return p + 2;
+    return *p ? p + 1 : p;
+}
+
+/* Length of a ``` or ~~~ fence run opening the line (after indentation and
+ * blockquote markers), or 0 if the line is not a fence. */
+static size_t ial_fence_run(const char *line, char *fence_char, const char **after_run) {
+    const char *p = line;
+    while (*p == ' ' || *p == '\t' || *p == '>') p++;
+    if (*p != '`' && *p != '~') return 0;
+    char c = *p;
+    const char *run = p;
+    while (*p == c) p++;
+    if (p - run < 3) return 0;
+    *fence_char = c;
+    *after_run = p;
+    return (size_t)(p - run);
+}
+
+/**
+ * Number of bytes at pos that are code (a closed fenced block starting at
+ * this line, a code span, or an unmatched backtick run) and must be copied
+ * through untouched. Returns 0 when pos does not start code.
+ */
+static size_t ial_code_region_len(const char *base, const char *pos) {
+    bool line_start = (pos == base || pos[-1] == '\n' || pos[-1] == '\r');
+    if (line_start) {
+        char fence_char;
+        const char *after;
+        size_t open_len = ial_fence_run(pos, &fence_char, &after);
+        if (open_len) {
+            bool valid = true;
+            if (fence_char == '`') {
+                for (const char *q = after; *q && *q != '\n' && *q != '\r'; q++) {
+                    if (*q == '`') { valid = false; break; }
+                }
+            }
+            if (valid) {
+                const char *line = ial_next_line(pos);
+                while (*line) {
+                    char close_char;
+                    const char *close_after;
+                    size_t close_len = ial_fence_run(line, &close_char, &close_after);
+                    if (close_len >= open_len && close_char == fence_char) {
+                        while (*close_after == ' ' || *close_after == '\t') close_after++;
+                        if (!*close_after || *close_after == '\n' || *close_after == '\r') {
+                            return (size_t)(ial_next_line(line) - pos);
+                        }
+                    }
+                    line = ial_next_line(line);
+                }
+                /* Unclosed fence: protect only the opening line */
+                return (size_t)(ial_next_line(pos) - pos);
+            }
+        }
+    }
+
+    if (*pos != '`') return 0;
+
+    size_t backslashes = 0;
+    for (const char *b = pos; b > base && b[-1] == '\\'; b--) backslashes++;
+    if (backslashes % 2) return 1;
+
+    const char *p = pos;
+    while (*p == '`') p++;
+    size_t open_len = (size_t)(p - pos);
+
+    /* Code spans may wrap lines but end at a blank line */
+    while (*p) {
+        if (*p == '\n' || *p == '\r') {
+            const char *next = ial_next_line(p);
+            const char *q = next;
+            while (*q == ' ' || *q == '\t' || *q == '>') q++;
+            if (!*q || *q == '\n' || *q == '\r') break;
+            p = next;
+            continue;
+        }
+        if (*p == '`') {
+            const char *run = p;
+            while (*p == '`') p++;
+            if ((size_t)(p - run) == open_len) return (size_t)(p - pos);
+            continue;
+        }
+        p++;
+    }
+    return open_len;
+}
+
+/* A reference definition label must open its line, after at most three
+ * spaces of indentation (blockquote markers allowed). */
+static bool ial_at_definition_start(const char *base, const char *pos) {
+    const char *p = pos;
+    for (;;) {
+        int spaces = 0;
+        while (p > base && p[-1] == ' ') {
+            p--;
+            spaces++;
+        }
+        if (spaces > 3) return false;
+        if (p == base || p[-1] == '\n' || p[-1] == '\r') return true;
+        if (p[-1] != '>') return false;
+        p--;
+    }
+}
+
+static bool ial_append_verbatim(char **buf, char **write, size_t *remaining,
+                                const char *src, size_t len) {
+    if (len >= *remaining) {
+        size_t written = (size_t)(*write - *buf);
+        size_t new_cap = (written + len + 1) * 2;
+        char *grown = realloc(*buf, new_cap);
+        if (!grown) return false;
+        *buf = grown;
+        *write = grown + written;
+        *remaining = new_cap - written - 1;
+    }
+    memcpy(*write, src, len);
+    *write += len;
+    *remaining -= len;
+    return true;
+}
+
 /**
  * Preprocess markdown to extract image attributes and URL-encode all link URLs
  */
@@ -2826,6 +2950,17 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
     int image_index = 0;
 
     while (*read) {
+        size_t code_len = ial_code_region_len(text, read);
+        if (code_len) {
+            if (!ial_append_verbatim(&output, &write, &remaining, read, code_len)) {
+                free(output);
+                apex_free_image_attributes(local_img_attrs);
+                return NULL;
+            }
+            read += code_len;
+            continue;
+        }
+
         /* Look for inline images: ![alt](url attributes) */
         if (*read == '!' && read[1] == '[') {
             const char *img_start = read;
@@ -3244,7 +3379,7 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
 
         /* Look for reference-style link definitions: [ref]: url attributes */
         /* Process to URL-encode URLs and extract image attributes if present */
-        if (*read == '[') {
+        if (*read == '[' && ial_at_definition_start(text, read)) {
             const char *ref_start = read;
             const char *ref_end = strchr(ref_start, ']');
             if (ref_end && ref_end[1] == ':' && (ref_end[2] == ' ' || ref_end[2] == '\t')) {
@@ -4111,6 +4246,18 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
             bool made_expansions = false;
 
             while (*read2) {
+                size_t code_len2 = ial_code_region_len(output, read2);
+                if (code_len2) {
+                    if (!ial_append_verbatim(&expanded_output, &write2, &remaining2, read2, code_len2)) {
+                        free(expanded_output);
+                        free(output);
+                        apex_free_image_attributes(local_img_attrs);
+                        return NULL;
+                    }
+                    read2 += code_len2;
+                    continue;
+                }
+
                 /* Look for full, collapsed, and shortcut reference images. */
                 if (*read2 == '!' && read2[1] == '[') {
                     const char *img_start = read2;
@@ -4311,6 +4458,17 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                     size_t proc_remaining = strlen(output) * 2;
 
                     while (*proc_read) {
+                        size_t code_len3 = ial_code_region_len(output, proc_read);
+                        if (code_len3) {
+                            if (!ial_append_verbatim(&proc_output, &proc_write, &proc_remaining, proc_read, code_len3)) {
+                                free(proc_output);
+                                proc_output = NULL;
+                                break;
+                            }
+                            proc_read += code_len3;
+                            continue;
+                        }
+
                         /* Look for inline images that were just expanded */
                         if (*proc_read == '!' && proc_read[1] == '[') {
                             const char *img_start = proc_read;
@@ -4446,9 +4604,11 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                         }
                     }
 
-                    *proc_write = '\0';
-                    free(output);
-                    output = proc_output;
+                    if (proc_output) {
+                        *proc_write = '\0';
+                        free(output);
+                        output = proc_output;
+                    }
                 }
             }
         }

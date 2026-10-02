@@ -46,6 +46,7 @@ void test_custom_plugins(void);
 void test_processor_modes(void);
 void test_quarto_mode(void);
 void test_multimarkdown_image_attributes(void);
+void test_reference_definitions(void);
 void test_file_includes(void);
 void test_ial(void);
 void test_bear_image_attributes(void);
@@ -119,6 +120,7 @@ static test_suite suites[] = {
     { "cmark_init_callback",           test_cmark_init_callback },
     { "cmark_callback",                test_cmark_callback },
     { "multimarkdown_image_attributes",test_multimarkdown_image_attributes },
+    { "reference_definitions",         test_reference_definitions },
     { "processor_modes",               test_processor_modes },
     { "quarto_mode",                   test_quarto_mode },
     { "file_includes",                 test_file_includes },
