@@ -807,8 +807,8 @@ static char *apex_preprocess_autolinks(const char *text, const apex_options *opt
 
             /* Then: check for reference link definitions: [id]: URL */
             line_start = r;
-            /* Skip leading whitespace */
-            while (*line_start == ' ' || *line_start == '\t') {
+            /* Skip leading whitespace and blockquote markers */
+            while (*line_start == ' ' || *line_start == '\t' || *line_start == '>') {
                 line_start++;
             }
             /* Check for [id]: pattern */

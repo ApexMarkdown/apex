@@ -1054,6 +1054,35 @@ void test_reference_definitions(void) {
         "Reference defs: definition indented 3 spaces still encoded");
     apex_free_string(html);
 
+    const char *quoted_def_md = "> See [the spec][spec].\n>\n> [spec]: https://example.com/caf\xc3\xa9\n";
+    html = apex_markdown_to_html(quoted_def_md, strlen(quoted_def_md), &opts);
+    assert_contains(html, "<a href=\"https://example.com/caf%C3%A9\">the spec</a>",
+        "Reference defs: definition in blockquote resolves and is encoded");
+    assert_not_contains(html, "%5B", "Reference defs: blockquote definition URL not autolinked");
+    apex_free_string(html);
+
+    const char *nested_quoted_def_md =
+        "> > See [the spec][spec].\n> >\n> > [spec]: https://example.com/spec \"Spec\"\n";
+    html = apex_markdown_to_html(nested_quoted_def_md, strlen(nested_quoted_def_md), &opts);
+    assert_contains(html, "<a href=\"https://example.com/spec\" title=\"Spec\">the spec</a>",
+        "Reference defs: definition in nested blockquote resolves");
+    apex_free_string(html);
+
+    {
+        apex_options cm_opts = apex_options_for_mode(APEX_MODE_COMMONMARK);
+        const char *cm_quoted_md = "> See [the spec][spec].\n>\n> [spec]: https://example.com/spec\n";
+        html = apex_markdown_to_html(cm_quoted_md, strlen(cm_quoted_md), &cm_opts);
+        assert_contains(html, "<a href=\"https://example.com/spec\">the spec</a>",
+            "Reference defs: blockquote definition resolves in CommonMark mode");
+        apex_free_string(html);
+    }
+
+    const char *quoted_url_md = "> Visit https://example.com/page today.\n";
+    html = apex_markdown_to_html(quoted_url_md, strlen(quoted_url_md), &opts);
+    assert_contains(html, "<a href=\"https://example.com/page\">https://example.com/page</a>",
+        "Reference defs: bare URL in blockquote prose still autolinked");
+    apex_free_string(html);
+
     const char *fenced_md =
         "```\n[spec]: https://example.com/caf\xc3\xa9 x\n![x](a b.png)\n```\n\n"
         "~~~~ markdown\n[spec]: https://example.com/caf\xc3\xa9 x\n```\nstill code\n~~~~\n";
