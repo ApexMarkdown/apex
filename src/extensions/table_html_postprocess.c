@@ -113,6 +113,22 @@ static all_cell *collect_all_cells(cmark_node *document) {
 /**
  * Walk AST and collect cells with attributes
  */
+/* True when the cell whose opening tag starts at `cell` contains only `marker`
+ * (or `alt`), ignoring surrounding whitespace. */
+static bool cell_is_only_marker(const char *cell, const char *marker, const char *alt) {
+    bool is_th = strncmp(cell, "<th", 3) == 0;
+    const char *content = strchr(cell, '>');
+    if (!content) return false;
+    content++;
+    const char *end = strstr(content, is_th ? "</th>" : "</td>");
+    if (!end) return false;
+    while (content < end && isspace((unsigned char)*content)) content++;
+    while (end > content && isspace((unsigned char)end[-1])) end--;
+    size_t len = (size_t)(end - content);
+    if (len == strlen(marker) && strncmp(content, marker, len) == 0) return true;
+    return alt && len == strlen(alt) && strncmp(content, alt, len) == 0;
+}
+
 static cell_attr *collect_table_cell_attributes(cmark_node *document) {
     cell_attr *list = NULL;
 
@@ -181,8 +197,7 @@ static cell_attr *collect_table_cell_attributes(cmark_node *document) {
                         attr->attributes = strdup(attrs);
                         attr->cell_text = cell_text ? strdup(cell_text) : NULL;
                         attr->next = list;
-                        list = attr;
-                    }
+                        list = attr;                    }
                 }
                 /* Count all cells (including removed ones) to match the column indices
                  * used in advanced_tables.c when finding target cells for rowspan.
@@ -2076,41 +2091,9 @@ char *apex_inject_table_attributes(const char *html, cmark_node *document, int c
                 }
             }
 
-            /* Also check if this cell contains "^^" (rowspan marker) - these should be removed */
-            /* Check both the preview and the actual content in the HTML */
-            bool is_rowspan_marker = (strstr(cell_preview, "^^") != NULL);
-            if (!is_rowspan_marker) {
-                /* Also check the actual HTML content for "^^" */
-                const char *content_check = strstr(read, ">");
-                if (content_check) {
-                    const char *close_check = strstr(content_check + 1, "</td>");
-                    if (!close_check) close_check = strstr(content_check + 1, "</th>");
-                    if (close_check && close_check - content_check - 1 < 100) {
-                        char check_buf[100];
-                        strncpy(check_buf, content_check + 1, close_check - content_check - 1);
-                        check_buf[close_check - content_check - 1] = '\0';
-                        is_rowspan_marker = (strstr(check_buf, "^^") != NULL);
-                    }
-                }
-            }
-
-            /* Also check if this cell contains "<< " or "&lt;&lt;" (colspan marker) - these should be removed */
-            /* Check both the preview and the actual content in the HTML */
-            bool is_colspan_marker = (strstr(cell_preview, "<<") != NULL || strstr(cell_preview, "&lt;&lt;") != NULL);
-            if (!is_colspan_marker) {
-                /* Also check the actual HTML content for "<< " or "&lt;&lt;" */
-                const char *content_check = strstr(read, ">");
-                if (content_check) {
-                    const char *close_check = strstr(content_check + 1, "</td>");
-                    if (!close_check) close_check = strstr(content_check + 1, "</th>");
-                    if (close_check && close_check - content_check - 1 < 100) {
-                        char check_buf[100];
-                        strncpy(check_buf, content_check + 1, close_check - content_check - 1);
-                        check_buf[close_check - content_check - 1] = '\0';
-                        is_colspan_marker = (strstr(check_buf, "<<") != NULL || strstr(check_buf, "&lt;&lt;") != NULL);
-                    }
-                }
-            }
+            /* Cells holding only a span marker (^^ or <<) are removed */
+            bool is_rowspan_marker = cell_is_only_marker(read, "^^", NULL);
+            bool is_colspan_marker = cell_is_only_marker(read, "&lt;&lt;", "<<");
 
             /* Check if this cell should be removed:
              * 1. If it's matched and marked for removal

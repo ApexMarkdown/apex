@@ -204,6 +204,47 @@ void test_advanced_tables(void) {
     assert_contains(html, "colspan", "Colspan only when cell is just << (and optional whitespace)");
     apex_free_string(html);
 
+    const char *header_colspan_ltlt =
+        "| A | Wide | << | D |\n"
+        "| --- | --- | --- | --- |\n"
+        "| a | b | c | d |\n";
+    html = apex_markdown_to_html(header_colspan_ltlt, strlen(header_colspan_ltlt), &opts);
+    assert_contains(html, "<th>A</th>", "Header colspan (<<): cell before span kept");
+    assert_contains(html, "<th colspan=\"2\">Wide</th>", "Header colspan (<<): spanning cell kept with colspan");
+    assert_contains(html, "<th>D</th>", "Header colspan (<<): cell after span kept");
+    assert_not_contains(html, "&lt;&lt;", "Header colspan (<<): marker cell removed");
+    apex_free_string(html);
+
+    const char *header_colspan_pipes =
+        "| Wide || C |\n"
+        "| --- | --- | --- |\n"
+        "| a | b | c |\n";
+    html = apex_markdown_to_html(header_colspan_pipes, strlen(header_colspan_pipes), &opts);
+    assert_contains(html, "<th colspan=\"2\">Wide</th>", "Header colspan (||): spanning cell kept with colspan");
+    assert_contains(html, "<th>C</th>", "Header colspan (||): following cell kept");
+    apex_free_string(html);
+
+    const char *header_then_rowspan =
+        "| A | B |\n"
+        "| --- | --- |\n"
+        "| x | y |\n"
+        "| ^^ | z |\n";
+    html = apex_markdown_to_html(header_then_rowspan, strlen(header_then_rowspan), &opts);
+    assert_contains(html, "<th>A</th>", "Rowspan below header: header cell A kept");
+    assert_contains(html, "<th>B</th>", "Rowspan below header: header cell B kept");
+    assert_contains(html, "rowspan=\"2\"", "Rowspan below header: rowspan applied");
+    apex_free_string(html);
+
+    const char *inline_markers =
+        "| H1 | H2 |\n"
+        "| --- | --- |\n"
+        "| x | a << b |\n"
+        "| y | c ^^ d |\n";
+    html = apex_markdown_to_html(inline_markers, strlen(inline_markers), &opts);
+    assert_contains(html, "<td>a &lt;&lt; b</td>", "Text containing << is not a colspan marker");
+    assert_contains(html, "<td>c ^^ d</td>", "Text containing ^^ is not a rowspan marker");
+    apex_free_string(html);
+
     /* Test that empty cells with whitespace do NOT create colspan */
     const char *empty_cells_table = "| H1 | H2 | H3 |\n|----|----|----|"
                                     "\n| A  |    |    |"
