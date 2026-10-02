@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.35] - 2026-10-02
+
+### Fixed
+
+- **Reference definition URL encoding** no longer rewrites inline code spans; text like `[id]: url` inside backticks renders as written instead of being percent-encoded to the end of the line
+- **Fenced code blocks** are copied through the link and image preprocessor untouched, so definition-shaped lines and image syntax inside fences are no longer encoded
+- **Mid-paragraph `[label]: text`** is left as plain text; only a label opening its line (up to three spaces of indent) is treated as a reference definition
+- **Reference-style image expansion** no longer expands `![alt][ref]` written inside code spans
+- **Reference definitions inside blockquotes** (`> [id]: url`) now resolve; the bare-URL autolinker no longer wraps the definition URL in `[url](url)`, which produced hrefs like `%5Bhttps://...%5D(...)`
+
 ## [1.1.34] - 2026-09-28
 
 ## [1.1.33] - 2026-09-28
@@ -3359,6 +3369,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.35]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.35
 [1.1.34]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.34
 [1.1.33]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.33
 [1.1.32]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.32
