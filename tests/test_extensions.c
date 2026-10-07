@@ -1042,6 +1042,20 @@ void test_reference_definitions(void) {
         "Reference defs: mid-paragraph [label]: is plain text");
     apex_free_string(html);
 
+    const char *dialogue_md = "CHARACTER [stage directions]: Here\xe2\x80\x99s some dialogue.\n";
+    html = apex_markdown_to_html(dialogue_md, strlen(dialogue_md), &opts);
+    assert_contains(html, "CHARACTER [stage directions]: Here\xe2\x80\x99s some dialogue.",
+        "Reference defs: mid-line [label]: in dialogue is prose");
+    assert_not_contains(html, "%E2%80%99", "Reference defs: dialogue apostrophe not encoded");
+    assert_not_contains(html, "%20", "Reference defs: dialogue spaces not encoded");
+    apex_free_string(html);
+
+    const char *tab_def_md = "See [ref].\n\n\t[ref]: /a path\n";
+    html = apex_markdown_to_html(tab_def_md, strlen(tab_def_md), &opts);
+    assert_contains(html, "<code>[ref]: /a path\n</code>",
+        "Reference defs: tab-indented definition is code, not encoded");
+    apex_free_string(html);
+
     const char *def_md = "See [the spec][spec].\n\n[spec]: https://example.com/caf\xc3\xa9\n";
     html = apex_markdown_to_html(def_md, strlen(def_md), &opts);
     assert_contains(html, "<a href=\"https://example.com/caf%C3%A9\">the spec</a>",
