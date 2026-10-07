@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.36] - 2026-10-07
+
+### Fixed
+
+- **Header row colspans** (`| Wide | << | C |` or `| Wide || C |`) no longer delete the spanning cell and every header cell before it; the header now renders `<th colspan="2">Wide</th>`
+- **Table cells containing `<<` or `^^` as text** (like `a << b`) are no longer dropped; only cells holding nothing but a span marker are removed
+
 ## [1.1.35] - 2026-10-02
 
 ### Fixed
@@ -3369,6 +3376,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.36]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.36
 [1.1.35]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.35
 [1.1.34]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.34
 [1.1.33]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.33
