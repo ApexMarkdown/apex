@@ -150,7 +150,7 @@ typedef struct apex_options {
     bool enable_grid_tables;  /* Enable Pandoc grid table syntax (preprocess to pipe tables) */
 
     /* Critic markup mode */
-    int critic_mode;  /* 0=markup (default), 1=accept, 2=reject */
+    int critic_mode;  /* 0=accept, 1=reject, 2=markup (default) */
 
     /* Metadata handling */
     bool strip_metadata;
