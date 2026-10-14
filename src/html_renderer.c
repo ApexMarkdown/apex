@@ -2473,6 +2473,41 @@ char *apex_adjust_quote_language(const char *html, const char *quotes_language) 
     return output;
 }
 
+typedef struct {
+    char *data;
+    size_t len;
+    size_t cap;
+} aria_buf;
+
+static bool aria_buf_append(aria_buf *b, const char *s, size_t n) {
+    if (b->len + n + 1 > b->cap) {
+        size_t new_cap = b->cap ? b->cap : 64;
+        while (b->len + n + 1 > new_cap) new_cap *= 2;
+        char *grown = realloc(b->data, new_cap);
+        if (!grown) return false;
+        b->data = grown;
+        b->cap = new_cap;
+    }
+    memcpy(b->data + b->len, s, n);
+    b->len += n;
+    b->data[b->len] = '\0';
+    return true;
+}
+
+/* strstr limited to [start, end) */
+static const char *aria_find_in(const char *start, const char *end, const char *needle) {
+    size_t n = strlen(needle);
+    for (const char *p = start; p && p + n <= end; p++) {
+        if (*p == *needle && memcmp(p, needle, n) == 0) return p;
+    }
+    return NULL;
+}
+
+static bool aria_has_table_figure_class(const char *start, const char *end) {
+    return aria_find_in(start, end, "class=\"table-figure\"") ||
+           aria_find_in(start, end, "class='table-figure'");
+}
+
 /**
  * Apply ARIA labels and accessibility attributes to HTML output
  * @param html The HTML output
@@ -2512,11 +2547,7 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
                 const char *figure_start_pos = NULL;
                 while (before_cap >= html && before_cap > search - 200) {
                     if (*before_cap == '<' && strncmp(before_cap, "<figure", 7) == 0) {
-                        const char *class_check = strstr(before_cap, "class=\"table-figure\"");
-                        if (!class_check) {
-                            class_check = strstr(before_cap, "class='table-figure'");
-                        }
-                        if (class_check && class_check < cap_tag_start) {
+                        if (aria_has_table_figure_class(before_cap, cap_tag_start)) {
                             in_table_figure = true;
                             figure_start_pos = before_cap;
                             break;
@@ -2527,13 +2558,13 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
 
                 if (in_table_figure) {
                     /* Check if ID already exists */
-                    const char *id_attr = strstr(cap_tag_start, "id=\"");
+                    const char *id_attr = aria_find_in(cap_tag_start, cap_tag_end, "id=\"");
                     if (!id_attr) {
-                        id_attr = strstr(cap_tag_start, "id='");
+                        id_attr = aria_find_in(cap_tag_start, cap_tag_end, "id='");
                     }
 
                     char *caption_id = NULL;
-                    if (id_attr && id_attr < cap_tag_end) {
+                    if (id_attr) {
                         /* Extract existing ID */
                         const char *id_start = id_attr + 4;
                         const char *id_end = strchr(id_start, '"');
@@ -2573,41 +2604,26 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
         search++;
     }
 
-    /* Allocate buffer with extra space for ARIA attributes */
-    size_t capacity = html_len + 2048 + (caption_list ? strlen(caption_list->caption_id) * 10 : 0);
-    char *output = malloc(capacity + 1);
-    if (!output) {
-        /* Free caption list */
-        while (caption_list) {
-            caption_info *next = caption_list->next;
-            free(caption_list->caption_id);
-            free(caption_list);
-            caption_list = next;
-        }
-        return strdup(html);
-    }
+    aria_buf out = {0};
+    out.cap = html_len + html_len / 8 + 256;
+    out.data = malloc(out.cap);
+    if (!out.data) goto oom;
+    out.data[0] = '\0';
 
     const char *read = html;
-    char *write = output;
-    size_t remaining = capacity;
 
-    /* Helper macro to append strings safely */
+    /* Arguments are evaluated before appending so the read position always advances */
+    #define APPEND_N(s, n) do { \
+        if (!aria_buf_append(&out, (s), (n))) goto oom; \
+    } while (0)
     #define APPEND_SAFE(str) do { \
-        size_t len = strlen(str); \
-        if (len <= remaining) { \
-            memcpy(write, str, len); \
-            write += len; \
-            remaining -= len; \
-        } \
-    } while(0)
-
-    /* Helper macro to copy characters safely */
+        const char *str_ = (str); \
+        APPEND_N(str_, strlen(str_)); \
+    } while (0)
     #define COPY_CHAR(c) do { \
-        if (remaining > 0) { \
-            *write++ = (c); \
-            remaining--; \
-        } \
-    } while(0)
+        char c_ = (c); \
+        APPEND_N(&c_, 1); \
+    } while (0)
 
     while (*read) {
         /* Check for <nav class="toc"> */
@@ -2620,29 +2636,16 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
             }
 
             /* Check if this is a TOC nav element */
-            const char *class_attr = strstr(tag_start, "class=\"toc\"");
-            if (!class_attr) {
-                class_attr = strstr(tag_start, "class='toc'");
-            }
+            bool is_toc = aria_find_in(tag_start, tag_end, "class=\"toc\"") ||
+                          aria_find_in(tag_start, tag_end, "class='toc'");
 
-            if (class_attr && class_attr < tag_end) {
-                /* Check if aria-label already exists */
-                const char *aria_label = strstr(tag_start, "aria-label=");
-                if (!aria_label || aria_label > tag_end) {
-                    /* Copy up to just before closing >, add aria-label, then close */
-                    size_t prefix_len = tag_end - tag_start;
-                    if (prefix_len <= remaining) {
-                        memcpy(write, tag_start, prefix_len);
-                        write += prefix_len;
-                        remaining -= prefix_len;
-                    }
-
-                    /* Add aria-label before closing > */
-                    APPEND_SAFE(" aria-label=\"Table of contents\"");
-                    COPY_CHAR('>');
-                    read = tag_end + 1;
-                    continue;
-                }
+            if (is_toc && !aria_find_in(tag_start, tag_end, "aria-label=")) {
+                /* Copy up to just before closing >, add aria-label, then close */
+                APPEND_N(tag_start, (size_t)(tag_end - tag_start));
+                APPEND_SAFE(" aria-label=\"Table of contents\"");
+                COPY_CHAR('>');
+                read = tag_end + 1;
+                continue;
             }
         }
 
@@ -2655,18 +2658,9 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
                 continue;
             }
 
-            /* Check if role already exists */
-            const char *role_attr = strstr(tag_start, "role=");
-            if (!role_attr || role_attr > tag_end) {
+            if (!aria_find_in(tag_start, tag_end, "role=")) {
                 /* Copy up to just before closing >, add role, then close */
-                size_t prefix_len = tag_end - tag_start;
-                if (prefix_len <= remaining) {
-                    memcpy(write, tag_start, prefix_len);
-                    write += prefix_len;
-                    remaining -= prefix_len;
-                }
-
-                /* Add role="figure" before closing > */
+                APPEND_N(tag_start, (size_t)(tag_end - tag_start));
                 APPEND_SAFE(" role=\"figure\"");
                 COPY_CHAR('>');
                 read = tag_end + 1;
@@ -2683,85 +2677,44 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
                 continue;
             }
 
-            /* Check if role already exists */
-            const char *role_attr = strstr(tag_start, "role=");
-            bool needs_role = (!role_attr || role_attr > tag_end);
+            bool needs_role = !aria_find_in(tag_start, tag_end, "role=");
+            bool has_aria_desc = aria_find_in(tag_start, tag_end, "aria-describedby=") != NULL;
 
-            /* Check if aria-describedby already exists */
-            const char *aria_desc = strstr(tag_start, "aria-describedby=");
-            bool has_aria_desc = (aria_desc && aria_desc < tag_end);
-
-            /* Check if we're in a table-figure context and look for figcaption */
-            bool in_table_figure = false;
-            const char *before_table = read - 1;
-            while (before_table >= html && before_table > read - 500) {
-                if (*before_table == '<' && strncmp(before_table, "<figure", 7) == 0) {
-                    const char *class_check = strstr(before_table, "class=\"table-figure\"");
-                    if (!class_check) {
-                        class_check = strstr(before_table, "class='table-figure'");
-                    }
-                    if (class_check && class_check < tag_start) {
-                        in_table_figure = true;
+            /* Find the enclosing table-figure, if any */
+            const char *this_figure_start = NULL;
+            const char *find_fig = read - 1;
+            while (find_fig >= html && find_fig > read - 500) {
+                if (*find_fig == '<' && strncmp(find_fig, "<figure", 7) == 0) {
+                    if (aria_has_table_figure_class(find_fig, tag_start)) {
+                        this_figure_start = find_fig;
                         break;
                     }
                 }
-                before_table--;
+                find_fig--;
             }
 
-            /* Find figcaption ID for this table by checking caption_list */
-            char *caption_id = NULL;
-            if (in_table_figure && !has_aria_desc) {
-                /* Find the figure_start for this table */
-                const char *this_figure_start = NULL;
-                const char *find_fig = read - 1;
-                while (find_fig >= html && find_fig > read - 500) {
-                    if (*find_fig == '<' && strncmp(find_fig, "<figure", 7) == 0) {
-                        const char *class_check = strstr(find_fig, "class=\"table-figure\"");
-                        if (!class_check) {
-                            class_check = strstr(find_fig, "class='table-figure'");
-                        }
-                        if (class_check && class_check < tag_start) {
-                            this_figure_start = find_fig;
-                            break;
-                        }
-                    }
-                    find_fig--;
-                }
-
-                /* Look for a caption in this figure (either before or after table) */
-                if (this_figure_start) {
-                    for (caption_info *cap = caption_list; cap; cap = cap->next) {
-                        if (cap->figure_start == this_figure_start) {
-                            /* Found a caption in the same figure - use it regardless of position */
-                            caption_id = strdup(cap->caption_id);
-                            break;
-                        }
+            /* Look for a caption in this figure (either before or after table) */
+            const char *caption_id = NULL;
+            if (this_figure_start && !has_aria_desc) {
+                for (caption_info *cap = caption_list; cap; cap = cap->next) {
+                    if (cap->figure_start == this_figure_start) {
+                        caption_id = cap->caption_id;
+                        break;
                     }
                 }
             }
 
             if (needs_role || caption_id) {
                 /* Copy up to just before closing >, add attributes, then close */
-                size_t prefix_len = tag_end - tag_start;
-                if (prefix_len <= remaining) {
-                    memcpy(write, tag_start, prefix_len);
-                    write += prefix_len;
-                    remaining -= prefix_len;
-                }
-
-                /* Add role="table" if needed */
+                APPEND_N(tag_start, (size_t)(tag_end - tag_start));
                 if (needs_role) {
                     APPEND_SAFE(" role=\"table\"");
                 }
-
-                /* Add aria-describedby if we found a caption ID */
                 if (caption_id) {
-                    char aria_desc_str[256];
-                    snprintf(aria_desc_str, sizeof(aria_desc_str), " aria-describedby=\"%s\"", caption_id);
-                    APPEND_SAFE(aria_desc_str);
-                    free(caption_id);
+                    APPEND_SAFE(" aria-describedby=\"");
+                    APPEND_SAFE(caption_id);
+                    COPY_CHAR('"');
                 }
-
                 COPY_CHAR('>');
                 read = tag_end + 1;
                 continue;
@@ -2786,30 +2739,17 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
                 }
             }
 
-            if (this_caption) {
-                /* Check if ID already exists in original HTML */
-                const char *id_attr = strstr(tag_start, "id=\"");
-                if (!id_attr) {
-                    id_attr = strstr(tag_start, "id='");
-                }
-
-                if (!id_attr || id_attr > tag_end) {
-                    /* No ID in original, add the one we generated/collected */
-                    size_t prefix_len = tag_end - tag_start;
-                    if (prefix_len <= remaining) {
-                        memcpy(write, tag_start, prefix_len);
-                        write += prefix_len;
-                        remaining -= prefix_len;
-                    }
-
-                    /* Add id attribute */
-                    char id_attr_str[128];
-                    snprintf(id_attr_str, sizeof(id_attr_str), " id=\"%s\"", this_caption->caption_id);
-                    APPEND_SAFE(id_attr_str);
-                    COPY_CHAR('>');
-                    read = tag_end + 1;
-                    continue;
-                }
+            if (this_caption &&
+                !aria_find_in(tag_start, tag_end, "id=\"") &&
+                !aria_find_in(tag_start, tag_end, "id='")) {
+                /* No ID in original, add the one we generated/collected */
+                APPEND_N(tag_start, (size_t)(tag_end - tag_start));
+                APPEND_SAFE(" id=\"");
+                APPEND_SAFE(this_caption->caption_id);
+                COPY_CHAR('"');
+                COPY_CHAR('>');
+                read = tag_end + 1;
+                continue;
             }
         }
 
@@ -2817,20 +2757,27 @@ char *apex_apply_aria_labels(const char *html, cmark_node *document) {
         COPY_CHAR(*read++);
     }
 
+    #undef APPEND_N
     #undef APPEND_SAFE
     #undef COPY_CHAR
 
-    *write = '\0';
-
-    /* Free caption list */
     while (caption_list) {
         caption_info *next = caption_list->next;
         free(caption_list->caption_id);
         free(caption_list);
         caption_list = next;
     }
+    return out.data;
 
-    return output;
+oom:
+    free(out.data);
+    while (caption_list) {
+        caption_info *next = caption_list->next;
+        free(caption_list->caption_id);
+        free(caption_list);
+        caption_list = next;
+    }
+    return strdup(html);
 }
 
 /* Helper: trim leading/trailing ASCII whitespace from an attribute value */

@@ -1876,6 +1876,46 @@ void test_aria_labels(void) {
     assert_contains(html, "aria-label=\"Table of contents\"", "MMD TOC nav has aria-label");
     apex_free_string(html);
 
+    /* Many injected attributes must not overflow the output buffer (previously hung) */
+    {
+        apex_options many_opts = apex_options_default();
+        many_opts.enable_aria = true;
+        many_opts.enable_image_captions = true;
+        many_opts.enable_tables = true;
+
+        size_t cap = 200 * 64 + 1;
+        char *md = malloc(cap);
+        size_t pos = 0;
+        for (int i = 1; i <= 200; i++) {
+            pos += (size_t)snprintf(md + pos, cap - pos, "![Image %d](img-%d.png)\n\n", i, i);
+        }
+        html = apex_markdown_to_html(md, pos, &many_opts);
+        int figures = 0;
+        for (const char *p = html; p && (p = strstr(p, "role=\"figure\"")); p++) figures++;
+        test_result(figures == 200, "ARIA: 200 image figures all get role=\"figure\"");
+        assert_contains(html, "img-200.png", "ARIA: output with many figures is complete");
+        apex_free_string(html);
+        free(md);
+
+        cap = 120 * 96 + 1;
+        md = malloc(cap);
+        pos = 0;
+        for (int i = 1; i <= 120; i++) {
+            pos += (size_t)snprintf(md + pos, cap - pos,
+                                    "| A | B |\n|---|---|\n| %d | 2 |\n[Table %d caption]\n\n", i, i);
+        }
+        html = apex_markdown_to_html(md, pos, &many_opts);
+        int tables = 0, described = 0;
+        for (const char *p = html; p && (p = strstr(p, "role=\"table\"")); p++) tables++;
+        for (const char *p = html; p && (p = strstr(p, "aria-describedby=\"table-caption-")); p++) described++;
+        test_result(tables == 120, "ARIA: 120 tables all get role=\"table\"");
+        test_result(described == 120, "ARIA: 120 tables all get aria-describedby");
+        assert_contains(html, "id=\"table-caption-120\"", "ARIA: last figcaption gets its ID");
+        assert_contains(html, "Table 120 caption", "ARIA: output with many tables is complete");
+        apex_free_string(html);
+        free(md);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("ARIA Labels Tests", had_failures, false);
 }
