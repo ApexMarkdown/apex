@@ -2,6 +2,17 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.37] - 2026-10-14
+
+### Improved
+
+- **ARIA pass performance** on large documents; attribute and class checks are limited to the tag instead of scanning to the end of the document
+
+### Fixed
+
+- **ARIA labels (--aria)** no longer hang on large documents; with image captions on, about 150 or more figures (or many captioned tables) filled a fixed 2KB slack and the conversion spun forever at full CPU
+- **ARIA attributes** are no longer silently dropped once that slack ran out; every figure, table, figcaption, and TOC nav now gets its role, aria-describedby, id, or aria-label
+
 ## [1.1.36] - 2026-10-07
 
 ### Fixed
@@ -3376,6 +3387,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.37]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.37
 [1.1.36]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.36
 [1.1.35]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.35
 [1.1.34]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.34
