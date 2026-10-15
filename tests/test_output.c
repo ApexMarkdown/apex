@@ -79,6 +79,68 @@ void test_toc(void) {
     }
     apex_free_string(md);
 
+    /* A TOC longer than 4 KB keeps every entry and stays well-formed */
+    {
+        size_t cap = 64 * 1024;
+        char *big = malloc(cap);
+        size_t len = 0;
+        len += (size_t)snprintf(big + len, cap - len, "# Top\n\n<!--TOC min2 max3-->\n\n");
+        for (int i = 1; i <= 150; i++) {
+            len += (size_t)snprintf(big + len, cap - len,
+                                    "## A fairly long section heading number %d\n\ntext\n\n", i);
+            if (i % 5 == 0) {
+                len += (size_t)snprintf(big + len, cap - len, "### Sub %d\n\nmore\n\n", i);
+            }
+        }
+        html = apex_markdown_to_html(big, len, &opts);
+        assert_contains(html, "href=\"#a-fairly-long-section-heading-number-150\"",
+                        "Large TOC keeps its last entry");
+        assert_contains(html, "href=\"#sub-150\"", "Large TOC keeps its last nested entry");
+        assert_contains(html, "</ul>\n</nav>", "Large TOC closes its list and nav");
+        const char *nav_end = html ? strstr(html, "</nav>") : NULL;
+        const char *first_h2 = html ? strstr(html, "<h2") : NULL;
+        test_result(nav_end && first_h2 && nav_end < first_h2,
+                    "Large TOC nav closes before the document body");
+        apex_free_string(html);
+        free(big);
+    }
+
+    /* Returning to a shallower level closes the nested item before its list */
+    const char *up_toc =
+        "# Top\n\n<!--TOC min2 max3-->\n\n## B\n\n## C\n\n### D\n\n## E\n";
+    html = apex_markdown_to_html(up_toc, strlen(up_toc), &opts);
+    assert_contains(html,
+                    "<li><a href=\"#c\">C</a><ul>\n<li><a href=\"#d\">D</a></li>\n</ul>\n</li>\n"
+                    "<li><a href=\"#e\">E</a></li>\n</ul>\n</nav>",
+                    "TOC closes nested li, then ul, then parent li");
+    assert_not_contains(html, "</a></ul>", "TOC never closes a ul over an open li");
+    apex_free_string(html);
+
+    /* Headings that skip a level stay siblings of each other */
+    const char *skip_toc =
+        "# Top\n\n<!--TOC min2 max4-->\n\n## B\n\n#### X\n\n#### Y\n\n### Z\n\n## E\n";
+    html = apex_markdown_to_html(skip_toc, strlen(skip_toc), &opts);
+    assert_contains(html,
+                    "<li><a href=\"#b\">B</a><ul>\n"
+                    "<li><a href=\"#x\">X</a></li>\n"
+                    "<li><a href=\"#y\">Y</a></li>\n"
+                    "<li><a href=\"#z\">Z</a></li>\n"
+                    "</ul>\n</li>\n"
+                    "<li><a href=\"#e\">E</a></li>\n</ul>\n</nav>",
+                    "TOC keeps skipped-level headings as siblings");
+    apex_free_string(html);
+
+    /* A TOC that starts deeper than later headings keeps them at the top level */
+    const char *deep_first_toc =
+        "# Top\n\n<!--TOC min2 max3-->\n\n### A\n\n## B\n\n### C\n";
+    html = apex_markdown_to_html(deep_first_toc, strlen(deep_first_toc), &opts);
+    assert_contains(html,
+                    "<ul>\n<li><a href=\"#a\">A</a></li>\n"
+                    "<li><a href=\"#b\">B</a><ul>\n"
+                    "<li><a href=\"#c\">C</a></li>\n</ul>\n</li>\n</ul>\n</nav>",
+                    "TOC starting with a deeper heading nests later items correctly");
+    apex_free_string(html);
+
     /* Bare {{TOC}} should use option defaults (1-3): exclude H4 */
     const char *bare_default_depth =
         "# H1\n\n{{TOC}}\n\n## H2\n\n### H3\n\n#### H4";

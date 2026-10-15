@@ -364,6 +364,32 @@ static header_item *collect_headers(cmark_node *node, header_item **tail,
     return headers;
 }
 
+typedef struct {
+    char *data;
+    size_t length;
+    size_t capacity;
+    bool failed;
+} toc_buffer;
+
+static void toc_buffer_append(toc_buffer *buf, const char *str) {
+    if (buf->failed || !str) return;
+    size_t len = strlen(str);
+    if (buf->length + len + 1 > buf->capacity) {
+        size_t capacity = buf->capacity ? buf->capacity : 4096;
+        while (buf->length + len + 1 > capacity) capacity *= 2;
+        char *grown = realloc(buf->data, capacity);
+        if (!grown) {
+            buf->failed = true;
+            return;
+        }
+        buf->data = grown;
+        buf->capacity = capacity;
+    }
+    memcpy(buf->data + buf->length, str, len);
+    buf->length += len;
+    buf->data[buf->length] = '\0';
+}
+
 /**
  * Generate TOC HTML from headers
  * Produces valid ul > li > ul nesting (nested lists inside list items)
@@ -371,81 +397,64 @@ static header_item *collect_headers(cmark_node *node, header_item **tail,
 static char *generate_toc_html(header_item *headers, int min_level, int max_level) {
     if (!headers) return strdup("");
 
-    size_t capacity = 4096;
-    char *html = malloc(capacity);
-    if (!html) return strdup("");
+    toc_buffer buf = {0};
+    /* depth: open <ul> elements. level_at[d] is the shallowest heading level
+     * listed at depth d. A deeper heading nests one level under the open <li>,
+     * however many heading levels it skips; headings at that same level stay
+     * siblings. */
+    int depth = 0;
+    int level_at[8] = {0};
+    bool li_open = false;
 
-    char *write = html;
-    size_t remaining = capacity;
-    int current_level = 0;
-    int last_level = 0;  /* normalized level of last item added (0 = none yet) */
-
-    #define APPEND(str) do { \
-        size_t len = strlen(str); \
-        if (len < remaining) { \
-            memcpy(write, str, len); \
-            write += len; \
-            remaining -= len; \
-        } \
-    } while(0)
-
-    APPEND("<nav class=\"toc\">\n");
+    toc_buffer_append(&buf, "<nav class=\"toc\">\n");
 
     for (header_item *h = headers; h; h = h->next) {
-        /* Skip headers outside min/max range */
         if (h->level < min_level || h->level > max_level) continue;
         int target_level = h->level - min_level + 1;
         if (target_level < 1) target_level = 1;
 
-        /* Going up: close </ul></li> for each level (nested ul inside parent li) */
-        while (current_level > target_level) {
-            APPEND("</ul>\n</li>\n");
-            current_level--;
-        }
-
-        /* Going down: open one <ul> inside the previous li before adding child.
-         * At root (current_level 0): only open one ul - never ul > ul.
-         * When going deeper: open exactly one ul per step - never ul > ul. */
-        while (current_level < target_level) {
-            if (current_level == 0) {
-                APPEND("<ul>\n");
-                current_level = 1;
-                break;
+        if (depth == 0) {
+            toc_buffer_append(&buf, "<ul>\n");
+            depth = 1;
+            level_at[depth] = target_level;
+        } else if (target_level > level_at[depth] && li_open && depth < 7) {
+            toc_buffer_append(&buf, "<ul>\n");
+            depth++;
+            level_at[depth] = target_level;
+            li_open = false;
+        } else {
+            while (depth > 1 && target_level <= level_at[depth - 1]) {
+                if (li_open) toc_buffer_append(&buf, "</li>\n");
+                toc_buffer_append(&buf, "</ul>\n");
+                depth--;
+                li_open = true;
             }
-            if (last_level > 0) {
-                APPEND("<ul>\n");
-                current_level++;
-                break;
-            } else {
-                break;  /* No parent li - add as direct child of root ul */
-            }
+            if (li_open) toc_buffer_append(&buf, "</li>\n");
+            if (target_level < level_at[depth]) level_at[depth] = target_level;
         }
 
-        /* Close previous li when adding sibling (same or shallower level) */
-        if (last_level > 0 && target_level <= last_level) {
-            APPEND("</li>\n");
-        }
-
-        /* Add list item (leave open - may contain nested ul) */
-        char item[1024];
-        snprintf(item, sizeof(item), "<li><a href=\"#%s\">%s</a>",
-                 h->id, h->text);
-        APPEND(item);
-        last_level = target_level;
+        toc_buffer_append(&buf, "<li><a href=\"#");
+        toc_buffer_append(&buf, h->id);
+        toc_buffer_append(&buf, "\">");
+        toc_buffer_append(&buf, h->text);
+        toc_buffer_append(&buf, "</a>");
+        li_open = true;
     }
 
-    /* Close remaining: </li></ul> for each open level */
-    while (current_level > 0) {
-        APPEND("</li>\n</ul>\n");
-        current_level--;
+    while (depth > 0) {
+        if (li_open) toc_buffer_append(&buf, "</li>\n");
+        toc_buffer_append(&buf, "</ul>\n");
+        depth--;
+        li_open = depth > 0;
     }
 
-    APPEND("</nav>\n");
+    toc_buffer_append(&buf, "</nav>\n");
 
-    #undef APPEND
-
-    *write = '\0';
-    return html;
+    if (buf.failed || !buf.data) {
+        free(buf.data);
+        return strdup("");
+    }
+    return buf.data;
 }
 
 void apex_toc_entries_free(apex_toc_entry *entries, size_t count) {
