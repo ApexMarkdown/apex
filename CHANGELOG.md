@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.38] - 2026-10-15
+
+### Fixed
+
+- **Long tables of contents** keep every entry and close properly instead of stopping at about 4 KB and swallowing the document into the TOC nav
+- **TOC nesting** closes a nested item before its list when returning to a shallower heading
+- **TOC entries that skip a heading level** (for example two #### under a ##) are listed as siblings instead of nested inside each other
+
 ## [1.1.37] - 2026-10-14
 
 ### Improved
@@ -3387,6 +3395,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.38]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.38
 [1.1.37]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.37
 [1.1.36]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.36
 [1.1.35]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.35
