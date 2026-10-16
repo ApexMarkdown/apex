@@ -201,6 +201,168 @@ void test_critic_markup(void) {
     }
     apex_free_string(html);
 
+    /* Code spans and fenced blocks show the syntax; prose still converts.
+     * A short comment used to vanish because the replacement HTML did not
+     * fit in a buffer of twice the input length. */
+    opts.critic_mode = 2;  /* CRITIC_MARKUP */
+
+    const char *comment = "Note {>>comment<<} here.";
+    html = apex_markdown_to_html(comment, strlen(comment), &opts);
+    assert_contains(html, "<span class=\"critic comment\">comment</span>", "Short comment is not dropped");
+    assert_contains(html, "here.", "Text after a short comment is kept");
+    apex_free_string(html);
+
+    const char *prose = "See {==highlighted text==}{>>signature: comment<<} here.";
+    html = apex_markdown_to_html(prose, strlen(prose), &opts);
+    assert_contains(html, "<mark class=\"critic\">highlighted text</mark>", "Highlight with comment still renders");
+    assert_contains(html, "<span class=\"critic comment\">signature: comment</span>", "Comment after highlight still renders");
+    apex_free_string(html);
+
+    const char *span_both = "`{==highlighted text==}{>>signature: comment<<}`";
+    html = apex_markdown_to_html(span_both, strlen(span_both), &opts);
+    assert_contains(html, "{==highlighted text==}{&gt;&gt;signature: comment&lt;&lt;}", "Code span keeps highlight and comment");
+    assert_not_contains(html, "<mark class=\"critic\">", "Code span does not render highlight");
+    apex_free_string(html);
+
+    const char *span_comment = "`{==highlighted text==}{>>comment<<}`";
+    html = apex_markdown_to_html(span_comment, strlen(span_comment), &opts);
+    assert_contains(html, "{==highlighted text==}{&gt;&gt;comment&lt;&lt;}", "Code span keeps comment-only form");
+    apex_free_string(html);
+
+    const char *span_sig = "`{==highlighted text==}{>>signature<<}`";
+    html = apex_markdown_to_html(span_sig, strlen(span_sig), &opts);
+    assert_contains(html, "{==highlighted text==}{&gt;&gt;signature&lt;&lt;}", "Code span keeps signature-only form");
+    apex_free_string(html);
+
+    const char *span_bare = "`{==highlighted text==}`";
+    html = apex_markdown_to_html(span_bare, strlen(span_bare), &opts);
+    assert_contains(html, "{==highlighted text==}", "Code span keeps bare highlight");
+    assert_not_contains(html, "<mark class=\"critic\">", "Bare highlight in a code span stays raw");
+    apex_free_string(html);
+
+    const char *fence =
+        "```\n"
+        "{==highlighted text==}{>>comment<<}\n"
+        "```\n";
+    html = apex_markdown_to_html(fence, strlen(fence), &opts);
+    assert_contains(html, "{==highlighted text==}{&gt;&gt;comment&lt;&lt;}", "Fenced block keeps highlight and comment");
+    assert_not_contains(html, "<mark class=\"critic\">", "Fenced block does not render highlight");
+    apex_free_string(html);
+
+    const char *tilde =
+        "~~~\n"
+        "{++added++}\n"
+        "~~~\n";
+    html = apex_markdown_to_html(tilde, strlen(tilde), &opts);
+    assert_contains(html, "{++added++}", "Tilde fence keeps addition");
+    assert_not_contains(html, "<ins class=\"critic\">", "Tilde fence does not render addition");
+    apex_free_string(html);
+
+    const char *mixed = "Keep {++added++} but `{--stay--}` and {++also++}.";
+    html = apex_markdown_to_html(mixed, strlen(mixed), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "Addition before a code span still renders");
+    assert_contains(html, "<ins class=\"critic\">also</ins>", "Addition after a code span still renders");
+    assert_contains(html, "{--stay--}", "Deletion inside a code span stays raw");
+    apex_free_string(html);
+
+    /* Indented code is a code block. A 4-space line that continues a
+     * paragraph or a list item is not. */
+    const char *indented = "    {++added++}\n";
+    html = apex_markdown_to_html(indented, strlen(indented), &opts);
+    assert_contains(html, "{++added++}", "Indented code block keeps addition");
+    assert_not_contains(html, "<ins class=\"critic\">", "Indented code block does not render addition");
+    apex_free_string(html);
+
+    const char *tabbed = "\t{--deleted--}\n";
+    html = apex_markdown_to_html(tabbed, strlen(tabbed), &opts);
+    assert_contains(html, "{--deleted--}", "Tab-indented code block keeps deletion");
+    assert_not_contains(html, "<del class=\"critic\">", "Tab-indented code block does not render deletion");
+    apex_free_string(html);
+
+    const char *three = "   {++added++}\n";
+    html = apex_markdown_to_html(three, strlen(three), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "Three-space indent still renders addition");
+    apex_free_string(html);
+
+    const char *para_cont = "Para\n    {++added++}\n";
+    html = apex_markdown_to_html(para_cont, strlen(para_cont), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "Indented line in a paragraph still renders");
+    apex_free_string(html);
+
+    const char *para_blank = "Para\n\n    {++added++}\n";
+    html = apex_markdown_to_html(para_blank, strlen(para_blank), &opts);
+    assert_contains(html, "{++added++}", "Indented code after a blank line stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Indented code after a blank line is not rendered");
+    apex_free_string(html);
+
+    const char *list_cont = "- item\n    {++added++}\n";
+    html = apex_markdown_to_html(list_cont, strlen(list_cont), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "List continuation still renders addition");
+    apex_free_string(html);
+
+    const char *list_loose = "- item\n\n    {++added++}\n";
+    html = apex_markdown_to_html(list_loose, strlen(list_loose), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "Loose list paragraph still renders addition");
+    apex_free_string(html);
+
+    const char *list_code = "- item\n\n        {++added++}\n";
+    html = apex_markdown_to_html(list_code, strlen(list_code), &opts);
+    assert_contains(html, "{++added++}", "Code block inside a list stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Code block inside a list is not rendered");
+    apex_free_string(html);
+
+    const char *bq_code = ">     {++added++}\n";
+    html = apex_markdown_to_html(bq_code, strlen(bq_code), &opts);
+    assert_contains(html, "{++added++}", "Indented code in a blockquote stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Indented code in a blockquote is not rendered");
+    apex_free_string(html);
+
+    const char *bq_para = "> para\n>     {++added++}\n";
+    html = apex_markdown_to_html(bq_para, strlen(bq_para), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "Blockquote paragraph still renders addition");
+    apex_free_string(html);
+
+    const char *chunks = "    line\n\n    {++added++}\n";
+    html = apex_markdown_to_html(chunks, strlen(chunks), &opts);
+    assert_contains(html, "{++added++}", "Second indented chunk stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Indented chunks are not rendered");
+    apex_free_string(html);
+
+    const char *after_code = "    {++added++}\n\nAfter {++more++}\n";
+    html = apex_markdown_to_html(after_code, strlen(after_code), &opts);
+    assert_contains(html, "{++added++}", "Indented code before a paragraph stays raw");
+    assert_contains(html, "<ins class=\"critic\">more</ins>", "Paragraph after indented code still renders");
+    apex_free_string(html);
+
+    const char *marker_code = "-     {++added++}\n";
+    html = apex_markdown_to_html(marker_code, strlen(marker_code), &opts);
+    assert_contains(html, "{++added++}", "Code block on a list marker line stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Code block on a list marker line is not rendered");
+    apex_free_string(html);
+
+    const char *marker_next = "-     {++one++}\n    {++two++}\n";
+    html = apex_markdown_to_html(marker_next, strlen(marker_next), &opts);
+    assert_contains(html, "{++one++}", "Marker-line code block stays raw");
+    assert_contains(html, "<ins class=\"critic\">two</ins>", "Following list line still renders");
+    apex_free_string(html);
+
+    const char *ordered = "1. item\n    {++added++}\n";
+    html = apex_markdown_to_html(ordered, strlen(ordered), &opts);
+    assert_contains(html, "<ins class=\"critic\">added</ins>", "Ordered-list continuation still renders");
+    apex_free_string(html);
+
+    const char *fake_fence = "    ```\n    {++added++}\n    ```\n";
+    html = apex_markdown_to_html(fake_fence, strlen(fake_fence), &opts);
+    assert_contains(html, "{++added++}", "Four-space fence text stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Four-space fence text is not rendered");
+    apex_free_string(html);
+
+    const char *after_heading = "# Title\n    {++added++}\n";
+    html = apex_markdown_to_html(after_heading, strlen(after_heading), &opts);
+    assert_contains(html, "{++added++}", "Indented code after a heading stays raw");
+    assert_not_contains(html, "<ins class=\"critic\">", "Indented code after a heading is not rendered");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Critic Markup Tests", had_failures, false);
 }
