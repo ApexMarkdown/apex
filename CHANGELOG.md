@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.41] - 2026-10-16
+
+### Fixed
+
+- **CriticMarkup in code** stays literal in code spans, fenced blocks, and indented code blocks.
+- **Short critic comments** and the text after a mark are no longer dropped when the HTML replacement outgrows the buffer.
+
 ## [1.1.40] - 2026-10-16
 
 ### Fixed
@@ -3408,6 +3415,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.41]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.41
 [1.1.40]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.40
 [1.1.39]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.39
 [1.1.38]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.38
