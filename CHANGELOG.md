@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.39] - 2026-10-16
+
+### Fixed
+
+- **Image paths** that contain @, such as a @2x filename, stay intact when citations are on
+- **Email addresses** and other mid-token @ uses are no longer rewritten as citations
+
 ## [1.1.38] - 2026-10-15
 
 ### Fixed
@@ -3395,6 +3402,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.39]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.39
 [1.1.38]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.38
 [1.1.37]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.37
 [1.1.36]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.36
