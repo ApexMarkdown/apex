@@ -470,7 +470,9 @@ static void collect_nodes_with_attrs_recursive(cmark_node *node, attr_node **lis
     /* Increment counter for this element type */
     int elem_idx = -1;
     if (type == CMARK_NODE_PARAGRAPH) elem_idx = counters->para_count++;
-    else if (type >= CMARK_NODE_HEADING && type <= CMARK_NODE_HEADING + 5) elem_idx = counters->heading_count++;
+    /* One node type for every heading level. HEADING+1..+5 are thematic
+     * breaks, footnotes, and the GFM table nodes, not h2-h6. */
+    else if (type == CMARK_NODE_HEADING) elem_idx = counters->heading_count++;
     else if (type == CMARK_NODE_TABLE) {
         /* For tables, increment the counter first, then use (count - 1) as the index */
         /* This ensures the index matches the HTML renderer's count of <table> tags */
@@ -655,8 +657,7 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                 for (attr_node *a = attr_list; a; a = a->next, check_idx++) {
                     /* Check by element type and index for removal */
                     if (!used[check_idx] &&
-                        (a->node_type == elem_type ||
-                         (elem_type == CMARK_NODE_HEADING && a->node_type >= CMARK_NODE_HEADING && a->node_type <= CMARK_NODE_HEADING + 5)) &&
+                        a->node_type == elem_type &&
                         a->element_index == elem_idx) {
                         if (strstr(a->attrs, "data-remove")) {
                             should_remove = true;
@@ -846,9 +847,7 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                     for (attr_node *a = attr_list; a; a = a->next, idx++) {
                         if (used[idx]) continue;
 
-                        /* Check type match (including inline elements) */
-                        bool type_match = (a->node_type == elem_type ||
-                             (elem_type == CMARK_NODE_HEADING && a->node_type >= CMARK_NODE_HEADING && a->node_type <= CMARK_NODE_HEADING + 5));
+                        bool type_match = (a->node_type == elem_type);
 
                         if (!type_match) continue;
 

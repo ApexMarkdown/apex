@@ -1195,6 +1195,33 @@ void test_header_ids(void) {
     assert_contains(html, "<a href=\"https://example.com\"", "MMD [id] in middle: remains link");
     apex_free_string(html);
 
+    /* Table cell text must not be injected into later heading tags.
+     * GFM table nodes are numbered just above CMARK_NODE_HEADING, so a range
+     * check treated the table, its header row, and its cells as headings. */
+    const char *table_then_headings =
+        "| Mechanism | Examples | Description |\n"
+        "| --- | --- | --- |\n"
+        "| `mx` | `mx:example.com` | Mail exchange |\n"
+        "\n"
+        "#### SPF Examples\n"
+        "\n"
+        "#### Bonus Extra\n"
+        "\n"
+        "### Tripod Issue\n"
+        "\n"
+        "### Setup\n";
+    html = apex_markdown_to_html(table_then_headings, strlen(table_then_headings), &opts);
+    assert_contains(html, "<th>Mechanism</th>", "Table header text stays in the table");
+    assert_contains(html, "<h4 id=\"spf-examples\">SPF Examples</h4>",
+                    "Heading after a table is not given a table cell attribute");
+    assert_contains(html, "<h3 id=\"tripod-issue\">Tripod Issue</h3>",
+                    "h3 after a table does not include the first header cell");
+    assert_contains(html, "<h3 id=\"setup\">Setup</h3>",
+                    "h3 after a table does not include the second header cell");
+    assert_not_contains(html, "<h3 Mechanism", "First header cell is not an h3 attribute");
+    assert_not_contains(html, "<h3 Examples", "Second header cell is not an h3 attribute");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Header ID Generation Tests", had_failures, false);
 }
