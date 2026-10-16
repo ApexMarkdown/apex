@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.40] - 2026-10-16
+
+### Fixed
+
+- **Headings after a table** no longer pick up header-cell text as attributes; a heading stays `<h3 id="tripod-issue">` instead of `<h3 Mechanism id="tripod-issue">`
+
 ## [1.1.39] - 2026-10-16
 
 ### Fixed
@@ -3402,6 +3408,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.40]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.40
 [1.1.39]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.39
 [1.1.38]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.38
 [1.1.37]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.37
