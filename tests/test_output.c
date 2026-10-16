@@ -1657,6 +1657,39 @@ void test_citations(void) {
     assert_contains(html, "smith04", "Author-in-text citation includes key");
     apex_free_string(html);
 
+    /* (@key) is a citation: the opening paren is a boundary */
+    const char *paren_author = "As shown (@smith04).";
+    html = apex_markdown_to_html(paren_author, strlen(paren_author), &opts);
+    assert_contains(html, "citation", "Paren-boundary citation generates citation");
+    assert_contains(html, "smith04", "Paren-boundary citation includes key");
+    apex_free_string(html);
+
+    /* @ inside a token is not a citation, even when a real citation is present */
+    const char *retina_md =
+        "See [@doe99].\n\n"
+        "[bbimg217]: assets/ah-original@2x.png \"ah-original@2x.png\"\n\n"
+        "![Audio Hijack][bbimg217]\n";
+    html = apex_markdown_to_html(retina_md, strlen(retina_md), &opts);
+    assert_contains(html, "src=\"assets/ah-original@2x.png\"",
+                    "Retina filename keeps @2x in the image src");
+    assert_contains(html, "title=\"ah-original@2x.png\"",
+                    "Retina filename keeps @2x in the image title");
+    assert_not_contains(html, "CITE:2x", "Retina filename is not turned into a citation");
+    assert_contains(html, "doe99", "Real citation still processed beside a retina filename");
+    apex_free_string(html);
+
+    const char *email_md = "See [@doe99]. Write user@example.com today.\n";
+    html = apex_markdown_to_html(email_md, strlen(email_md), &opts);
+    assert_contains(html, "user@example.com", "Email address survives citation scanning");
+    assert_not_contains(html, "CITE:example", "Email address is not turned into a citation");
+    apex_free_string(html);
+
+    /* A dot inside a key is still part of the key when @ starts at a boundary */
+    const char *dotted_key = "See @smith.2000 today.";
+    html = apex_markdown_to_html(dotted_key, strlen(dotted_key), &opts);
+    assert_contains(html, "smith.2000", "Dotted citation key kept whole");
+    apex_free_string(html);
+
     /* iA Writer Annotations dumps use `@Name: 1,2 3,4` — trailing colon is not
      * part of a cite key, and the range dump must stay in the paragraph. */
     const char *ia_ann_prose =

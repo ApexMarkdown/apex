@@ -140,8 +140,11 @@ static int parse_pandoc_citation(const char *text, int pos, int len,
     char *suffix = NULL;
     char *key = NULL;
 
-    /* Check for @key (author-in-text, no brackets) */
-    if (*p == '@') {
+    /* Check for @key (author-in-text, no brackets).
+     * Same boundary as the early-out scan: start of text, whitespace, or '('.
+     * Mid-token '@' (ah-original@2x.png, user@example.com) is not a citation. */
+    if (*p == '@' &&
+        (p == text || isspace((unsigned char)p[-1]) || p[-1] == '(')) {
         p++;
         int key_len = extract_citation_key(text, apex_ptrdiff_to_int(p - text), len, &key);
         if (key_len > 0 && key) {
