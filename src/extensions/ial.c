@@ -3074,6 +3074,42 @@ static bool ial_append_verbatim(char **buf, char **write, size_t *remaining,
 /**
  * Preprocess markdown to extract image attributes and URL-encode all link URLs
  */
+/* Closing ')' of a link or image destination.
+ * Quotes hide parentheses, and unquoted '(' must be balanced, so a title
+ * like "Output options (Markdown)" does not end the destination early. */
+static const char *ial_destination_closer(const char *start) {
+    int depth = 1;
+    bool in_quote = false;
+    char quote = 0;
+    const char *p = start;
+
+    if (!start) return NULL;
+    while (*p && *p != '\n' && *p != '\r') {
+        if (in_quote) {
+            if (*p == '\\' && p[1]) {
+                p += 2;
+                continue;
+            }
+            if (*p == quote) in_quote = false;
+            p++;
+            continue;
+        }
+        if (*p == '"' || *p == '\'') {
+            in_quote = true;
+            quote = *p++;
+            continue;
+        }
+        if (*p == '(') {
+            depth++;
+        } else if (*p == ')') {
+            depth--;
+            if (depth == 0) return p;
+        }
+        p++;
+    }
+    return NULL;
+}
+
 char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_attrs, apex_mode_t mode) {
     if (!text) return NULL;
 
@@ -3142,12 +3178,10 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                 const char *attr_start = NULL;
                 const char *paren_end = NULL;
 
-                /* Find the closing paren first */
-                p = url_start;
-                while (*p && *p != ')' && *p != '\n') p++;
-                if (*p == ')') {
-                    paren_end = p;
-                } else {
+                /* Find the closing paren first. Parentheses inside a quoted
+                 * title, and balanced parentheses in the URL, do not count. */
+                paren_end = ial_destination_closer(url_start);
+                if (!paren_end) {
                     /* Malformed - skip just the ! and continue */
                     read = img_start + 1;
                     continue;
@@ -4230,12 +4264,13 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                 const char *url_end = NULL;
                 const char *paren_end = NULL;
 
-                /* Find the closing paren first */
-                while (*p && *p != ')' && *p != '\n') p++;
-                if (*p == ')') {
+                /* Find the closing paren first. A quoted title may contain
+                 * parentheses; stop at a newline when the destination never closes. */
+                paren_end = ial_destination_closer(url_start);
+                if (!paren_end) {
+                    p = url_start;
+                    while (*p && *p != '\n' && *p != '\r') p++;
                     paren_end = p;
-                } else {
-                    paren_end = p; /* End at newline or end of string */
                 }
 
                 /* Scan forward looking for titles: "title", 'title', or (title) */
@@ -4649,10 +4684,9 @@ char *apex_preprocess_image_attributes(const char *text, image_attr_entry **img_
                                 const char *attr_start = NULL;
                                 const char *paren_end = NULL;
 
-                                /* Find closing paren */
-                                while (*p && *p != ')' && *p != '\n') p++;
-                                if (*p == ')') {
-                                    paren_end = p;
+                                /* Find closing paren, skipping parentheses inside quotes. */
+                                paren_end = ial_destination_closer(url_start);
+                                if (paren_end) {
                                     p = url_start;
 
                                     /* Look for attributes */

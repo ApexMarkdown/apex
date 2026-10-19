@@ -1154,6 +1154,58 @@ void test_multimarkdown_image_attributes(void) {
         apex_free_string(html);
     }
 
+    /* Parentheses inside a quoted title must not end the image early. */
+    {
+        apex_options opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+        const char *paren_title =
+            "![Alt text](img/shot.png @2x width=800 height=580 \"Output options (Markdown, Split Posts)\")";
+        char *html = apex_markdown_to_html(paren_title, strlen(paren_title), &opts);
+        assert_contains(html, "title=\"Output options (Markdown, Split Posts)\"", "paren title: title attribute");
+        assert_contains(html, "<figcaption>Output options (Markdown, Split Posts)</figcaption>", "paren title: figcaption");
+        assert_contains(html, "width=\"800\"", "paren title: width");
+        assert_contains(html, "height=\"580\"", "paren title: height");
+        assert_contains(html, "img/shot.png 1x", "paren title: srcset 1x");
+        assert_contains(html, "img/shot@2x.png 2x", "paren title: srcset 2x");
+        assert_not_contains(html, "\")", "paren title: no stray quote-paren");
+        assert_not_contains(html, "\xe2\x80\x9d)", "paren title: no smart-quoted stray paren");
+        apex_free_string(html);
+
+        const char *paren_only =
+            "![Alt text](img/shot.png \"Output options (Markdown, Split Posts)\")";
+        html = apex_markdown_to_html(paren_only, strlen(paren_only), &opts);
+        assert_contains(html, "title=\"Output options (Markdown, Split Posts)\"", "paren title only: title kept");
+        assert_not_contains(html, "\")", "paren title only: no stray quote-paren");
+        apex_free_string(html);
+
+        const char *plain_title =
+            "![Alt text](img/shot.png @2x width=800 height=580 \"Output options\")";
+        html = apex_markdown_to_html(plain_title, strlen(plain_title), &opts);
+        assert_contains(html, "title=\"Output options\"", "plain title with attrs: title kept");
+        assert_contains(html, "width=\"800\"", "plain title with attrs: width");
+        apex_free_string(html);
+
+        const char *single_quoted =
+            "![Alt text](img/shot.png @2x width=800 'Output options (Markdown)')";
+        html = apex_markdown_to_html(single_quoted, strlen(single_quoted), &opts);
+        assert_contains(html, "title=\"Output options (Markdown)\"", "single-quoted paren title");
+        assert_contains(html, "width=\"800\"", "single-quoted paren title: width");
+        apex_free_string(html);
+
+        const char *title_first =
+            "![Alt](img/shot.png \"Output options (Markdown)\" width=800)";
+        html = apex_markdown_to_html(title_first, strlen(title_first), &opts);
+        assert_contains(html, "title=\"Output options (Markdown)\"", "title before attrs: title kept");
+        assert_contains(html, "width=\"800\"", "title before attrs: width");
+        assert_not_contains(html, "\")", "title before attrs: no stray quote-paren");
+        apex_free_string(html);
+
+        const char *url_parens = "![Alt](img/file(1).png width=800)";
+        html = apex_markdown_to_html(url_parens, strlen(url_parens), &opts);
+        assert_contains(html, "src=\"img/file(1).png\"", "balanced parens in the URL stay in src");
+        assert_contains(html, "width=\"800\"", "balanced URL parens: width");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("MultiMarkdown Image Attribute Tests", had_failures, false);
 }
