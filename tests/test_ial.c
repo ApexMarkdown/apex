@@ -239,6 +239,19 @@ void test_ial(void) {
     assert_not_contains(html, "{:", "Quote IALs are removed");
     apex_free_string(html);
 
+    const char *item_ial = "- A blockquote line{: .vapid}\n{: .stupid}\n";
+    html = apex_markdown_to_html(item_ial, strlen(item_ial), &opts_unified);
+    assert_contains(html, "<ul class=\"stupid\">", "IAL after a list attaches to the list");
+    assert_contains(html, "<li class=\"vapid\">A blockquote line</li>", "Same-line IAL attaches to the list item");
+    assert_not_contains(html, "{:", "List item IAL is removed");
+    apex_free_string(html);
+
+    const char *item_later = "- first\n\n  second{: .note}\n";
+    html = apex_markdown_to_html(item_later, strlen(item_later), &opts_unified);
+    assert_contains(html, "<p class=\"note\">second</p>", "IAL on a later item paragraph stays on that paragraph");
+    assert_not_contains(html, "<li class=\"note\">", "Later item paragraph IAL leaves the item unclassed");
+    apex_free_string(html);
+
     const char *quote_same = "> quoted {: .note}\n";
     html = apex_markdown_to_html(quote_same, strlen(quote_same), &opts_unified);
     assert_contains(html, "<p class=\"note\">quoted</p>", "Same-line IAL inside a blockquote attaches to the paragraph");

@@ -1222,9 +1222,16 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
             bool has_preceding_content = (cmark_node_previous(child) != NULL) || (ial_start > text);
             if (container_type == CMARK_NODE_PARAGRAPH && has_preceding_content) {
                 /* IAL was at end of text - apply to this paragraph (e.g. "Text\n{: .lead }" on one block).
-                 * Inside a blockquote, "> {: .class}" follows the paragraph, so the class stays on that paragraph. */
+                 * Inside a blockquote, "> {: .class}" follows the paragraph, so the class stays on that paragraph.
+                 * On the list marker line, the IAL belongs to the item. A later paragraph inside the item keeps its own class. */
+                cmark_node *attr_node = container;
+                cmark_node *parent = cmark_node_parent(container);
+                if (parent && cmark_node_get_type(parent) == CMARK_NODE_ITEM &&
+                    cmark_node_first_child(parent) == container) {
+                    attr_node = parent;
+                }
                 char *attr_str = attributes_to_html(attrs);
-                cmark_node_set_user_data(container, attr_str);
+                cmark_node_set_user_data(attr_node, attr_str);
                 apex_free_attributes(attrs);
 
                 /* Remove the IAL from the text node */
