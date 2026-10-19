@@ -2,6 +2,16 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.43] - 2026-10-19
+
+### Fixed
+
+- **Next-line IALs** attach to thematic breaks, definition lists, fenced divs, and raw HTML, and the marker is removed.
+- **Blockquote IALs** on a quote line attach to the paragraph they follow, and an IAL on the next line without a quote marker attaches to the blockquote.
+- **Multiline paragraph IALs** keep their class when the paragraph spans more than one line.
+- **Image titles** can contain parentheses when the image also has attributes, and the title still becomes the caption.
+- **Link titles** can contain parentheses without the destination ending at the parenthesis inside the title.
+
 ## [1.1.42] - 2026-10-19
 
 ### Fixed
@@ -3425,6 +3435,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.43]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.43
 [1.1.42]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.42
 [1.1.41]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.41
 [1.1.40]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.40

@@ -339,7 +339,7 @@ See [Command Line Options](https://github.com/ApexMarkdown/apex/wiki/Command-Lin
 ### All Options
 
 ```
-Apex Markdown Processor v1.1.41
+Apex Markdown Processor v1.1.42
 One Markdown processor to rule them all
 
 Project homepage: https://github.com/ApexMarkdown/apex
