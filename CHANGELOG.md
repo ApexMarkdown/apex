@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.44] - 2026-10-19
+
+### Fixed
+
+- **List item IALs** on the item's first line attach to that item, and an IAL on the following line still attaches to the list.
+
 ## [1.1.43] - 2026-10-19
 
 ### Fixed
@@ -3435,6 +3441,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.44]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.44
 [1.1.43]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.43
 [1.1.42]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.42
 [1.1.41]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.41
