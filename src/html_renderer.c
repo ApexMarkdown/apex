@@ -350,6 +350,7 @@ typedef struct {
     int strong_count;
     int emph_count;
     int code_inline_count;
+    int hr_count;
 } element_counters;
 
 /**
@@ -482,6 +483,7 @@ static void collect_nodes_with_attrs_recursive(cmark_node *node, attr_node **lis
     else if (type == CMARK_NODE_LIST) elem_idx = counters->list_count++;
     else if (type == CMARK_NODE_ITEM) elem_idx = counters->item_count++;
     else if (type == CMARK_NODE_CODE_BLOCK) elem_idx = counters->code_count++;
+    else if (type == CMARK_NODE_THEMATIC_BREAK) elem_idx = counters->hr_count++;
     /* Inline elements need indices too - each type has its own counter */
     else if (type == CMARK_NODE_LINK) elem_idx = counters->link_count++;
     else if (type == CMARK_NODE_IMAGE) elem_idx = counters->image_count++;
@@ -623,6 +625,9 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
             } else if (tag_len == 2 && memcmp(tag_start, "li", 2) == 0) {
                 elem_type = CMARK_NODE_ITEM;
                 elem_idx = html_counters.item_count++;
+            } else if (tag_len == 2 && memcmp(tag_start, "hr", 2) == 0) {
+                elem_type = CMARK_NODE_THEMATIC_BREAK;
+                elem_idx = html_counters.hr_count++;
             } else if (tag_len == 3 && memcmp(tag_start, "pre", 3) == 0) {
                 elem_type = CMARK_NODE_CODE_BLOCK;
                 elem_idx = html_counters.code_count++;
@@ -776,13 +781,19 @@ char *apex_render_html_with_attributes(cmark_node *document, int options) {
                     }
                     html_fingerprint[fp_idx] = '\0';
                 } else {
-                    /* For block elements, extract text content */
+                    /* For block elements, extract text content.
+                     * Paragraph attributes are fingerprinted from the first text
+                     * node, which ends at a softbreak, so stop at the first newline. */
                     const char *content_start = tag_name_end;
                     while (*content_start && *content_start != '>') content_start++;
                     if (*content_start == '>') content_start++;
 
                     const char *text_p = content_start;
                     while (*text_p && *text_p != '<' && fp_idx < 50) {
+                        if (elem_type == CMARK_NODE_PARAGRAPH &&
+                            (*text_p == '\n' || *text_p == '\r')) {
+                            break;
+                        }
                         html_fingerprint[fp_idx++] = *text_p++;
                     }
                     html_fingerprint[fp_idx] = '\0';

@@ -168,6 +168,82 @@ void test_ial(void) {
     assert_not_contains(html, "<p>{: .lead }</p>", "Fenced div IAL: IAL paragraph removed");
     apex_free_string(html);
 
+    /* An IAL on the line after a block attaches to that block. */
+    const char *list_ial = "- one\n- two\n{: .items}\n";
+    html = apex_markdown_to_html(list_ial, strlen(list_ial), &opts_unified);
+    assert_contains(html, "<ul class=\"items\">", "IAL after a list attaches to the list");
+    assert_not_contains(html, "{:", "IAL after a list is removed");
+    apex_free_string(html);
+
+    const char *hr_ial = "---\n{: .rule}\n";
+    html = apex_markdown_to_html(hr_ial, strlen(hr_ial), &opts_unified);
+    assert_contains(html, "<hr class=\"rule\"", "IAL after a thematic break attaches to the rule");
+    assert_not_contains(html, "{:", "IAL after a thematic break is removed");
+    apex_free_string(html);
+
+    const char *deflist_ial = "Term\n: definition\n{: .gloss}\n";
+    html = apex_markdown_to_html(deflist_ial, strlen(deflist_ial), &opts_unified);
+    assert_contains(html, "<dl class=\"gloss\">", "IAL after a definition list attaches to the list");
+    assert_not_contains(html, "{:", "IAL after a definition list is removed");
+    apex_free_string(html);
+
+    const char *div_ial = "::: section\nInside\n:::\n{: .wrap}\n";
+    html = apex_markdown_to_html(div_ial, strlen(div_ial), &opts_unified);
+    assert_contains(html, "class=\"section wrap\"", "IAL after a fenced div joins its class");
+    assert_not_contains(html, "{:", "IAL after a fenced div is removed");
+    apex_free_string(html);
+
+    const char *html_ial = "<div>raw</div>\n{: .raw}\n";
+    html = apex_markdown_to_html(html_ial, strlen(html_ial), &opts_unified);
+    assert_contains(html, "<div class=\"raw\">", "IAL after raw HTML attaches to the element");
+    assert_not_contains(html, "{:", "IAL after raw HTML is removed");
+    apex_free_string(html);
+
+    const char *two_raw = "<div>a</div>\n{: .a}\n\n<div>b</div>\n{: .b}\n";
+    html = apex_markdown_to_html(two_raw, strlen(two_raw), &opts_unified);
+    assert_contains(html, "<div class=\"a\">", "IAL on the first raw element");
+    assert_contains(html, "<div class=\"b\">", "IAL on the second raw element");
+    assert_not_contains(html, "{:", "Both raw-element IALs are removed");
+    apex_free_string(html);
+
+    const char *second_dl = "Term\n: definition\n\nOther\n: def\n{: .gloss}\n";
+    html = apex_markdown_to_html(second_dl, strlen(second_dl), &opts_unified);
+    assert_contains(html, "<dl class=\"gloss\">", "IAL after the second definition list");
+    assert_contains(html, "<dl>\n<dt>Term</dt>", "First definition list stays plain");
+    apex_free_string(html);
+
+    const char *quote_ial = "> quoted\n> {: .note}\n";
+    html = apex_markdown_to_html(quote_ial, strlen(quote_ial), &opts_unified);
+    assert_contains(html, "<blockquote>\n<p class=\"note\">quoted</p>\n</blockquote>", "IAL on the next blockquote line attaches to the paragraph");
+    assert_not_contains(html, "{:", "IAL inside a blockquote is removed");
+    apex_free_string(html);
+
+    const char *quote_last = "> one\n>\n> two\n> {: .note}\n";
+    html = apex_markdown_to_html(quote_last, strlen(quote_last), &opts_unified);
+    assert_contains(html, "<p>one</p>", "Earlier quoted paragraph stays plain");
+    assert_contains(html, "<p class=\"note\">two</p>", "Inside IAL attaches to the paragraph it follows");
+    assert_not_contains(html, "<blockquote class=", "Inside IAL leaves the blockquote unclassed");
+    apex_free_string(html);
+
+    const char *quote_out = "> quoted\n{: .note}\n";
+    html = apex_markdown_to_html(quote_out, strlen(quote_out), &opts_unified);
+    assert_contains(html, "<blockquote class=\"note\">\n<p>quoted</p>\n</blockquote>", "IAL after a blockquote attaches to the blockquote");
+    assert_not_contains(html, "{:", "IAL after a blockquote is removed");
+    apex_free_string(html);
+
+    const char *quote_multiline = "> A stupid quote\n{: .stupid }\n\n> A stupid paragraph\n> inside a quote\n> {: .silly }\n{: .dumb }\n";
+    html = apex_markdown_to_html(quote_multiline, strlen(quote_multiline), &opts_unified);
+    assert_contains(html, "<blockquote class=\"stupid\">", "IAL after a quote attaches to that blockquote");
+    assert_contains(html, "<p class=\"silly\">A stupid paragraph\ninside a quote</p>", "Inside IAL on a multiline quote attaches to the paragraph");
+    assert_contains(html, "<blockquote class=\"dumb\">", "IAL after the second quote attaches to that blockquote");
+    assert_not_contains(html, "{:", "Quote IALs are removed");
+    apex_free_string(html);
+
+    const char *quote_same = "> quoted {: .note}\n";
+    html = apex_markdown_to_html(quote_same, strlen(quote_same), &opts_unified);
+    assert_contains(html, "<p class=\"note\">quoted</p>", "Same-line IAL inside a blockquote attaches to the paragraph");
+    apex_free_string(html);
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("IAL Tests", had_failures, false);
 }

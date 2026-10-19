@@ -993,6 +993,17 @@ static bool extract_ial_from_paragraph(cmark_node *para, apex_attributes **attrs
     return extract_ial_from_text(text, attrs_out, alds);
 }
 
+/* Drop a softbreak or hard break that only separated a removed IAL. */
+static void ial_drop_break_before(cmark_node *node) {
+    cmark_node *prev = cmark_node_previous(node);
+    if (!prev) return;
+    cmark_node_type prev_type = cmark_node_get_type(prev);
+    if (prev_type == CMARK_NODE_SOFTBREAK || prev_type == CMARK_NODE_LINEBREAK) {
+        cmark_node_unlink(prev);
+        cmark_node_free(prev);
+    }
+}
+
 /**
  * Handle span-level IAL (inline elements with attributes)
  * Example: [Link](url){: .class} or ![Image](img){: #id}
@@ -1210,7 +1221,8 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
              * Content before IAL can be: a previous sibling (e.g. text + softbreak + IAL text node), or text before IAL in this node (e.g. single node "Text\n{: .lead }"). */
             bool has_preceding_content = (cmark_node_previous(child) != NULL) || (ial_start > text);
             if (container_type == CMARK_NODE_PARAGRAPH && has_preceding_content) {
-                /* IAL was at end of text - apply to paragraph (e.g. "Text\n{: .lead }" on one block) */
+                /* IAL was at end of text - apply to this paragraph (e.g. "Text\n{: .lead }" on one block).
+                 * Inside a blockquote, "> {: .class}" follows the paragraph, so the class stays on that paragraph. */
                 char *attr_str = attributes_to_html(attrs);
                 cmark_node_set_user_data(container, attr_str);
                 apex_free_attributes(attrs);
@@ -1235,6 +1247,7 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
                             while (end >= new_text && isspace((unsigned char)*end)) *end-- = '\0';
                         }
                         if (strlen(new_text) == 0) {
+                            ial_drop_break_before(child);
                             cmark_node_unlink(child);
                             cmark_node_free(child);
                             free(new_text);
@@ -1244,6 +1257,7 @@ static bool process_span_ial_in_container(cmark_node *container, ald_entry *alds
                         }
                     }
                 } else {
+                    ial_drop_break_before(child);
                     cmark_node_unlink(child);
                     cmark_node_free(child);
                 }
@@ -1526,6 +1540,138 @@ static bool is_pure_ial_paragraph(cmark_node *para) {
  * Returns the node to free (if any), or NULL
  * Caller must free the returned node after iteration is complete
  */
+/* Copy attrs without one key="value" attribute. */
+static char *ial_attrs_without(const char *attrs, const char *name) {
+    size_t nlen = strlen(name);
+    char *out = malloc(strlen(attrs) + 1);
+    if (!out) return NULL;
+    char *write = out;
+    const char *p = attrs;
+    while (*p) {
+        while (*p && isspace((unsigned char)*p)) p++;
+        if (!*p) break;
+        const char *start = p;
+        bool drop = strncmp(p, name, nlen) == 0 && p[nlen] == '=' &&
+                    (p[nlen + 1] == '"' || p[nlen + 1] == '\'');
+        if (drop) {
+            char quote = p[nlen + 1];
+            p += nlen + 2;
+            while (*p && *p != quote) p++;
+            if (*p == quote) p++;
+            continue;
+        }
+        while (*p && !isspace((unsigned char)*p)) p++;
+        if (write != out) *write++ = ' ';
+        memcpy(write, start, (size_t)(p - start));
+        write += p - start;
+    }
+    *write = '\0';
+    return out;
+}
+
+/* True when an HTML block is only a closing tag (and comments), so a
+ * following IAL still belongs to the block before it. */
+static bool ial_html_is_closer_only(cmark_node *node) {
+    const char *html = cmark_node_get_literal(node);
+    if (!html) return false;
+    for (const char *p = html; *p; p++) {
+        if (*p == '<' && p[1] && p[1] != '/' && p[1] != '!' && p[1] != '?') {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* Insert IAL attributes into the first opening tag of an HTML block.
+ * An existing class is extended instead of adding a second class attribute. */
+static char *ial_html_with_attrs(const char *html, const char *attrs) {
+    if (!html || !attrs || !*attrs) return NULL;
+
+    const char *tag = NULL;
+    for (const char *p = html; *p; p++) {
+        if (*p == '<' && p[1] && p[1] != '/' && p[1] != '!' && p[1] != '?') {
+            tag = p;
+            break;
+        }
+    }
+    if (!tag) return NULL;
+    const char *gt = strchr(tag, '>');
+    if (!gt) return NULL;
+
+    const char *class_at = NULL;
+    const char *class_val = NULL;
+    const char *class_end = NULL;
+    for (const char *p = tag + 1; p + 7 < gt; p++) {
+        if ((p == tag + 1 || isspace((unsigned char)p[-1])) && strncmp(p, "class=\"", 7) == 0) {
+            class_at = p;
+            class_val = p + 7;
+            class_end = memchr(class_val, '"', (size_t)(gt - class_val));
+            break;
+        }
+    }
+
+    const char *ial_class = NULL;
+    const char *ial_class_end = NULL;
+    const char *ial_at = strstr(attrs, "class=\"");
+    if (ial_at && (ial_at == attrs || isspace((unsigned char)ial_at[-1]))) {
+        ial_class = ial_at + 7;
+        ial_class_end = strchr(ial_class, '"');
+        if (!ial_class_end) ial_class = NULL;
+    }
+
+    char *extra = NULL;
+    char *merged_class = NULL;
+    if (class_at && class_end && ial_class) {
+        size_t old_len = (size_t)(class_end - class_val);
+        size_t add_len = (size_t)(ial_class_end - ial_class);
+        merged_class = malloc(old_len + add_len + 2);
+        if (!merged_class) return NULL;
+        memcpy(merged_class, class_val, old_len);
+        merged_class[old_len] = ' ';
+        memcpy(merged_class + old_len + 1, ial_class, add_len);
+        merged_class[old_len + 1 + add_len] = '\0';
+        extra = ial_attrs_without(attrs, "class");
+    } else {
+        extra = strdup(attrs);
+    }
+    if (!extra) {
+        free(merged_class);
+        return NULL;
+    }
+
+    size_t html_len = strlen(html);
+    size_t extra_len = strlen(extra);
+    size_t merged_len = merged_class ? strlen(merged_class) : 0;
+    char *out = malloc(html_len + extra_len + merged_len + 2);
+    if (!out) {
+        free(extra);
+        free(merged_class);
+        return NULL;
+    }
+    char *write = out;
+    if (merged_class && class_val && class_end) {
+        memcpy(write, html, (size_t)(class_val - html));
+        write += class_val - html;
+        memcpy(write, merged_class, merged_len);
+        write += merged_len;
+        memcpy(write, class_end, (size_t)(gt - class_end));
+        write += gt - class_end;
+    } else {
+        memcpy(write, html, (size_t)(gt - html));
+        write += gt - html;
+    }
+    if (extra_len > 0) {
+        *write++ = ' ';
+        memcpy(write, extra, extra_len);
+        write += extra_len;
+    }
+    memcpy(write, gt, html_len - (size_t)(gt - html) + 1);
+
+    free(extra);
+    free(merged_class);
+    return out;
+}
+
 static cmark_node *process_node_ial(cmark_node *node, ald_entry *alds) {
     if (!node) return NULL;
 
@@ -1570,30 +1716,34 @@ static cmark_node *process_node_ial(cmark_node *node, ald_entry *alds) {
         /* No span IAL found, fall through to check for next-line IAL */
     }
 
-    /* Only certain block types can have IAL after them */
+    /* Any block can take an IAL on the following line. */
     if (type != CMARK_NODE_HEADING &&
         type != CMARK_NODE_PARAGRAPH &&
         type != CMARK_NODE_BLOCK_QUOTE &&
         type != CMARK_NODE_CODE_BLOCK &&
         type != CMARK_NODE_LIST &&
         type != CMARK_NODE_ITEM &&
-        type != CMARK_NODE_TABLE) {  /* Tables can have IAL */
+        type != CMARK_NODE_TABLE &&
+        type != CMARK_NODE_THEMATIC_BREAK &&
+        type != CMARK_NODE_HTML_BLOCK) {
         return NULL;  /* No node to free */
     }
 
 
-    /* Look at next sibling(s) for IAL paragraph (skip over HTML blocks; cmark may put </div> between paragraph and IAL) */
+    /* A pure IAL paragraph is the marker, not a block that takes another IAL. */
+    if (type == CMARK_NODE_PARAGRAPH && is_pure_ial_paragraph(node)) {
+        return NULL;
+    }
+
+    /* Look at the next sibling for an IAL paragraph. A closing-tag HTML
+     * block can sit between a paragraph and its IAL. */
     cmark_node *next = cmark_node_next(node);
     if (!next) {
         return NULL;  /* No node to free */
     }
 
-    /* Skip HTML/custom blocks so we find a following IAL paragraph (e.g. paragraph, </div> html_block, {: .lead} paragraph) */
-    while (next) {
-        cmark_node_type next_type = cmark_node_get_type(next);
-        if (next_type != CMARK_NODE_HTML_BLOCK && next_type != CMARK_NODE_CUSTOM_BLOCK) {
-            break;
-        }
+    while (next && cmark_node_get_type(next) == CMARK_NODE_HTML_BLOCK &&
+           ial_html_is_closer_only(next)) {
         next = cmark_node_next(next);
     }
 
@@ -1605,10 +1755,18 @@ static cmark_node *process_node_ial(cmark_node *node, ald_entry *alds) {
     if (is_pure_ial_paragraph(next)) {
         apex_attributes *attrs = NULL;
         if (extract_ial_from_paragraph(next, &attrs, alds)) {
-            /* Store attributes in this node */
             char *attr_str = attributes_to_html(attrs);
-            cmark_node_set_user_data(node, attr_str);
             apex_free_attributes(attrs);
+            if (type == CMARK_NODE_HTML_BLOCK) {
+                const char *literal = cmark_node_get_literal(node);
+                char *merged = ial_html_with_attrs(literal, attr_str);
+                free(attr_str);
+                if (!merged) return NULL;
+                cmark_node_set_literal(node, merged);
+                free(merged);
+            } else {
+                cmark_node_set_user_data(node, attr_str);
+            }
 
             /* Return node to be unlinked and freed after iteration completes */
             /* Don't unlink here - that invalidates the iterator */
@@ -1642,6 +1800,14 @@ void apex_process_ial_in_tree(cmark_node *node, ald_entry *alds) {
             /* Process node and collect any nodes that need to be freed */
             cmark_node *node_to_free = process_node_ial(cur, alds);
             if (node_to_free) {
+                bool already_queued = false;
+                for (size_t i = 0; i < free_count; i++) {
+                    if (nodes_to_free[i] == node_to_free) {
+                        already_queued = true;
+                        break;
+                    }
+                }
+                if (already_queued) continue;
                 /* Expand array if needed */
                 if (free_count >= free_capacity) {
                     free_capacity = free_capacity ? free_capacity * 2 : 16;
