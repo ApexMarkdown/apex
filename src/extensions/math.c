@@ -205,7 +205,6 @@ static cmark_node *match_math_dollar(cmark_syntax_extension *self,
 /**
  * Match function for \ character (LaTeX style)
  */
-__attribute__((unused))
 static cmark_node *match_math_backslash(cmark_syntax_extension *self,
                                         cmark_parser *parser,
                                         cmark_node *parent,
@@ -267,6 +266,21 @@ static cmark_node *match_math_backslash(cmark_syntax_extension *self,
     return node;
 }
 
+/* One match callback handles both $...$ and \(...\) / \[...\]. */
+static cmark_node *match_math(cmark_syntax_extension *self,
+                              cmark_parser *parser,
+                              cmark_node *parent,
+                              unsigned char character,
+                              cmark_inline_parser *inline_parser) {
+    if (character == '$') {
+        return match_math_dollar(self, parser, parent, character, inline_parser);
+    }
+    if (character == '\\') {
+        return match_math_backslash(self, parser, parent, character, inline_parser);
+    }
+    return NULL;
+}
+
 /**
  * Create the math extension
  */
@@ -280,8 +294,7 @@ cmark_syntax_extension *create_math_extension(void) {
     special_chars = cmark_llist_append(mem, special_chars, (void *)'\\');
     cmark_syntax_extension_set_special_inline_chars(ext, special_chars);
 
-    /* Set match function - it will handle both $ and \ */
-    cmark_syntax_extension_set_match_inline_func(ext, match_math_dollar);
+    cmark_syntax_extension_set_match_inline_func(ext, match_math);
 
     return ext;
 }

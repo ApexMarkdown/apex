@@ -63,6 +63,7 @@ void test_blockquote_lists(void);
 void test_toc(void);
 void test_terminal_output(void);
 void test_rtf_output(void);
+void test_output_formats(void);
 void test_html_markdown_attributes(void);
 void test_fenced_divs(void);
 void test_sup_sub(void);
@@ -139,6 +140,7 @@ static test_suite suites[] = {
     { "toc",                           test_toc },
     { "terminal_output",               test_terminal_output },
     { "rtf_output",                    test_rtf_output },
+    { "output_formats",                test_output_formats },
     { "html_markdown_attributes",      test_html_markdown_attributes },
     { "fenced_divs",                   test_fenced_divs },
     { "sup_sub",                       test_sup_sub },

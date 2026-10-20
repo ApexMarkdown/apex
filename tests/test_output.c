@@ -877,6 +877,26 @@ void test_rtf_output(void) {
     }
     opts.base_directory = NULL;
 
+    /* HTML blocks: definition list, callout, and generic tag stripping */
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_RTF;
+    {
+        const char *html_blocks =
+            "<dl><dt>HtmlTerm</dt><dd>HtmlDef with <em>emphasis</em></dd></dl>\n"
+            "\n"
+            "<div class=\"callout\">Callout note</div>\n"
+            "\n"
+            "<div>Generic html</div>\n";
+        out = apex_markdown_to_html(html_blocks, strlen(html_blocks), &opts);
+        assert_contains(out, "HtmlTerm", "RTF definition-list HTML keeps the term");
+        assert_contains(out, "HtmlDef", "RTF definition-list HTML keeps the definition");
+        assert_contains(out, "\\b ", "RTF definition term is bold");
+        assert_contains(out, "Callout note", "RTF callout HTML keeps the body");
+        assert_contains(out, "\\box", "RTF callout uses a boxed paragraph");
+        assert_contains(out, "Generic html", "RTF generic HTML is stripped to text");
+        apex_free_string(out);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("RTF Output Tests", had_failures, false);
 }
@@ -2260,6 +2280,193 @@ void test_ast_json_parser(void) {
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("AST JSON Parser (filter output with RawBlock)", had_failures, false);
+}
+
+/* Shared document for output formats the HTML suites do not exercise. */
+static const char COVERAGE_DOC[] =
+    "# Kitchen Title\n"
+    "\n"
+    "A paragraph with **bold phrase**, *italic phrase*, `code span`,\n"
+    "and a [link](https://example.com/doc).\n"
+    "\n"
+    "Line one  \n"
+    "hard break\n"
+    "\n"
+    "- bullet item\n"
+    "\n"
+    "1. ordered item\n"
+    "\n"
+    "> quoted line\n"
+    "\n"
+    "```c\n"
+    "code line\n"
+    "```\n"
+    "\n"
+    "| Head | Cell |\n"
+    "| --- | --- |\n"
+    "| left | right |\n"
+    "\n"
+    "![alt pic](missing-local.png)\n"
+    "\n"
+    "<dl><dt>HtmlTerm</dt><dd>HtmlDef</dd></dl>\n"
+    "\n"
+    "<div class=\"callout\">Callout note</div>\n"
+    "\n"
+    "---\n"
+    "\n"
+    "See the note.[^n]\n"
+    "\n"
+    "[^n]: Footnote body.\n"
+    "\n"
+    "DlTerm\n"
+    ": Definition body\n";
+
+static const char MAN_NAME_DOC[] =
+    "# NAME\n"
+    "\n"
+    "apex - coverage tool\n"
+    "\n"
+    "# DESCRIPTION\n"
+    "\n"
+    "A paragraph with **bold phrase** and [link](https://example.com/doc).\n"
+    "\n"
+    "- bullet item\n"
+    "\n"
+    "> quoted line\n"
+    "\n"
+    "```\n"
+    "code line\n"
+    "```\n"
+    "\n"
+    "<dl><dt>HtmlTerm</dt><dd>HtmlDef</dd></dl>\n"
+    "\n"
+    "---\n";
+
+void test_output_formats(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Output Format Coverage Tests", false, true);
+
+    apex_options opts;
+    char *out;
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    opts.terminal_inline_images = false;
+    out = apex_markdown_to_html(COVERAGE_DOC, strlen(COVERAGE_DOC), &opts);
+    assert_contains(out, "Kitchen Title", "Terminal heading text");
+    assert_contains(out, "bold phrase", "Terminal strong text");
+    assert_contains(out, "italic phrase", "Terminal emphasis text");
+    assert_contains(out, "code span", "Terminal code span");
+    assert_contains(out, "https://example.com/doc", "Terminal link URL");
+    assert_contains(out, "hard break", "Terminal hard line break");
+    assert_contains(out, "bullet item", "Terminal bullet list");
+    assert_contains(out, "ordered item", "Terminal ordered list");
+    assert_contains(out, "quoted line", "Terminal blockquote");
+    assert_contains(out, "code line", "Terminal code block");
+    assert_contains(out, "Head", "Terminal table header");
+    assert_contains(out, "right", "Terminal table cell");
+    assert_contains(out, "missing-local.png", "Terminal image falls back to the path");
+    assert_contains(out, "HtmlTerm", "Terminal HTML definition list term");
+    assert_contains(out, "HtmlDef", "Terminal HTML definition list body");
+    assert_contains(out, "----------------------------------------", "Terminal thematic break");
+    assert_contains(out, "Footnote body", "Terminal footnote body");
+    assert_contains(out, "Definition body", "Terminal definition list body");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    opts.terminal_inline_images = false;
+    out = apex_markdown_to_html(COVERAGE_DOC, strlen(COVERAGE_DOC), &opts);
+    assert_contains(out, "Kitchen Title", "terminal256 heading text");
+    assert_contains(out, "bullet item", "terminal256 list text");
+    assert_contains(out, "\033[38;5;", "terminal256 emits a 256-color sequence");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_MARKDOWN;
+    out = apex_markdown_to_html(COVERAGE_DOC, strlen(COVERAGE_DOC), &opts);
+    assert_contains(out, "# Kitchen Title", "Markdown heading");
+    assert_contains(out, "**bold phrase**", "Markdown strong");
+    assert_contains(out, "*italic phrase*", "Markdown emphasis");
+    assert_contains(out, "`code span`", "Markdown code span");
+    assert_contains(out, "[link](https://example.com/doc \"\")", "Markdown link");
+    assert_contains(out, "- bullet item", "Markdown bullet");
+    assert_contains(out, "- ordered item", "Markdown ordered item");
+    assert_contains(out, "> quoted line", "Markdown blockquote");
+    assert_contains(out, "```c", "Markdown fenced code info");
+    assert_contains(out, "code line", "Markdown code block body");
+    assert_contains(out, "HtmlTerm", "Markdown HTML block");
+    assert_contains(out, "---", "Markdown thematic break");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_JSON;
+    out = apex_markdown_to_html(COVERAGE_DOC, strlen(COVERAGE_DOC), &opts);
+    assert_contains(out, "pandoc-api-version", "JSON has a Pandoc API version");
+    assert_contains(out, "\"Header\"", "JSON heading node");
+    assert_contains(out, "\"Strong\"", "JSON strong node");
+    assert_contains(out, "\"Emph\"", "JSON emphasis node");
+    assert_contains(out, "\"Link\"", "JSON link node");
+    assert_contains(out, "\"BulletList\"", "JSON bullet list node");
+    assert_contains(out, "\"OrderedList\"", "JSON ordered list node");
+    assert_contains(out, "\"BlockQuote\"", "JSON blockquote node");
+    assert_contains(out, "\"CodeBlock\"", "JSON code block node");
+    assert_contains(out, "\"Image\"", "JSON image node");
+    assert_contains(out, "\"RawBlock\"", "JSON raw HTML block");
+    assert_contains(out, "\"HorizontalRule\"", "JSON thematic break");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_MAN;
+    out = apex_markdown_to_html(MAN_NAME_DOC, strlen(MAN_NAME_DOC), &opts);
+    assert_contains(out, ".TH \"NAME\"", "Man roff title");
+    assert_contains(out, ".SH ", "Man roff section heading");
+    assert_contains(out, ".PP", "Man roff paragraph");
+    assert_contains(out, "\\f[B]", "Man roff bold");
+    assert_contains(out, "bold phrase", "Man roff paragraph text");
+    assert_contains(out, "example.com/doc", "Man roff link URL");
+    assert_contains(out, ".IP \\(bu", "Man roff bullet");
+    assert_contains(out, ".RS", "Man roff blockquote");
+    assert_contains(out, "code line", "Man roff code block");
+    assert_contains(out, "HtmlTerm", "Man roff HTML definition term");
+    assert_contains(out, "*  *  *", "Man roff thematic break");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_MAN_HTML;
+    opts.standalone = true;
+    out = apex_markdown_to_html(MAN_NAME_DOC, strlen(MAN_NAME_DOC), &opts);
+    assert_contains(out, "<!DOCTYPE html>", "Man HTML standalone doctype");
+    assert_contains(out, "class=\"man-standalone\"", "Man HTML standalone body");
+    assert_contains(out, "apex", "Man HTML name command");
+    assert_contains(out, "coverage tool", "Man HTML name description");
+    assert_contains(out, "DESCRIPTION", "Man HTML section");
+    assert_contains(out, "bold phrase", "Man HTML paragraph");
+    assert_contains(out, "example.com/doc", "Man HTML link");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_HTML;
+    const char *filter_cmd = "cat";
+    opts.ast_filter_commands = &filter_cmd;
+    opts.ast_filter_count = 1;
+    {
+        const char *filtered = "# Kitchen Title\n\nA paragraph with **bold phrase**.\n";
+        out = apex_markdown_to_html(filtered, strlen(filtered), &opts);
+    }
+    assert_contains(out, "Kitchen Title", "AST filter passthrough keeps the heading");
+    assert_contains(out, "A paragraph with", "AST filter passthrough keeps the paragraph");
+    apex_free_string(out);
+
+    opts = apex_options_default();
+    opts.obfuscate_emails = true;
+    out = apex_markdown_to_html("[Ada](mailto:ada@example.com)", 30, &opts);
+    assert_contains(out, "&#x6D;&#x61;&#x69;&#x6C;&#x74;&#x6F;&#x3A;", "Mailto href is hex-entity encoded");
+    assert_not_contains(out, "ada@example.com", "Plain email address is removed");
+    apex_free_string(out);
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Output Format Coverage Tests", had_failures, false);
 }
 
 

@@ -96,6 +96,21 @@ void test_math(void) {
     assert_contains(html, "class=\"math display\"", "Display math class");
     apex_free_string(html);
 
+    /* LaTeX delimiters */
+    html = apex_markdown_to_html("Inline \\(a+b\\) end", 18, &opts);
+    assert_contains(html, "class=\"math inline\"", "LaTeX inline math class");
+    assert_contains(html, "a+b", "LaTeX inline math content");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("Display \\[x+y=z\\] end", 22, &opts);
+    assert_contains(html, "class=\"math display\"", "LaTeX display math class");
+    assert_contains(html, "x+y=z", "LaTeX display math content");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("Not math \\(\\) here", 18, &opts);
+    assert_not_contains(html, "class=\"math", "Empty LaTeX delimiters are not math");
+    apex_free_string(html);
+
     /* Test that regular dollars don't trigger */
     html = apex_markdown_to_html("I have $5 and $10", 17, &opts);
     if (strstr(html, "class=\"math") == NULL) {
@@ -722,6 +737,31 @@ void test_quarto_mode(void) {
     html = apex_markdown_to_html("```{.python}\nx\n```", 18, &unified_opts2);
     assert_contains(html, "{.python}", "non-quarto mode keeps braced fence info string");
     apex_free_string(html);
+
+    opts = apex_options_for_mode(APEX_MODE_QUARTO);
+    opts.enable_quarto_strict_lists = true;
+    {
+        const char *strict =
+            "Intro text\n"
+            "- bullet item\n"
+            "1. ordered item\n"
+            "(@fig-one) example item\n"
+            "i) roman item\n"
+            "ii) roman two\n"
+            "\n"
+            "```\n"
+            "- fenced not a list\n"
+            "```\n";
+        html = apex_markdown_to_html(strict, strlen(strict), &opts);
+        assert_contains(html, "<ul>", "Strict lists still render a bullet list");
+        assert_contains(html, "bullet item", "Strict-list bullet text");
+        assert_contains(html, "ordered item", "Strict-list ordered text");
+        assert_contains(html, "example item", "Strict lists keep an example-list item");
+        assert_contains(html, "lower-roman", "Strict lists keep a roman list");
+        assert_contains(html, "roman item", "Roman list item text");
+        assert_contains(html, "- fenced not a list", "Fenced code is left alone by strict lists");
+        apex_free_string(html);
+    }
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Quarto Mode Tests", had_failures, false);
