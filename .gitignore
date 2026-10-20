@@ -78,3 +78,4 @@ docs
 .github/prompts
 buildnotes.md
 build-*
+coverage
