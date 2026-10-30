@@ -4028,6 +4028,7 @@ int main(int argc, char *argv[]) {
      * We'll extract it here and then inject the merged result */
     PROFILE_START(metadata_extract_cli);
     apex_metadata_item *doc_metadata = NULL;
+    apex_metadata_item *terminal_doc_metadata = NULL;
     size_t doc_metadata_end = 0;
 
     if (options.mode == APEX_MODE_MULTIMARKDOWN ||
@@ -4046,6 +4047,17 @@ int main(int argc, char *argv[]) {
             }
             free(doc_copy);
         }
+
+        options.terminal_document_metadata_explicit = true;
+        char *disp_copy = malloc(input_len + 1);
+        if (disp_copy) {
+            memcpy(disp_copy, markdown, input_len);
+            disp_copy[input_len] = '\0';
+            char *disp_ptr = disp_copy;
+            terminal_doc_metadata = apex_extract_metadata_for_mode(&disp_ptr, options.mode);
+            free(disp_copy);
+        }
+        options.terminal_document_metadata = terminal_doc_metadata;
     }
     PROFILE_END(metadata_extract_cli);
 
@@ -4454,6 +4466,7 @@ int main(int argc, char *argv[]) {
     if (allocated_input_file_path) free(allocated_input_file_path);
     if (file_metadata) apex_free_metadata(file_metadata);
     if (doc_metadata) apex_free_metadata(doc_metadata);
+    if (terminal_doc_metadata) apex_free_metadata(terminal_doc_metadata);
     if (cmdline_metadata) apex_free_metadata(cmdline_metadata);
     if (merged_metadata) apex_free_metadata(merged_metadata);
 
