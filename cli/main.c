@@ -4109,6 +4109,16 @@ int main(int argc, char *argv[]) {
         apex_cli_restore_argv_options(&options, &cli_options_snapshot, &cli_opt_mask);
     }
 
+    /* A mode key replaces apex_options and drops the document-only terminal
+     * header list. Reattach it when the effective mode still reads front
+     * matter. CommonMark and GFM keep the flag false and print no header. */
+    if (options.mode == APEX_MODE_MULTIMARKDOWN ||
+        options.mode == APEX_MODE_KRAMDOWN ||
+        apex_mode_is_unified_family(options.mode)) {
+        options.terminal_document_metadata_explicit = true;
+        options.terminal_document_metadata = terminal_doc_metadata;
+    }
+
     /* Re-apply explicit CLI override for plugins so it wins over metadata. */
     if (plugins_cli_override) {
         options.enable_plugins = plugins_cli_value;
