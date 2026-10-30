@@ -1940,6 +1940,15 @@ static char *apex_restore_liquid_tags(const char *html,
     return output;
 }
 
+/* Put {% %} tags back into an output string that left the HTML path early. */
+static char *apex_restore_liquid_in_output(char *text, char **tags, size_t tag_count) {
+    if (!text || !tags || tag_count == 0) return text;
+    char *restored = apex_restore_liquid_tags(text, tags, tag_count);
+    if (!restored) return text;
+    free(text);
+    return restored;
+}
+
 /**
  * Preprocess table rows to convert consecutive pipes without whitespace into << markers
  * for colspan detection.
@@ -6102,7 +6111,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         apex_free_metadata(metadata);
         /* Note: Preprocessing buffers are conditionally allocated and may not be in scope here.
          * This is acceptable as JSON output is typically used for debugging/inspection. */
-        return json;
+        return apex_restore_liquid_in_output(json, liquid_tags, liquid_tag_count);
     }
 
     /* Run AST-level filters (Pandoc-style JSON filters) before any */
@@ -6217,7 +6226,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         char *json = apex_cmark_to_pandoc_json(document, options);
         /* Note: Cleanup happens at end of function - document and other resources
          * will be freed there. We return the JSON string here. */
-        return json;
+        return apex_restore_liquid_in_output(json, liquid_tags, liquid_tag_count);
     }
 
     if (options->output_format == APEX_OUTPUT_TOC) {
@@ -6225,11 +6234,11 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
             *options->toc_entries_out = apex_generate_toc_entries(
                 document, options->id_format, options->toc_min, options->toc_max,
                 options->toc_entries_count_out);
-            return strdup("");
+            return apex_restore_liquid_in_output(strdup(""), liquid_tags, liquid_tag_count);
         }
         char *toc_md = apex_generate_toc_markdown(document, options->id_format,
                                                   options->toc_min, options->toc_max);
-        return toc_md ? toc_md : strdup("");
+        return apex_restore_liquid_in_output(toc_md ? toc_md : strdup(""), liquid_tags, liquid_tag_count);
     }
 
     /* If output format is Markdown, serialize AST to Markdown and return */
@@ -6253,7 +6262,7 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         char *markdown = apex_cmark_to_markdown(document, options, dialect);
         /* Note: Cleanup happens at end of function - document and other resources
          * will be freed there. We return the markdown string here. */
-        return markdown;
+        return apex_restore_liquid_in_output(markdown, liquid_tags, liquid_tag_count);
     }
 
     /* If output format is terminal/terminal256, serialize AST to ANSI terminal and return */
@@ -6264,23 +6273,40 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         }
         bool use_256 = (options->output_format == APEX_OUTPUT_TERMINAL256);
         char *tty = apex_cmark_to_terminal(document, options, use_256);
-        return tty;
+        size_t recorded = apex_terminal_output_length();
+        size_t before = tty ? strlen(tty) : 0;
+        char *out = apex_restore_liquid_in_output(tty, liquid_tags, liquid_tag_count);
+        if (out && out != tty) {
+            size_t after = strlen(out);
+            if (after >= before && recorded >= before) {
+                apex_terminal_set_output_length(recorded + (after - before));
+            } else if (recorded >= (before - after)) {
+                apex_terminal_set_output_length(recorded - (before - after));
+            } else {
+                apex_terminal_set_output_length(after);
+            }
+        }
+        return out;
     }
 
     /* If output format is man (roff) or man-html, serialize AST and return */
     if (options->output_format == APEX_OUTPUT_MAN) {
         char *roff = apex_cmark_to_man_roff(document, options);
-        return roff ? roff : strdup(".TH stub 1 \"\" \"\"\n");
+        return apex_restore_liquid_in_output(roff ? roff : strdup(".TH stub 1 \"\" \"\"\n"),
+                                             liquid_tags, liquid_tag_count);
     }
     if (options->output_format == APEX_OUTPUT_MAN_HTML) {
         char *man_html = apex_cmark_to_man_html(document, options);
-        return man_html ? man_html : strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>");
+        return apex_restore_liquid_in_output(
+            man_html ? man_html : strdup("<!DOCTYPE html><html><body><p>stub</p></body></html>"),
+            liquid_tags, liquid_tag_count);
     }
 
     /* If output format is RTF, serialize AST and return */
     if (options->output_format == APEX_OUTPUT_RTF) {
         char *rtf = apex_cmark_to_rtf(document, options);
-        return rtf ? rtf : strdup("{\\rtf1\\ansi\\deff0\\pard\\par}\n");
+        return apex_restore_liquid_in_output(rtf ? rtf : strdup("{\\rtf1\\ansi\\deff0\\pard\\par}\n"),
+                                             liquid_tags, liquid_tag_count);
     }
 
     /* Render to HTML

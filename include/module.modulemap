@@ -2,3 +2,36 @@ module ApexC {
   header "apexc.h"
   export *
 }
+
+// Kept in this map, which SwiftPM loads, so ApexObjC can import <apex/apex.h>
+// without an -fmodule-map-file unsafe flag. A map inside include/apex/ would
+// be a second definition of the same module.
+module ApexHeaders {
+    umbrella header "apex/apex.h"
+    header "apex/plugins.h"
+    explicit module parser {
+        header "apex/parser.h"
+        export *
+    }
+    explicit module renderer {
+        header "apex/renderer.h"
+        export *
+    }
+    explicit module buffer {
+        header "apex/buffer.h"
+        export *
+    }
+    explicit module ast_markdown {
+        header "apex/ast_markdown.h"
+        export *
+    }
+    explicit module ast_man {
+        header "apex/ast_man.h"
+        export *
+    }
+    explicit module ast_rtf {
+        header "apex/ast_rtf.h"
+        export *
+    }
+    export *
+}

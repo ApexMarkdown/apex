@@ -38,6 +38,9 @@ char *apex_cmark_to_terminal(cmark_node *document,
  */
 size_t apex_terminal_output_length(void);
 
+/** Adjust that length after the caller replaces the buffer (for example, liquid restore). */
+void apex_terminal_set_output_length(size_t len);
+
 #ifdef __cplusplus
 }
 #endif

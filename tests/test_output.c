@@ -781,6 +781,44 @@ void test_terminal_output(void) {
     test_result(out != NULL, "paginate_symbols terminal256 produces output");
     apex_free_string(out);
 
+    /* Definition lists whose terms are inline links, and whose bodies are
+     * blockquotes or inline markup, must render as terminal text. */
+    opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    {
+        const char *deflist =
+            "[Masoc](https://example.com)\n"
+            ": > quoted text here\n"
+            "\n"
+            ": plain with **bold** and a [link](https://example.com/other) too\n";
+        out = apex_markdown_to_html(deflist, strlen(deflist), &opts);
+        assert_contains(out, "Masoc", "Terminal definition term link text");
+        assert_contains(out, "https://example.com)", "Terminal definition term URL");
+        assert_contains(out, "> quoted text here", "Terminal blockquote inside a definition");
+        assert_contains(out, "bold", "Terminal bold inside a definition");
+        assert_contains(out, "https://example.com/other)", "Terminal link URL inside a definition");
+        assert_contains(out, " too", "Terminal definition keeps the word after a link");
+        assert_not_contains(out, "blockquote>", "Terminal definition does not leak blockquote tags");
+        assert_not_contains(out, "<dd>", "Terminal definition does not leak dd tags");
+        assert_not_contains(out, "a href", "Terminal definition does not leak anchor tags");
+        assert_not_contains(out, "strong>", "Terminal definition does not leak strong tags");
+        apex_free_string(out);
+    }
+
+    /* Liquid tags are restored after terminal rendering, not left as placeholders. */
+    opts = apex_options_for_mode(APEX_MODE_UNIFIED);
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    {
+        const char *liquid = "{% img aligncenter /uploads/x.jpg 800 349 \"Brett holding map\" %}\n";
+        out = apex_markdown_to_html(liquid, strlen(liquid), &opts);
+        assert_contains(out, "{% img aligncenter /uploads/x.jpg 800 349 \"Brett holding map\" %}",
+                        "Terminal output restores Liquid tags");
+        assert_not_contains(out, "APEX_LIQUID_TAG_", "Terminal output has no Liquid placeholder");
+        test_result(out && apex_terminal_output_length() == strlen(out),
+                    "Terminal length includes the restored Liquid tag");
+        apex_free_string(out);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Terminal Output Tests", had_failures, false);
 }

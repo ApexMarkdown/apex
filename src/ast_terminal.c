@@ -2023,6 +2023,288 @@ static void serialize_terminal_image_as_link(terminal_buffer *buf,
     }
 }
 
+/* Render definition-list HTML (<dl>/<dt>/<dd>, including nested inline tags
+ * and blockquotes) as terminal text instead of leaking the tag names. */
+typedef struct {
+    char href[2048];
+    int quote_depth;
+    bool at_line_start;
+    bool skip_ws;
+} term_dl_state;
+
+static void term_decode_basic_entities(char *s) {
+    char *read = s;
+    char *write = s;
+    while (*read) {
+        if (*read == '&') {
+            if (strncmp(read, "&amp;", 5) == 0) { *write++ = '&'; read += 5; continue; }
+            if (strncmp(read, "&lt;", 4) == 0) { *write++ = '<'; read += 4; continue; }
+            if (strncmp(read, "&gt;", 4) == 0) { *write++ = '>'; read += 4; continue; }
+            if (strncmp(read, "&quot;", 6) == 0) { *write++ = '"'; read += 6; continue; }
+            if (strncmp(read, "&#39;", 5) == 0) { *write++ = '\''; read += 5; continue; }
+            if (strncmp(read, "&apos;", 6) == 0) { *write++ = '\''; read += 6; continue; }
+        }
+        *write++ = *read++;
+    }
+    *write = '\0';
+}
+
+static const char *term_append_html_text(terminal_buffer *buf, const char *p) {
+    if (*p != '&') {
+        buffer_append(buf, p, 1);
+        return p + 1;
+    }
+    char ent[16];
+    size_t n = 0;
+    const char *q = p;
+    while (*q && *q != ';' && n + 1 < sizeof(ent)) {
+        ent[n++] = *q++;
+    }
+    if (*q == ';' && n + 1 < sizeof(ent)) {
+        ent[n++] = ';';
+        ent[n] = '\0';
+        char decoded[8];
+        snprintf(decoded, sizeof(decoded), "%s", ent);
+        term_decode_basic_entities(decoded);
+        if (strcmp(decoded, ent) != 0) {
+            buffer_append_str(buf, decoded);
+            return q + 1;
+        }
+    }
+    buffer_append(buf, p, 1);
+    return p + 1;
+}
+
+typedef struct {
+    char name[32];
+    bool closing;
+    char href[2048];
+} term_html_tag;
+
+static const char *term_parse_html_tag(const char *p, term_html_tag *tag) {
+    memset(tag, 0, sizeof(*tag));
+    if (!p || *p != '<') return NULL;
+    if (strncmp(p, "<!--", 4) == 0) {
+        const char *end = strstr(p + 4, "-->");
+        tag->name[0] = '!';
+        return end ? end + 3 : p + strlen(p);
+    }
+
+    const char *s = p + 1;
+    if (*s == '/') {
+        tag->closing = true;
+        s++;
+    }
+    size_t n = 0;
+    while (*s && (isalnum((unsigned char)*s) || *s == '-') && n + 1 < sizeof(tag->name)) {
+        tag->name[n++] = (char)tolower((unsigned char)*s);
+        s++;
+    }
+    tag->name[n] = '\0';
+
+    const char *gt = strchr(s, '>');
+    const char *href = strstr(s, "href");
+    if (href && gt && href < gt) {
+        const char *v = href + 4;
+        while (*v == ' ' || *v == '\t') v++;
+        if (*v == '=') {
+            v++;
+            while (*v == ' ' || *v == '\t') v++;
+            char quote = 0;
+            if (*v == '"' || *v == '\'') {
+                quote = *v++;
+            }
+            size_t h = 0;
+            while (*v && *v != '>' && h + 1 < sizeof(tag->href)) {
+                if (quote) {
+                    if (*v == quote) break;
+                } else if (*v == ' ' || *v == '\t' || *v == '\n') {
+                    break;
+                }
+                tag->href[h++] = *v++;
+            }
+            tag->href[h] = '\0';
+            term_decode_basic_entities(tag->href);
+        }
+    }
+    if (!gt) return p + strlen(p);
+    return gt + 1;
+}
+
+static bool term_tag_is(const term_html_tag *tag, const char *name) {
+    return strcmp(tag->name, name) == 0;
+}
+
+static void term_dl_newline(terminal_buffer *buf, term_dl_state *st) {
+    if (!st->at_line_start) {
+        buffer_append_str(buf, "\n");
+        st->at_line_start = true;
+    }
+}
+
+static void term_dl_finish_link(terminal_buffer *buf, term_dl_state *st, bool use_256_color) {
+    append_ansi_reset(buf);
+    if (st->href[0]) {
+        buffer_append_str(buf, " ");
+        apply_style_string(buf, "cyan", use_256_color);
+        buffer_append_str(buf, "(");
+        buffer_append_str(buf, st->href);
+        buffer_append_str(buf, ")");
+        append_ansi_reset(buf);
+        st->href[0] = '\0';
+    }
+}
+
+static void term_dl_handle_tag(terminal_buffer *buf, term_dl_state *st, const term_html_tag *tag,
+                               bool use_256_color) {
+    if (tag->name[0] == '!' || tag->name[0] == '\0') return;
+
+    if (term_tag_is(tag, "blockquote")) {
+        if (tag->closing) {
+            if (st->quote_depth > 0) st->quote_depth--;
+            term_dl_newline(buf, st);
+        } else {
+            st->quote_depth++;
+            st->at_line_start = true;
+        }
+        return;
+    }
+    if (term_tag_is(tag, "p") || term_tag_is(tag, "br")) {
+        term_dl_newline(buf, st);
+        return;
+    }
+    if (term_tag_is(tag, "strong") || term_tag_is(tag, "b")) {
+        if (tag->closing) append_ansi_reset(buf);
+        else apply_style_string(buf, "b", use_256_color);
+        return;
+    }
+    if (term_tag_is(tag, "em") || term_tag_is(tag, "i")) {
+        if (tag->closing) append_ansi_reset(buf);
+        else apply_style_string(buf, "i", use_256_color);
+        return;
+    }
+    if (term_tag_is(tag, "code")) {
+        if (tag->closing) append_ansi_reset(buf);
+        else apply_style_string(buf, "b white on_intense_black", use_256_color);
+        return;
+    }
+    if (term_tag_is(tag, "a")) {
+        if (tag->closing) {
+            term_dl_finish_link(buf, st, use_256_color);
+        } else {
+            apply_style_string(buf, "u b blue", use_256_color);
+            if (tag->href[0]) {
+                snprintf(st->href, sizeof(st->href), "%s", tag->href);
+            }
+        }
+    }
+}
+
+static void terminal_render_definition_html(terminal_buffer *buf, const char *literal,
+                                            bool use_256_color, int indent_level) {
+    const char *p = literal;
+    bool in_dt = false;
+    bool in_dd = false;
+    bool first_block = true;
+    term_dl_state st;
+    memset(&st, 0, sizeof(st));
+    st.at_line_start = true;
+    st.skip_ws = true;
+
+    while (*p) {
+        if (strncmp(p, "<dt>", 4) == 0 || strncmp(p, "<dt ", 4) == 0) {
+            in_dt = true;
+            in_dd = false;
+            st.quote_depth = 0;
+            st.at_line_start = true;
+            st.skip_ws = true;
+            st.href[0] = '\0';
+            if (!first_block) buffer_append_str(buf, "\n");
+            first_block = false;
+            const char *gt = strchr(p, '>');
+            p = gt ? gt + 1 : p + 4;
+            continue;
+        }
+        if (strncmp(p, "</dt>", 5) == 0) {
+            in_dt = false;
+            if (!st.at_line_start) append_ansi_reset(buf);
+            p += 5;
+            buffer_append_str(buf, "\n");
+            st.at_line_start = true;
+            continue;
+        }
+        if (strncmp(p, "<dd>", 4) == 0 || strncmp(p, "<dd ", 4) == 0) {
+            in_dd = true;
+            in_dt = false;
+            st.quote_depth = 0;
+            st.at_line_start = true;
+            st.skip_ws = true;
+            st.href[0] = '\0';
+            first_block = false;
+            const char *gt = strchr(p, '>');
+            p = gt ? gt + 1 : p + 4;
+            continue;
+        }
+        if (strncmp(p, "</dd>", 5) == 0) {
+            in_dd = false;
+            if (!st.at_line_start) {
+                append_ansi_reset(buf);
+                buffer_append_str(buf, "\n");
+                st.at_line_start = true;
+            }
+            st.quote_depth = 0;
+            p += 5;
+            continue;
+        }
+        if (strncmp(p, "<dl>", 4) == 0 || strncmp(p, "<dl ", 4) == 0 ||
+            strncmp(p, "</dl>", 5) == 0) {
+            const char *gt = strchr(p, '>');
+            p = gt ? gt + 1 : p + 4;
+            continue;
+        }
+
+        if ((in_dt || in_dd) && *p == '<') {
+            term_html_tag tag;
+            const char *next = term_parse_html_tag(p, &tag);
+            if (!next || next == p) {
+                p++;
+                continue;
+            }
+            term_dl_handle_tag(buf, &st, &tag, use_256_color);
+            st.skip_ws = term_tag_is(&tag, "p") || term_tag_is(&tag, "br") ||
+                         term_tag_is(&tag, "blockquote");
+            p = next;
+            continue;
+        }
+
+        if (in_dt || in_dd) {
+            if (st.skip_ws && (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r')) {
+                if ((*p == '\n' || *p == '\r') && st.quote_depth > 0) st.at_line_start = true;
+                p++;
+                continue;
+            }
+            st.skip_ws = false;
+            if (st.at_line_start) {
+                if (in_dd) indent_spaces(buf, indent_level + 1);
+                if (st.quote_depth > 0) buffer_append_str(buf, "> ");
+                st.at_line_start = false;
+            }
+            if (*p == '\n' || *p == '\r') {
+                buffer_append_str(buf, "\n");
+                st.at_line_start = true;
+                st.skip_ws = true;
+                p++;
+                continue;
+            }
+            p = term_append_html_text(buf, p);
+            st.at_line_start = false;
+            continue;
+        }
+        p++;
+    }
+    buffer_append_str(buf, "\n");
+}
+
 static void serialize_block(terminal_buffer *buf,
                             cmark_node *node,
                             const apex_options *options,
@@ -2873,54 +3155,7 @@ static void serialize_block(terminal_buffer *buf,
             if (literal) {
                 /* Handle definition lists: <dl><dt>Term</dt><dd>Definition</dd></dl> */
                 if (strstr(literal, "<dl>") || strstr(literal, "<dt>") || strstr(literal, "<dd>")) {
-                    const char *p = literal;
-                    bool in_dt = false;
-                    bool in_dd = false;
-                    bool first_dd = true;
-                    
-                    while (*p) {
-                        if (strncmp(p, "<dt>", 4) == 0) {
-                            in_dt = true;
-                            p += 4;
-                            if (!first_dd) {
-                                buffer_append_str(buf, "\n");
-                            }
-                            first_dd = false;
-                            continue;
-                        }
-                        if (strncmp(p, "</dt>", 5) == 0) {
-                            in_dt = false;
-                            p += 5;
-                            buffer_append_str(buf, "\n");
-                            continue;
-                        }
-                        if (strncmp(p, "<dd>", 4) == 0) {
-                            in_dd = true;
-                            p += 4;
-                            indent_spaces(buf, indent_level + 1);
-                            continue;
-                        }
-                        if (strncmp(p, "</dd>", 5) == 0) {
-                            in_dd = false;
-                            p += 5;
-                            buffer_append_str(buf, "\n");
-                            continue;
-                        }
-                        if (strncmp(p, "<dl>", 4) == 0 || strncmp(p, "</dl>", 5) == 0) {
-                            p += (p[1] == 'd' && p[2] == 'l') ? 4 : 5;
-                            continue;
-                        }
-                        
-                        if (in_dt || in_dd) {
-                            if (*p == '\n' || *p == '\r') {
-                                buffer_append_str(buf, " ");
-                            } else if (*p != '<') {
-                                buffer_append(buf, p, 1);
-                            }
-                        }
-                        p++;
-                    }
-                    buffer_append_str(buf, "\n");
+                    terminal_render_definition_html(buf, literal, use_256_color, indent_level);
                 }
                 /* Handle callouts: <div class="callout callout-TYPE">...</div> */
                 else if (strstr(literal, "callout")) {
@@ -3305,5 +3540,9 @@ char *apex_cmark_to_terminal(cmark_node *document,
 
 size_t apex_terminal_output_length(void) {
     return g_terminal_output_len;
+}
+
+void apex_terminal_set_output_length(size_t len) {
+    g_terminal_output_len = len;
 }
 

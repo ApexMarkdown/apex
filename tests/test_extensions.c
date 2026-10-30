@@ -1959,6 +1959,43 @@ void test_definition_lists(void) {
         apex_free_string(html);
     }
 
+    /* A term that is only an inline link still has a colon in https://.
+     * That must not be treated as a reference definition. */
+    {
+        const char *link_term = "[Masoc](https://example.com)\n: A solid photo editor";
+        html = apex_markdown_to_html(link_term, strlen(link_term), &opts);
+        assert_contains(html, "<dl>", "Inline-link term starts a definition list");
+        assert_contains(html, "<dt><a href=\"https://example.com\">Masoc</a></dt>",
+                        "Inline-link term is the definition term");
+        assert_contains(html, "<dd>A solid photo editor</dd>", "Definition under an inline-link term");
+        assert_not_contains(html, "<p><a href=\"https://example.com\">Masoc</a></p>",
+                            "Inline-link term is not left as its own paragraph");
+        apex_free_string(html);
+    }
+
+    {
+        const char *quoted =
+            "[Masoc](https://example.com)\n"
+            ": > quoted text here\n"
+            "\n"
+            ": plain follow-up";
+        html = apex_markdown_to_html(quoted, strlen(quoted), &opts);
+        assert_contains(html, "<dt><a href=\"https://example.com\">Masoc</a></dt>",
+                        "Quoted definition keeps the link term");
+        assert_contains(html, "<blockquote>", "Blockquote inside a definition");
+        assert_contains(html, "quoted text here", "Blockquote definition text");
+        assert_contains(html, "<dd>plain follow-up</dd>", "Second definition after a blockquote");
+        apex_free_string(html);
+    }
+
+    {
+        const char *ref = "[ref]: https://example.com\n\nSee [ref].\n";
+        html = apex_markdown_to_html(ref, strlen(ref), &opts);
+        assert_not_contains(html, "<dl>", "Link reference definition is not a definition list");
+        assert_contains(html, "href=\"https://example.com\"", "Link reference definition still resolves");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }

@@ -70,6 +70,26 @@ static int find_def_separator(const unsigned char *line, int len) {
 }
 
 /**
+ * True for a CommonMark link reference definition (`[label]: destination`).
+ * An inline link such as `[Masoc](https://example.com)` also contains a colon,
+ * but the colon is inside the destination, not the `[label]:` marker.
+ */
+static bool line_is_link_reference_definition(const char *line, const char *line_end) {
+    const char *p = line;
+    while (p < line_end && (*p == ' ' || *p == '\t')) p++;
+    if (p >= line_end || *p != '[') return false;
+
+    for (const char *q = p + 1; q < line_end; q++) {
+        if (*q != ']') continue;
+        const char *r = q + 1;
+        while (r < line_end && (*r == ' ' || *r == '\t')) r++;
+        if (r < line_end && *r == '(') return false;
+        if (r < line_end && *r == ':') return true;
+    }
+    return false;
+}
+
+/**
  * Check if a line is a Kramdown-style definition line (starts with : or :: after optional spaces).
  * Reject ::: or more - those are div/custom element fences, not definition lists.
  */
@@ -695,9 +715,7 @@ char *apex_process_definition_lists(const char *text, bool unsafe) {
                     term_len = 0;
                     blanks_after_term = 0;
                 }
-                const char *p = line_start;
-                while (p < line_end && (*p == ' ' || *p == '\t')) p++;
-                bool is_ref_def = (p < line_end && *p == '[' && memchr(p, ':', (size_t)(line_end - p)) != NULL);
+                bool is_ref_def = line_is_link_reference_definition(line_start, line_end);
                 if (is_ref_def || is_atx_heading_line(line_start, line_length) ||
                     is_block_start_line(line_start, line_length) ||
                     line_length >= sizeof(term_buffer) - 1) {
