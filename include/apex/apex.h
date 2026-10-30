@@ -111,6 +111,8 @@ bool apex_plugin_register(apex_plugin_manager *manager, const char *id, apex_plu
 
 struct cmark_parser;  /* Opaque; for cmark_init callback. Include cmark-gfm when implementing. */
 
+struct apex_metadata_item;
+
 /**
  * Configuration options for the parser and renderer
  */
@@ -182,6 +184,13 @@ typedef struct apex_options {
     bool paginate_symbols;       /* When paginating, render images as chafa ANSI symbols (less -R compatible) */
     bool terminal_inline_images; /* When true, render local images via imgcat/chafa/viu/catimg on a TTY */
     int terminal_image_width;    /* Max width/cells for terminal image tools (default 50; 0 = use 50) */
+    /* Terminal metadata header. When terminal_document_metadata_explicit is
+     * false, apex_markdown_to_html fills terminal_document_metadata from the
+     * metadata it extracted. When true, the pointer is the document-only list
+     * (NULL means the document had none) and extracted metadata is not printed.
+     * The renderer does not free the list. */
+    bool terminal_document_metadata_explicit;
+    const struct apex_metadata_item *terminal_document_metadata;
 
     /* Line break handling */
     bool hardbreaks;  /* Treat newlines as hard breaks (GFM style) */

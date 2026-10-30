@@ -16,6 +16,7 @@
 #include "apex/ast_terminal.h"
 #include "table.h"          /* For CMARK_NODE_TABLE, CMARK_NODE_TABLE_ROW, CMARK_NODE_TABLE_CELL */
 #include "extensions/emoji.h"
+#include "extensions/metadata.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -420,6 +421,10 @@ typedef struct terminal_theme {
      * the built-in default of bold bright red. */
     char *list_marker;
 
+    char *metadata_key;
+    char *metadata_color;
+    char *metadata_border;
+
     /* Per-span class styles (for bracketed spans / HTML spans with classes) */
     span_class_style *span_classes;
     size_t span_classes_count;
@@ -442,6 +447,9 @@ static void free_theme(terminal_theme *theme) {
     free(theme->table_border);
 
     free(theme->list_marker);
+    free(theme->metadata_key);
+    free(theme->metadata_color);
+    free(theme->metadata_border);
 
     if (theme->span_classes) {
         for (size_t i = 0; i < theme->span_classes_count; i++) {
@@ -551,6 +559,10 @@ static char *build_theme_path(const char *name) {
  *   classname: "style tokens"
  *
  * list_marker: "style tokens"
+ * metadata:
+ *   key: "style tokens"     # key and colon; blank inherits color
+ *   color: "style tokens"   # value text
+ *   border: "style tokens"  # rule under the block
  */
 static char *trim_whitespace(char *s) {
     if (!s) return s;
@@ -716,6 +728,15 @@ static terminal_theme *load_theme_from_simple_yaml(const char *path) {
         } else if (strcmp(l1, "table") == 0 && strcmp(l2, "border") == 0) {
             free(theme->table_border);
             theme->table_border = dup_or_null(val);
+        } else if (strcmp(l1, "metadata") == 0 && strcmp(l2, "key") == 0) {
+            free(theme->metadata_key);
+            theme->metadata_key = dup_or_null(val);
+        } else if (strcmp(l1, "metadata") == 0 && strcmp(l2, "color") == 0) {
+            free(theme->metadata_color);
+            theme->metadata_color = dup_or_null(val);
+        } else if (strcmp(l1, "metadata") == 0 && strcmp(l2, "border") == 0) {
+            free(theme->metadata_border);
+            theme->metadata_border = dup_or_null(val);
         } else if (strcmp(l1, "table") == 0 && strcmp(l2, "bold") == 0) {
             if (parse_bool_value(val)) {
                 ensure_bold_prefix(&theme->table_border);
@@ -932,6 +953,15 @@ static terminal_theme *load_theme_from_yaml(const char *path) {
                         } else if (strcmp(l1, "table") == 0 && strcmp(l2, "border") == 0) {
                             free(theme->table_border);
                             theme->table_border = dup_or_null(val);
+                        } else if (strcmp(l1, "metadata") == 0 && strcmp(l2, "key") == 0) {
+                            free(theme->metadata_key);
+                            theme->metadata_key = dup_or_null(val);
+                        } else if (strcmp(l1, "metadata") == 0 && strcmp(l2, "color") == 0) {
+                            free(theme->metadata_color);
+                            theme->metadata_color = dup_or_null(val);
+                        } else if (strcmp(l1, "metadata") == 0 && strcmp(l2, "border") == 0) {
+                            free(theme->metadata_border);
+                            theme->metadata_border = dup_or_null(val);
                         } else if (strcmp(l1, "table") == 0 && strcmp(l2, "bold") == 0) {
                             if (parse_bool_value(val)) {
                                 ensure_bold_prefix(&theme->table_border);
@@ -3049,6 +3079,117 @@ static void serialize_block(terminal_buffer *buf,
 }
 
 /* ------------------------------------------------------------------------- */
+/* Document metadata header                                                  */
+/* ------------------------------------------------------------------------- */
+
+static int utf8_columns(const char *s, size_t n) {
+    int cols = 0;
+    size_t i = 0;
+    while (s && i < n) {
+        unsigned char c = (unsigned char)s[i];
+        size_t adv = 1;
+        if ((c & 0x80) == 0) {
+            adv = 1;
+        } else if ((c & 0xE0) == 0xC0 && i + 1 < n) {
+            adv = 2;
+        } else if ((c & 0xF0) == 0xE0 && i + 2 < n) {
+            adv = 3;
+        } else if ((c & 0xF8) == 0xF0 && i + 3 < n) {
+            adv = 4;
+        }
+        cols++;
+        i += adv;
+    }
+    return cols;
+}
+
+static bool metadata_item_visible(const apex_metadata_item *item) {
+    return item && item->key && item->key[0] && item->value && item->value[0];
+}
+
+static const char *metadata_color_style(const terminal_theme *theme) {
+    if (theme && theme->metadata_color && theme->metadata_color[0]) return theme->metadata_color;
+    return "d";
+}
+
+static const char *metadata_key_style(const terminal_theme *theme) {
+    if (theme && theme->metadata_key && theme->metadata_key[0]) return theme->metadata_key;
+    return metadata_color_style(theme);
+}
+
+static const char *metadata_border_style(const terminal_theme *theme) {
+    if (theme && theme->metadata_border && theme->metadata_border[0]) return theme->metadata_border;
+    return "d";
+}
+
+static int metadata_block_width(const apex_metadata_item *item) {
+    if (!item) return 0;
+    int width = metadata_block_width(item->next);
+    if (!metadata_item_visible(item)) return width;
+    const char *v = item->value;
+    bool first = true;
+    while (v && *v) {
+        const char *nl = strchr(v, '\n');
+        size_t len = nl ? (size_t)(nl - v) : strlen(v);
+        if (len > 0 && v[len - 1] == '\r') len--;
+        if (nl && len == 0 && nl[1] == '\0') break;
+        int cols = utf8_columns(v, len);
+        if (first) cols += utf8_columns(item->key, strlen(item->key)) + 2;
+        if (cols > width) width = cols;
+        first = false;
+        if (!nl) break;
+        v = nl + 1;
+    }
+    return width;
+}
+
+static void append_metadata_items(terminal_buffer *buf, const apex_metadata_item *item,
+                                  const terminal_theme *theme, bool use_256) {
+    if (!item) return;
+    append_metadata_items(buf, item->next, theme, use_256);
+    if (!metadata_item_visible(item)) return;
+    const char *key_style = metadata_key_style(theme);
+    const char *value_style = metadata_color_style(theme);
+    const char *v = item->value;
+    bool first = true;
+    while (v && *v) {
+        const char *nl = strchr(v, '\n');
+        size_t len = nl ? (size_t)(nl - v) : strlen(v);
+        if (len > 0 && v[len - 1] == '\r') len--;
+        if (nl && len == 0 && nl[1] == '\0') break;
+        if (first) {
+            apply_style_string(buf, key_style, use_256);
+            buffer_append_str(buf, item->key);
+            buffer_append_str(buf, ":");
+            append_ansi_reset(buf);
+            buffer_append_str(buf, " ");
+        }
+        apply_style_string(buf, value_style, use_256);
+        buffer_append(buf, v, len);
+        append_ansi_reset(buf);
+        buffer_append_str(buf, "\n");
+        first = false;
+        if (!nl) break;
+        v = nl + 1;
+    }
+}
+
+static void append_terminal_metadata_header(terminal_buffer *buf,
+                                            const apex_metadata_item *metadata,
+                                            const terminal_theme *theme,
+                                            bool use_256) {
+    int width = metadata_block_width(metadata);
+    if (width <= 0) return;
+    append_metadata_items(buf, metadata, theme, use_256);
+    apply_style_string(buf, metadata_border_style(theme), use_256);
+    for (int i = 0; i < width; i++) {
+        buffer_append_str(buf, "\xE2\x95\x90");
+    }
+    append_ansi_reset(buf);
+    buffer_append_str(buf, "\n\n");
+}
+
+/* ------------------------------------------------------------------------- */
 /* Public API                                                                */
 /* ------------------------------------------------------------------------- */
 
@@ -3109,6 +3250,9 @@ char *apex_cmark_to_terminal(cmark_node *document,
     }
 
     terminal_theme *theme = load_theme(options);
+    append_terminal_metadata_header(&buf,
+                                    options ? options->terminal_document_metadata : NULL,
+                                    theme, use_256);
     if (getenv("APEX_DEBUG_THEME")) {
         const char *tname = (options && options->theme_name) ? options->theme_name : "(null)";
         fprintf(stderr,

@@ -62,6 +62,7 @@ void test_callouts(void);
 void test_blockquote_lists(void);
 void test_toc(void);
 void test_terminal_output(void);
+void test_terminal_metadata(void);
 void test_rtf_output(void);
 void test_output_formats(void);
 void test_html_markdown_attributes(void);
@@ -139,6 +140,7 @@ static test_suite suites[] = {
     { "blockquote_lists",              test_blockquote_lists },
     { "toc",                           test_toc },
     { "terminal_output",               test_terminal_output },
+    { "terminal_metadata",             test_terminal_metadata },
     { "rtf_output",                    test_rtf_output },
     { "output_formats",                test_output_formats },
     { "html_markdown_attributes",      test_html_markdown_attributes },

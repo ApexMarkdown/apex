@@ -5,10 +5,13 @@
 #include "test_helpers.h"
 #include "apex/apex.h"
 #include "../src/extensions/includes.h"
+#include "../src/extensions/metadata.h"
 #include "../src/ast_json.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 void test_toc(void) {
     int suite_failures = suite_start();
@@ -2467,6 +2470,168 @@ void test_output_formats(void) {
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Output Format Coverage Tests", had_failures, false);
+}
+
+static char *strip_ansi_codes(const char *src) {
+    size_t n = src ? strlen(src) : 0;
+    char *out = malloc(n + 1);
+    if (!out) return NULL;
+    size_t w = 0;
+    for (size_t i = 0; src && src[i]; ) {
+        if (src[i] == '\033' && src[i + 1] == '[') {
+            i += 2;
+            while (src[i] && src[i] != 'm') i++;
+            if (src[i] == 'm') i++;
+            continue;
+        }
+        out[w++] = src[i++];
+    }
+    out[w] = '\0';
+    return out;
+}
+
+static void write_theme_file(const char *home, const char *name, const char *body) {
+    char dir[512];
+    snprintf(dir, sizeof(dir), "%s/.config/apex/terminal/themes", home);
+    char cmd[640];
+    snprintf(cmd, sizeof(cmd), "mkdir -p \"%s\"", dir);
+    test_result(system(cmd) == 0, "create temp theme directory");
+    char path[576];
+    snprintf(path, sizeof(path), "%s/%s.theme", dir, name);
+    FILE *fp = fopen(path, "w");
+    test_result(fp != NULL, "open temp theme file");
+    if (!fp) return;
+    fputs(body, fp);
+    fclose(fp);
+}
+
+void test_terminal_metadata(void) {
+    int suite_failures = suite_start();
+    print_suite_title("Terminal Metadata Header", false, true);
+
+    const char *saved_home = getenv("HOME");
+    char *home_copy = saved_home ? strdup(saved_home) : NULL;
+    char home_tmpl[] = "/tmp/apex-term-meta-XXXXXX";
+    char *temp_home = mkdtemp(home_tmpl);
+    test_result(temp_home != NULL, "temp HOME for theme isolation");
+    if (temp_home) setenv("HOME", temp_home, 1);
+
+    apex_options opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    const char *yaml =
+        "---\n"
+        "title: Hello World\n"
+        "author: Brett\n"
+        "---\n"
+        "Body text\n";
+    char *out = apex_markdown_to_html(yaml, strlen(yaml), &opts);
+    char *plain = strip_ansi_codes(out);
+    assert_contains(plain, "title: Hello World\nauthor: Brett\n", "YAML metadata stays in source order");
+    assert_contains(plain, "══════════════════\n\nBody text", "rule matches the longest line and leaves one blank line");
+    assert_contains(out, "\033[2m", "default metadata style is dim");
+    apex_free_string(out);
+    free(plain);
+
+    opts.output_format = APEX_OUTPUT_TERMINAL256;
+    out = apex_markdown_to_html(yaml, strlen(yaml), &opts);
+    assert_contains(out, "\033[2m", "terminal256 default metadata style is dim");
+    apex_free_string(out);
+
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html("Just a paragraph.\n", 19, &opts);
+    plain = strip_ansi_codes(out);
+    assert_not_contains(plain, "═", "no metadata means no rule");
+    assert_contains(plain, "Just a paragraph.", "body still renders");
+    apex_free_string(out);
+    free(plain);
+
+    const char *pandoc = "% The Title\n% The Author\n% 2020-01-01\n\nHello body\n";
+    out = apex_markdown_to_html(pandoc, strlen(pandoc), &opts);
+    plain = strip_ansi_codes(out);
+    assert_contains(plain,
+                    "title: The Title\nauthor: The Author\ndate: 2020-01-01\n══════════════════\n\n",
+                    "Pandoc title block becomes title, author, and date");
+    apex_free_string(out);
+    free(plain);
+
+    opts = apex_options_for_mode(APEX_MODE_MULTIMARKDOWN);
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    const char *mmd = "Title: Hello World\nAuthor: Brett\n\nParagraph\n";
+    out = apex_markdown_to_html(mmd, strlen(mmd), &opts);
+    plain = strip_ansi_codes(out);
+    assert_contains(plain, "Title: Hello World\nAuthor: Brett\n══════════════════\n\n",
+                    "MultiMarkdown keys keep source spelling and order");
+    apex_free_string(out);
+    free(plain);
+
+    opts = apex_options_for_mode(APEX_MODE_COMMONMARK);
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    out = apex_markdown_to_html(yaml, strlen(yaml), &opts);
+    plain = strip_ansi_codes(out);
+    assert_not_contains(plain, "═", "CommonMark does not print a metadata header");
+    apex_free_string(out);
+    free(plain);
+
+    apex_metadata_item title = { "title", "Hello", NULL };
+    apex_metadata_item notes = { "notes", "line one\nline two\n", &title };
+    apex_metadata_item blank = { "skipme", "", &notes };
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    opts.terminal_document_metadata_explicit = true;
+    opts.terminal_document_metadata = &blank;
+    out = apex_markdown_to_html("Body\n", 5, &opts);
+    plain = strip_ansi_codes(out);
+    assert_contains(plain, "title: Hello\nnotes: line one\nline two\n═══════════════\n\nBody",
+                    "multiline value sets the rule width and does not repeat the key");
+    assert_not_contains(plain, "skipme", "empty metadata value is skipped");
+    apex_free_string(out);
+    free(plain);
+
+    opts.terminal_document_metadata = NULL;
+    out = apex_markdown_to_html(yaml, strlen(yaml), &opts);
+    plain = strip_ansi_codes(out);
+    assert_not_contains(plain, "title:", "explicit empty document metadata suppresses the header");
+    assert_contains(plain, "Body text", "body remains when the header is suppressed");
+    apex_free_string(out);
+    free(plain);
+
+    if (temp_home) {
+        write_theme_file(temp_home, "meta-libyaml",
+                         "h1:\n  color: red\nmetadata:\n  key: \"b intense_red\"\n  color: \"u intense_blue\"\n  border: \"intense_green\"\n  marker: \"b yellow\"\n");
+        opts = apex_options_default();
+        opts.output_format = APEX_OUTPUT_TERMINAL;
+        opts.theme_name = "meta-libyaml";
+        out = apex_markdown_to_html(yaml, strlen(yaml), &opts);
+        plain = strip_ansi_codes(out);
+        assert_contains(plain, "title: Hello World\nauthor: Brett\n", "themed header has no marker prefix");
+        assert_contains(out, "\033[1m", "metadata.key applies bold");
+        assert_contains(out, "\033[91m", "metadata.key applies intense red");
+        assert_contains(out, "\033[4m", "metadata.color applies underline");
+        assert_contains(out, "\033[94m", "metadata.color applies intense blue");
+        assert_contains(out, "\033[92m", "metadata.border applies intense green");
+        apex_free_string(out);
+        free(plain);
+
+        write_theme_file(temp_home, "meta-inherit",
+                         "metadata:\n  color: \"intense_blue\"\n  border: \"intense_green\"\n  marker: \"b yellow\"\n");
+        opts.theme_name = "meta-inherit";
+        out = apex_markdown_to_html(yaml, strlen(yaml), &opts);
+        assert_contains(out, "\033[94m", "omitted metadata.key inherits metadata.color");
+        plain = strip_ansi_codes(out);
+        assert_contains(plain, "title: Hello World\n", "omitted key still prints the key text");
+        apex_free_string(out);
+        free(plain);
+    }
+
+    if (home_copy) {
+        setenv("HOME", home_copy, 1);
+        free(home_copy);
+    } else {
+        unsetenv("HOME");
+    }
+
+    bool had_failures = suite_end(suite_failures);
+    print_suite_title("Terminal Metadata Header", had_failures, false);
 }
 
 

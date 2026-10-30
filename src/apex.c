@@ -3127,6 +3127,8 @@ apex_options apex_options_default(void) {
     opts.paginate_symbols = false;
     opts.terminal_inline_images = true;
     opts.terminal_image_width = 50;
+    opts.terminal_document_metadata_explicit = false;
+    opts.terminal_document_metadata = NULL;
 
     return opts;
 }
@@ -6257,6 +6259,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
     /* If output format is terminal/terminal256, serialize AST to ANSI terminal and return */
     if (options->output_format == APEX_OUTPUT_TERMINAL ||
         options->output_format == APEX_OUTPUT_TERMINAL256) {
+        if (!options->terminal_document_metadata_explicit) {
+            options->terminal_document_metadata = metadata;
+        }
         bool use_256 = (options->output_format == APEX_OUTPUT_TERMINAL256);
         char *tty = apex_cmark_to_terminal(document, options, use_256);
         return tty;
