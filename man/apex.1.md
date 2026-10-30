@@ -98,6 +98,9 @@ enabled.
 **--theme** *NAME*
 : Terminal theme name for **--to terminal** / **--to terminal256**. Themes are YAML files under `~/.config/apex/terminal/themes/` (see the Apex wiki).
 
+**Terminal metadata header**
+: For **--to terminal** and **--to terminal256**, Apex prints the document's own metadata above the body as `key: value` lines. YAML, MultiMarkdown, and Pandoc title blocks all use that form. A double line (`═`) under the block is as wide as the longest metadata line, followed by a blank line. Config, `--meta-file`, and `--meta` are not printed. Theme keys are `metadata.key` (key and colon; a blank value inherits `metadata.color`), `metadata.color` (value text), and `metadata.border` (the rule). When a key is omitted the style is dim.
+
 **--no-terminal-images**
 : Disable inline terminal rendering of Markdown images for **--to terminal** / **--to terminal256**. Default is to render when **stdout** is a TTY, a supported viewer exists on **PATH**, and inline images are enabled (see **METADATA CONTROL OF OPTIONS** for `terminal.inline_images`).
 
