@@ -2,6 +2,24 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.48] - 2026-10-30
+
+### Changed
+
+- **Terminal metadata** shows the document's own keys only.
+
+### New
+
+- **Terminal metadata** lists a document's own keys above terminal output.
+
+### Fixed
+
+- **Terminal metadata** stays document-only when metadata sets the mode.
+- **Definition lists** treat a term that is only an inline link, such as `[Name](https://example.com)`, as the term instead of a link reference definition. A blockquote definition and a following plain definition stay in the list.
+- **Terminal definition lists** show the term, definition, links, bold, and blockquotes as terminal text instead of leaking HTML tags.
+- **Liquid tags** are restored in terminal, JSON, TOC, Markdown, man, and RTF output.
+- **Swift package** imports Apex headers from the package module map, so the build no longer needs a separate module-map file.
+
 ## [1.1.47] - 2026-10-20
 
 ### Improved
@@ -3455,6 +3473,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.48]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.48
 [1.1.47]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.47
 [1.1.46]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.46
 [1.1.45]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.45
