@@ -2595,6 +2595,27 @@ void test_terminal_metadata(void) {
     apex_free_string(out);
     free(plain);
 
+    apex_metadata_item invalid_utf8 = { "k", "\xE2\x41\x42", NULL };
+    opts = apex_options_default();
+    opts.output_format = APEX_OUTPUT_TERMINAL;
+    opts.terminal_document_metadata_explicit = true;
+    opts.terminal_document_metadata = &invalid_utf8;
+    out = apex_markdown_to_html("Body\n", 5, &opts);
+    plain = strip_ansi_codes(out);
+    assert_contains(plain, "k: \xE2\x41\x42\n══════\n",
+                    "invalid UTF-8 bytes each count as one column");
+    apex_free_string(out);
+    free(plain);
+
+    apex_metadata_item valid_utf8 = { "k", "\xC3\xA9", NULL };
+    opts.terminal_document_metadata = &valid_utf8;
+    out = apex_markdown_to_html("Body\n", 5, &opts);
+    plain = strip_ansi_codes(out);
+    assert_contains(plain, "k: \xC3\xA9\n════\n",
+                    "a valid multibyte code point counts as one column");
+    apex_free_string(out);
+    free(plain);
+
     if (temp_home) {
         write_theme_file(temp_home, "meta-libyaml",
                          "h1:\n  color: red\nmetadata:\n  key: \"b intense_red\"\n  color: \"u intense_blue\"\n  border: \"intense_green\"\n  marker: \"b yellow\"\n");

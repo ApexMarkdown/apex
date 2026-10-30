@@ -3087,18 +3087,41 @@ static int utf8_columns(const char *s, size_t n) {
     size_t i = 0;
     while (s && i < n) {
         unsigned char c = (unsigned char)s[i];
-        size_t adv = 1;
+        size_t seq = 1;
         if ((c & 0x80) == 0) {
-            adv = 1;
-        } else if ((c & 0xE0) == 0xC0 && i + 1 < n) {
-            adv = 2;
-        } else if ((c & 0xF0) == 0xE0 && i + 2 < n) {
-            adv = 3;
-        } else if ((c & 0xF8) == 0xF0 && i + 3 < n) {
-            adv = 4;
+            seq = 1;
+        } else if (c >= 0xC2 && c <= 0xDF) {
+            seq = 2;
+        } else if ((c & 0xF0) == 0xE0) {
+            seq = 3;
+        } else if (c >= 0xF0 && c <= 0xF4) {
+            seq = 4;
+        } else {
+            /* C0, C1, F5-FF, and stray continuation bytes. */
+            cols++;
+            i++;
+            continue;
+        }
+        if (i + seq > n) {
+            cols++;
+            i++;
+            continue;
+        }
+        bool valid = true;
+        for (size_t j = 1; j < seq; j++) {
+            unsigned char b = (unsigned char)s[i + j];
+            if ((b & 0xC0) != 0x80) {
+                valid = false;
+                break;
+            }
+        }
+        if (!valid) {
+            cols++;
+            i++;
+            continue;
         }
         cols++;
-        i += adv;
+        i += seq;
     }
     return cols;
 }
