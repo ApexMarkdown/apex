@@ -2,6 +2,13 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.50] - 2026-11-02
+
+### Fixed
+
+- **Homebrew formula** no longer runs install_name_tool to rewrite a libyaml path the binary already loads as @rpath/libyaml-0.2.dylib.
+- **Image and link destinations** keep ++ and ==, so a base64 data URI is no longer rewritten into an insert or a highlight.
+
 ## [1.1.49] - 2026-10-30
 
 ## [1.1.48] - 2026-10-30
@@ -3475,6 +3482,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.50]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.50
 [1.1.49]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.49
 [1.1.48]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.48
 [1.1.47]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.47
