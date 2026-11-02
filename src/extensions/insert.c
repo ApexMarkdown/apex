@@ -40,6 +40,58 @@ static const char *find_ial_after(const char *text, const char **ial_end) {
     return NULL;
 }
 
+/* Just past the closing ')' of a markdown link or image destination.
+ * Quotes hide parentheses. A newline means the destination is unclosed. */
+static const char *markdown_destination_end(const char *after_open_paren) {
+    int depth = 1;
+    bool in_quote = false;
+    char quote = 0;
+    const char *p = after_open_paren;
+
+    if (!p) return NULL;
+    while (*p && *p != '\n' && *p != '\r') {
+        if (in_quote) {
+            if (*p == '\\' && p[1]) {
+                p += 2;
+                continue;
+            }
+            if (*p == quote) in_quote = false;
+            p++;
+            continue;
+        }
+        if (*p == '"' || *p == '\'') {
+            in_quote = true;
+            quote = *p++;
+            continue;
+        }
+        if (*p == '(') {
+            depth++;
+        } else if (*p == ')') {
+            depth--;
+            if (depth == 0) return p + 1;
+        }
+        p++;
+    }
+    return NULL;
+}
+
+static bool append_verbatim(char **output, char **write, size_t *remaining,
+                            size_t *capacity, const char *src, size_t len) {
+    if (len >= *remaining) {
+        size_t written = (size_t)(*write - *output);
+        *capacity = (written + len + 1) * 2;
+        char *grown = realloc(*output, *capacity);
+        if (!grown) return false;
+        *output = grown;
+        *write = grown + written;
+        *remaining = *capacity - written;
+    }
+    memcpy(*write, src, len);
+    *write += len;
+    *remaining -= len;
+    return true;
+}
+
 /**
  * If text starts an HTML tag (<name or </name), return a pointer just past its
  * closing '>' (quote-aware), or NULL. Gives up at a blank line outside quotes
@@ -87,6 +139,19 @@ char *apex_process_inserts(const char *text) {
     bool in_inline_code = false;
 
     while (*read) {
+        /* Copy markdown link/image destinations verbatim. A data URI's
+         * base64 contains ++, which is not an insert. */
+        if (!in_code_block && !in_inline_code && *read == ']' && read[1] == '(') {
+            const char *dest_end = markdown_destination_end(read + 2);
+            if (dest_end) {
+                size_t dest_len = (size_t)(dest_end - read);
+                if (!append_verbatim(&output, &write, &remaining, &capacity, read, dest_len))
+                    goto cleanup;
+                read = dest_end;
+                continue;
+            }
+        }
+
         /* Copy HTML tags verbatim so ++ inside attribute values (e.g. base64
          * data: URIs) is not converted */
         if (!in_code_block && !in_inline_code && *read == '<') {

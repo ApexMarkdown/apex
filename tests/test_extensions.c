@@ -3861,6 +3861,19 @@ void test_insert_syntax(void) {
     assert_not_contains(html, "<ins>code</ins>", "Insert in inline code not converted");
     apex_free_string(html);
 
+    /* Test insert inside a markdown image data URI is not processed.
+     * ++ in base64 was becoming <ins>, which broke the JPEG. */
+    {
+        const char *md = "See ++note++ and ![shot](data:image/jpeg;base64,AAAA++23++BB==)";
+        html = apex_markdown_to_html(md, strlen(md), &opts);
+        assert_contains(html, "<ins>note</ins>", "Insert outside an image still converted");
+        assert_contains(html, "AAAA++23++BB==", "Plus pairs in a data URI stay in the URL");
+        assert_not_contains(html, "<ins>23</ins>", "Data URI pluses are not an insert");
+        assert_not_contains(html, "%3Cins", "Data URI pluses are not escaped inserts");
+        assert_not_contains(html, "<mark>", "Base64 padding is not a highlight");
+        apex_free_string(html);
+    }
+
     /* Test insert inside HTML attribute values (base64 data URIs) is not processed */
     {
         const char *md = "<img src='data:image/png;base64,AAAA++23++BB\nCC++xy++DD'>\n\nText ++ins++ here";
