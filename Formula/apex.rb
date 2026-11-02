@@ -53,15 +53,6 @@ class Apex < Formula
     man1.install "apex.1" if File.exist?("apex.1")
     man5.install "apex-config.5" if File.exist?("apex-config.5")
     man7.install "apex-plugins.7" if File.exist?("apex-plugins.7")
-    # Fix libyaml path to point to Homebrew's libyaml
-    # This handles both Apple Silicon (/opt/homebrew) and Intel (/usr/local) installations
-    libyaml_path = "#{HOMEBREW_PREFIX}/lib/libyaml-0.2.dylib"
-    if File.exist?(libyaml_path)
-      system "install_name_tool", "-change",
-             "/Users/runner/work/apex/apex/deps/libyaml-universal/lib/libyaml-0.2.dylib",
-             libyaml_path,
-             bin/"apex"
-    end
   end
 
   test do
