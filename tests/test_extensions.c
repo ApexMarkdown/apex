@@ -107,6 +107,19 @@ void test_math(void) {
     assert_contains(html, "x+y=z", "LaTeX display math content");
     apex_free_string(html);
 
+    /* Escaped brackets inside emphasis are not display math. * , and
+     * spaces do not qualify as an equation on their own. */
+    html = apex_markdown_to_html("**\\[**, **\\]**", 14, &opts);
+    assert_contains(html, "<strong>[</strong>, <strong>]</strong>",
+                    "Bold escaped brackets stay brackets");
+    assert_not_contains(html, "class=\"math", "Emphasis stars are not display math");
+    apex_free_string(html);
+
+    html = apex_markdown_to_html("Product \\[a*b\\] end", 18, &opts);
+    assert_contains(html, "class=\"math display\"", "Display math with a star still matches");
+    assert_contains(html, "a*b", "Display math keeps the star operator");
+    apex_free_string(html);
+
     html = apex_markdown_to_html("Not math \\(\\) here", 18, &opts);
     assert_not_contains(html, "class=\"math", "Empty LaTeX delimiters are not math");
     apex_free_string(html);

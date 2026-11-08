@@ -82,6 +82,31 @@ static int scan_dollar_math(const char *input, int len, bool *is_display) {
 }
 
 /**
+ * True when display-math content has a letter, digit, or operator.
+ * Emphasis stars, commas, and spaces do not qualify on their own, so
+ * **\[**, **\]** stays escaped brackets instead of an equation.
+ */
+static bool display_math_content(const char *s, int len) {
+    for (int i = 0; i < len; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+            (c >= '0' && c <= '9') || c >= 128) {
+            return true;
+        }
+        switch (c) {
+            case '+': case '-': case '/': case '=':
+            case '^': case '_': case '\\': case '.':
+            case '<': case '>': case '|': case '~':
+            case '{': case '}':
+                return true;
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
+/**
  * Scan for \(...\) or \[...\] LaTeX-style math
  * Returns length if found, 0 otherwise
  */
@@ -94,6 +119,9 @@ static int scan_latex_math(const char *input, int len, bool *is_display) {
         /* Find closing \] */
         for (int i = 2; i < len - 1; i++) {
             if (input[i] == '\\' && input[i + 1] == ']') {
+                if (!display_math_content(input + 2, i - 2)) {
+                    return 0;
+                }
                 return i + 2;
             }
         }
