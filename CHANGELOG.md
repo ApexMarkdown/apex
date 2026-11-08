@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.51] - 2026-11-08
+
+### Fixed
+
+- **Escaped brackets** such as **\[** and **\]** stay brackets. `\[...\]` is display math only when the inside has a letter, a digit, or an operator.
+
 ## [1.1.50] - 2026-11-02
 
 ### Fixed
@@ -3482,6 +3488,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.51]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.51
 [1.1.50]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.50
 [1.1.49]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.49
 [1.1.48]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.48
