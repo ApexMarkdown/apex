@@ -4,6 +4,7 @@
  */
 
 #include "html_markdown.h"
+#include "definition_list.h"
 #include "ial.h"
 #include "../html_renderer.h"
 #include "cmark-gfm.h"
@@ -306,6 +307,135 @@ static bool is_footnote_definition_line(const char *line_start, const char *line
     }
 
     return reference_id_matches(footnote_id, content_start + 1, (size_t)(id_end - (content_start + 1)));
+}
+
+static bool line_is_any_footnote_definition(const char *line, const char *line_end) {
+    const char *p = line;
+    int spaces = 0;
+    while (p < line_end && *p == ' ' && spaces < 4) {
+        p++;
+        spaces++;
+    }
+    if (spaces > 3 || p + 3 >= line_end || p[0] != '[' || p[1] != '^') return false;
+    const char *id_end = memchr(p + 2, ']', (size_t)(line_end - (p + 2)));
+    return id_end && id_end < line_end && id_end[1] == ':' && id_end > p + 2;
+}
+
+static bool line_is_fence_marker(const char *line, const char *line_end, bool closing,
+                                 char expect, int expect_len, char *ch_out, int *n_out) {
+    const char *p = line;
+    int spaces = 0;
+    while (p < line_end && *p == ' ' && spaces < 4) {
+        p++;
+        spaces++;
+    }
+    if (spaces > 3 || p >= line_end) return false;
+    char ch = *p;
+    if (ch != '`' && ch != '~') return false;
+    int n = 0;
+    while (p + n < line_end && p[n] == ch) n++;
+    if (n < 3) return false;
+    const char *rest = p + n;
+    if (closing) {
+        if (ch != expect || n < expect_len) return false;
+        while (rest < line_end) {
+            if (*rest != ' ' && *rest != '\t' && *rest != '\r') return false;
+            rest++;
+        }
+    } else if (ch == '`') {
+        while (rest < line_end) {
+            if (*rest == '`') return false;
+            rest++;
+        }
+    }
+    if (ch_out) *ch_out = ch;
+    if (n_out) *n_out = n;
+    return true;
+}
+
+static void append_bytes(char **buf, size_t *len, size_t *cap, const char *data, size_t n) {
+    if (*len + n + 1 > *cap) {
+        size_t next = (*cap < 64) ? 64 : *cap * 2;
+        while (*len + n + 1 > next) next *= 2;
+        char *grown = realloc(*buf, next);
+        if (!grown) return;
+        *buf = grown;
+        *cap = next;
+    }
+    memcpy(*buf + *len, data, n);
+    *len += n;
+    (*buf)[*len] = '\0';
+}
+
+/* Pull [^id]: blocks out of a markdown region so the document parser owns them. */
+static char *hoist_footnote_definitions(const char *content, char **hoisted_out) {
+    if (!content || !hoisted_out || !strstr(content, "[^")) return NULL;
+    *hoisted_out = NULL;
+
+    size_t len = strlen(content);
+    char *kept = malloc(len + 1);
+    if (!kept) return NULL;
+    size_t klen = 0;
+    char *hoisted = NULL;
+    size_t hlen = 0;
+    size_t hcap = 0;
+    bool moved = false;
+    bool in_fence = false;
+    char fence_char = 0;
+    int fence_len = 0;
+    const char *p = content;
+
+    while (*p) {
+        const char *line_end = strchr(p, '\n');
+        bool has_nl = line_end != NULL;
+        if (!line_end) line_end = p + strlen(p);
+        size_t line_len = (size_t)(line_end - p);
+        char ch = 0;
+        int n = 0;
+        bool fence = line_is_fence_marker(p, line_end, in_fence, fence_char, fence_len, &ch, &n);
+        if (fence && !in_fence) {
+            in_fence = true;
+            fence_char = ch;
+            fence_len = n;
+        } else if (fence && in_fence) {
+            in_fence = false;
+        }
+
+        if (!in_fence && !fence && line_is_any_footnote_definition(p, line_end)) {
+            moved = true;
+            append_bytes(&hoisted, &hlen, &hcap, p, line_len);
+            if (has_nl) append_bytes(&hoisted, &hlen, &hcap, "\n", 1);
+            p = has_nl ? line_end + 1 : line_end;
+            while (*p) {
+                const char *cont_end = strchr(p, '\n');
+                bool cont_nl = cont_end != NULL;
+                if (!cont_end) cont_end = p + strlen(p);
+                size_t cont_len = (size_t)(cont_end - p);
+                bool indented = cont_len > 0 &&
+                    (*p == '\t' || (cont_len >= 4 && p[0] == ' ' && p[1] == ' ' && p[2] == ' ' && p[3] == ' '));
+                if (!indented) break;
+                append_bytes(&hoisted, &hlen, &hcap, p, cont_len);
+                if (cont_nl) append_bytes(&hoisted, &hlen, &hcap, "\n", 1);
+                p = cont_nl ? cont_end + 1 : cont_end;
+                if (!cont_nl) break;
+            }
+            continue;
+        }
+
+        memcpy(kept + klen, p, line_len);
+        klen += line_len;
+        if (has_nl) kept[klen++] = '\n';
+        p = has_nl ? line_end + 1 : line_end;
+    }
+
+    if (!moved) {
+        free(kept);
+        free(hoisted);
+        return NULL;
+    }
+    kept[klen] = '\0';
+    *hoisted_out = hoisted;
+    return kept;
 }
 
 static bool is_footnote_definition_continuation(const char *line_start, size_t line_len) {
@@ -794,11 +924,34 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
         }
 
         if (parse_markdown && content_len > 0) {
+            /* Footnote refs in this region are resolved by the document parser.
+             * The region parser only sees placeholders, and the real references
+             * are emitted after the element so numbering stays in reading order. */
+            char *fn_stash = NULL;
+            size_t fn_stash_len = 0;
+            size_t fn_stash_cap = 0;
+            char *fn_hoisted = NULL;
+            bool wrote_region = false;
+
             /* Extract content */
             char *content = malloc(content_len + 1);
             if (content) {
                 memcpy(content, content_start, content_len);
                 content[content_len] = '\0';
+
+                char *without_defs = hoist_footnote_definitions(content, &fn_hoisted);
+                if (without_defs) {
+                    free(content);
+                    content = without_defs;
+                    content_len = strlen(content);
+                }
+                char *shielded = apex_shield_footnote_refs(content, content_len, false,
+                                                          &fn_stash, &fn_stash_len, &fn_stash_cap);
+                if (shielded) {
+                    free(content);
+                    content = shielded;
+                    content_len = strlen(content);
+                }
 
                 /* Recursively process nested divs with markdown="1" BEFORE parsing */
                 /* This ensures nested divs are processed before cmark-gfm sees them */
@@ -927,6 +1080,7 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
                             memcpy(write_pos, html_content, html_len);
                             write_pos += html_len;
                             remaining -= html_len;
+                            wrote_region = true;
 
                             free(html);
                         }
@@ -958,6 +1112,34 @@ static char *apex_process_html_markdown_impl(const char *text, void *img_attrs, 
                 *write_pos++ = '\n';
                 remaining--;
             }
+
+            if (wrote_region && (fn_stash_len > 0 || (fn_hoisted && fn_hoisted[0]))) {
+                size_t hlen = fn_hoisted ? strlen(fn_hoisted) : 0;
+                size_t extra = 1 + fn_stash_len + 2 + hlen + 1;
+                char *extra_buf = malloc(extra + 1);
+                if (extra_buf) {
+                    size_t n = 0;
+                    extra_buf[n++] = '\n';
+                    if (fn_stash_len > 0) {
+                        memcpy(extra_buf + n, fn_stash, fn_stash_len);
+                        n += fn_stash_len;
+                        extra_buf[n++] = '\n';
+                    }
+                    if (hlen > 0) {
+                        if (fn_stash_len > 0) extra_buf[n++] = '\n';
+                        memcpy(extra_buf + n, fn_hoisted, hlen);
+                        n += hlen;
+                        if (fn_hoisted[hlen - 1] != '\n') extra_buf[n++] = '\n';
+                    }
+                    ENSURE_OUTPUT_SPACE(n);
+                    memcpy(write_pos, extra_buf, n);
+                    write_pos += n;
+                    remaining -= n;
+                    free(extra_buf);
+                }
+            }
+            free(fn_stash);
+            free(fn_hoisted);
         } else {
             /* markdown="0" or no parsing - copy everything as-is */
             size_t total_len = closing_tag - tag_start;

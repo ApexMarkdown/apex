@@ -2026,6 +2026,83 @@ void test_definition_lists(void) {
         apex_free_string(html);
     }
 
+    /* A footnote marker inside a definition stays a footnote, and the note remains. */
+    {
+        const char *noted =
+            "Intro[^a].\n"
+            "\n"
+            "Traverse\n"
+            ": A writing tool[^dl].\n"
+            ": $1\n"
+            "\n"
+            "[^a]: First note.\n"
+            "[^dl]: Definition note.\n";
+        html = apex_markdown_to_html(noted, strlen(noted), &opts);
+        assert_contains(html, "<dd>A writing tool<sup class=\"footnote-ref\"><a href=\"#fn-dl\" id=\"fnref-dl\" data-footnote-ref>2</a></sup>.</dd>",
+                        "Footnote marker in a definition links to its note");
+        assert_contains(html, "id=\"fn-dl\"", "Footnote definition is kept");
+        assert_contains(html, "Definition note.", "Footnote definition text is kept");
+        assert_contains(html, "<dd>$1</dd>", "Later definition is kept");
+        assert_not_contains(html, "[^dl]", "Footnote marker is not left literal");
+        assert_not_contains(html, "%%APEXFN", "Footnote placeholder is not left in the output");
+        apex_free_string(html);
+    }
+
+    {
+        const char *coded =
+            "Term\n"
+            ": See `[^dl]` in code.\n"
+            "\n"
+            "[^dl]: Unused.\n";
+        html = apex_markdown_to_html(coded, strlen(coded), &opts);
+        assert_contains(html, "<code>[^dl]</code>", "Footnote marker in code stays literal");
+        assert_not_contains(html, "footnote-ref", "Code-span footnote marker is not a reference");
+        apex_free_string(html);
+    }
+
+    /* CSS ::before inside a style block is not a one-line definition. */
+    {
+        const char *styled =
+            "<style>\n"
+            "dt .setapplink:hover::before,\n"
+            "a.setapplink:hover::before,\n"
+            "dt .setapplink:focus::before,\n"
+            "a.setapplink:focus::before {\n"
+            "  width: 105px;\n"
+            "}\n"
+            "</style>\n"
+            "\n"
+            "Term\n"
+            ": definition\n";
+        html = apex_markdown_to_html(styled, strlen(styled), &opts);
+        assert_contains(html, "<style>", "Style element is preserved");
+        assert_contains(html, "a.setapplink:focus::before", "CSS ::before stays inside the style block");
+        assert_not_contains(html, "<dt>dt .setapplink:hover</dt>", "Style block is not a definition list");
+        assert_not_contains(html, "<dd>before,</dd>", "CSS after :: is not a definition");
+        assert_contains(html, "<dt>Term</dt>", "Definition list after a style block still works");
+        assert_contains(html, "<dd>definition</dd>", "Definition after a style block still works");
+        apex_free_string(html);
+    }
+
+    {
+        const char *oneline = "<style>a.hover::before { content: \"\"; }</style>\n";
+        html = apex_markdown_to_html(oneline, strlen(oneline), &opts);
+        assert_contains(html, "a.hover::before", "One-line style block keeps ::before");
+        assert_not_contains(html, "<dl>", "One-line style block is not a definition list");
+        apex_free_string(html);
+    }
+
+    {
+        const char *script =
+            "<script>\n"
+            "const pair = \"a::b\";\n"
+            "</script>\n";
+        html = apex_markdown_to_html(script, strlen(script), &opts);
+        assert_contains(html, "a::b", "Script block keeps ::");
+        assert_not_contains(html, "<dl>", "Script block is not a definition list");
+        apex_free_string(html);
+    }
+
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Definition Lists Tests", had_failures, false);
 }
@@ -2453,9 +2530,16 @@ void test_html_markdown_attributes(void) {
     html = apex_markdown_to_html(fn_in_block, strlen(fn_in_block), &opts);
     assert_contains(html, "class=\"footnote-ref\"", "markdown=\"1\" resolves reference footnotes");
     assert_contains(html, "href=\"#fn-note\"", "markdown=\"1\" footnote links to block anchor");
-    assert_contains(html, "<section class=\"footnotes\"", "markdown=\"1\" footnotes section rendered in block");
-    assert_contains(html, "Footnote text.", "markdown=\"1\" footnote definition rendered in block");
+    assert_contains(html, "Footnote text.", "markdown=\"1\" footnote definition is kept");
     assert_not_contains(html, "See footnote[^note]", "markdown=\"1\" footnote not left literal");
+    assert_not_contains(html, "%%APEXFN", "markdown=\"1\" footnote placeholder is removed");
+    {
+        const char *end_block = html ? strstr(html, "</blockquote>") : NULL;
+        const char *section = html ? strstr(html, "<section class=\"footnotes\"") : NULL;
+        const char *second = section ? strstr(section + 1, "<section class=\"footnotes\"") : NULL;
+        test_result(end_block && section && section > end_block && !second,
+                    "markdown=\"1\" footnote joins the document footnote section");
+    }
     apex_free_string(html);
 
     bool had_failures = suite_end(suite_failures);
@@ -2766,6 +2850,65 @@ void test_fenced_divs(void) {
     assert_contains(html, "Second div", "Second div content");
     assert_contains(html, "Third div", "Third div content");
     apex_free_string(html);
+
+    /* Footnotes inside a div join the document list, in reading order. */
+    {
+        const char *noted =
+            "Before[^a].\n"
+            "\n"
+            "::: outer\n"
+            "First[^b].\n"
+            "\n"
+            "::: inner\n"
+            "Second[^c].\n"
+            ":::\n"
+            "\n"
+            "Third[^d].\n"
+            ":::\n"
+            "\n"
+            "After[^e].\n"
+            "\n"
+            "[^a]: Before note.\n"
+            "[^b]: First note.\n"
+            "[^c]: Second note.\n"
+            "[^d]: Third note.\n"
+            "[^e]: After note.\n";
+        html = apex_markdown_to_html(noted, strlen(noted), &opts);
+        assert_contains(html, "First<sup class=\"footnote-ref\"><a href=\"#fn-b\" id=\"fnref-b\" data-footnote-ref>2</a></sup>.",
+                        "First div footnote is numbered with the document");
+        assert_contains(html, "Second<sup class=\"footnote-ref\"><a href=\"#fn-c\" id=\"fnref-c\" data-footnote-ref>3</a></sup>.",
+                        "Nested div footnote keeps its place in the sequence");
+        assert_contains(html, "Third<sup class=\"footnote-ref\"><a href=\"#fn-d\" id=\"fnref-d\" data-footnote-ref>4</a></sup>.",
+                        "Later footnote in the outer div follows the nested one");
+        assert_contains(html, "After<sup class=\"footnote-ref\"><a href=\"#fn-e\" id=\"fnref-e\" data-footnote-ref>5</a></sup>.",
+                        "Footnote after the div follows footnotes inside it");
+        assert_contains(html, "Second note.", "Nested div footnote text is kept");
+        assert_not_contains(html, "%%APEXFN", "Div footnote placeholder is removed");
+        const char *outer_end = html ? strstr(html, "</div>") : NULL;
+        const char *section = html ? strstr(html, "<section class=\"footnotes\"") : NULL;
+        const char *second = section ? strstr(section + 1, "<section class=\"footnotes\"") : NULL;
+        test_result(outer_end && section && section > outer_end && !second,
+                    "Div footnotes share the document footnote section");
+        apex_free_string(html);
+    }
+
+    {
+        const char *coded =
+            "::: note\n"
+            "See `[^n]` in code.\n"
+            "\n"
+            "```\n"
+            "[^n]\n"
+            "```\n"
+            ":::\n"
+            "\n"
+            "[^n]: Unused.\n";
+        html = apex_markdown_to_html(coded, strlen(coded), &opts);
+        assert_contains(html, "<code>[^n]</code>", "Code span inside a div keeps a literal marker");
+        assert_contains(html, "<pre><code>[^n]\n</code></pre>", "Code block inside a div keeps a literal marker");
+        assert_not_contains(html, "footnote-ref", "Code markers inside a div are not footnotes");
+        apex_free_string(html);
+    }
 
     bool had_failures = suite_end(suite_failures);
     print_suite_title("Fenced Divs Tests", had_failures, false);

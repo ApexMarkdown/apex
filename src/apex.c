@@ -6098,6 +6098,9 @@ char *apex_markdown_to_html(const char *markdown, size_t len, const apex_options
         return NULL;
     }
 
+    /* Footnote markers shielded inside definition lists are real refs now. */
+    apex_splice_definition_footnotes(document);
+
     if (options->enable_task_lists) {
         apex_fix_blockquote_tasklists(document, cmark_find_syntax_extension("tasklist"), 0);
     }

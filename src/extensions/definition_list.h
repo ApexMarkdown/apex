@@ -24,6 +24,20 @@ extern "C" {
 char *apex_process_definition_lists(const char *text, bool unsafe);
 
 /**
+ * Move footnote references that were shielded inside definition lists
+ * back into the rendered HTML, and drop the temporary reference paragraphs.
+ */
+void apex_splice_definition_footnotes(cmark_node *root);
+
+/**
+ * Replace [^id] outside code with a placeholder and append a real reference
+ * to stash. Returns a new string, or NULL when content has no footnote marker.
+ * Caller frees the result.
+ */
+char *apex_shield_footnote_refs(const char *content, size_t len, bool in_code,
+                                char **stash, size_t *stash_len, size_t *stash_cap);
+
+/**
  * Debug touch - no-op for one-line format
  */
 void apex_deflist_debug_touch(int enable_definition_lists);
