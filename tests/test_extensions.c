@@ -1986,6 +1986,23 @@ void test_definition_lists(void) {
         apex_free_string(html);
     }
 
+    /* IAL on a link inside a definition term becomes a class on that link. */
+    {
+        const char *ial_term =
+            "[Pro](https://example.com/pro/ \"Pro\") [Setapp](https://example.com/setapp){:.setapplink}\n"
+            ": A menu bar manager\n";
+        html = apex_markdown_to_html(ial_term, strlen(ial_term), &opts);
+        assert_contains(html, "class=\"setapplink\"", "Definition term link IAL becomes a class");
+        assert_contains(html, "href=\"https://example.com/setapp\"", "Setapp link kept in the term");
+        assert_not_contains(html, "{:.setapplink}", "Definition term IAL is not left as text");
+        assert_not_contains(html, "href=\"https://example.com/pro/\" class=\"setapplink\"",
+                            "IAL class stays on the link it follows");
+        const char *pro = html ? strstr(html, "https://example.com/pro/") : NULL;
+        const char *setapp = html ? strstr(html, "setapplink") : NULL;
+        test_result(pro && setapp && setapp > pro, "Class is on the later term link");
+        apex_free_string(html);
+    }
+
     {
         const char *quoted =
             "[Masoc](https://example.com)\n"

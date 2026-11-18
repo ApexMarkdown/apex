@@ -22,11 +22,13 @@
  */
 
 #include "definition_list.h"
+#include "ial.h"
 #include "parser.h"
 #include <ctype.h>
 #include "node.h"
 #include "html.h"
 #include "render.h"
+#include "../html_renderer.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -282,7 +284,12 @@ static char *render_inline_with_doc(const char *content, size_t content_len,
         cmark_node_free(doc);
         return NULL;
     }
-    char *html = cmark_render_html(last, opts, NULL);
+    /* Terms and definitions are rendered before the document IAL pass, so
+     * apply span attributes here or {:.class} stays literal text in the <dt>. */
+    if (memchr(content, '{', content_len) != NULL) {
+        apex_process_ial_in_tree(doc, NULL);
+    }
+    char *html = apex_render_html_with_attributes(last, opts);
     cmark_node_free(doc);
     if (!html) return NULL;
 
