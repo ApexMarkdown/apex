@@ -2,6 +2,18 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.53] - 2026-11-18
+
+### Fixed
+
+- **Definition terms** turn a link's {:.class} into a class on that link instead of leaving the attribute list as text.
+
+## [1.1.52] - 2026-11-18
+
+### Fixed
+
+- **Definition terms** turn a link's {:.class} into a class on that link instead of leaving the attribute list as text.
+
 ## [1.1.51] - 2026-11-08
 
 ### Fixed
@@ -3488,6 +3500,8 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.53]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.53
+[1.1.52]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.52
 [1.1.51]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.51
 [1.1.50]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.50
 [1.1.49]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.49
