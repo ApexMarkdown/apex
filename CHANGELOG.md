@@ -2,6 +2,14 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.54] - 2026-11-18
+
+### Fixed
+
+- **Style, script, pre, and textarea blocks** are copied through unchanged, so CSS such as `::before` is not turned into a definition list.
+- **Definition lists** turn a footnote marker in a term or definition into a real footnote, and the note stays at the end of the document.
+- **Fenced divs** and other `markdown="1"` regions share the document footnote list, numbered in reading order with notes outside the div.
+
 ## [1.1.53] - 2026-11-18
 
 ### Fixed
@@ -3500,6 +3508,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.54]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.54
 [1.1.53]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.53
 [1.1.52]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.52
 [1.1.51]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.51
