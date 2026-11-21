@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.55] - 2026-11-21
+
+### Fixed
+
+- **Table cells** that contain the text `table:` stay in the row, instead of being split off as a caption.
+
 ## [1.1.54] - 2026-11-18
 
 ### Fixed
@@ -3508,6 +3514,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.55]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.55
 [1.1.54]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.54
 [1.1.53]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.53
 [1.1.52]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.52
