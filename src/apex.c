@@ -1460,18 +1460,10 @@ static char *apex_preprocess_table_captions(const char *text) {
                 is_bracket_caption_line = true;
             } else if ((size_t)(line_end - p) >= 6 &&
                        (strncmp(p, "Table:", 6) == 0 || strncmp(p, "table:", 6) == 0)) {
-                /* Table: at start of line (after whitespace) - always treat as caption */
+                /* Table: at the start of the line (after whitespace) is a caption.
+                 * Do not search later in the line: a cell may contain the text "table:". */
                 is_pandoc_caption_line = true;
             } else if (prev_line_was_table_row || prev_line_was_blank || in_table_section) {
-                /* Also check for Table: later in the line (when it appears immediately after a table row) */
-                const char *table_check = p;
-                while (table_check < line_end - 5) {
-                    if (strncmp(table_check, "Table:", 6) == 0 || strncmp(table_check, "table:", 6) == 0) {
-                        is_pandoc_caption_line = true;
-                        break;
-                    }
-                    table_check++;
-                }
                 /* Check for : Caption format (Pandoc-style, only in table context)
                  * Require prev_line_was_table_row or in_table_section - NOT prev_line_was_blank alone.
                  * prev_line_was_blank alone would wrongly convert "Term\n\n: definition 1" (def list) to caption. */
@@ -1540,14 +1532,8 @@ static char *apex_preprocess_table_captions(const char *text) {
              * because Table: format is unambiguous and should work even after blank lines.
              * However, when it appears immediately after a table row (prev_line_was_table_row=true),
              * we need to ensure the table ends before the caption, so we always insert a blank line. */
-            /* Find where 'Table:' or 'table:' appears in the line (might not be at the start) */
-            const char *table_marker = strstr(line_start, "Table:");
-            if (!table_marker || table_marker >= line_end) {
-                table_marker = strstr(line_start, "table:");
-                if (!table_marker || table_marker >= line_end) {
-                    table_marker = p; /* Fallback to p if not found */
-                }
-            }
+            /* The marker is at the start of the line, after optional whitespace. */
+            const char *table_marker = p;
             const char *caption_start = table_marker + 6; /* after 'Table:' or 'table:' */
             while (caption_start < line_end &&
                    (*caption_start == ' ' || *caption_start == '\t')) {
@@ -1589,8 +1575,7 @@ static char *apex_preprocess_table_captions(const char *text) {
                 /* If we buffered a blank line, skip it (don't write it) since caption follows */
                 buffered_blank_line = false; /* Discard the buffered blank line */
 
-                /* If Table: appears in the middle of the line (after table row content),
-                 * write the table row part first, then the caption */
+                /* Keep indentation before a line-start Table: caption. */
                 if (table_marker > line_start) {
                     /* Write the table row part (everything before Table:) */
                     size_t table_part_len = (size_t)(table_marker - line_start);

@@ -408,6 +408,36 @@ void test_advanced_tables(void) {
     assert_contains(html, "<table", "Table with : Caption before no blank renders");
     apex_free_string(html);
 
+    /* A cell that contains the text "table:" is not a caption. */
+    {
+        const char *cell_table_colon =
+            "| page | as it appears | fix |\n"
+            "|---|---|---|\n"
+            "| 17 | table: \"Captures a visual image and **identify** visible objects\" | \"identifies\" |\n";
+        html = apex_markdown_to_html(cell_table_colon, strlen(cell_table_colon), &opts);
+        assert_contains(html, "<table", "Cell text table: still renders a table");
+        assert_contains(html, "<td>17</td>", "Cell text table: page cell stays in the row");
+        assert_contains(html, "table:", "Cell text table: phrase stays in the cell");
+        assert_contains(html, "<strong>identify</strong>", "Cell text table: inline markup in that cell still renders");
+        assert_contains(html, "identifies", "Cell text table: following cell stays in the row");
+        assert_not_contains(html, "<figcaption>", "Cell text table: is not turned into a caption");
+        apex_free_string(html);
+    }
+
+    /* Table: at the start of the following line is still a caption. */
+    {
+        const char *real_caption =
+            "| Key | Value |\n"
+            "| --- | --- |\n"
+            "| one | 1 |\n"
+            "\n"
+            "Table: Key value table\n";
+        html = apex_markdown_to_html(real_caption, strlen(real_caption), &opts);
+        assert_contains(html, "<figcaption>Key value table</figcaption>", "Line-start Table: caption still renders");
+        assert_contains(html, "<td>one</td>", "Line-start Table: caption leaves the table row intact");
+        apex_free_string(html);
+    }
+
     /* Test Pandoc-style table caption with : Caption syntax AFTER table */
     const char *pandoc_caption = "| Key | Value |\n| --- | :---: |\n| one |   1   |\n| two |   2   |\n\n: Key value table";
     html = apex_markdown_to_html(pandoc_caption, strlen(pandoc_caption), &opts);
