@@ -89,6 +89,7 @@ extern NSString * const ApexModeQuarto;
  *   - @"embedImages": NSNumber (BOOL) - Embed images as base64 data URLs
  *   - @"enablePlugins": NSNumber (BOOL) - Enable external plugin processing
  *   - @"enableAutolink": NSNumber (BOOL) - Autolink bare URLs and emails
+ *   - @"enableIndices": NSNumber (BOOL) - Process index syntax such as (!term) and {^...}
  *   - @"outputFormat": NSString - @"html" (default) or @"rtf"
  * @return HTML or RTF string depending on outputFormat
  */

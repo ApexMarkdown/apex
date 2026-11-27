@@ -77,6 +77,11 @@ public struct ApexOptions {
     /// Autolink bare URLs and emails. `nil` leaves the mode default unchanged.
     public var enableAutolink: Bool? = nil
 
+    /// Index syntax such as `(!term)` and `{^...}`. Unified mode turns it on,
+    /// which rewrites code that merely contains those characters, like
+    /// `if (!ok)` or `%r{^/(\d+)}`. `nil` leaves the mode default unchanged.
+    public var enableIndices: Bool? = nil
+
     /// Output format: "html" (default) or "rtf"
     public var outputFormat: String? = nil
 
@@ -125,6 +130,9 @@ public struct ApexOptions {
         }
         if let enableAutolink {
             dict["enableAutolink"] = enableAutolink
+        }
+        if let enableIndices {
+            dict["enableIndices"] = enableIndices
         }
         if let outputFormat = outputFormat {
             dict["outputFormat"] = outputFormat

@@ -289,6 +289,12 @@ NSString *const ApexModeQuarto = @"quarto";
       options.enable_autolink = [enableAutolinkValue boolValue];
     }
 
+    /* Index syntax: (!term), {^...}. Unified mode enables it by default. */
+    id enableIndicesValue = optionsDict[@"enableIndices"];
+    if (enableIndicesValue && [enableIndicesValue isKindOfClass:[NSNumber class]]) {
+      options.enable_indices = [enableIndicesValue boolValue];
+    }
+
     /* Output format: html (default) or rtf */
     id outputFormatValue = optionsDict[@"outputFormat"];
     if (outputFormatValue && [outputFormatValue isKindOfClass:[NSString class]]) {
