@@ -2,6 +2,12 @@
 
 All notable changes to Apex will be documented in this file.
 
+## [1.1.56] - 2026-11-27
+
+### New
+
+- **Index syntax** (`(!term)` and `{^...}`) can be turned off with `enableIndices` in the Objective-C and Swift APIs, so code such as `if (!ok)` or `%r{^/(\d+)}` is left alone.
+
 ## [1.1.55] - 2026-11-21
 
 ### Fixed
@@ -3514,6 +3520,7 @@ Based on [cmark-gfm](https://github.com/github/cmark-gfm) by GitHub
 
 Developed for [Marked](https://marked2app.com) by Brett Terpstra
 
+[1.1.56]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.56
 [1.1.55]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.55
 [1.1.54]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.54
 [1.1.53]: https://github.com/ApexMarkdown/apex/releases/tag/v1.1.53
